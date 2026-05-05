@@ -9,7 +9,6 @@ interface TopBarProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onStop: () => void;
-  timecode: string;
   viewMode: '2D' | '3D';
   onViewModeChange: (mode: '2D' | '3D') => void;
   playheadPosition: number;
@@ -79,7 +78,7 @@ function TCDisplay({ label, value, accent = false }: { label: string; value: str
 }
 
 export function TopBar({
-  isPlaying, onPlayPause, onStop, timecode, viewMode, onViewModeChange,
+  isPlaying, onPlayPause, onStop, viewMode, onViewModeChange,
   playheadPosition, onPlayheadChange, onSaveState, onLoadState, theme = 'system', onThemeChange
 }: TopBarProps) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -181,15 +180,6 @@ export function TopBar({
         <TBtn onClick={() => onPlayheadChange(30)} title="Zum Ende">
           <SkipForward size={11} />
         </TBtn>
-      </div>
-
-      <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
-
-      {/* Timecode */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <TCDisplay label="In" value="00:00:00:00" />
-        <TCDisplay label="Timecode" value={timecode} accent />
-        <TCDisplay label="Out" value="00:00:30:00" />
       </div>
 
       {/* Spacer */}
