@@ -16,6 +16,7 @@ interface PreviewProps {
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
+  onCameraChange?: (state: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }) => void;
 }
 
 /* ── Static word-network mock data ── */

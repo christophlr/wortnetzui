@@ -15,6 +15,7 @@ interface Network3DProps {
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;
+  onCameraChange?: (state: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }) => void;
 }
 
 interface GraphNode {

@@ -1,5 +1,4 @@
-import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft } from 'lucide-react';
-import * as Slider from '@radix-ui/react-slider';
+import { Eye, Lock, ChevronRight, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 /* ── Types & constants ── */
