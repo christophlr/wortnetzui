@@ -14,12 +14,7 @@ interface Network3DProps {
   };
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
-  cameraSnapshots?: Array<{
-    time: number;
-    position: { x: number; y: number; z: number };
-    target: { x: number; y: number; z: number };
-  }>;
-}
+  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;}
 
 interface GraphNode {
   label: string;
@@ -41,7 +36,7 @@ interface GraphEdge {
   line?: THREE.Line;
 }
 
-const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
+const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes, far away up the hill. It was 3am that day, cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write, I write like a ritual over and over. The more exist the more I go I fly, they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
 
 const DEFAULT_PHYSICS = {
   repulsion: 1500,
@@ -75,6 +70,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const maxWordsRef = useRef(-Infinity);
   const physicsEnabledRef = useRef(true);
   const stillFramesRef = useRef(0);
+  const playheadRef = useRef(playheadPosition);
+  const cameraSnapshotsRef = useRef(cameraSnapshots);
+  const isPlayingRef = useRef(isPlaying);
+  const lastAppliedTimeRef = useRef<number | null>(null);
 
   useImperativeHandle(ref, () => ({
     getCameraSnapshot: () => {
@@ -94,10 +93,23 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
   }));
 
+  useEffect(() => {
+    playheadRef.current = playheadPosition;
+  }, [playheadPosition]);
+
+  useEffect(() => {
+    cameraSnapshotsRef.current = cameraSnapshots;
+    lastAppliedTimeRef.current = null;
+  }, [cameraSnapshots]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
   /* ── TEXT PARSING ── */
   const normalizeText = (text: string) => {
     return text
-      .replace(/[,!?;:()"""]/g, '')
+      .replace(/[,!?;:()""\"/g, '')
       .replace(/\n+/g, ' ')
       .trim()
       .toUpperCase();
@@ -406,6 +418,50 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     return `hsl(${hue}, ${settings.saturation}%, ${settings.lightness}%)`;
   };
 
+  const applyCameraSnapshots = (
+    snapshots: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>,
+    time: number
+  ) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    if (snapshots.length === 0) return;
+
+    const sorted = [...snapshots].sort((a, b) => a.time - b.time);
+    let prev = sorted[0];
+    let next = sorted[sorted.length - 1];
+
+    if (sorted.length === 1 || time <= sorted[0].time) {
+      prev = sorted[0];
+      next = sorted[0];
+    } else if (time >= sorted[sorted.length - 1].time) {
+      prev = sorted[sorted.length - 1];
+      next = sorted[sorted.length - 1];
+    } else {
+      for (let i = 0; i < sorted.length - 1; i++) {
+        if (sorted[i].time <= time && sorted[i + 1].time >= time) {
+          prev = sorted[i];
+          next = sorted[i + 1];
+          break;
+        }
+      }
+    }
+
+    const duration = next.time - prev.time;
+    const elapsed = time - prev.time;
+    const t = duration > 0 ? Math.max(0, Math.min(1, elapsed / duration)) : 0;
+    const smoothT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+    const camX = prev.position.x + (next.position.x - prev.position.x) * smoothT;
+    const camY = prev.position.y + (next.position.y - prev.position.y) * smoothT;
+    const camZ = prev.position.z + (next.position.z - prev.position.z) * smoothT;
+    const tgtX = prev.target.x + (next.target.x - prev.target.x) * smoothT;
+    const tgtY = prev.target.y + (next.target.y - prev.target.y) * smoothT;
+    const tgtZ = prev.target.z + (next.target.z - prev.target.z) * smoothT;
+
+    cameraRef.current.position.set(camX, camY, camZ);
+    controlsRef.current.target.set(tgtX, tgtY, tgtZ);
+    cameraRef.current.lookAt(controlsRef.current.target);
+  };
+
   /* ── SETUP & ANIMATION ── */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -512,36 +568,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       frameCount++;
 
       // Apply camera animation from snapshots
-      if (cameraSnapshots.length >= 2) {
-        // Find surrounding snapshots
-        let prevSnapshot = cameraSnapshots[0];
-        let nextSnapshot = cameraSnapshots[cameraSnapshots.length - 1];
-
-        for (let i = 0; i < cameraSnapshots.length - 1; i++) {
-          if (cameraSnapshots[i].time <= playheadPosition && cameraSnapshots[i + 1].time > playheadPosition) {
-            prevSnapshot = cameraSnapshots[i];
-            nextSnapshot = cameraSnapshots[i + 1];
-            break;
-          }
-        }
-
-        // Interpolate camera position
-        const duration = nextSnapshot.time - prevSnapshot.time;
-        const elapsed = playheadPosition - prevSnapshot.time;
-        const t = duration > 0 ? Math.max(0, Math.min(1, elapsed / duration)) : 0;
-
-        // Smooth interpolation (ease in-out)
-        const smoothT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-        camera.position.x = prevSnapshot.position.x + (nextSnapshot.position.x - prevSnapshot.position.x) * smoothT;
-        camera.position.y = prevSnapshot.position.y + (nextSnapshot.position.y - prevSnapshot.position.y) * smoothT;
-        camera.position.z = prevSnapshot.position.z + (nextSnapshot.position.z - prevSnapshot.position.z) * smoothT;
-
-        controlsRef.current!.target.x = prevSnapshot.target.x + (nextSnapshot.target.x - prevSnapshot.target.x) * smoothT;
-        controlsRef.current!.target.y = prevSnapshot.target.y + (nextSnapshot.target.y - prevSnapshot.target.y) * smoothT;
-        controlsRef.current!.target.z = prevSnapshot.target.z + (nextSnapshot.target.z - prevSnapshot.target.z) * smoothT;
-
-        camera.lookAt(controlsRef.current!.target);
+      const time = playheadRef.current;
+      const snapshots = cameraSnapshotsRef.current;
+      const shouldApply = isPlayingRef.current || time !== lastAppliedTimeRef.current;
+      if (shouldApply) {
+        applyCameraSnapshots(snapshots, time);
+        lastAppliedTimeRef.current = time;
       }
 
       // Update controls (for damping)
