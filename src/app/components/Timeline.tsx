@@ -394,9 +394,7 @@ export function Timeline({
             Keyframe
           </button>
           <div className="h-4 w-px bg-zinc-800 mx-0.5" />
-          <button className="h-6 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 text-[10px] rounded border border-zinc-700/60 transition-colors">
-            Marker
-          </button>
+          
         </div>
 
         <div className="flex items-center gap-2.5">

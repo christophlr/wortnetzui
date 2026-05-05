@@ -211,22 +211,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
 
       {/* Top-left badges - visible in both modes */}
       <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none z-10">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-medium ${
-          viewMode === '3D'
-            ? 'bg-orange-950/60 border-orange-800/50 text-orange-400'
-            : 'bg-cyan-950/60 border-cyan-800/50 text-cyan-400'
-        }`}>
-          <div className={`w-1 h-1 rounded-full ${viewMode === '3D' ? 'bg-orange-400' : 'bg-cyan-400'}`} />
-          {viewMode}
-        </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-medium ${
-          physicsEnabled
-            ? 'bg-orange-950/50 border-orange-800/40 text-orange-400'
-            : 'bg-zinc-900/80 border-zinc-700/50 text-zinc-600'
-        }`}>
-          <div className={`w-1 h-1 rounded-full ${physicsEnabled ? 'bg-orange-400' : 'bg-zinc-600'}`} />
-          Physik {physicsEnabled ? 'An' : 'Aus'}
-        </div>
+        
+        
       </div>
 
       {/* Top-right: playing indicator - visible in both modes */}

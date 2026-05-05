@@ -219,14 +219,7 @@ export function Inspector({
   return (
     <div className="w-[268px] bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0 overflow-hidden">
       {/* Panel Header */}
-      <div className="h-8 flex items-center justify-between px-3 border-b border-zinc-800 shrink-0">
-        <span className="text-[9px] font-medium text-zinc-600 uppercase tracking-widest">Inspector</span>
-        <div className="flex items-center gap-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/70" />
-          <div className="w-1.5 h-1.5 rounded-full bg-orange-500/70" />
-          <div className="w-1.5 h-1.5 rounded-full bg-purple-500/70" />
-        </div>
-      </div>
+      
 
       <Tabs.Root defaultValue="content" className="flex-1 flex flex-col overflow-hidden">
         {/* Tab Navigation */}
@@ -513,12 +506,7 @@ export function Inspector({
       </Tabs.Root>
 
       {/* Status bar */}
-      <div className="h-7 border-t border-zinc-800 flex items-center px-3 gap-2 shrink-0">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500/70" />
-        <span className="text-[9px] text-zinc-600">Bereit · 14 Wörter</span>
-        <div className="flex-1" />
-        <span className="text-[9px] text-zinc-700">v0.4.2</span>
-      </div>
+      
     </div>
   );
 }

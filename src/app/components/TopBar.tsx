@@ -93,12 +93,7 @@ export function TopBar({
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
         {['Bearbeiten', 'Ansicht', 'Fenster'].map(m => (
-          <button
-            key={m}
-            className="px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
-          >
-            {m}
-          </button>
+          null
         ))}
       </div>
 
