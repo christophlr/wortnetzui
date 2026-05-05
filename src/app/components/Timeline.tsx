@@ -1,6 +1,6 @@
-import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft } from 'lucide-react';
-import * as Slider from '@radix-ui/react-slider';
+import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { TIMELINE_DURATION } from '../constants';
 
 /* ── Types & constants ── */
 
@@ -16,9 +16,12 @@ interface TimelineProps {
   onCaptureSnapshot?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   timecode?: string;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
-const DURATION = 30;
 const LABEL_W = 224; // px, must match the w-[224px] class below
 
 const TRACK_GROUPS = [
@@ -48,21 +51,25 @@ const COLOR = {
 /* ── Transport button ── */
 
 function TBtn({
-  onClick, title, children, active = false
+  onClick, title, children, active = false, disabled = false
 }: {
-  onClick: () => void;
+  onClick?: () => void;
   title?: string;
   children: React.ReactNode;
   active?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      disabled={disabled}
       className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
-        active
-          ? 'bg-zinc-700 text-zinc-100'
-          : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+        disabled
+          ? 'opacity-30 cursor-not-allowed text-zinc-600'
+          : active
+            ? 'bg-zinc-700 text-zinc-100'
+            : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
       }`}
     >
       {children}
@@ -89,13 +96,11 @@ function TCDisplay({ label, value, accent = false }: { label: string; value: str
 
 /* ── Ruler ── */
 
-function Ruler({ zoom }: { zoom: number }) {
-  const totalSec = DURATION;
-  // At zoom=1, show every 5s; at zoom>3, show every 1s; at zoom>6 show every 0.5s
-  const majorStep = zoom >= 6 ? 1 : zoom >= 3 ? 2 : 5;
+function Ruler({ zoom, duration }: { zoom: number; duration: number }) {
+  const majorStep = zoom >= 6 ? 1 : zoom >= 3 ? 2 : duration > 60 ? 10 : 5;
   const minorStep = majorStep / 5;
   const ticks: { t: number; major: boolean }[] = [];
-  for (let t = 0; t <= totalSec; t += minorStep) {
+  for (let t = 0; t <= duration; t += minorStep) {
     ticks.push({ t: parseFloat(t.toFixed(4)), major: Math.abs(t % majorStep) < 0.001 });
   }
 
@@ -105,12 +110,12 @@ function Ruler({ zoom }: { zoom: number }) {
         <div
           key={t}
           className="absolute top-0 flex flex-col items-start"
-          style={{ left: `${(t / DURATION) * 100}%` }}
+          style={{ left: `${(t / duration) * 100}%` }}
         >
           <div className={`w-px ${major ? 'h-3.5 bg-zinc-600' : 'h-2 bg-zinc-700'}`} />
           {major && (
             <span className="text-[9px] font-mono text-zinc-600 ml-0.5 mt-0.5 leading-none">
-              {t % 60 === 0 && t > 0 ? `${t / 60}m` : `${t}s`}
+              {t >= 60 ? `${Math.floor(t / 60)}m${t % 60 > 0 ? `${t % 60}s` : ''}` : `${t}s`}
             </span>
           )}
         </div>
@@ -121,12 +126,11 @@ function Ruler({ zoom }: { zoom: number }) {
 
 /* ── Curve (graph view) ── */
 
-function GraphCurve({ kfs, color }: { kfs: number[]; color: string }) {
+function GraphCurve({ kfs, color, duration }: { kfs: number[]; color: string; duration: number }) {
   if (kfs.length < 2) return null;
   const h = 26;
-  // Build a smooth curve through kfs (treated as value 1 at odd indices, 0 at even)
   const pts = kfs.map((t, i) => ({
-    x: (t / DURATION) * 100,
+    x: (t / duration) * 100,
     y: i % 2 === 0 ? h * 0.8 : h * 0.2,
   }));
   let d = `M ${pts[0].x} ${pts[0].y}`;
@@ -146,7 +150,7 @@ function GraphCurve({ kfs, color }: { kfs: number[]; color: string }) {
 /* ── Track row (inside a group) ── */
 
 function TrackRow({
-  track, color, selectedKeyframe, onKeyframeSelect, onMoveKeyframe, snap, contentRef,
+  track, color, selectedKeyframe, onKeyframeSelect, onMoveKeyframe, snap, contentRef, playheadPosition, duration,
 }: {
   track: { id: string; name: string; kfs: number[]; graph: boolean };
   color: keyof typeof COLOR;
@@ -155,6 +159,8 @@ function TrackRow({
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement>;
+  playheadPosition: number;
+  duration: number;
 }) {
   const c = COLOR[color];
   const [draggingKf, setDraggingKf] = useState<{ time: number; startX: number } | null>(null);
@@ -164,11 +170,11 @@ function TrackRow({
     const rect = contentRef.current.getBoundingClientRect();
     const rightW = rect.width - LABEL_W;
     const x = clientX - rect.left - LABEL_W;
-    const raw = (x / rightW) * DURATION;
-    const clamped = Math.max(0, Math.min(DURATION, raw));
-    if (snap) return Math.round(clamped * 2) / 2; // snap to 0.5s
+    const raw = (x / rightW) * duration;
+    const clamped = Math.max(0, Math.min(duration, raw));
+    if (snap) return Math.round(clamped * 2) / 2;
     return clamped;
-  }, [snap, contentRef]);
+  }, [snap, contentRef, duration]);
 
   useEffect(() => {
     if (!draggingKf) return;
@@ -208,15 +214,15 @@ function TrackRow({
 
       {/* Right: keyframes */}
       <div className={`flex-1 relative ${c.trackBg}`}>
-        {track.graph && <GraphCurve kfs={track.kfs} color={c.graphStroke} />}
+        {track.graph && <GraphCurve kfs={track.kfs} color={c.graphStroke} duration={duration} />}
         {track.kfs.map((t, idx) => {
           const selected = selectedKeyframe?.track === track.id && selectedKeyframe?.time === t;
+          const onPlayhead = !selected && Math.abs(t - playheadPosition) < 0.1;
           return (
             <button
               key={`${track.id}-${t}-${idx}`}
               onMouseDown={e => {
                 e.stopPropagation();
-                // Allow dragging for camera-snapshots track
                 if (track.id === 'camera-snapshots') {
                   setDraggingKf({ time: t, startX: e.clientX });
                   onKeyframeSelect(track.id, t);
@@ -225,14 +231,20 @@ function TrackRow({
                 }
               }}
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
-              style={{ left: `${(t / DURATION) * 100}%` }}
+              style={{ left: `${(t / duration) * 100}%` }}
             >
               <Diamond
                 size={10}
-                className={selected ? `${c.kf} drop-shadow-[0_0_8px_currentColor]` : 'text-zinc-500 hover:text-zinc-300 drop-shadow-md'}
-                fill={selected ? c.kfFill : 'currentColor'}
-                stroke={selected ? c.kfFill : 'currentColor'}
-                strokeWidth={selected ? 2 : 1.5}
+                className={
+                  selected
+                    ? `${c.kf} drop-shadow-[0_0_8px_currentColor]`
+                    : onPlayhead
+                      ? 'text-blue-400 drop-shadow-[0_0_8px_currentColor]'
+                      : 'text-zinc-500 hover:text-zinc-300 drop-shadow-md'
+                }
+                fill={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
+                stroke={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
+                strokeWidth={selected || onPlayhead ? 2 : 1.5}
               />
             </button>
           );
@@ -245,7 +257,7 @@ function TrackRow({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots, onMoveKeyframe, snap, contentRef,
+  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots, onMoveKeyframe, snap, contentRef, playheadPosition, duration,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
@@ -256,6 +268,8 @@ function TrackGroup({
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement>;
+  playheadPosition: number;
+  duration: number;
 }) {
   const c = COLOR[group.color];
 
@@ -291,7 +305,6 @@ function TrackGroup({
 
       {/* Sub-tracks */}
       {expanded && group.tracks.map(track => {
-        // Use dynamic keyframes for camera-snapshots track
         const dynamicKfs = track.id === 'camera-snapshots'
           ? cameraSnapshots.map(s => s.time)
           : track.kfs;
@@ -306,6 +319,8 @@ function TrackGroup({
             onMoveKeyframe={onMoveKeyframe}
             snap={snap}
             contentRef={contentRef}
+            playheadPosition={playheadPosition}
+            duration={duration}
           />
         );
       })}
@@ -327,11 +342,23 @@ export function Timeline({
   onCaptureSnapshot,
   onMoveKeyframe,
   timecode = '00:00:00:00',
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
-  const [zoom, setZoom] = useState([1]);
+  const [zoom] = useState([1]);
   const [snap, setSnap] = useState(true);
-  const [loop, setLoop] = useState(false);
+  const [duration, setDuration] = useState(TIMELINE_DURATION);
+
+  // Auto-extend when a keyframe lands in the last 10% of duration
+  useEffect(() => {
+    const maxKfTime = cameraSnapshots.reduce((max, s) => Math.max(max, s.time), 0);
+    if (maxKfTime > duration * 0.9) {
+      setDuration(d => d + 60);
+    }
+  }, [cameraSnapshots, duration]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -341,11 +368,11 @@ export function Timeline({
     const rect = contentRef.current.getBoundingClientRect();
     const rightW = rect.width - LABEL_W;
     const x = e.clientX - rect.left - LABEL_W;
-    const raw = (x / rightW) * DURATION;
-    const clamped = Math.max(0, Math.min(DURATION, raw));
-    if (snap) return Math.round(clamped * 2) / 2; // snap to 0.5s
+    const raw = (x / rightW) * duration;
+    const clamped = Math.max(0, Math.min(duration, raw));
+    if (snap) return Math.round(clamped * 2) / 2;
     return clamped;
-  }, [snap]);
+  }, [snap, duration]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
@@ -366,17 +393,21 @@ export function Timeline({
   }, [posFromEvent, onPlayheadChange]);
 
   const stepFrame = (dir: number) =>
-    onPlayheadChange(Math.max(0, Math.min(DURATION, playheadPosition + dir * (1 / 30))));
+    onPlayheadChange(Math.max(0, Math.min(duration, playheadPosition + dir * (1 / 30))));
 
-  const ratio = playheadPosition / DURATION;
-  // Playhead left within the full content area (label + right)
+  const ratio = playheadPosition / duration;
   const playheadLeft = `calc(${ratio * 100}% + ${LABEL_W * (1 - ratio)}px)`;
+
+  // suppress unused warning — snap toggle can be added to UI later
+  void setSnap;
 
   return (
     <div className="flex flex-col bg-zinc-900 border-t border-zinc-800 shrink-0" style={{ height: 268 }}>
 
       {/* ── Toolbar ── */}
-      <div className="h-9 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-3 shrink-0">
+      <div className="h-14 bg-zinc-950 border-b border-zinc-800 flex items-center px-3 shrink-0 relative">
+
+        {/* Left: track/keyframe/undo/redo buttons */}
         <div className="flex items-center gap-1.5">
           <button className="flex items-center gap-1 h-6 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 text-[10px] rounded border border-zinc-700/60 transition-colors">
             <Plus size={10} />Track
@@ -393,12 +424,17 @@ export function Timeline({
             </svg>
             Keyframe
           </button>
-          <div className="h-4 w-px bg-zinc-800 mx-0.5" />
-          
+          <TBtn onClick={onUndo} title="Rückgängig (Undo)" disabled={!canUndo}>
+            <Undo2 size={11} />
+          </TBtn>
+          <TBtn onClick={onRedo} title="Wiederholen (Redo)" disabled={!canRedo}>
+            <Redo2 size={11} />
+          </TBtn>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Transport */}
+        {/* Center: timecode above transport — absolutely centered */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+          <TCDisplay label="Timecode" value={timecode} accent />
           <div className="flex items-center gap-0.5">
             <TBtn onClick={() => onPlayheadChange(0)} title="Zum Anfang">
               <SkipBack size={11} />
@@ -426,17 +462,12 @@ export function Timeline({
             <TBtn onClick={() => stepFrame(1)} title="Ein Frame vor">
               <ChevronRight size={13} />
             </TBtn>
-            <TBtn onClick={() => onPlayheadChange(DURATION)} title="Zum Ende">
+            <TBtn onClick={() => onPlayheadChange(duration)} title="Zum Ende">
               <SkipForward size={11} />
             </TBtn>
           </div>
-
-          <div className="h-4 w-px bg-zinc-800" />
-
-          <TCDisplay label="In" value="00:00:00:00" />
-          <TCDisplay label="Timecode" value={timecode} accent />
-          <TCDisplay label="Out" value="00:00:30:00" />
         </div>
+
       </div>
 
       {/* ── Content (ruler + tracks) ── */}
@@ -451,7 +482,7 @@ export function Timeline({
             className="flex-1 relative bg-zinc-950 cursor-col-resize overflow-hidden"
             onMouseDown={handleMouseDown}
           >
-            <Ruler zoom={zoom[0]} />
+            <Ruler zoom={zoom[0]} duration={duration} />
             {/* Playhead triangle in ruler */}
             <div
               className="absolute top-0 bottom-0 pointer-events-none"
@@ -477,6 +508,8 @@ export function Timeline({
               onMoveKeyframe={onMoveKeyframe}
               snap={snap}
               contentRef={contentRef}
+              playheadPosition={playheadPosition}
+              duration={duration}
             />
           ))}
 

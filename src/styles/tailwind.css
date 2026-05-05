@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@variant dark (&:where(.dark, .dark *));
+
 /* Override cyan with Azure blue colors */
 @theme {
   --color-cyan-50: #e6f2ff;
