@@ -1,18 +1,12 @@
 import {
-  Play, Pause, Square, SkipBack, SkipForward,
-  ChevronLeft, ChevronRight, Settings, Save, FolderOpen, Sun, Moon, Monitor
+  Settings, Save, FolderOpen, Sun, Moon, Monitor
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState } from 'react';
 
 interface TopBarProps {
-  isPlaying: boolean;
-  onPlayPause: () => void;
-  onStop: () => void;
   viewMode: '2D' | '3D';
   onViewModeChange: (mode: '2D' | '3D') => void;
-  playheadPosition: number;
-  onPlayheadChange: (pos: number) => void;
   onSaveState?: () => void;
   onLoadState?: () => void;
   theme?: 'light' | 'dark' | 'system';
@@ -39,51 +33,12 @@ function NetworkLogo() {
   );
 }
 
-function TBtn({
-  onClick, title, children, active = false
-}: {
-  onClick: () => void;
-  title?: string;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
-        active
-          ? 'bg-zinc-700 text-zinc-100'
-          : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TCDisplay({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[8px] text-zinc-700 uppercase tracking-widest leading-none">{label}</span>
-      <div className={`px-2 py-[3px] bg-zinc-950 rounded border font-mono text-[11px] text-center tracking-wide ${
-        accent
-          ? 'border-cyan-800/60 ring-1 ring-cyan-800/30 text-cyan-400 min-w-[100px]'
-          : 'border-zinc-800 text-zinc-600 min-w-[80px]'
-      }`}>
-        {value}
-      </div>
-    </div>
-  );
-}
 
 export function TopBar({
-  isPlaying, onPlayPause, onStop, viewMode, onViewModeChange,
-  playheadPosition, onPlayheadChange, onSaveState, onLoadState, theme = 'system', onThemeChange
+  viewMode, onViewModeChange,
+  onSaveState, onLoadState, theme = 'system', onThemeChange
 }: TopBarProps) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
-  const stepFrame = (dir: number) =>
-    onPlayheadChange(Math.max(0, Math.min(30, playheadPosition + dir * (1 / 30))));
 
   const cycleTheme = () => {
     const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
@@ -148,39 +103,6 @@ export function TopBar({
       </div>
 
       <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
-
-      {/* Transport */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        <TBtn onClick={() => onPlayheadChange(0)} title="Zum Anfang">
-          <SkipBack size={11} />
-        </TBtn>
-        <TBtn onClick={() => stepFrame(-1)} title="Ein Frame zurück">
-          <ChevronLeft size={13} />
-        </TBtn>
-        <TBtn onClick={onStop} title="Stopp">
-          <Square size={9} fill="currentColor" />
-        </TBtn>
-        <button
-          onClick={onPlayPause}
-          title={isPlaying ? 'Pause' : 'Abspielen (Leertaste)'}
-          className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
-            isPlaying
-              ? 'bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/40'
-              : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
-          }`}
-        >
-          {isPlaying
-            ? <Pause size={13} fill="currentColor" />
-            : <Play size={13} fill="currentColor" className="ml-0.5" />
-          }
-        </button>
-        <TBtn onClick={() => stepFrame(1)} title="Ein Frame vor">
-          <ChevronRight size={13} />
-        </TBtn>
-        <TBtn onClick={() => onPlayheadChange(30)} title="Zum Ende">
-          <SkipForward size={11} />
-        </TBtn>
-      </div>
 
       {/* Spacer */}
       <div className="flex-1" />

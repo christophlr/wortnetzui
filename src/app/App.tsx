@@ -129,13 +129,8 @@ export default function App() {
   return (
     <div className="size-full flex flex-col bg-background text-foreground overflow-hidden">
       <TopBar
-        isPlaying={isPlaying}
-        onPlayPause={handlePlayPause}
-        onStop={handleStop}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        playheadPosition={playheadPosition}
-        onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
         theme={theme}
         onThemeChange={setTheme}
         onSaveState={() => {
@@ -210,6 +205,9 @@ export default function App() {
       </div>
 
       <Timeline
+        isPlaying={isPlaying}
+        onPlayPause={handlePlayPause}
+        onStop={handleStop}
         playheadPosition={playheadPosition}
         onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
         selectedKeyframe={selectedKeyframe}

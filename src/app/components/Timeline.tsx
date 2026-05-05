@@ -1,10 +1,13 @@
-import { Eye, Lock, ChevronRight, Plus, Diamond } from 'lucide-react';
+import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft } from 'lucide-react';
 import * as Slider from '@radix-ui/react-slider';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 /* ── Types & constants ── */
 
 interface TimelineProps {
+  isPlaying: boolean;
+  onPlayPause: () => void;
+  onStop: () => void;
   playheadPosition: number;
   onPlayheadChange: (pos: number) => void;
   selectedKeyframe: { track: string; time: number } | null;
@@ -41,6 +44,31 @@ const COLOR = {
   cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#3b9eff', trackBg: 'bg-cyan-950/10',   graphStroke: '#007fff' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
 };
+
+/* ── Transport button ── */
+
+function TBtn({
+  onClick, title, children, active = false
+}: {
+  onClick: () => void;
+  title?: string;
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+        active
+          ? 'bg-zinc-700 text-zinc-100'
+          : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 /* ── Timecode display ── */
 
@@ -288,6 +316,9 @@ function TrackGroup({
 /* ── Main Timeline ── */
 
 export function Timeline({
+  isPlaying,
+  onPlayPause,
+  onStop,
   playheadPosition,
   onPlayheadChange,
   selectedKeyframe,
@@ -334,6 +365,9 @@ export function Timeline({
     return () => { window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', move); };
   }, [posFromEvent, onPlayheadChange]);
 
+  const stepFrame = (dir: number) =>
+    onPlayheadChange(Math.max(0, Math.min(DURATION, playheadPosition + dir * (1 / 30))));
+
   const ratio = playheadPosition / DURATION;
   // Playhead left within the full content area (label + right)
   const playheadLeft = `calc(${ratio * 100}% + ${LABEL_W * (1 - ratio)}px)`;
@@ -366,6 +400,41 @@ export function Timeline({
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Transport */}
+          <div className="flex items-center gap-0.5">
+            <TBtn onClick={() => onPlayheadChange(0)} title="Zum Anfang">
+              <SkipBack size={11} />
+            </TBtn>
+            <TBtn onClick={() => stepFrame(-1)} title="Ein Frame zurück">
+              <ChevronLeft size={13} />
+            </TBtn>
+            <TBtn onClick={onStop} title="Stopp">
+              <Square size={9} fill="currentColor" />
+            </TBtn>
+            <button
+              onClick={onPlayPause}
+              title={isPlaying ? 'Pause' : 'Abspielen (Leertaste)'}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
+                isPlaying
+                  ? 'bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/40'
+                  : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
+              }`}
+            >
+              {isPlaying
+                ? <Pause size={13} fill="currentColor" />
+                : <Play size={13} fill="currentColor" className="ml-0.5" />
+              }
+            </button>
+            <TBtn onClick={() => stepFrame(1)} title="Ein Frame vor">
+              <ChevronRight size={13} />
+            </TBtn>
+            <TBtn onClick={() => onPlayheadChange(DURATION)} title="Zum Ende">
+              <SkipForward size={11} />
+            </TBtn>
+          </div>
+
+          <div className="h-4 w-px bg-zinc-800" />
+
           <TCDisplay label="In" value="00:00:00:00" />
           <TCDisplay label="Timecode" value={timecode} accent />
           <TCDisplay label="Out" value="00:00:30:00" />
