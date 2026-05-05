@@ -11,7 +11,7 @@ export default function App() {
   const [playheadPosition, setPlayheadPosition] = useState(0);
   const [timecode, setTimecode] = useState('00:00:00:00');
   const [selectedKeyframe, setSelectedKeyframe] = useState<{ track: string; time: number } | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
   const [colorSettings, setColorSettings] = useState({ hueStart: 180, hueEnd: 120, saturation: 75, lightness: 65 });
   const [styleSettings, setStyleSettings] = useState({ edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 });
@@ -107,12 +107,22 @@ export default function App() {
     }
   };
 
-  // Apply theme to document root
+  // Apply theme to document root, respecting system preference when in 'system' mode
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = (currentTheme: typeof theme, systemDark: boolean) => {
+      const isDark =
+        currentTheme === 'dark' || (currentTheme === 'system' && systemDark);
+      document.documentElement.classList.toggle('dark', isDark);
+    };
+
+    applyTheme(theme, mql.matches);
+
+    if (theme === 'system') {
+      const handler = (e: MediaQueryListEvent) => applyTheme('system', e.matches);
+      mql.addEventListener('change', handler);
+      return () => mql.removeEventListener('change', handler);
     }
   }, [theme]);
 

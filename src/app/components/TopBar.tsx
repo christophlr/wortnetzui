@@ -1,6 +1,6 @@
 import {
   Play, Pause, Square, SkipBack, SkipForward,
-  ChevronLeft, ChevronRight, Settings, Save, FolderOpen, Sun, Moon
+  ChevronLeft, ChevronRight, Settings, Save, FolderOpen, Sun, Moon, Monitor
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState } from 'react';
@@ -16,8 +16,8 @@ interface TopBarProps {
   onPlayheadChange: (pos: number) => void;
   onSaveState?: () => void;
   onLoadState?: () => void;
-  theme?: 'light' | 'dark';
-  onThemeChange?: (theme: 'light' | 'dark') => void;
+  theme?: 'light' | 'dark' | 'system';
+  onThemeChange?: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 function NetworkLogo() {
@@ -80,11 +80,22 @@ function TCDisplay({ label, value, accent = false }: { label: string; value: str
 
 export function TopBar({
   isPlaying, onPlayPause, onStop, timecode, viewMode, onViewModeChange,
-  playheadPosition, onPlayheadChange, onSaveState, onLoadState, theme = 'light', onThemeChange
+  playheadPosition, onPlayheadChange, onSaveState, onLoadState, theme = 'system', onThemeChange
 }: TopBarProps) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const stepFrame = (dir: number) =>
     onPlayheadChange(Math.max(0, Math.min(30, playheadPosition + dir * (1 / 30))));
+
+  const cycleTheme = () => {
+    const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
+    onThemeChange?.(next);
+  };
+
+  const themeTitle =
+    theme === 'system' ? 'System (automatisch)' :
+    theme === 'light'  ? 'Hell' : 'Dunkel';
+
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
     <div className="h-11 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 gap-2 select-none shrink-0">
@@ -214,10 +225,11 @@ export function TopBar({
         <div className="h-4 w-px bg-zinc-800" />
 
         <button
-          onClick={() => onThemeChange?.(theme === 'light' ? 'dark' : 'light')}
+          onClick={cycleTheme}
+          title={themeTitle}
           className="w-7 h-7 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
         >
-          {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
+          <ThemeIcon size={13} />
         </button>
       </div>
     </div>
