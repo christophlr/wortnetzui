@@ -15,6 +15,7 @@ interface Network3DProps {
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;
+  onCameraChange?: () => void;
 }
 
 interface GraphNode {
@@ -57,7 +58,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   physicsParams = DEFAULT_PHYSICS,
   colorSettings = { hueStart: 180, hueEnd: 120, saturation: 75, lightness: 65 },
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
-  cameraSnapshots = []
+  cameraSnapshots = [],
+  onCameraChange,
 }: Network3DProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
@@ -75,6 +77,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const cameraSnapshotsRef = useRef(cameraSnapshots);
   const isPlayingRef = useRef(isPlaying);
   const lastAppliedTimeRef = useRef<number | null>(null);
+  const onCameraChangeRef = useRef(onCameraChange);
+  useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
 
   useImperativeHandle(ref, () => ({
     getCameraSnapshot: () => {
@@ -510,6 +514,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controls.target.set(0, 400, 0);
     controls.update();
     controlsRef.current = controls;
+    const handleCameraChange = () => { onCameraChangeRef.current?.(); };
+    controls.addEventListener('change', handleCameraChange);
 
     // Build network
     const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
@@ -617,6 +623,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         cancelAnimationFrame(animationFrameRef.current);
       }
       if (controlsRef.current) {
+        controlsRef.current.removeEventListener('change', handleCameraChange);
         controlsRef.current.dispose();
       }
       if (rendererRef.current && containerRef.current) {

@@ -16,6 +16,7 @@ interface PreviewProps {
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
+  onCameraChange?: () => void;
 }
 
 /* ── Static word-network mock data ── */
@@ -152,7 +153,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   inputText,
   colorSettings,
   styleSettings,
-  cameraSnapshots
+  cameraSnapshots,
+  onCameraChange,
 }: PreviewProps, ref) {
   const phase = playheadPosition * 0.5;
 
@@ -205,6 +207,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             colorSettings={colorSettings}
             styleSettings={styleSettings}
             cameraSnapshots={cameraSnapshots}
+            onCameraChange={onCameraChange}
           />
         </div>
       )}
