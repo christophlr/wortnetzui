@@ -11,6 +11,7 @@ interface TimelineProps {
   onKeyframeSelect: (track: string, time: number) => void;
   cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
   onCaptureSnapshot?: () => void;
+  onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
 }
 
 const DURATION = 30;
@@ -26,15 +27,9 @@ const TRACK_GROUPS = [
   {
     id: 'physics', name: 'Physics', color: 'orange' as const,
     tracks: [
-      { id: 'phys-rep',  name: 'Repulsion', kfs: [0, 15, 30], graph: false },
-      { id: 'phys-spk',  name: 'Spring K',  kfs: [0, 10, 25], graph: false },
-      { id: 'phys-dmp',  name: 'Damping',   kfs: [2, 18],     graph: false },
-    ],
-  },
-  {
-    id: 'parsing', name: 'Parsing', color: 'purple' as const,
-    tracks: [
-      { id: 'pars-mode', name: 'Mode', kfs: [0, 10, 20], graph: false },
+      { id: 'phys-rep',  name: 'Repulsion', kfs: [], graph: false },
+      { id: 'phys-spk',  name: 'Spring K',  kfs: [], graph: false },
+      { id: 'phys-dmp',  name: 'Damping',   kfs: [], graph: false },
     ],
   },
 ];
@@ -44,7 +39,6 @@ const TRACK_GROUPS = [
 const COLOR = {
   cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#22d3ee', trackBg: 'bg-cyan-950/10',   graphStroke: '#06b6d4' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
-  purple: { dot: 'bg-purple-500', border: 'border-l-purple-500/60', kf: 'text-purple-400', kfFill: '#c084fc', trackBg: 'bg-purple-950/10', graphStroke: '#a855f7' },
 };
 
 /* ── Ruler ── */
@@ -106,14 +100,52 @@ function GraphCurve({ kfs, color }: { kfs: number[]; color: string }) {
 /* ── Track row (inside a group) ── */
 
 function TrackRow({
-  track, color, selectedKeyframe, onKeyframeSelect,
+  track, color, selectedKeyframe, onKeyframeSelect, onMoveKeyframe, snap, contentRef,
 }: {
   track: { id: string; name: string; kfs: number[]; graph: boolean };
   color: keyof typeof COLOR;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
+  onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  snap: boolean;
+  contentRef: React.RefObject<HTMLDivElement>;
 }) {
   const c = COLOR[color];
+  const [draggingKf, setDraggingKf] = useState<{ time: number; startX: number } | null>(null);
+
+  const timeFromClientX = useCallback((clientX: number) => {
+    if (!contentRef.current) return null;
+    const rect = contentRef.current.getBoundingClientRect();
+    const rightW = rect.width - LABEL_W;
+    const x = clientX - rect.left - LABEL_W;
+    const raw = (x / rightW) * DURATION;
+    const clamped = Math.max(0, Math.min(DURATION, raw));
+    if (snap) return Math.round(clamped * 2) / 2; // snap to 0.5s
+    return clamped;
+  }, [snap, contentRef]);
+
+  useEffect(() => {
+    if (!draggingKf) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newTime = timeFromClientX(e.clientX);
+      if (newTime !== null && onMoveKeyframe) {
+        onMoveKeyframe(track.id, draggingKf.time, newTime);
+        setDraggingKf({ ...draggingKf, time: newTime });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDraggingKf(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingKf, timeFromClientX, onMoveKeyframe, track.id]);
 
   return (
     <div className="flex border-b border-zinc-800/50" style={{ height: 26 }}>
@@ -136,16 +168,25 @@ function TrackRow({
           return (
             <button
               key={`${track.id}-${t}-${idx}`}
-              onClick={e => { e.stopPropagation(); onKeyframeSelect(track.id, t); }}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-150 transition-transform z-10"
+              onMouseDown={e => {
+                e.stopPropagation();
+                // Allow dragging for camera-snapshots track
+                if (track.id === 'camera-snapshots') {
+                  setDraggingKf({ time: t, startX: e.clientX });
+                  onKeyframeSelect(track.id, t);
+                } else {
+                  onKeyframeSelect(track.id, t);
+                }
+              }}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
               style={{ left: `${(t / DURATION) * 100}%` }}
             >
               <Diamond
-                size={7}
-                className={selected ? `${c.kf} drop-shadow-sm` : 'text-zinc-600 hover:text-zinc-400'}
-                fill={selected ? c.kfFill : 'none'}
+                size={10}
+                className={selected ? `${c.kf} drop-shadow-[0_0_8px_currentColor]` : 'text-zinc-500 hover:text-zinc-300 drop-shadow-md'}
+                fill={selected ? c.kfFill : 'currentColor'}
                 stroke={selected ? c.kfFill : 'currentColor'}
-                strokeWidth={selected ? 0 : 1.5}
+                strokeWidth={selected ? 2 : 1.5}
               />
             </button>
           );
@@ -158,7 +199,7 @@ function TrackRow({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots,
+  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots, onMoveKeyframe, snap, contentRef,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
@@ -166,6 +207,9 @@ function TrackGroup({
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
   cameraSnapshots: Array<{ time: number; position: any; target: any }>;
+  onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  snap: boolean;
+  contentRef: React.RefObject<HTMLDivElement>;
 }) {
   const c = COLOR[group.color];
 
@@ -213,6 +257,9 @@ function TrackGroup({
             color={group.color}
             selectedKeyframe={selectedKeyframe}
             onKeyframeSelect={onKeyframeSelect}
+            onMoveKeyframe={onMoveKeyframe}
+            snap={snap}
+            contentRef={contentRef}
           />
         );
       })}
@@ -228,9 +275,10 @@ export function Timeline({
   selectedKeyframe,
   onKeyframeSelect,
   cameraSnapshots = [],
-  onCaptureSnapshot
+  onCaptureSnapshot,
+  onMoveKeyframe,
 }: TimelineProps) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true, parsing: false });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
   const [zoom, setZoom] = useState([1]);
   const [snap, setSnap] = useState(true);
   const [loop, setLoop] = useState(false);
@@ -285,7 +333,7 @@ export function Timeline({
           </button>
           <button
             onClick={onCaptureSnapshot}
-            className="flex items-center gap-1 h-6 px-2 bg-cyan-800/30 hover:bg-cyan-700/40 text-cyan-400 hover:text-cyan-300 text-[10px] rounded border border-cyan-700/60 transition-colors"
+            className="flex items-center gap-1 h-6 px-2 bg-cyan-800/30 hover:bg-cyan-700/40 text-cyan-400 hover:text-cyan-300 rounded border border-cyan-700/60 transition-colors text-[10px]"
           >
             <span className="text-xs">📸</span>Snapshot
           </button>
@@ -368,6 +416,9 @@ export function Timeline({
               selectedKeyframe={selectedKeyframe}
               onKeyframeSelect={onKeyframeSelect}
               cameraSnapshots={cameraSnapshots}
+              onMoveKeyframe={onMoveKeyframe}
+              snap={snap}
+              contentRef={contentRef}
             />
           ))}
 

@@ -113,7 +113,7 @@ function AccSection({
         </div>
       </Accordion.Header>
       <Accordion.Content className="overflow-hidden data-[state=open]:animate-none">
-        <div className="px-3 pb-3 pt-1.5">
+        <div className="px-3 pb-3 pt-1.5 bg-[#00000000]">
           {children}
         </div>
       </Accordion.Content>
@@ -334,10 +334,19 @@ export function Inspector({
                 <label key={opt.value} className="flex items-center gap-2.5 h-6 cursor-pointer group">
                   <RadioGroup.Item
                     value={opt.value}
-                    className="w-3.5 h-3.5 rounded-full border border-zinc-700 data-[state=checked]:border-purple-500 bg-zinc-950 shrink-0 flex items-center justify-center transition-colors"
+                    className="w-4 h-4 rounded-sm border border-zinc-700 data-[state=checked]:border-zinc-500 shrink-0 flex items-center justify-center transition-all overflow-hidden relative"
+                    style={{
+                      background: opt.value === 'cyan-green' ? 'linear-gradient(135deg, #06b6d4, #10b981)' :
+                                  opt.value === 'cyan-green-bright' ? 'linear-gradient(135deg, #22d3ee, #34d399)' :
+                                  opt.value === 'purple-pink' ? 'linear-gradient(135deg, #a855f7, #ec4899)' :
+                                  opt.value === 'orange-red' ? 'linear-gradient(135deg, #f97316, #ef4444)' :
+                                  opt.value === 'yellow-green' ? 'linear-gradient(135deg, #eab308, #22c55e)' :
+                                  opt.value === 'blue-purple' ? 'linear-gradient(135deg, #3b82f6, #a855f7)' :
+                                  '#18181b'
+                    }}
                   >
                     <RadioGroup.Indicator>
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                      <div className="w-2 h-2 rounded-[1px] bg-white/90 shadow-sm" />
                     </RadioGroup.Indicator>
                   </RadioGroup.Item>
                   <span className="text-[11px] text-zinc-500 group-hover:text-zinc-200 transition-colors">{opt.label}</span>

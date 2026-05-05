@@ -93,6 +93,19 @@ export default function App() {
     });
   };
 
+  // Move keyframe handler - only for camera-snapshots track
+  const handleMoveKeyframe = (trackId: string, oldTime: number, newTime: number) => {
+    if (trackId === 'camera-snapshots') {
+      setCameraSnapshots(prev => {
+        return prev.map(snapshot => 
+          Math.abs(snapshot.time - oldTime) < 0.01
+            ? { ...snapshot, time: newTime }
+            : snapshot
+        ).sort((a, b) => a.time - b.time);
+      });
+    }
+  };
+
   return (
     <div className="size-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
       <TopBar
@@ -182,6 +195,7 @@ export default function App() {
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
         cameraSnapshots={cameraSnapshots}
         onCaptureSnapshot={handleCaptureSnapshot}
+        onMoveKeyframe={handleMoveKeyframe}
       />
     </div>
   );

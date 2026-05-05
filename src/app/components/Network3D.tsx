@@ -14,7 +14,8 @@ interface Network3DProps {
   };
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
-  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;}
+  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;
+}
 
 interface GraphNode {
   label: string;
@@ -109,7 +110,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   /* ── TEXT PARSING ── */
   const normalizeText = (text: string) => {
     return text
-      .replace(/[,!?;:()""\"/g, '')
+      .replace(/[,!?;:()"""]/g, '')
       .replace(/\n+/g, ' ')
       .trim()
       .toUpperCase();
