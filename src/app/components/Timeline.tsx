@@ -12,6 +12,7 @@ interface TimelineProps {
   cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
   onCaptureSnapshot?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  timecode?: string;
 }
 
 const DURATION = 30;
@@ -40,6 +41,23 @@ const COLOR = {
   cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#3b9eff', trackBg: 'bg-cyan-950/10',   graphStroke: '#007fff' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
 };
+
+/* ── Timecode display ── */
+
+function TCDisplay({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="text-[8px] text-zinc-700 uppercase tracking-widest leading-none">{label}</span>
+      <div className={`px-2 py-[3px] bg-zinc-950 rounded border font-mono text-[11px] text-center tracking-wide ${
+        accent
+          ? 'border-cyan-800/60 ring-1 ring-cyan-800/30 text-cyan-400 min-w-[100px]'
+          : 'border-zinc-800 text-zinc-600 min-w-[80px]'
+      }`}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 /* ── Ruler ── */
 
@@ -277,6 +295,7 @@ export function Timeline({
   cameraSnapshots = [],
   onCaptureSnapshot,
   onMoveKeyframe,
+  timecode = '00:00:00:00',
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
   const [zoom, setZoom] = useState([1]);
@@ -346,15 +365,10 @@ export function Timeline({
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          
-
-          <div className="flex items-center gap-1">
-            
-            
-          </div>
-
-          <span className="text-[9px] font-mono text-zinc-700">00:30:00</span>
+        <div className="flex items-center gap-2.5">
+          <TCDisplay label="In" value="00:00:00:00" />
+          <TCDisplay label="Timecode" value={timecode} accent />
+          <TCDisplay label="Out" value="00:00:30:00" />
         </div>
       </div>
 

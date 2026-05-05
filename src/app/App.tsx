@@ -132,7 +132,6 @@ export default function App() {
         isPlaying={isPlaying}
         onPlayPause={handlePlayPause}
         onStop={handleStop}
-        timecode={timecode}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         playheadPosition={playheadPosition}
@@ -218,6 +217,7 @@ export default function App() {
         cameraSnapshots={cameraSnapshots}
         onCaptureSnapshot={handleCaptureSnapshot}
         onMoveKeyframe={handleMoveKeyframe}
+        timecode={timecode}
       />
     </div>
   );
