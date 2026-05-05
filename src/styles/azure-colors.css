@@ -1,0 +1,14 @@
+/* Azure Blue Color Palette - More blue, less cyan */
+@theme {
+  --color-azure-50: #e6f2ff;
+  --color-azure-100: #cce5ff;
+  --color-azure-200: #99ccff;
+  --color-azure-300: #66b3ff;
+  --color-azure-400: #3b9eff;
+  --color-azure-500: #007fff;
+  --color-azure-600: #0066cc;
+  --color-azure-700: #0052a3;
+  --color-azure-800: #003d7a;
+  --color-azure-900: #002952;
+  --color-azure-950: #001429;
+}

@@ -85,7 +85,7 @@ function NodeNetwork({ isPlaying, phase }: { isPlaying: boolean; phase: number }
           <line
             key={i}
             x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
-            stroke={isHighlighted ? '#22d3ee' : '#3f3f46'}
+            stroke={isHighlighted ? '#3b9eff' : '#3f3f46'}
             strokeWidth={isHighlighted ? 0.18 : 0.12}
             strokeOpacity={isHighlighted ? 0.28 : 0.18}
           />
@@ -103,11 +103,11 @@ function NodeNetwork({ isPlaying, phase }: { isPlaying: boolean; phase: number }
           return (
             <g key={node.id} filter="url(#glow-strong)">
               {/* Outer ring */}
-              <circle cx={node.x} cy={cy} r={node.r + 1.5} fill="none" stroke="#22d3ee" strokeWidth="0.18" strokeOpacity="0.22" />
+              <circle cx={node.x} cy={cy} r={node.r + 1.5} fill="none" stroke="#3b9eff" strokeWidth="0.18" strokeOpacity="0.22" />
               {/* Node */}
-              <circle cx={node.x} cy={cy} r={node.r} fill="#0c4a6e" stroke="#22d3ee" strokeWidth="0.35" strokeOpacity="0.8" />
+              <circle cx={node.x} cy={cy} r={node.r} fill="#0c4a6e" stroke="#3b9eff" strokeWidth="0.35" strokeOpacity="0.8" />
               {/* Center dot */}
-              <circle cx={node.x} cy={cy} r={1} fill="#67e8f9" fillOpacity="0.7" />
+              <circle cx={node.x} cy={cy} r={1} fill="#66b3ff" fillOpacity="0.7" />
               {/* Label */}
               <text
                 x={node.x} y={cy + node.r + 2.4}

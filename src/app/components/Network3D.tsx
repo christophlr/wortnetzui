@@ -363,19 +363,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const lineHeight = fontSize * 1.2;
     const padding = 14;
 
+    // High-resolution canvas for crisp text
+    const pixelRatio = 3; // 3x resolution for sharp rendering
+
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
 
     const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
-    canvas.width = maxWidth + padding * 2;
-    canvas.height = words.length * lineHeight + padding * 2;
+    const logicalWidth = maxWidth + padding * 2;
+    const logicalHeight = words.length * lineHeight + padding * 2;
+
+    // Set actual canvas size to high-res
+    canvas.width = logicalWidth * pixelRatio;
+    canvas.height = logicalHeight * pixelRatio;
+
+    // Scale context to match
+    context.scale(pixelRatio, pixelRatio);
 
     // Black box with colored border
     context.fillStyle = '#0a0b0d';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, logicalWidth, logicalHeight);
 
     context.strokeStyle = color;
     context.lineWidth = 2;
-    context.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+    context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
 
     // Text
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
@@ -385,7 +395,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     words.forEach((word, i) => {
       const y = padding + lineHeight / 2 + i * lineHeight;
-      context.fillText(word, canvas.width / 2, y);
+      context.fillText(word, logicalWidth / 2, y);
     });
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -397,13 +407,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
     const sprite = new THREE.Sprite(spriteMaterial);
 
-    // Scale based on word count and user settings
+    // Scale based on word count
     const wordCount = text.split(' ').length;
     const scaleFactor = Math.max(0.4, 1 - (wordCount * 0.05)); // Longer texts get smaller
-    const baseScale = (Math.max(canvas.width, canvas.height) / 2.5) * scaleFactor;
-    const scale = baseScale; // Will be adjusted per-sprite
-    sprite.scale.set(scale, scale * (canvas.height / canvas.width), 1);
-    sprite.userData.baseScale = scale;
+    const baseScale = (Math.max(logicalWidth, logicalHeight) / 2.5) * scaleFactor;
+    const aspectRatio = logicalHeight / logicalWidth;
+    sprite.scale.set(baseScale, baseScale * aspectRatio, 1);
+    sprite.userData.baseScale = baseScale;
+    sprite.userData.aspectRatio = aspectRatio;
 
     return sprite;
   };
@@ -494,8 +505,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minDistance = 500;
-    controls.maxDistance = 5000;
+    controls.minDistance = 10; // Allow very close zoom
+    controls.maxDistance = 50000; // Allow very far zoom
     controls.target.set(0, 400, 0);
     controls.update();
     controlsRef.current = controls;
@@ -533,10 +544,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const color = getColorFromWordCount(node.wordCount, minWords, maxWords, colorSettings);
       const sprite = createTextSprite(node.label, color);
       sprite.position.set(node.x, node.y, node.z);
-      // Apply user scale
+      // Apply user scale proportionally
       const baseScale = sprite.userData.baseScale || 1;
-      sprite.scale.x = baseScale * styleSettings.nodeScale;
-      sprite.scale.y = (baseScale * styleSettings.nodeScale) * (sprite.scale.y / sprite.scale.x);
+      const aspectRatio = sprite.userData.aspectRatio || 1;
+      sprite.scale.set(
+        baseScale * styleSettings.nodeScale,
+        baseScale * styleSettings.nodeScale * aspectRatio,
+        1
+      );
       scene.add(sprite);
       node.textSprite = sprite;
     });
@@ -634,8 +649,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         const newSprite = createTextSprite(node.label, color);
         newSprite.position.copy(node.textSprite.position);
         const baseScale = newSprite.userData.baseScale || 1;
-        newSprite.scale.x = baseScale * styleSettings.nodeScale;
-        newSprite.scale.y = (baseScale * styleSettings.nodeScale) * (newSprite.scale.y / newSprite.scale.x);
+        const aspectRatio = newSprite.userData.aspectRatio || 1;
+        newSprite.scale.set(
+          baseScale * styleSettings.nodeScale,
+          baseScale * styleSettings.nodeScale * aspectRatio,
+          1
+        );
         sceneRef.current!.remove(node.textSprite);
         sceneRef.current!.add(newSprite);
         node.textSprite = newSprite;
@@ -650,8 +669,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     graphNodesRef.current.forEach(node => {
       if (node.textSprite) {
         const baseScale = node.textSprite.userData.baseScale || 1;
-        node.textSprite.scale.x = baseScale * styleSettings.nodeScale;
-        node.textSprite.scale.y = (baseScale * styleSettings.nodeScale) * (node.textSprite.scale.y / node.textSprite.scale.x);
+        const aspectRatio = node.textSprite.userData.aspectRatio || 1;
+        node.textSprite.scale.set(
+          baseScale * styleSettings.nodeScale,
+          baseScale * styleSettings.nodeScale * aspectRatio,
+          1
+        );
       }
     });
   }, [styleSettings.nodeScale]); // eslint-disable-line react-hooks/exhaustive-deps

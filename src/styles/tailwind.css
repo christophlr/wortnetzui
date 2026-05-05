@@ -1,4 +1,18 @@
-@import 'tailwindcss' source(none);
-@source '../**/*.{js,ts,jsx,tsx}';
+@import 'tailwindcss';
+
+/* Override cyan with Azure blue colors */
+@theme {
+  --color-cyan-50: #e6f2ff;
+  --color-cyan-100: #cce5ff;
+  --color-cyan-200: #99ccff;
+  --color-cyan-300: #66b3ff;
+  --color-cyan-400: #3b9eff;
+  --color-cyan-500: #007fff;
+  --color-cyan-600: #0066cc;
+  --color-cyan-700: #0052a3;
+  --color-cyan-800: #003d7a;
+  --color-cyan-900: #002952;
+  --color-cyan-950: #001429;
+}
 
 @import 'tw-animate-css';

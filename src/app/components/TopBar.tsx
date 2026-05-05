@@ -1,6 +1,6 @@
 import {
   Play, Pause, Square, SkipBack, SkipForward,
-  ChevronLeft, ChevronRight, Settings, Save, FolderOpen
+  ChevronLeft, ChevronRight, Settings, Save, FolderOpen, Sun, Moon
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState } from 'react';
@@ -16,24 +16,26 @@ interface TopBarProps {
   onPlayheadChange: (pos: number) => void;
   onSaveState?: () => void;
   onLoadState?: () => void;
+  theme?: 'light' | 'dark';
+  onThemeChange?: (theme: 'light' | 'dark') => void;
 }
 
 function NetworkLogo() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-      <circle cx="8.5" cy="8.5" r="2.5" fill="#22d3ee" />
-      <circle cx="2" cy="3" r="1.4" fill="#22d3ee" opacity="0.5" />
-      <circle cx="15" cy="3" r="1.4" fill="#22d3ee" opacity="0.5" />
-      <circle cx="2.5" cy="14" r="1.4" fill="#22d3ee" opacity="0.5" />
-      <circle cx="15" cy="14" r="1.4" fill="#22d3ee" opacity="0.5" />
-      <circle cx="15.5" cy="8.5" r="1.2" fill="#22d3ee" opacity="0.35" />
-      <line x1="8.5" y1="8.5" x2="2" y2="3" stroke="#22d3ee" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15" y2="3" stroke="#22d3ee" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="2.5" y2="14" stroke="#22d3ee" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15" y2="14" stroke="#22d3ee" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15.5" y2="8.5" stroke="#22d3ee" strokeOpacity="0.22" strokeWidth="0.8" />
-      <line x1="2" y1="3" x2="15" y2="3" stroke="#22d3ee" strokeOpacity="0.12" strokeWidth="0.5" />
-      <line x1="2.5" y1="14" x2="15" y2="14" stroke="#22d3ee" strokeOpacity="0.12" strokeWidth="0.5" />
+      <circle cx="8.5" cy="8.5" r="2.5" fill="#3b9eff" />
+      <circle cx="2" cy="3" r="1.4" fill="#3b9eff" opacity="0.5" />
+      <circle cx="15" cy="3" r="1.4" fill="#3b9eff" opacity="0.5" />
+      <circle cx="2.5" cy="14" r="1.4" fill="#3b9eff" opacity="0.5" />
+      <circle cx="15" cy="14" r="1.4" fill="#3b9eff" opacity="0.5" />
+      <circle cx="15.5" cy="8.5" r="1.2" fill="#3b9eff" opacity="0.35" />
+      <line x1="8.5" y1="8.5" x2="2" y2="3" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
+      <line x1="8.5" y1="8.5" x2="15" y2="3" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
+      <line x1="8.5" y1="8.5" x2="2.5" y2="14" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
+      <line x1="8.5" y1="8.5" x2="15" y2="14" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
+      <line x1="8.5" y1="8.5" x2="15.5" y2="8.5" stroke="#3b9eff" strokeOpacity="0.22" strokeWidth="0.8" />
+      <line x1="2" y1="3" x2="15" y2="3" stroke="#3b9eff" strokeOpacity="0.12" strokeWidth="0.5" />
+      <line x1="2.5" y1="14" x2="15" y2="14" stroke="#3b9eff" strokeOpacity="0.12" strokeWidth="0.5" />
     </svg>
   );
 }
@@ -78,7 +80,7 @@ function TCDisplay({ label, value, accent = false }: { label: string; value: str
 
 export function TopBar({
   isPlaying, onPlayPause, onStop, timecode, viewMode, onViewModeChange,
-  playheadPosition, onPlayheadChange, onSaveState, onLoadState
+  playheadPosition, onPlayheadChange, onSaveState, onLoadState, theme = 'light', onThemeChange
 }: TopBarProps) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const stepFrame = (dir: number) =>
@@ -89,9 +91,7 @@ export function TopBar({
       {/* Logo */}
       <div className="flex items-center gap-2 shrink-0">
         <NetworkLogo />
-        <span className="text-[12px] font-medium text-zinc-100 tracking-tight whitespace-nowrap">
-          Sprachvernetzungen
-        </span>
+        <span className="text-[12px] font-medium text-zinc-100 tracking-tight whitespace-nowrap">Wornetze</span>
       </div>
 
       <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
@@ -209,6 +209,15 @@ export function TopBar({
         </button>
         <button className="w-7 h-7 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
           <Settings size={13} />
+        </button>
+
+        <div className="h-4 w-px bg-zinc-800" />
+
+        <button
+          onClick={() => onThemeChange?.(theme === 'light' ? 'dark' : 'light')}
+          className="w-7 h-7 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+        >
+          {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
         </button>
       </div>
     </div>

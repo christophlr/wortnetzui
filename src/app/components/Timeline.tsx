@@ -37,7 +37,7 @@ const TRACK_GROUPS = [
 /* ── Color maps ── */
 
 const COLOR = {
-  cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#22d3ee', trackBg: 'bg-cyan-950/10',   graphStroke: '#06b6d4' },
+  cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#3b9eff', trackBg: 'bg-cyan-950/10',   graphStroke: '#007fff' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
 };
 
@@ -335,7 +335,10 @@ export function Timeline({
             onClick={onCaptureSnapshot}
             className="flex items-center gap-1 h-6 px-2 bg-cyan-800/30 hover:bg-cyan-700/40 text-cyan-400 hover:text-cyan-300 rounded border border-cyan-700/60 transition-colors text-[10px]"
           >
-            <span className="text-xs">📸</span>Snapshot
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+            </svg>
+            Keyframe
           </button>
           <div className="h-4 w-px bg-zinc-800 mx-0.5" />
           <button className="h-6 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 text-[10px] rounded border border-zinc-700/60 transition-colors">
@@ -344,37 +347,11 @@ export function Timeline({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-zinc-600 uppercase tracking-wide">Zoom</span>
-            <Slider.Root
-              className="relative flex items-center w-20 h-4"
-              value={zoom} onValueChange={setZoom} min={1} max={8} step={0.5}
-            >
-              <Slider.Track className="bg-zinc-800 relative grow rounded-full h-[2px]">
-                <Slider.Range className="absolute bg-zinc-600 rounded-full h-full" />
-              </Slider.Track>
-              <Slider.Thumb className="block w-2 h-2 bg-zinc-400 rounded-full hover:bg-zinc-200 focus:outline-none transition-colors cursor-grab" />
-            </Slider.Root>
-            <span className="text-[10px] font-mono text-zinc-600 w-8">{zoom[0]}×</span>
-          </div>
+          
 
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSnap(s => !s)}
-              className={`h-6 px-2.5 text-[10px] rounded border transition-colors ${
-                snap ? 'bg-cyan-600/20 text-cyan-400 border-cyan-700/50' : 'bg-zinc-800 text-zinc-500 border-zinc-700/60 hover:text-zinc-300'
-              }`}
-            >
-              Snap
-            </button>
-            <button
-              onClick={() => setLoop(l => !l)}
-              className={`h-6 px-2.5 text-[10px] rounded border transition-colors ${
-                loop ? 'bg-cyan-600/20 text-cyan-400 border-cyan-700/50' : 'bg-zinc-800 text-zinc-500 border-zinc-700/60 hover:text-zinc-300'
-              }`}
-            >
-              Loop
-            </button>
+            
+            
           </div>
 
           <span className="text-[9px] font-mono text-zinc-700">00:30:00</span>
