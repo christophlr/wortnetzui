@@ -4,6 +4,8 @@
 
 /* Override cyan with Azure blue colors */
 @theme {
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
   --color-cyan-50: #e6f2ff;
   --color-cyan-100: #cce5ff;
   --color-cyan-200: #99ccff;

@@ -111,7 +111,7 @@ export function TopBar({
               onClick={() => onViewModeChange(mode)}
               className={`px-3 text-[11px] transition-colors ${i > 0 ? 'border-l border-zinc-700' : ''} ${
                 viewMode === mode
-                  ? 'bg-cyan-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
               }`}
             >

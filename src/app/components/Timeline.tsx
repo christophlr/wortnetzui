@@ -1,6 +1,9 @@
+import { createPortal } from 'react-dom';
 import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2 } from 'lucide-react';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TIMELINE_DURATION } from '../constants';
+import { EASING_PRESETS, easingCurvePath } from '../easing';
+import type { EasingType } from '../easing';
 
 /* ── Types & constants ── */
 
@@ -12,9 +15,10 @@ interface TimelineProps {
   onPlayheadChange: (pos: number) => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
+  cameraSnapshots?: Array<{ time: number; position: any; target: any; easing?: EasingType }>;
   onCaptureSnapshot?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  onChangeEasing?: (time: number, easing: EasingType) => void;
   timecode?: string;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -44,7 +48,7 @@ const TRACK_GROUPS = [
 /* ── Color maps ── */
 
 const COLOR = {
-  cyan:   { dot: 'bg-cyan-500',   border: 'border-l-cyan-500/60',   kf: 'text-cyan-400',   kfFill: '#3b9eff', trackBg: 'bg-cyan-950/10',   graphStroke: '#007fff' },
+  cyan:   { dot: 'bg-teal-500',   border: 'border-l-teal-500/60',   kf: 'text-teal-400',   kfFill: '#2dd4bf', trackBg: 'bg-teal-950/10',   graphStroke: '#0d9488' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
 };
 
@@ -84,7 +88,7 @@ function TCDisplay({ label, value, accent = false }: { label: string; value: str
     <div className="flex flex-col items-center gap-0.5">
       <div className={`px-2 py-[3px] bg-zinc-950 rounded border font-mono text-[11px] text-center tracking-wide ${
         accent
-          ? 'border-cyan-800/60 ring-1 ring-cyan-800/30 text-cyan-400 min-w-[100px]'
+          ? 'border-blue-800/60 ring-1 ring-blue-800/30 text-blue-400 min-w-[100px]'
           : 'border-zinc-800 text-zinc-600 min-w-[80px]'
       }`}>
         {value}
@@ -143,6 +147,170 @@ function GraphCurve({ kfs, color, duration }: { kfs: number[]; color: string; du
     <svg className="absolute inset-0 w-full pointer-events-none" style={{ height: h }}>
       <path d={d} fill="none" stroke={color} strokeWidth="0.8" strokeOpacity="0.35" />
     </svg>
+  );
+}
+
+/* ── Easing preset picker (portal) ── */
+
+function EasingPicker({
+  anchorX, anchorY, currentEasing, onSelect, onClose,
+}: {
+  anchorX: number;
+  anchorY: number;
+  currentEasing: EasingType;
+  onSelect: (t: EasingType) => void;
+  onClose: () => void;
+}) {
+  const pickerW = 268;
+  const left = Math.max(8, Math.min(window.innerWidth - pickerW - 8, anchorX - pickerW / 2));
+  const bottom = window.innerHeight - anchorY + 10;
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-2.5 shadow-2xl"
+        style={{ left, bottom }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mb-2 px-0.5">
+          Easing preset
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {EASING_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              onClick={() => { onSelect(preset.id); onClose(); }}
+              className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${
+                preset.id === currentEasing
+                  ? 'border-zinc-500 bg-zinc-800'
+                  : 'border-transparent hover:border-zinc-700/80 hover:bg-zinc-800/60'
+              }`}
+              title={preset.label}
+            >
+              <svg width="42" height="26" viewBox="0 0 42 26" className="overflow-visible">
+                <path
+                  d={easingCurvePath(preset.id, 42, 26)}
+                  fill="none"
+                  stroke={preset.color}
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-[9px] text-zinc-400 leading-none whitespace-nowrap">{preset.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
+/* ── Easing track row ── */
+
+function EasingTrackRow({
+  snapshots, onChangeEasing, duration,
+}: {
+  snapshots: Array<{ time: number; easing?: EasingType }>;
+  onChangeEasing: (time: number, easing: EasingType) => void;
+  duration: number;
+}) {
+  const [picker, setPicker] = useState<{ fromTime: number; anchorX: number; anchorY: number } | null>(null);
+
+  const segments = useMemo(() => {
+    const sorted = [...snapshots].sort((a, b) => a.time - b.time);
+    return sorted.slice(0, -1).map((kf, i) => ({
+      fromTime: kf.time,
+      toTime: sorted[i + 1].time,
+      easing: (kf.easing ?? 'easeInOut') as EasingType,
+    }));
+  }, [snapshots]);
+
+  const preset = (e: EasingType) => EASING_PRESETS.find(p => p.id === e) ?? EASING_PRESETS[3];
+
+  return (
+    <>
+      <div className="flex border-b border-zinc-800/50" style={{ height: 30 }}>
+        {/* Left label */}
+        <div
+          className="shrink-0 flex items-center pl-8 pr-2 border-r border-zinc-800 bg-zinc-950 gap-1.5"
+          style={{ width: LABEL_W }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" className="text-zinc-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <path d="M 0 9 Q 3 9 5 5 Q 7 1 10 1" strokeLinecap="round"/>
+          </svg>
+          <span className="text-[10px] text-zinc-500 flex-1 truncate">Easing</span>
+        </div>
+
+        {/* Right: segments */}
+        <div className="flex-1 relative bg-teal-950/5">
+          {segments.length === 0 && (
+            <div className="absolute inset-0 flex items-center px-3">
+              <div className="w-full border-t border-dashed border-zinc-800/60" />
+            </div>
+          )}
+          {segments.map(seg => {
+            const p = preset(seg.easing);
+            const leftPct = (seg.fromTime / duration) * 100;
+            const rightPct = (1 - seg.toTime / duration) * 100;
+            return (
+              <button
+                key={seg.fromTime}
+                className="absolute inset-y-1 rounded overflow-hidden group transition-opacity hover:opacity-90 cursor-pointer"
+                style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
+                onClick={e => {
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setPicker({
+                    fromTime: seg.fromTime,
+                    anchorX: rect.left + rect.width / 2,
+                    anchorY: rect.top,
+                  });
+                }}
+                title={`${p.label} — click to change`}
+              >
+                {/* Curve SVG fills the entire segment */}
+                <svg
+                  className="absolute inset-0 w-full h-full"
+                  viewBox="0 0 100 28"
+                  preserveAspectRatio="none"
+                >
+                  <rect x="0" y="0" width="100" height="28" fill={p.color} fillOpacity="0.07" rx="1" />
+                  <path
+                    d={easingCurvePath(seg.easing, 100, 28)}
+                    fill="none"
+                    stroke={p.color}
+                    strokeWidth="1.6"
+                    strokeOpacity="0.65"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+                {/* Label shown on hover if segment is reasonably wide */}
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-[8px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                  style={{ color: p.color }}
+                >
+                  {p.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {picker && (
+        <EasingPicker
+          anchorX={picker.anchorX}
+          anchorY={picker.anchorY}
+          currentEasing={segments.find(s => s.fromTime === picker.fromTime)?.easing ?? 'easeInOut'}
+          onSelect={easing => onChangeEasing(picker.fromTime, easing)}
+          onClose={() => setPicker(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -256,15 +424,16 @@ function TrackRow({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots, onMoveKeyframe, snap, contentRef, playheadPosition, duration,
+  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots, onMoveKeyframe, onChangeEasing, snap, contentRef, playheadPosition, duration,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
   onToggle: () => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots: Array<{ time: number; position: any; target: any }>;
+  cameraSnapshots: Array<{ time: number; position: any; target: any; easing?: EasingType }>;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  onChangeEasing?: (time: number, easing: EasingType) => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement>;
   playheadPosition: number;
@@ -323,6 +492,15 @@ function TrackGroup({
           />
         );
       })}
+
+      {/* Easing strip — only for camera group when expanded and there are segments */}
+      {expanded && group.id === 'camera' && onChangeEasing && (
+        <EasingTrackRow
+          snapshots={cameraSnapshots}
+          onChangeEasing={onChangeEasing}
+          duration={duration}
+        />
+      )}
     </>
   );
 }
@@ -340,6 +518,7 @@ export function Timeline({
   cameraSnapshots = [],
   onCaptureSnapshot,
   onMoveKeyframe,
+  onChangeEasing,
   timecode = '00:00:00:00',
   onUndo,
   onRedo,
@@ -416,7 +595,7 @@ export function Timeline({
           </button>
           <button
             onClick={onCaptureSnapshot}
-            className="flex items-center gap-1 h-6 px-2 bg-cyan-800/30 hover:bg-cyan-700/40 text-cyan-400 hover:text-cyan-300 rounded border border-cyan-700/60 transition-colors text-[10px]"
+            className="flex items-center gap-1 h-6 px-2 bg-teal-800/30 hover:bg-teal-700/40 text-teal-400 hover:text-teal-300 rounded border border-teal-700/60 transition-colors text-[10px]"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <path d="M5 0 L10 5 L5 10 L0 5 Z" />
@@ -449,7 +628,7 @@ export function Timeline({
               title={isPlaying ? 'Pause' : 'Abspielen (Leertaste)'}
               className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
                 isPlaying
-                  ? 'bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/40'
+                  ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/40'
                   : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
               }`}
             >
@@ -505,6 +684,7 @@ export function Timeline({
               onKeyframeSelect={onKeyframeSelect}
               cameraSnapshots={cameraSnapshots}
               onMoveKeyframe={onMoveKeyframe}
+              onChangeEasing={onChangeEasing}
               snap={snap}
               contentRef={contentRef}
               playheadPosition={playheadPosition}

@@ -7,9 +7,9 @@ import { useState, useEffect } from 'react';
 
 /* ─── helpers ─── */
 
-function KfDiamond({ active, color, onClick }: { active: boolean; color: 'cyan' | 'orange' | 'purple'; onClick: () => void }) {
+function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' | 'orange' | 'purple'; onClick: () => void }) {
   const cls = {
-    cyan:   active ? 'text-cyan-400'   : 'text-zinc-700 hover:text-zinc-500',
+    teal:   active ? 'text-teal-400'   : 'text-zinc-700 hover:text-zinc-500',
     orange: active ? 'text-orange-400' : 'text-zinc-700 hover:text-zinc-500',
     purple: active ? 'text-purple-400' : 'text-zinc-700 hover:text-zinc-500',
   }[color];
@@ -35,9 +35,9 @@ function NumInput({ defaultValue, mono = true }: { defaultValue: number | string
 }
 
 function ParamRow({
-  kfKey, label, value, color = 'cyan', kfs, onToggle,
+  kfKey, label, value, color = 'teal', kfs, onToggle,
 }: {
-  kfKey: string; label: string; value: number; color?: 'cyan' | 'orange' | 'purple';
+  kfKey: string; label: string; value: number; color?: 'teal' | 'orange' | 'purple';
   kfs: Record<string, boolean>; onToggle: (k: string) => void;
 }) {
   return (
@@ -53,11 +53,11 @@ function SliderParam({
   kfKey, label, value, onChange, color, kfs, onToggle, displayFn, min = 0, max = 200,
 }: {
   kfKey: string; label: string; value: number[]; onChange: (v: number[]) => void;
-  color: 'cyan' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
+  color: 'teal' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
   displayFn?: (v: number[]) => string; min?: number; max?: number;
 }) {
-  const trackCls = color === 'cyan' ? 'bg-cyan-600/50' : 'bg-orange-600/50';
-  const thumbCls = color === 'cyan' ? 'bg-cyan-400' : 'bg-orange-400';
+  const trackCls = color === 'teal' ? 'bg-teal-600/50' : 'bg-orange-600/50';
+  const thumbCls = color === 'teal' ? 'bg-teal-400' : 'bg-orange-400';
 
   return (
     <div>
@@ -84,15 +84,15 @@ function SliderParam({
 function AccSection({
   value, label, color, children,
 }: {
-  value: string; label: string; color?: 'cyan' | 'orange' | 'purple'; children: React.ReactNode;
+  value: string; label: string; color?: 'teal' | 'orange' | 'purple'; children: React.ReactNode;
 }) {
   const borderCls = {
-    cyan:   'border-l-cyan-500/60',
+    teal:   'border-l-teal-500/60',
     orange: 'border-l-orange-500/60',
     purple: 'border-l-purple-500/60',
   };
   const dotCls = {
-    cyan:   'bg-cyan-500',
+    teal:   'bg-teal-500',
     orange: 'bg-orange-500',
     purple: 'bg-purple-500',
   };
@@ -232,13 +232,13 @@ export function Inspector({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="visual"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-cyan-500/60"
+            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
             Visuell
           </Tabs.Trigger>
           <Tabs.Trigger
             value="camera"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-cyan-500/60"
+            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
             Kamera
           </Tabs.Trigger>
@@ -262,7 +262,7 @@ export function Inspector({
               />
               <button
                 onClick={() => onTextChange?.(textInput)}
-                className="w-full mt-2 h-7 bg-cyan-600/15 hover:bg-cyan-600/25 text-cyan-400 text-[11px] rounded border border-cyan-700/40 hover:border-cyan-600/50 transition-colors"
+                className="w-full mt-2 h-7 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 text-[11px] rounded border border-blue-700/40 hover:border-blue-600/50 transition-colors"
               >
                 Anwenden
               </button>
@@ -339,32 +339,32 @@ export function Inspector({
               <div className="mt-4 space-y-3">
                 <SliderParam
                   kfKey="saturation" label="Sättigung" value={saturation} onChange={setSaturation}
-                  color="cyan" kfs={kfs} onToggle={toggle} min={30} max={100}
+                  color="teal" kfs={kfs} onToggle={toggle} min={30} max={100}
                   displayFn={v => v[0] + '%'}
                 />
                 <SliderParam
                   kfKey="lightness" label="Helligkeit" value={lightness} onChange={setLightness}
-                  color="cyan" kfs={kfs} onToggle={toggle} min={40} max={80}
+                  color="teal" kfs={kfs} onToggle={toggle} min={40} max={80}
                   displayFn={v => v[0] + '%'}
                 />
               </div>
             </AccSection>
 
             {/* STYLE */}
-            <AccSection value="style" label="Darstellung" color="cyan">
+            <AccSection value="style" label="Darstellung" color="teal">
               <div className="space-y-3">
                 <SliderParam
                   kfKey="edgeOpacity" label="Linien-Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
-                  color="cyan" kfs={kfs} onToggle={toggle} min={10} max={100}
+                  color="teal" kfs={kfs} onToggle={toggle} min={10} max={100}
                   displayFn={v => v[0] + '%'}
                 />
                 <SliderParam
                   kfKey="edgeWidth" label="Linien-Stärke" value={edgeWidth} onChange={setEdgeWidth}
-                  color="cyan" kfs={kfs} onToggle={toggle} min={1} max={5}
+                  color="teal" kfs={kfs} onToggle={toggle} min={1} max={5}
                 />
                 <SliderParam
                   kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
-                  color="cyan" kfs={kfs} onToggle={toggle} min={50} max={150}
+                  color="teal" kfs={kfs} onToggle={toggle} min={50} max={150}
                   displayFn={v => v[0] + '%'}
                 />
               </div>
@@ -376,7 +376,7 @@ export function Inspector({
         <Tabs.Content value="camera" className="flex-1 overflow-y-auto">
           <Accordion.Root type="multiple" defaultValue={['camera-controls', 'camera-snapshots']}>
             {/* CAMERA CONTROLS */}
-            <AccSection value="camera-controls" label="Steuerung" color="cyan">
+            <AccSection value="camera-controls" label="Steuerung" color="teal">
               <div className="text-[10px] text-zinc-600 leading-relaxed mb-3">
                 Verwende die Maus zum Steuern:
                 <div className="mt-1 space-y-0.5 text-zinc-700">
@@ -393,17 +393,17 @@ export function Inspector({
                   <input
                     type="number"
                     placeholder="X"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                 </div>
                 <div className="text-[9px] text-zinc-600 mb-1 mt-3">Ziel (X, Y, Z)</div>
@@ -411,26 +411,26 @@ export function Inspector({
                   <input
                     type="number"
                     placeholder="X"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-cyan-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
                   />
                 </div>
               </div>
             </AccSection>
 
             {/* CAMERA SNAPSHOTS */}
-            <AccSection value="camera-snapshots" label="Snapshots" color="cyan">
+            <AccSection value="camera-snapshots" label="Snapshots" color="teal">
               <div className="text-[10px] text-zinc-600 bg-zinc-900/50 rounded px-2 py-1.5 border border-zinc-800">
-                💡 Benutze den <span className="text-cyan-400">📸 Snapshot</span> Button in der Timeline
+                💡 Benutze den <span className="text-teal-400">📸 Snapshot</span> Button in der Timeline
               </div>
 
               {cameraSnapshots.length > 0 && (
@@ -443,7 +443,7 @@ export function Inspector({
                       key={idx}
                       className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${
                         Math.abs(snapshot.time - currentTime) < 0.1
-                          ? 'bg-cyan-900/30 border border-cyan-700/40'
+                          ? 'bg-teal-900/30 border border-teal-700/40'
                           : 'bg-zinc-900/50 border border-zinc-800'
                       }`}
                     >

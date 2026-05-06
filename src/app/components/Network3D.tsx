@@ -1,6 +1,8 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { applyEasing } from '../easing';
+import type { EasingType } from '../easing';
 
 interface Network3DProps {
   isPlaying: boolean;
@@ -14,7 +16,7 @@ interface Network3DProps {
   };
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
-  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>;
+  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; easing?: EasingType }>;
   onCameraChange?: () => void;
 }
 
@@ -464,7 +466,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const duration = next.time - prev.time;
     const elapsed = time - prev.time;
     const t = duration > 0 ? Math.max(0, Math.min(1, elapsed / duration)) : 0;
-    const smoothT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const smoothT = applyEasing(t, prev.easing ?? 'easeInOut');
 
     const camX = prev.position.x + (next.position.x - prev.position.x) * smoothT;
     const camY = prev.position.y + (next.position.y - prev.position.y) * smoothT;
@@ -514,7 +516,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controls.target.set(0, 400, 0);
     controls.update();
     controlsRef.current = controls;
-    const handleCameraChange = () => { onCameraChangeRef.current?.(); };
+    let applyingSnapshot = false;
+    const handleCameraChange = () => { if (!applyingSnapshot) onCameraChangeRef.current?.(); };
     controls.addEventListener('change', handleCameraChange);
 
     // Build network
@@ -594,14 +597,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const snapshots = cameraSnapshotsRef.current;
       const shouldApply = isPlayingRef.current || time !== lastAppliedTimeRef.current;
       if (shouldApply) {
+        applyingSnapshot = true;
         applyCameraSnapshots(snapshots, time);
         lastAppliedTimeRef.current = time;
       }
 
-      // Update controls (for damping)
+      // Update controls (for damping) — fires 'change' synchronously if camera moved
       if (controlsRef.current) {
         controlsRef.current.update();
       }
+      applyingSnapshot = false;
 
       renderer.render(scene, camera);
     };

@@ -5,8 +5,9 @@ import { Preview } from './components/Preview';
 import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { TIMELINE_DURATION } from './constants';
+import type { EasingType } from './easing';
 
-type Snapshot = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } };
+type Snapshot = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; easing?: EasingType };
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -129,6 +130,12 @@ export default function App() {
     }
   }, []);
 
+  const handleChangeEasing = useCallback((time: number, easing: EasingType) => {
+    setCameraSnapshots(prev =>
+      prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, easing } : s)
+    );
+  }, []);
+
   // Theme: class-based, respects system preference
   useEffect(() => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -204,8 +211,8 @@ export default function App() {
         selectedKeyframe={selectedKeyframe}
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
         cameraSnapshots={cameraSnapshots} onCaptureSnapshot={handleCaptureSnapshot}
-        onMoveKeyframe={handleMoveKeyframe} timecode={timecode}
-        onUndo={handleUndo} onRedo={handleRedo}
+        onMoveKeyframe={handleMoveKeyframe} onChangeEasing={handleChangeEasing}
+        timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
         canUndo={historyIndex > 0} canRedo={historyIndex < snapshotHistory.length - 1}
       />
     </div>
