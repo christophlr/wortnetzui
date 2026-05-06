@@ -8,6 +8,7 @@ interface Network3DProps {
   isPlaying: boolean;
   playheadPosition: number;
   inputText?: string;
+  theme?: 'light' | 'dark' | 'system';
   physicsParams?: {
     repulsion: number;
     springK: number;
@@ -49,6 +50,16 @@ const DEFAULT_PHYSICS = {
   minSpeed: 0.5
 };
 
+/* ── THEME-AWARE BACKGROUND COLORS ── */
+const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
+  const root = document.documentElement;
+  const bgHex = getComputedStyle(root).getPropertyValue('--canvas-background').trim();
+  // Parse hex to 3JS color number
+  const hex = bgHex || '#1a1a1a';
+  const threeColor = parseInt(hex.replace('#', ''), 16);
+  return { hex, threeColor };
+};
+
 export interface Network3DHandle {
   getCameraSnapshot: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
 }
@@ -57,8 +68,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   isPlaying,
   playheadPosition,
   inputText = DEFAULT_TEXT,
+  theme = 'system',
   physicsParams = DEFAULT_PHYSICS,
-  colorSettings = { hueStart: 180, hueEnd: 120, saturation: 75, lightness: 65 },
+  colorSettings = { hueStart: 30, hueEnd: 0, saturation: 100, lightness: 65 },
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   cameraSnapshots = [],
   onCameraChange,
@@ -78,9 +90,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const playheadRef = useRef(playheadPosition);
   const cameraSnapshotsRef = useRef(cameraSnapshots);
   const isPlayingRef = useRef(isPlaying);
+  const physicsParamsRef = useRef(physicsParams);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
+  const transitionActiveRef = useRef(false);
+  const transitionStartRef = useRef<number>(0);
+  const transitionDurationRef = useRef<number>(600);
+  const transitionOriginalRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
+  const transitionTargetRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
+  useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
+  useEffect(() => { cameraSnapshotsRef.current = cameraSnapshots; }, [cameraSnapshots]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { physicsParamsRef.current = physicsParams; }, [physicsParams]);
 
   useImperativeHandle(ref, () => ({
     getCameraSnapshot: () => {
@@ -385,8 +407,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     // Scale context to match
     context.scale(pixelRatio, pixelRatio);
 
-    // Black box with colored border
-    context.fillStyle = '#0a0b0d';
+    // Background box with colored border
+    const bgColors = getThemeBackgroundColors();
+    context.fillStyle = bgColors.hex;
     context.fillRect(0, 0, logicalWidth, logicalHeight);
 
     context.strokeStyle = color;
@@ -486,7 +509,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Setup scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0d0e10);
+    const bgColors = getThemeBackgroundColors();
+    scene.background = new THREE.Color(bgColors.threeColor);
     sceneRef.current = scene;
 
     // Setup camera
@@ -576,8 +600,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const delta = (now - lastTime) / 16.67; // Normalize to ~60fps
       lastTime = now;
 
-      if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
-        const avgMovement = applyPhysics(graphNodesRef.current, graphEdgesRef.current, physicsParams);
+      if (transitionActiveRef.current) {
+        // Interpolate from original -> target over configured duration
+        const elapsed = now - transitionStartRef.current;
+        const tRaw = Math.max(0, Math.min(1, elapsed / transitionDurationRef.current));
+        const t = applyEasing(tRaw, 'easeInOut');
+
+        graphNodesRef.current.forEach((node, key) => {
+          const orig = transitionOriginalRef.current.get(key);
+          const targ = transitionTargetRef.current.get(key);
+          if (!orig || !targ) return;
+          node.x = orig.x + (targ.x - orig.x) * t;
+          node.y = orig.y + (targ.y - orig.y) * t;
+          node.z = orig.z + (targ.z - orig.z) * t;
+          if (node.textSprite) node.textSprite.position.set(node.x, node.y, node.z);
+        });
+
+        if (tRaw >= 1) {
+          transitionActiveRef.current = false;
+          physicsEnabledRef.current = true;
+          stillFramesRef.current = 0;
+        }
+      } else if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
+        const avgMovement = applyPhysics(graphNodesRef.current, graphEdgesRef.current, physicsParamsRef.current);
 
         // Auto-stop physics when system has stabilized
         if (avgMovement < 0.5) {
@@ -701,6 +746,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     });
   }, [styleSettings.edgeOpacity, styleSettings.edgeWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update background color when theme changes
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const bgColors = getThemeBackgroundColors();
+    sceneRef.current.background = new THREE.Color(bgColors.threeColor);
+  }, [theme]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 });

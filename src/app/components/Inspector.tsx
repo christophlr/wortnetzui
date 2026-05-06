@@ -9,15 +9,15 @@ import { useState, useEffect } from 'react';
 
 function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' | 'orange' | 'purple'; onClick: () => void }) {
   const cls = {
-    teal:   active ? 'text-teal-400'   : 'text-zinc-700 hover:text-zinc-500',
-    orange: active ? 'text-orange-400' : 'text-zinc-700 hover:text-zinc-500',
-    purple: active ? 'text-purple-400' : 'text-zinc-700 hover:text-zinc-500',
+    teal:   active ? 'text-teal-400'   : 'text-muted-foreground/40 hover:text-muted-foreground/60',
+    orange: active ? 'text-orange-400' : 'text-muted-foreground/40 hover:text-muted-foreground/60',
+    purple: active ? 'text-purple-400' : 'text-muted-foreground/40 hover:text-muted-foreground/60',
   }[color];
 
   return (
     <button
       onClick={onClick}
-      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors hover:bg-zinc-800/80 ${cls}`}
+      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors hover:bg-muted/50 ${cls}`}
     >
       <Diamond size={8} fill={active ? 'currentColor' : 'none'} />
     </button>
@@ -29,7 +29,7 @@ function NumInput({ defaultValue, mono = true }: { defaultValue: number | string
     <input
       type="number"
       defaultValue={defaultValue}
-      className={`w-16 h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-600 rounded text-[11px] text-zinc-300 text-right focus:outline-none transition-colors shrink-0 ${mono ? 'font-mono' : ''}`}
+      className={`w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 ${mono ? 'font-mono' : ''}`}
     />
   );
 }
@@ -43,7 +43,7 @@ function ParamRow({
   return (
     <div className="flex items-center gap-2 h-[26px]">
       <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
-      <span className="text-[11px] text-zinc-500 flex-1 truncate">{label}</span>
+      <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
       <NumInput defaultValue={value} />
     </div>
   );
@@ -63,8 +63,8 @@ function SliderParam({
     <div>
       <div className="flex items-center gap-2 mb-1.5">
         <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
-        <span className="text-[11px] text-zinc-500 flex-1">{label}</span>
-        <span className="text-[11px] font-mono text-zinc-400 w-9 text-right shrink-0">
+        <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
+        <span className="text-[11px] font-mono text-muted-foreground/60 w-9 text-right shrink-0">
           {displayFn ? displayFn(value) : value[0]}
         </span>
       </div>
@@ -72,10 +72,10 @@ function SliderParam({
         className="relative flex items-center w-full h-4 pl-7"
         value={value} onValueChange={onChange} min={min} max={max} step={1}
       >
-        <Slider.Track className="bg-zinc-800 relative grow rounded-full h-[2px]">
+        <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
           <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
         </Slider.Track>
-        <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-zinc-950 rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
+        <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
       </Slider.Root>
     </div>
   );
@@ -98,18 +98,18 @@ function AccSection({
   };
 
   return (
-    <Accordion.Item value={value} className="border-b border-zinc-800/80">
+    <Accordion.Item value={value} className="border-b border-border/50">
       <Accordion.Header asChild>
         <div>
           <Accordion.Trigger
-            className={`w-full flex items-center gap-2.5 px-3 h-9 transition-colors hover:bg-zinc-800/30 group ${
+            className={`w-full flex items-center gap-2.5 px-3 h-9 transition-colors hover:bg-muted/30 group ${
               color ? `border-l-2 ${borderCls[color]}` : 'pl-3'
             }`}
           >
             {color && <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls[color]}`} />}
-            {!color && <ChevronRight size={11} className="text-zinc-600 transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0" />}
-            <span className="text-[11px] font-medium text-zinc-200 flex-1 text-left">{label}</span>
-            {color && <ChevronRight size={11} className="text-zinc-600 transition-transform duration-150 group-data-[state=open]:rotate-90" />}
+            {!color && <ChevronRight size={11} className="text-muted-foreground/40 transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0" />}
+            <span className="text-[11px] font-medium text-foreground flex-1 text-left">{label}</span>
+            {color && <ChevronRight size={11} className="text-muted-foreground/60 transition-transform duration-150 group-data-[state=open]:rotate-90" />}
           </Accordion.Trigger>
         </div>
       </Accordion.Header>
@@ -124,7 +124,7 @@ function AccSection({
 
 function SubLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[9px] text-zinc-700 uppercase tracking-widest block mb-1.5 mt-2.5 first:mt-0">
+    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest block mb-1.5 mt-2.5 first:mt-0">
       {children}
     </span>
   );
@@ -217,34 +217,34 @@ export function Inspector({
 
 
   return (
-    <div className="w-[268px] bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0 overflow-hidden">
+    <div className="w-[268px] bg-background border-r border-border flex flex-col shrink-0 overflow-hidden">
       {/* Panel Header */}
       
 
       <Tabs.Root defaultValue="content" className="flex-1 flex flex-col overflow-hidden">
         {/* Tab Navigation */}
-        <Tabs.List className="flex border-b border-zinc-800 shrink-0">
+        <Tabs.List className="flex border-b border-border shrink-0">
           <Tabs.Trigger
             value="content"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-purple-500/60"
+            className="flex-1 h-9 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-purple-500/60"
           >
             Inhalt
           </Tabs.Trigger>
           <Tabs.Trigger
             value="visual"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
+            className="flex-1 h-9 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
             Visuell
           </Tabs.Trigger>
           <Tabs.Trigger
             value="camera"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
+            className="flex-1 h-9 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
             Kamera
           </Tabs.Trigger>
           <Tabs.Trigger
             value="physics"
-            className="flex-1 h-9 text-[10px] text-zinc-500 hover:text-zinc-300 data-[state=active]:text-zinc-200 data-[state=active]:bg-zinc-800/50 transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
+            className="flex-1 h-9 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
           >
             Physik
           </Tabs.Trigger>
@@ -256,7 +256,7 @@ export function Inspector({
             {/* TEXT */}
             <AccSection value="text" label="Text">
               <textarea
-                className="w-full h-[176px] bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-700 rounded px-2.5 py-2 text-[11px] font-mono text-zinc-300 resize-none focus:outline-none transition-colors leading-relaxed"
+                className="w-full h-[176px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] font-mono text-foreground resize-none focus:outline-none transition-colors leading-relaxed"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
@@ -279,17 +279,17 @@ export function Inspector({
                   <label key={opt.value} className="flex items-center gap-2.5 h-7 cursor-pointer group">
                     <RadioGroup.Item
                       value={opt.value}
-                      className="w-3.5 h-3.5 rounded-full border border-zinc-700 data-[state=checked]:border-purple-500 bg-zinc-950 shrink-0 flex items-center justify-center transition-colors"
+                      className="w-3.5 h-3.5 rounded-full border border-border data-[state=checked]:border-purple-500 bg-input shrink-0 flex items-center justify-center transition-colors"
                     >
                       <RadioGroup.Indicator>
                         <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                       </RadioGroup.Indicator>
                     </RadioGroup.Item>
-                    <span className="text-[11px] text-zinc-500 group-hover:text-zinc-200 transition-colors">{opt.label}</span>
+                    <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
                   </label>
                 ))}
               </RadioGroup.Root>
-              <p className="text-[9px] text-zinc-700 mt-2 leading-relaxed">
+              <p className="text-[9px] text-muted-foreground mt-2 leading-relaxed">
                 Bestimmt welche Ebenen in der Timeline keyframable sind.
               </p>
             </AccSection>
@@ -301,7 +301,7 @@ export function Inspector({
           <Accordion.Root type="multiple" defaultValue={['colors', 'style']}>
             {/* COLORS */}
             <AccSection value="colors" label="Farben" color="purple">
-              <span className="text-[10px] text-zinc-600 block mb-3">
+              <span className="text-[10px] text-muted-foreground block mb-3">
                 Farbschema (kurz → lang)
               </span>
               <RadioGroup.Root value={colorScheme} onValueChange={setColorScheme} className="flex flex-col gap-1.5">
@@ -316,7 +316,7 @@ export function Inspector({
                   <label key={opt.value} className="flex items-center gap-2.5 h-6 cursor-pointer group">
                     <RadioGroup.Item
                       value={opt.value}
-                      className="w-4 h-4 rounded-sm border border-zinc-700 data-[state=checked]:border-zinc-500 shrink-0 flex items-center justify-center transition-all overflow-hidden relative"
+                      className="w-4 h-4 rounded-sm border border-border data-[state=checked]:border-border shrink-0 flex items-center justify-center transition-all overflow-hidden relative"
                       style={{
                         background: opt.value === 'cyan-green' ? 'linear-gradient(135deg, #06b6d4, #10b981)' :
                                     opt.value === 'cyan-green-bright' ? 'linear-gradient(135deg, #22d3ee, #34d399)' :
@@ -331,7 +331,7 @@ export function Inspector({
                         <div className="w-2 h-2 rounded-[1px] bg-white/90 shadow-sm" />
                       </RadioGroup.Indicator>
                     </RadioGroup.Item>
-                    <span className="text-[11px] text-zinc-500 group-hover:text-zinc-200 transition-colors">{opt.label}</span>
+                    <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
                   </label>
                 ))}
               </RadioGroup.Root>
@@ -377,9 +377,9 @@ export function Inspector({
           <Accordion.Root type="multiple" defaultValue={['camera-controls', 'camera-snapshots']}>
             {/* CAMERA CONTROLS */}
             <AccSection value="camera-controls" label="Steuerung" color="teal">
-              <div className="text-[10px] text-zinc-600 leading-relaxed mb-3">
+              <div className="text-[10px] text-muted-foreground leading-relaxed mb-3">
                 Verwende die Maus zum Steuern:
-                <div className="mt-1 space-y-0.5 text-zinc-700">
+                <div className="mt-1 space-y-0.5 text-muted-foreground/70">
                   <div>• Linksklick + Ziehen: Rotieren</div>
                   <div>• Mausrad: Zoomen</div>
                   <div>• Rechtsklick + Ziehen: Verschieben</div>
@@ -388,40 +388,40 @@ export function Inspector({
 
               <SubLabel>Manuelle Steuerung</SubLabel>
               <div className="space-y-2">
-                <div className="text-[9px] text-zinc-600 mb-1">Position (X, Y, Z)</div>
+                <div className="text-[9px] text-muted-foreground mb-1">Position (X, Y, Z)</div>
                 <div className="grid grid-cols-3 gap-1.5">
                   <input
                     type="number"
                     placeholder="X"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                 </div>
-                <div className="text-[9px] text-zinc-600 mb-1 mt-3">Ziel (X, Y, Z)</div>
+                <div className="text-[9px] text-muted-foreground mb-1 mt-3">Ziel (X, Y, Z)</div>
                 <div className="grid grid-cols-3 gap-1.5">
                   <input
                     type="number"
                     placeholder="X"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                   <input
                     type="number"
                     placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-teal-600 rounded text-[11px] text-zinc-300 text-center focus:outline-none transition-colors font-mono"
+                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
                   />
                 </div>
               </div>
@@ -429,13 +429,13 @@ export function Inspector({
 
             {/* CAMERA SNAPSHOTS */}
             <AccSection value="camera-snapshots" label="Snapshots" color="teal">
-              <div className="text-[10px] text-zinc-600 bg-zinc-900/50 rounded px-2 py-1.5 border border-zinc-800">
+              <div className="text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1.5 border border-border">
                 💡 Benutze den <span className="text-teal-400">📸 Snapshot</span> Button in der Timeline
               </div>
 
               {cameraSnapshots.length > 0 && (
                 <div className="mt-3 space-y-1">
-                  <span className="text-[10px] text-zinc-600 block mb-1.5">
+                  <span className="text-[10px] text-muted-foreground block mb-1.5">
                     Gespeicherte Snapshots:
                   </span>
                   {cameraSnapshots.map((snapshot, idx) => (
@@ -444,16 +444,16 @@ export function Inspector({
                       className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${
                         Math.abs(snapshot.time - currentTime) < 0.1
                           ? 'bg-teal-900/30 border border-teal-700/40'
-                          : 'bg-zinc-900/50 border border-zinc-800'
+                        : 'bg-muted/30 border border-border'
                       }`}
                     >
-                      <span className="text-zinc-400 font-mono">
+                      <span className="text-muted-foreground font-mono">
                         {Math.floor(snapshot.time / 60).toString().padStart(2, '0')}:
                         {(snapshot.time % 60).toFixed(1).padStart(4, '0')}s
                       </span>
                       <button
                         onClick={() => onDeleteSnapshot?.(snapshot.time)}
-                        className="text-zinc-600 hover:text-red-400 transition-colors"
+                        className="text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         ✕
                       </button>
@@ -490,13 +490,13 @@ export function Inspector({
                 />
                 <div className="flex items-center gap-2 h-[26px]">
                   <KfDiamond active={kfs.minSpeed} color="orange" onClick={() => toggle('minSpeed')} />
-                  <span className="text-[11px] text-zinc-500 flex-1">Min Speed</span>
+                  <span className="text-[11px] text-muted-foreground flex-1">Min Speed</span>
                   <input
                     type="number"
                     value={minSpeedVal}
                     onChange={(e) => setMinSpeedVal(parseFloat(e.target.value) || 0)}
                     step="0.1"
-                    className="w-16 h-6 px-1.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-600 rounded text-[11px] text-zinc-300 text-right focus:outline-none transition-colors shrink-0 font-mono"
+                    className="w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 font-mono"
                   />
                 </div>
               </div>

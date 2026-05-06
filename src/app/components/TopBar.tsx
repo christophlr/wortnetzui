@@ -52,38 +52,38 @@ export function TopBar({
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
-    <div className="h-11 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 gap-2 select-none shrink-0">
+    <div className="h-11 bg-background border-b border-border flex items-center px-3 gap-2 select-none shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-2 shrink-0">
         <NetworkLogo />
-        <span className="text-[12px] font-medium text-zinc-100 tracking-tight whitespace-nowrap">Wornetze</span>
+        <span className="text-[12px] font-medium text-foreground tracking-tight whitespace-nowrap">Wortnetze</span>
       </div>
 
-      <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
+      <div className="h-4 w-px bg-border mx-1 shrink-0" />
 
       {/* Menu */}
       <div className="flex items-center shrink-0">
         <DropdownMenu.Root open={fileMenuOpen} onOpenChange={setFileMenuOpen}>
           <DropdownMenu.Trigger asChild>
-            <button className="px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors data-[state=open]:bg-zinc-800 data-[state=open]:text-zinc-200">
+            <button className="px-2 py-1 text-[11px] text-foreground hover:text-foreground hover:bg-muted rounded transition-colors data-[state=open]:bg-muted data-[state=open]:text-foreground">
               Datei
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              className="min-w-[180px] bg-zinc-900 border border-zinc-800 rounded-md shadow-xl p-1 z-50"
+              className="min-w-[180px] bg-background border border-border rounded-md shadow-xl p-1 z-50"
               sideOffset={5}
               align="start"
             >
               <DropdownMenu.Item
-                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 rounded cursor-pointer outline-none"
+                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-foreground hover:text-foreground hover:bg-muted rounded cursor-pointer outline-none"
                 onSelect={() => onSaveState?.()}
               >
                 <Save size={12} />
                 Zustand Speichern
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 rounded cursor-pointer outline-none"
+                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-foreground hover:text-foreground hover:bg-muted rounded cursor-pointer outline-none"
                 onSelect={() => onLoadState?.()}
               >
                 <FolderOpen size={12} />
@@ -97,22 +97,22 @@ export function TopBar({
         ))}
       </div>
 
-      <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
+      <div className="h-4 w-px bg-border mx-1 shrink-0" />
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Right */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex h-6 rounded overflow-hidden border border-zinc-700 bg-zinc-950">
+        <div className="flex h-6 rounded overflow-hidden border border-border bg-background">
           {(['2D', '3D'] as const).map((mode, i) => (
             <button
               key={mode}
               onClick={() => onViewModeChange(mode)}
-              className={`px-3 text-[11px] transition-colors ${i > 0 ? 'border-l border-zinc-700' : ''} ${
+              className={`px-3 text-[11px] transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
                 viewMode === mode
                   ? 'bg-blue-600 text-white'
-                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+                  : 'text-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
               {mode}
@@ -120,21 +120,21 @@ export function TopBar({
           ))}
         </div>
 
-        <div className="h-4 w-px bg-zinc-800" />
+        <div className="h-4 w-px bg-border" />
 
-        <button className="h-6 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-[11px] rounded border border-zinc-700/60 transition-colors">
+        <button className="h-6 px-3 bg-muted hover:bg-muted/80 text-foreground hover:text-foreground text-[11px] rounded border border-border transition-colors">
           Exportieren
         </button>
-        <button className="w-7 h-7 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+            <button className="w-7 h-7 flex items-center justify-center rounded text-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Settings size={13} />
         </button>
 
-        <div className="h-4 w-px bg-zinc-800" />
+        <div className="h-4 w-px bg-border" />
 
         <button
           onClick={cycleTheme}
           title={themeTitle}
-          className="w-7 h-7 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded text-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <ThemeIcon size={13} />
         </button>

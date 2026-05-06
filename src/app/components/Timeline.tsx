@@ -70,10 +70,10 @@ function TBtn({
       disabled={disabled}
       className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
         disabled
-          ? 'opacity-30 cursor-not-allowed text-zinc-600'
+          ? 'opacity-30 cursor-not-allowed text-muted-foreground/40'
           : active
-            ? 'bg-zinc-700 text-zinc-100'
-            : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+            ? 'bg-muted text-foreground'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
       }`}
     >
       {children}
@@ -86,10 +86,10 @@ function TBtn({
 function TCDisplay({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className={`px-2 py-[3px] bg-zinc-950 rounded border font-mono text-[11px] text-center tracking-wide ${
+      <div className={`px-2 py-[3px] bg-input rounded border font-mono text-[11px] text-center tracking-wide ${
         accent
           ? 'border-blue-800/60 ring-1 ring-blue-800/30 text-blue-400 min-w-[100px]'
-          : 'border-zinc-800 text-zinc-600 min-w-[80px]'
+          : 'border-border text-muted-foreground min-w-[80px]'
       }`}>
         {value}
       </div>
@@ -115,9 +115,9 @@ function Ruler({ zoom, duration }: { zoom: number; duration: number }) {
           className="absolute top-0 flex flex-col items-start"
           style={{ left: `${(t / duration) * 100}%` }}
         >
-          <div className={`w-px ${major ? 'h-3.5 bg-zinc-600' : 'h-2 bg-zinc-700'}`} />
+          <div className={`w-px ${major ? 'h-3.5 bg-muted-foreground' : 'h-2 bg-muted-foreground/60'}`} />
           {major && (
-            <span className="text-[9px] font-mono text-zinc-600 ml-0.5 mt-0.5 leading-none">
+            <span className="text-[9px] font-mono text-muted-foreground ml-0.5 mt-0.5 leading-none">
               {t >= 60 ? `${Math.floor(t / 60)}m${t % 60 > 0 ? `${t % 60}s` : ''}` : `${t}s`}
             </span>
           )}
@@ -169,11 +169,11 @@ function EasingPicker({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-2.5 shadow-2xl"
+        className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-xl p-2.5 shadow-2xl"
         style={{ left, bottom }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mb-2 px-0.5">
+        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-0.5">
           Easing preset
         </div>
         <div className="grid grid-cols-4 gap-1.5">
@@ -183,8 +183,8 @@ function EasingPicker({
               onClick={() => { onSelect(preset.id); onClose(); }}
               className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${
                 preset.id === currentEasing
-                  ? 'border-zinc-500 bg-zinc-800'
-                  : 'border-transparent hover:border-zinc-700/80 hover:bg-zinc-800/60'
+                  ? 'border-border bg-muted'
+                  : 'border-transparent hover:border-border/60 hover:bg-muted/60'
               }`}
               title={preset.label}
             >
@@ -198,7 +198,7 @@ function EasingPicker({
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-[9px] text-zinc-400 leading-none whitespace-nowrap">{preset.label}</span>
+              <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">{preset.label}</span>
             </button>
           ))}
         </div>
@@ -232,23 +232,23 @@ function EasingTrackRow({
 
   return (
     <>
-      <div className="flex border-b border-zinc-800/50" style={{ height: 30 }}>
+      <div className="flex border-b border-border/50" style={{ height: 30 }}>
         {/* Left label */}
         <div
-          className="shrink-0 flex items-center pl-8 pr-2 border-r border-zinc-800 bg-zinc-950 gap-1.5"
+          className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background gap-1.5"
           style={{ width: LABEL_W }}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" className="text-zinc-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
             <path d="M 0 9 Q 3 9 5 5 Q 7 1 10 1" strokeLinecap="round"/>
           </svg>
-          <span className="text-[10px] text-zinc-500 flex-1 truncate">Easing</span>
+          <span className="text-[10px] text-muted-foreground flex-1 truncate">Easing</span>
         </div>
 
         {/* Right: segments */}
         <div className="flex-1 relative bg-teal-950/5">
           {segments.length === 0 && (
             <div className="absolute inset-0 flex items-center px-3">
-              <div className="w-full border-t border-dashed border-zinc-800/60" />
+              <div className="w-full border-t border-dashed border-border/60" />
             </div>
           )}
           {segments.map(seg => {
@@ -367,15 +367,15 @@ function TrackRow({
   }, [draggingKf, timeFromClientX, onMoveKeyframe, track.id]);
 
   return (
-    <div className="flex border-b border-zinc-800/50" style={{ height: 26 }}>
+    <div className="flex border-b border-border/50" style={{ height: 26 }}>
       {/* Left label */}
       <div
-        className="shrink-0 flex items-center pl-8 pr-2 border-r border-zinc-800 bg-zinc-950 gap-1.5"
+        className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background gap-1.5"
         style={{ width: LABEL_W }}
       >
-        <span className="text-[10px] text-zinc-500 flex-1 truncate">{track.name}</span>
+        <span className="text-[10px] text-muted-foreground flex-1 truncate">{track.name}</span>
         {track.graph && (
-          <span className="text-[8px] text-zinc-700 bg-zinc-900 border border-zinc-800 rounded px-1">curve</span>
+          <span className="text-[8px] text-muted-foreground/60 bg-muted border border-border rounded px-1">curve</span>
         )}
       </div>
 
@@ -407,7 +407,7 @@ function TrackRow({
                     ? `${c.kf} drop-shadow-[0_0_8px_currentColor]`
                     : onPlayhead
                       ? 'text-blue-400 drop-shadow-[0_0_8px_currentColor]'
-                      : 'text-zinc-500 hover:text-zinc-300 drop-shadow-md'
+                      : 'text-foreground hover:text-foreground drop-shadow-md'
                 }
                 fill={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
                 stroke={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
@@ -444,24 +444,24 @@ function TrackGroup({
   return (
     <>
       {/* Group header row */}
-      <div className={`flex border-b border-zinc-800 border-l-2 ${c.border}`} style={{ height: 30 }}>
+      <div className={`flex border-b border-border border-l-2 ${c.border}`} style={{ height: 30 }}>
         {/* Left */}
         <div
-          className="shrink-0 flex items-center gap-1.5 px-2 cursor-pointer hover:bg-zinc-800/40 transition-colors border-r border-zinc-800"
+          className="shrink-0 flex items-center gap-1.5 px-2 cursor-pointer hover:bg-muted/40 transition-colors border-r border-border"
           style={{ width: LABEL_W }}
           onClick={onToggle}
         >
           <ChevronRight
             size={12}
-            className={`text-zinc-500 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+            className={`text-muted-foreground/60 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
           />
           <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
-          <span className="text-[11px] font-medium text-zinc-200 flex-1 truncate">{group.name}</span>
+          <span className="text-[11px] font-medium text-foreground flex-1 truncate">{group.name}</span>
           <button className="opacity-0 hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-            <Eye size={11} className="text-zinc-600 hover:text-zinc-400" />
+            <Eye size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
           </button>
           <button onClick={e => e.stopPropagation()}>
-            <Lock size={11} className="text-zinc-700 hover:text-zinc-500" />
+            <Lock size={11} className="text-muted-foreground/40 hover:text-muted-foreground/60" />
           </button>
         </div>
 
@@ -580,22 +580,22 @@ export function Timeline({
   void setSnap;
 
   return (
-    <div className="flex flex-col bg-zinc-900 border-t border-zinc-800 shrink-0" style={{ height: 268 }}>
+    <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height: 268 }}>
 
       {/* ── Toolbar ── */}
-      <div className="h-14 bg-zinc-950 border-b border-zinc-800 flex items-center px-3 shrink-0 relative">
+      <div className="h-14 bg-background border-b border-border flex items-center px-3 shrink-0 relative">
 
         {/* Left: track/keyframe/undo/redo buttons */}
         <div className="flex items-center gap-1.5">
-          <button className="flex items-center gap-1 h-6 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 text-[10px] rounded border border-zinc-700/60 transition-colors">
+          <button className="flex items-center gap-1 h-6 px-2 bg-muted hover:bg-muted/80 text-foreground hover:text-foreground text-[10px] rounded border border-border transition-colors">
             <Plus size={10} />Track
           </button>
-          <button className="flex items-center gap-1 h-6 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 text-[10px] rounded border border-zinc-700/60 transition-colors">
+          <button className="flex items-center gap-1 h-6 px-2 bg-muted hover:bg-muted/80 text-foreground hover:text-foreground text-[10px] rounded border border-border transition-colors">
             <Plus size={10} />Parameter
           </button>
           <button
             onClick={onCaptureSnapshot}
-            className="flex items-center gap-1 h-6 px-2 bg-teal-800/30 hover:bg-teal-700/40 text-teal-400 hover:text-teal-300 rounded border border-teal-700/60 transition-colors text-[10px]"
+            className="flex items-center gap-1 h-6 px-2.5 bg-teal-600/80 hover:bg-teal-600 text-white hover:text-white rounded border border-teal-500/60 transition-colors text-[10px] font-medium shadow-sm"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <path d="M5 0 L10 5 L5 10 L0 5 Z" />
@@ -629,7 +629,7 @@ export function Timeline({
               className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
                 isPlaying
                   ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/40'
-                  : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
               {isPlaying
@@ -652,12 +652,12 @@ export function Timeline({
       <div className="flex-1 overflow-hidden flex flex-col relative" ref={contentRef}>
 
         {/* Ruler row */}
-        <div className="flex shrink-0 border-b border-zinc-800" style={{ height: 24 }}>
+        <div className="flex shrink-0 border-b border-border" style={{ height: 24 }}>
           {/* Label spacer */}
-          <div className="shrink-0 bg-zinc-950 border-r border-zinc-800" style={{ width: LABEL_W }} />
+          <div className="shrink-0 bg-background border-r border-border" style={{ width: LABEL_W }} />
           {/* Ruler + click zone */}
           <div
-            className="flex-1 relative bg-zinc-950 cursor-col-resize overflow-hidden"
+            className="flex-1 relative bg-background cursor-col-resize overflow-hidden"
             onMouseDown={handleMouseDown}
           >
             <Ruler zoom={zoom[0]} duration={duration} />
@@ -693,8 +693,8 @@ export function Timeline({
           ))}
 
           {/* Bottom padding */}
-          <div className="flex border-b border-zinc-800/30" style={{ height: 16 }}>
-            <div className="shrink-0 border-r border-zinc-800" style={{ width: LABEL_W }} />
+          <div className="flex border-b border-border/30" style={{ height: 16 }}>
+            <div className="shrink-0 border-r border-border" style={{ width: LABEL_W }} />
             <div className="flex-1" />
           </div>
         </div>
