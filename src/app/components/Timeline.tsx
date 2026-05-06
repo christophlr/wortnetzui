@@ -82,7 +82,6 @@ function TBtn({
 function TCDisplay({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-[8px] text-zinc-700 uppercase tracking-widest leading-none">{label}</span>
       <div className={`px-2 py-[3px] bg-zinc-950 rounded border font-mono text-[11px] text-center tracking-wide ${
         accent
           ? 'border-cyan-800/60 ring-1 ring-cyan-800/30 text-cyan-400 min-w-[100px]'
@@ -433,7 +432,7 @@ export function Timeline({
         </div>
 
         {/* Center: timecode above transport — absolutely centered */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-row items-center gap-3">
           <TCDisplay label="Timecode" value={timecode} accent />
           <div className="flex items-center gap-0.5">
             <TBtn onClick={() => onPlayheadChange(0)} title="Zum Anfang">

@@ -256,7 +256,7 @@ export function Inspector({
             {/* TEXT */}
             <AccSection value="text" label="Text">
               <textarea
-                className="w-full h-[88px] bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-700 rounded px-2.5 py-2 text-[11px] font-mono text-zinc-300 resize-none focus:outline-none transition-colors leading-relaxed"
+                className="w-full h-[176px] bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-700 rounded px-2.5 py-2 text-[11px] font-mono text-zinc-300 resize-none focus:outline-none transition-colors leading-relaxed"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
