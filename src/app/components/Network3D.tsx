@@ -52,12 +52,10 @@ const DEFAULT_PHYSICS = {
 
 /* ── THEME-AWARE BACKGROUND COLORS ── */
 const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
-  const root = document.documentElement;
-  const bgHex = getComputedStyle(root).getPropertyValue('--canvas-background').trim();
-  // Parse hex to 3JS color number
-  const hex = bgHex || '#1a1a1a';
-  const threeColor = parseInt(hex.replace('#', ''), 16);
-  return { hex, threeColor };
+  const isDark = document.documentElement.classList.contains('dark');
+  return isDark
+    ? { hex: '#0a0b0d', threeColor: 0x0d0e10 }
+    : { hex: '#ffffff', threeColor: 0xffffff };
 };
 
 export interface Network3DHandle {
@@ -70,7 +68,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   inputText = DEFAULT_TEXT,
   theme = 'system',
   physicsParams = DEFAULT_PHYSICS,
-  colorSettings = { hueStart: 30, hueEnd: 0, saturation: 100, lightness: 65 },
+  colorSettings = { hueStart: 180, hueEnd: 120, saturation: 75, lightness: 65 },
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   cameraSnapshots = [],
   onCameraChange,
