@@ -87,16 +87,11 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
 
   ctx.clearRect(0, 0, size, size);
 
-  ctx.beginPath();
-  ctx.arc(c, c, c - 1, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(15, 15, 20, 0.82)';
-  ctx.fill();
-
   const invQ = camera.quaternion.clone().invert();
   const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: '#7f1d1d', label: 'x' },
-    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: '#14532d', label: 'y' },
-    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: '#1e3a5f', label: 'z' },
+    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: 'rgba(239,68,68,0.38)', label: 'x' },
+    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: 'rgba(34,197,94,0.38)', label: 'y' },
+    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: 'rgba(96,165,250,0.38)', label: 'z' },
   ];
 
   const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
@@ -178,6 +173,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const flyToTargetRef = useRef<THREE.Vector3 | null>(null);
   const gizmoCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomSliderRef = useRef<HTMLInputElement>(null);
+  const zoomAnimRef = useRef<{ from: number; to: number; startTime: number; duration: number } | null>(null);
+  const cameraFlyRef = useRef<{
+    fromPos: THREE.Vector3; toPos: THREE.Vector3;
+    fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
+    startTime: number; duration: number;
+  } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const colorSettingsRef = useRef(colorSettings);
   const styleSettingsRef = useRef(styleSettings);
@@ -959,6 +960,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         }
       }
 
+      // Animated zoom (+/− buttons)
+      if (zoomAnimRef.current) {
+        const { from, to, startTime, duration } = zoomAnimRef.current;
+        const t = Math.min(1, (performance.now() - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const dist = from + (to - from) * eased;
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        camera.position.copy(controls.target).addScaledVector(dir, dist);
+        if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(dist).toString();
+        if (t >= 1) zoomAnimRef.current = null;
+      }
+
+      // Camera fly-to (gizmo double-click reset)
+      if (cameraFlyRef.current) {
+        const { fromPos, toPos, fromTarget, toTarget, startTime, duration } = cameraFlyRef.current;
+        const t = Math.min(1, (performance.now() - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        camera.position.lerpVectors(fromPos, toPos, eased);
+        controls.target.lerpVectors(fromTarget, toTarget, eased);
+        if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(camera.position.distanceTo(controls.target)).toString();
+        if (t >= 1) cameraFlyRef.current = null;
+      }
+
       // Update controls (for damping) — fires 'change' synchronously if camera moved
       if (controlsRef.current) {
         controlsRef.current.update();
@@ -1099,12 +1123,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
   const handleZoomBy = (factor: number) => {
     if (!cameraRef.current || !controlsRef.current) return;
-    const current = cameraRef.current.position.distanceTo(controlsRef.current.target);
-    const newDist = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, current * factor));
-    const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
-    cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
-    controlsRef.current.update();
-    if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(newDist).toString();
+    const from = cameraRef.current.position.distanceTo(controlsRef.current.target);
+    const to = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, from * factor));
+    zoomAnimRef.current = { from, to, startTime: performance.now(), duration: 220 };
   };
 
   const handleZoomSlider = (s: number) => {
@@ -1115,6 +1136,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controlsRef.current.update();
   };
 
+  const handleGizmoDoubleClick = () => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    zoomAnimRef.current = null;
+    cameraFlyRef.current = {
+      fromPos: cameraRef.current.position.clone(),
+      toPos: new THREE.Vector3(1200, 800, 1500),
+      fromTarget: controlsRef.current.target.clone(),
+      toTarget: new THREE.Vector3(0, 400, 0),
+      startTime: performance.now(),
+      duration: 600,
+    };
+  };
+
   return (
     <>
       <div ref={containerRef} className="w-full h-full relative">
@@ -1123,8 +1157,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           ref={gizmoCanvasRef}
           width={90}
           height={90}
-          className="absolute top-3 right-3 z-10 pointer-events-none"
-          style={{ borderRadius: '50%' }}
+          className="absolute top-3 right-3 z-10"
+          style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer' }}
+          onDoubleClick={handleGizmoDoubleClick}
+          title="Double-click to reset view"
         />
 
         {/* Zoom slider */}
@@ -1132,7 +1168,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
              style={{ top: '50%', transform: 'translateY(-50%)' }}>
           <button
             onMouseDown={() => handleZoomBy(0.75)}
-            className="w-6 h-6 rounded flex items-center justify-center bg-black/40 hover:bg-black/60 text-white/60 hover:text-white text-base leading-none"
+            className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
             title="Zoom in"
           >+</button>
           <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1150,7 +1186,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           </div>
           <button
             onMouseDown={() => handleZoomBy(1.33)}
-            className="w-6 h-6 rounded flex items-center justify-center bg-black/40 hover:bg-black/60 text-white/60 hover:text-white text-base leading-none"
+            className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
             title="Zoom out"
           >−</button>
         </div>

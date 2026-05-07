@@ -46,6 +46,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             colorSettings={colorSettings}
             styleSettings={styleSettings}
             physicsParams={physicsParams}
+            theme={theme}
           />
         </div>
       ) : (

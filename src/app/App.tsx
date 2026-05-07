@@ -6,7 +6,13 @@ import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultNetworkColorSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
+
 type Keyframe = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]> };
+
+const EMPTY_PHYSICS_KFS = { 'phys-rep': [] as PhysicsKeyframe[], 'phys-spk': [] as PhysicsKeyframe[], 'phys-dmp': [] as PhysicsKeyframe[] };
+const PHYS_TRACK_PARAM: Record<string, string> = { 'phys-rep': 'repulsion', 'phys-spk': 'springK', 'phys-dmp': 'damping' };
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -20,29 +26,55 @@ export default function App() {
   const [styleSettings, setStyleSettings] = useState({ edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1 });
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
+  const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
   const [inspectorWidth, setInspectorWidth] = useState(268);
   const [timelineHeight, setTimelineHeight] = useState(240);
 
-  // Undo/redo history
-  const [keyframeHistory, setKeyframeHistory] = useState<Keyframe[][]>([[]]);
+  // Undo/redo history — tracks the full timeline state (camera + physics keyframes)
+  const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS }]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const pushHistory = useCallback((prev: Keyframe[], next: Keyframe[]) => {
+  const physicsKeyframesRef = useRef(physicsKeyframes);
+  useEffect(() => { physicsKeyframesRef.current = physicsKeyframes; }, [physicsKeyframes]);
+
+  const preDragStateRef = useRef<TimelineState | null>(null);
+
+  const getTimelineState = useCallback((): TimelineState => ({
+    cameraKeyframes: cameraKeyframesRef.current,
+    physicsKeyframes: physicsKeyframesRef.current,
+  }), []);
+
+  const pushHistory = useCallback((prev: TimelineState, next: TimelineState) => {
     setKeyframeHistory(h => [...h.slice(0, historyIndex + 1), prev, next].slice(-50));
     setHistoryIndex(i => Math.min(i + 1, 49));
   }, [historyIndex]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex <= 0) return;
-    setCameraKeyframes(keyframeHistory[historyIndex - 1] ?? []);
+    const entry = keyframeHistory[historyIndex - 1];
+    setCameraKeyframes(entry.cameraKeyframes ?? []);
+    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
     setHistoryIndex(i => i - 1);
   }, [historyIndex, keyframeHistory]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex >= keyframeHistory.length - 1) return;
-    setCameraKeyframes(keyframeHistory[historyIndex + 1]);
+    const entry = keyframeHistory[historyIndex + 1];
+    setCameraKeyframes(entry.cameraKeyframes ?? []);
+    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
     setHistoryIndex(i => i + 1);
   }, [historyIndex, keyframeHistory]);
+
+  // Drag-bracket callbacks: snapshot before drag, push history after
+  const handleDragStart = useCallback(() => {
+    preDragStateRef.current = getTimelineState();
+  }, [getTimelineState]);
+
+  const handleDragEnd = useCallback(() => {
+    if (!preDragStateRef.current) return;
+    pushHistory(preDragStateRef.current, getTimelineState());
+    preDragStateRef.current = null;
+  }, [pushHistory, getTimelineState]);
 
   const network3DRef = useRef<Network3DHandle>(null);
   const playheadRef = useRef(playheadPosition);
@@ -53,7 +85,6 @@ export default function App() {
   const animationRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(0);
 
-  // Spacebar toggles play/pause globally
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
@@ -65,7 +96,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Playback animation
   useEffect(() => {
     if (isPlaying) {
       startTimeRef.current = Date.now() - playheadRef.current * 1000;
@@ -85,7 +115,6 @@ export default function App() {
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Timecode update
   useEffect(() => {
     const total = Math.floor(playheadPosition);
     const frames = Math.floor((playheadPosition - total) * 30);
@@ -97,19 +126,41 @@ export default function App() {
   const handleStop = () => { setIsPlaying(false); setPlayheadPosition(0); };
 
   const handleCaptureKeyframe = useCallback(() => {
-    if (viewMode !== '3D') return;
-    const keyframe = network3DRef.current?.getCameraKeyframe();
-    if (!keyframe) return;
+    const prev = getTimelineState();
     const currentTime = playheadRef.current;
-    setCameraKeyframes(prev => {
-      const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
-      const next = [...filtered, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
-      pushHistory(prev, next);
+
+    // Capture physics params at current time for all 3 tracks
+    setPhysicsKeyframes(prevPkfs => {
+      const next: Record<string, PhysicsKeyframe[]> = { ...prevPkfs };
+      for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
+        const param = PHYS_TRACK_PARAM[trackId] as keyof typeof physicsParams;
+        const filtered = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
+        next[trackId] = [...filtered, { time: currentTime, value: physicsParams[param] }].sort((a, b) => a.time - b.time);
+      }
+      physicsKeyframesRef.current = next;
       return next;
     });
-  }, [viewMode, pushHistory]);
 
-  // Auto-update keyframe when camera rotates while playhead sits on one
+    if (viewMode !== '3D') {
+      // No camera keyframe in 2D — still push history after physics capture
+      // (will be pushed below)
+      const next = getTimelineState();
+      pushHistory(prev, next);
+      return;
+    }
+
+    const keyframe = network3DRef.current?.getCameraKeyframe();
+    if (!keyframe) return;
+
+    setCameraKeyframes(prevCkfs => {
+      const filtered = prevCkfs.filter(s => Math.abs(s.time - currentTime) > 0.1);
+      const next = [...filtered, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
+      cameraKeyframesRef.current = next;
+      pushHistory(prev, getTimelineState());
+      return next;
+    });
+  }, [viewMode, pushHistory, getTimelineState, physicsParams]);
+
   const handleCameraChange = useCallback(() => {
     if (viewMode !== '3D') return;
     const currentTime = playheadRef.current;
@@ -128,48 +179,96 @@ export default function App() {
         prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s)
           .sort((a, b) => a.time - b.time)
       );
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prev => {
+        const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - oldTime) < 0.01 ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
+        return { ...prev, [trackId]: kfs };
+      });
     }
   }, []);
 
-  const handleSetHandle = useCallback((time: number, side: 'out' | 'in', weight: number) => {
-    setCameraKeyframes(prev =>
-      prev.map(s => Math.abs(s.time - time) < 0.01
-        ? { ...s, [side === 'out' ? 'outWeight' : 'inWeight']: Math.max(0, Math.min(1, weight)) }
-        : s)
-    );
+  const handleSetHandle = useCallback((trackId: string, time: number, side: 'out' | 'in', weight: number) => {
+    const clamped = Math.max(0, Math.min(1, weight));
+    const key = side === 'out' ? 'outWeight' : 'inWeight';
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev =>
+        prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, [key]: clamped } : s)
+      );
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prev => {
+        const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - time) < 0.01 ? { ...k, [key]: clamped } : k);
+        return { ...prev, [trackId]: kfs };
+      });
+    }
   }, []);
 
-  const handleSetInterpolation = useCallback((time: number, mode: 'auto' | 'manual') => {
-    setCameraKeyframes(prev =>
-      prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, interpolation: mode } : s)
-    );
-  }, []);
+  const handleSetInterpolation = useCallback((trackId: string, time: number, mode: 'auto' | 'manual') => {
+    const prev = getTimelineState();
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prevCkfs => {
+        const next = prevCkfs.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, interpolation: mode } : s);
+        cameraKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, cameraKeyframes: next });
+        return next;
+      });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const kfs = (prevPkfs[trackId] ?? []).map(k => Math.abs(k.time - time) < 0.01 ? { ...k, interpolation: mode } : k);
+        const next = { ...prevPkfs, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, physicsKeyframes: next });
+        return next;
+      });
+    }
+  }, [getTimelineState, pushHistory]);
 
   const handleDeleteKeyframe = useCallback((trackId: string, time: number) => {
+    const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prev => {
-        const next = prev.filter(s => Math.abs(s.time - time) > 0.1);
-        pushHistory(prev, next);
+      setCameraKeyframes(prevCkfs => {
+        const next = prevCkfs.filter(s => Math.abs(s.time - time) > 0.1);
+        cameraKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, cameraKeyframes: next });
         return next;
       });
-      setSelectedKeyframe(prev =>
-        prev?.track === trackId && Math.abs(prev.time - time) < 0.1 ? null : prev
-      );
+      setSelectedKeyframe(sel => sel?.track === trackId && Math.abs(sel.time - time) < 0.1 ? null : sel);
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const kfs = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.1);
+        const next = { ...prevPkfs, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, physicsKeyframes: next });
+        return next;
+      });
+      setSelectedKeyframe(sel => sel?.track === trackId && Math.abs(sel.time - time) < 0.1 ? null : sel);
     }
-  }, [pushHistory]);
+  }, [getTimelineState, pushHistory]);
 
   const handleDuplicateKeyframe = useCallback((trackId: string, srcTime: number, destTime: number) => {
+    const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prev => {
-        const src = prev.find(s => Math.abs(s.time - srcTime) < 0.01);
-        if (!src) return prev;
-        const filtered = prev.filter(s => Math.abs(s.time - destTime) > 0.1);
+      setCameraKeyframes(prevCkfs => {
+        const src = prevCkfs.find(s => Math.abs(s.time - srcTime) < 0.01);
+        if (!src) return prevCkfs;
+        const filtered = prevCkfs.filter(s => Math.abs(s.time - destTime) > 0.1);
         const next = [...filtered, { ...src, time: destTime }].sort((a, b) => a.time - b.time);
-        pushHistory(prev, next);
+        cameraKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, cameraKeyframes: next });
+        return next;
+      });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const src = (prevPkfs[trackId] ?? []).find(k => Math.abs(k.time - srcTime) < 0.01);
+        if (!src) return prevPkfs;
+        const filtered = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - destTime) > 0.1);
+        const kfs = [...filtered, { ...src, time: destTime }].sort((a, b) => a.time - b.time);
+        const next = { ...prevPkfs, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        pushHistory(prev, { ...prev, physicsKeyframes: next });
         return next;
       });
     }
-  }, [pushHistory]);
+  }, [getTimelineState, pushHistory]);
 
   const startInspectorResize = useCallback((e: React.MouseEvent) => {
     const startX = e.clientX;
@@ -189,7 +288,6 @@ export default function App() {
     window.addEventListener('mouseup', onUp);
   }, [timelineHeight]);
 
-  // Theme: class-based, respects system preference
   useEffect(() => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const applyTheme = (t: typeof theme, sysDark: boolean) =>
@@ -208,7 +306,7 @@ export default function App() {
         viewMode={viewMode} onViewModeChange={setViewMode}
         theme={theme} onThemeChange={setTheme}
         onSaveState={() => {
-          const state = { inputText, colorSettings, styleSettings, physicsParams, viewMode, cameraKeyframes };
+          const state = { inputText, colorSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes };
           const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob); const a = document.createElement('a');
           a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
@@ -229,6 +327,7 @@ export default function App() {
                   if (s.physicsParams) setPhysicsParams(s.physicsParams);
                   if (s.viewMode) setViewMode(s.viewMode);
                   if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
+                  if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
                 } catch (err) { console.error('Failed to load state:', err); }
               };
               reader.readAsText(file);
@@ -244,10 +343,7 @@ export default function App() {
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
           width={inspectorWidth}
           onDeleteKeyframe={(time) => {
-            setCameraKeyframes(prev => {
-              const next = prev.filter(s => Math.abs(s.time - time) > 0.1);
-              pushHistory(prev, next); return next;
-            });
+            handleDeleteKeyframe('camera-keyframes', time);
           }}
         />
         <div
@@ -260,6 +356,7 @@ export default function App() {
           physicsParams={physicsParams} inputText={inputText}
           colorSettings={colorSettings} styleSettings={styleSettings}
           cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
+          physicsKeyframes={physicsKeyframes}
           theme={theme}
         />
       </div>
@@ -274,9 +371,12 @@ export default function App() {
         selectedKeyframe={selectedKeyframe}
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
         cameraKeyframes={cameraKeyframes} onCaptureKeyframe={handleCaptureKeyframe}
-        onMoveKeyframe={handleMoveKeyframe} onSetHandle={handleSetHandle}
+        physicsKeyframes={physicsKeyframes}
+        onMoveKeyframe={handleMoveKeyframe}
+        onSetHandle={handleSetHandle}
         onSetInterpolation={handleSetInterpolation}
         onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
+        onDragStart={handleDragStart} onDragEnd={handleDragEnd}
         timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
         canUndo={historyIndex > 0} canRedo={historyIndex < keyframeHistory.length - 1}
         height={timelineHeight}

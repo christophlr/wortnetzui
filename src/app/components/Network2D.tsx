@@ -1,47 +1,43 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
 interface Network2DProps {
-  isPlaying?: boolean;
-  playheadPosition?: number;
   inputText?: string;
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   physicsParams?: {
-    repulsion: number;
-    springK: number;
-    damping: number;
-    minSpeed: number;
-    linkDistance: number;
-    gravity: number;
-    turbulence: number;
+    repulsion: number; springK: number; damping: number;
+    minSpeed: number; linkDistance: number; gravity: number; turbulence: number;
   };
+  theme?: 'light' | 'dark' | 'system';
 }
 
 interface GraphNode {
   label: string;
   wordCount: number;
   sentenceIds: Set<number>;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  x: number; y: number;
+  vx: number; vy: number;
+  textSprite?: THREE.Sprite;
 }
 
 interface GraphEdge {
   a: GraphNode;
   b: GraphNode;
+  line?: THREE.Line;
 }
 
 const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes, far away up the hill. It was 3am that day, cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write, I write like a ritual over and over. The more exist the more I go I fly, they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
 
 const DEFAULT_PHYSICS_2D = {
-  repulsion: 3000,
-  springK: 0.03,
+  repulsion: 1500,
+  springK: 0.06,
   damping: 0.88,
   minSpeed: 0.5,
-  linkDistance: 150,
-  gravity: 0.002,
+  linkDistance: 80,
+  gravity: 3,
   turbulence: 0,
 };
 
@@ -89,196 +85,180 @@ const buildNetworkFromText = (text: string) => {
   const edges: GraphEdge[] = [];
   const clean = normalizeText(text);
   const sentences = splitSentences(clean);
-
-  sentences.forEach((sentence, id) => {
-    const words = sentence.split(/\s+/).filter(Boolean);
-    buildSubstrings(words, id, nodes);
-  });
-  sentences.forEach(sentence => {
-    buildInclusionEdges(sentence.split(/\s+/).filter(Boolean), nodes, edges);
-  });
-
+  sentences.forEach((s, id) => buildSubstrings(s.split(/\s+/).filter(Boolean), id, nodes));
+  sentences.forEach(s => buildInclusionEdges(s.split(/\s+/).filter(Boolean), nodes, edges));
   let minW = Infinity, maxW = -Infinity;
   nodes.forEach(n => { minW = Math.min(minW, n.wordCount); maxW = Math.max(maxW, n.wordCount); });
-
   return { nodes, edges, minWords: minW, maxWords: maxW };
 };
 
 /* ── INITIAL SCATTER ── */
 
-const scatterNodes = (nodes: Map<string, GraphNode>, width: number, height: number) => {
+const scatterNodes2D = (nodes: Map<string, GraphNode>, width: number, height: number) => {
+  const spread = Math.min(width, height) * 0.35;
   for (const node of nodes.values()) {
-    node.x = width * 0.15 + Math.random() * width * 0.7;
-    node.y = height * 0.15 + Math.random() * height * 0.7;
-    node.vx = 0;
-    node.vy = 0;
+    node.x = (Math.random() - 0.5) * spread * 2;
+    node.y = (Math.random() - 0.5) * spread * 2;
+    node.vx = (Math.random() - 0.5) * 2;
+    node.vy = (Math.random() - 0.5) * 2;
   }
 };
 
-/* ── FORCE-DIRECTED PHYSICS STEP ── */
+/* ── PHYSICS ── */
 
-const stepPhysics2D = (
-  nodes: Map<string, GraphNode>,
+const applyPhysics2D = (
   edges: GraphEdge[],
-  width: number,
-  height: number,
-  params: typeof DEFAULT_PHYSICS_2D
+  params: typeof DEFAULT_PHYSICS_2D,
+  nodeArr: GraphNode[]
 ): number => {
-  const arr = Array.from(nodes.values());
-  const cx = width / 2;
-  const cy = height / 2;
+  const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence } = params;
 
-  // Repulsion between all pairs (Coulomb)
-  for (let i = 0; i < arr.length; i++) {
-    for (let j = i + 1; j < arr.length; j++) {
-      const a = arr[i], b = arr[j];
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
-      const f = Math.min(params.repulsion / (dist * dist), 80);
-      const fx = (dx / dist) * f;
-      const fy = (dy / dist) * f;
+  for (const node of nodeArr) {
+    node.vx *= damping;
+    node.vy *= damping;
+    if (gravity > 0) {
+      node.vx -= node.x * gravity * 0.001;
+      node.vy -= node.y * gravity * 0.001;
+    }
+    if (turbulence > 0) {
+      node.vx += (Math.random() - 0.5) * turbulence * 0.5;
+      node.vy += (Math.random() - 0.5) * turbulence * 0.5;
+    }
+  }
+
+  const n = nodeArr.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = nodeArr[i], b = nodeArr[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const distSq = dx * dx + dy * dy + 1;
+      const dist = Math.sqrt(distSq);
+      let shared = false;
+      for (const id of a.sentenceIds) { if (b.sentenceIds.has(id)) { shared = true; break; } }
+      const sentenceMod = shared ? 0.6 : 1.5;
+      const diffFactor = 1 + Math.abs(a.wordCount - b.wordCount) * 0.15;
+      const force = Math.min((repulsion * sentenceMod * diffFactor) / distSq, 40);
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
       a.vx += fx; a.vy += fy;
       b.vx -= fx; b.vy -= fy;
     }
   }
 
-  // Spring attraction along edges (Hooke)
   for (const edge of edges) {
-    const dx = edge.b.x - edge.a.x;
-    const dy = edge.b.y - edge.a.y;
+    const dx = edge.b.x - edge.a.x, dy = edge.b.y - edge.a.y;
     const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
-    const f = params.springK * (dist - params.linkDistance);
-    const fx = (dx / dist) * f;
-    const fy = (dy / dist) * f;
+    const f = (dist - linkDistance) * springK;
+    const fx = (dx / dist) * f, fy = (dy / dist) * f;
     edge.a.vx += fx; edge.a.vy += fy;
     edge.b.vx -= fx; edge.b.vy -= fy;
   }
 
-  // Gravity + turbulence + damping + integrate
-  let maxSpeed = 0;
-  for (const node of arr) {
-    node.vx += (cx - node.x) * params.gravity;
-    node.vy += (cy - node.y) * params.gravity;
-    if (params.turbulence > 0) {
-      node.vx += (Math.random() - 0.5) * params.turbulence;
-      node.vy += (Math.random() - 0.5) * params.turbulence;
-    }
-    node.vx *= params.damping;
-    node.vy *= params.damping;
-    node.x += node.vx;
-    node.y += node.vy;
+  const maxSpeedLimit = 20;
+  let total = 0;
+  for (const node of nodeArr) {
     const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
-    if (speed > maxSpeed) maxSpeed = speed;
+    if (speed > maxSpeedLimit) { node.vx = (node.vx / speed) * maxSpeedLimit; node.vy = (node.vy / speed) * maxSpeedLimit; }
+    if (speed > minSpeed) { node.x += node.vx; node.y += node.vy; total += speed; }
   }
-
-  return maxSpeed;
+  return total / nodeArr.length;
 };
 
-/* ── COLOR + BACKGROUND ── */
+const syncVisuals2D = (edges: GraphEdge[], nodeArr: GraphNode[]) => {
+  for (const node of nodeArr) {
+    if (node.textSprite) node.textSprite.position.set(node.x, node.y, 0);
+  }
+  for (const edge of edges) {
+    if (edge.line) {
+      const pos = edge.line.geometry.attributes.position as THREE.BufferAttribute;
+      pos.setXYZ(0, edge.a.x, edge.a.y, 0);
+      pos.setXYZ(1, edge.b.x, edge.b.y, 0);
+      pos.needsUpdate = true;
+    }
+  }
+};
 
-const getColorFromWordCount = (
+/* ── COLOR HELPERS ── */
+
+const getColorString = (
   wordCount: number, min: number, max: number,
-  settings: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
+  s: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
 ) => {
   const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
-  const hue = settings.hueStart + (settings.hueEnd - settings.hueStart) * t;
-  return `hsl(${hue}, ${settings.saturation}%, ${settings.lightness}%)`;
+  const hue = s.hueStart + (s.hueEnd - s.hueStart) * t;
+  return `hsl(${hue}, ${s.saturation}%, ${s.lightness}%)`;
 };
 
-const getBackgroundColor = () => getNetworkThemeBackground().hex;
-
-/* ── CANVAS RENDERING ── */
-
-const renderCanvas = (
-  canvas: HTMLCanvasElement,
-  nodes: Map<string, GraphNode>,
-  edges: GraphEdge[],
-  minWords: number,
-  maxWords: number,
-  colorSettings: { hueStart: number; hueEnd: number; saturation: number; lightness: number },
-  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number },
-  hoveredNodeLabel: string | null,
-  transform: { x: number; y: number; scale: number }
+const getThreeColor = (
+  wordCount: number, min: number, max: number,
+  s: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
 ) => {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
+  const hue = (s.hueStart + (s.hueEnd - s.hueStart) * t) / 360;
+  return new THREE.Color().setHSL(hue, s.saturation / 100, s.lightness / 100);
+};
 
-  const dpr = window.devicePixelRatio || 1;
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  if (width === 0 || height === 0) return;
+/* ── TEXT SPRITE ── */
 
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = getBackgroundColor();
-  ctx.fillRect(0, 0, width, height);
+const createTextSprite2D = (text: string, color: string, highlighted = false, nodeScale = 1) => {
+  const offscreen = document.createElement('canvas');
+  const ctx = offscreen.getContext('2d')!;
 
-  ctx.save();
-  ctx.translate(transform.x, transform.y);
-  ctx.scale(transform.scale, transform.scale);
-
-  // Edges
-  ctx.globalAlpha = styleSettings.edgeOpacity;
-  for (const edge of edges) {
-    ctx.strokeStyle = getColorFromWordCount(edge.a.wordCount, minWords, maxWords, colorSettings);
-    ctx.lineWidth = Math.max(0.5, styleSettings.edgeWidth * 0.4);
-    ctx.beginPath();
-    ctx.moveTo(edge.a.x, edge.a.y);
-    ctx.lineTo(edge.b.x, edge.b.y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  // Nodes
-  const fontSize = 11;
+  const words = text.split(' ');
+  const fontSize = 18;
   const lineHeight = fontSize * 1.2;
-  const padding = 6;
+  const padding = 10;
+  const pixelRatio = 2;
 
-  for (const node of nodes.values()) {
-    const color = getColorFromWordCount(node.wordCount, minWords, maxWords, colorSettings);
-    const words = node.label.split(' ');
+  ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
+  const maxWidth = Math.max(...words.map(w => ctx.measureText(w).width));
+  const logicalWidth = maxWidth + padding * 2;
+  const logicalHeight = words.length * lineHeight + padding * 2;
 
-    ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-    const maxW = Math.max(...words.map(w => ctx.measureText(w).width));
-    const boxW = maxW + padding * 2;
-    const boxH = words.length * lineHeight + padding * 2;
-    const wordCountScale = Math.max(0.6, 1 - node.wordCount * 0.04);
-    const scale = styleSettings.nodeScale * wordCountScale;
-    const sw = boxW * scale;
-    const sh = boxH * scale;
+  offscreen.width = Math.ceil(logicalWidth * pixelRatio);
+  offscreen.height = Math.ceil(logicalHeight * pixelRatio);
+  ctx.scale(pixelRatio, pixelRatio);
 
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = getNetworkLabelStyle().backgroundHex;
-    ctx.fillRect(node.x - sw / 2, node.y - sh / 2, sw, sh);
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
+  ctx.fillStyle = getNetworkLabelStyle().backgroundHex;
+  ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(node.x - sw / 2, node.y - sh / 2, sw, sh);
+  ctx.strokeStyle = highlighted ? 'rgba(255,255,255,0.95)' : color;
+  ctx.lineWidth = highlighted ? 4 : 1.5;
+  ctx.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
 
-    if (node.label === hoveredNodeLabel) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(node.x - sw / 2 - 3, node.y - sh / 2 - 3, sw + 6, sh + 6);
-    }
-
-    ctx.fillStyle = color;
-    ctx.font = `600 ${fontSize * scale}px "Space Grotesk", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+  if (highlighted) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
     words.forEach((word, i) => {
-      ctx.fillText(word, node.x, node.y - sh / 2 + padding * scale + (i + 0.5) * lineHeight * scale);
+      ctx.strokeText(word, logicalWidth / 2, padding + lineHeight / 2 + i * lineHeight);
     });
   }
 
-  ctx.restore();
+  ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  words.forEach((word, i) => {
+    ctx.fillText(word, logicalWidth / 2, padding + lineHeight / 2 + i * lineHeight);
+  });
+
+  const texture = new THREE.CanvasTexture(offscreen);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+
+  const wordCountFactor = Math.max(0.5, 1 - words.length * 0.04);
+  const baseScale = logicalWidth * wordCountFactor;
+  const aspectRatio = logicalHeight / logicalWidth;
+  sprite.scale.set(baseScale * nodeScale, baseScale * nodeScale * aspectRatio, 1);
+  sprite.userData.baseScale = baseScale;
+  sprite.userData.aspectRatio = aspectRatio;
+
+  return sprite;
+};
+
+const disposeSprite = (sprite: THREE.Sprite) => {
+  const mat = sprite.material as THREE.SpriteMaterial;
+  mat.map?.dispose();
+  mat.dispose();
 };
 
 /* ── COMPONENT ── */
@@ -288,219 +268,275 @@ export function Network2D({
   colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   physicsParams = DEFAULT_PHYSICS_2D,
+  theme = 'system',
 }: Network2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const nodesRef = useRef<Map<string, GraphNode>>(new Map());
-  const edgesRef = useRef<GraphEdge[]>([]);
+  const sceneRef = useRef<THREE.Scene>();
+  const cameraRef = useRef<THREE.OrthographicCamera>();
+  const rendererRef = useRef<THREE.WebGLRenderer>();
+  const controlsRef = useRef<OrbitControls>();
+  const graphNodesRef = useRef<Map<string, GraphNode>>(new Map());
+  const graphEdgesRef = useRef<GraphEdge[]>([]);
+  const graphNodeArrayRef = useRef<GraphNode[]>([]);
+  const spritesArrayRef = useRef<THREE.Object3D[]>([]);
+  const animFrameRef = useRef<number>();
   const minWordsRef = useRef(Infinity);
   const maxWordsRef = useRef(-Infinity);
-  const hoveredNodeLabelRef = useRef<string | null>(null);
-  const transformRef = useRef({ x: 0, y: 0, scale: 1 });
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const dragTransformStartRef = useRef({ x: 0, y: 0 });
+  const physicsEnabledRef = useRef(true);
+  const stillFramesRef = useRef(0);
+  const physicsParamsRef = useRef(physicsParams);
   const colorSettingsRef = useRef(colorSettings);
   const styleSettingsRef = useRef(styleSettings);
-  const physicsParamsRef = useRef(physicsParams);
-  const physicsActiveRef = useRef(false);
-  const stillFramesRef = useRef(0);
-  const animFrameRef = useRef<number>();
+  const hoveredNodeRef = useRef<GraphNode | null>(null);
 
-  const render = useCallback(() => {
-    if (!canvasRef.current) return;
-    renderCanvas(
-      canvasRef.current,
-      nodesRef.current,
-      edgesRef.current,
-      minWordsRef.current,
-      maxWordsRef.current,
-      colorSettingsRef.current,
-      styleSettingsRef.current,
-      hoveredNodeLabelRef.current,
-      transformRef.current
-    );
-  }, []);
+  /* ── MAIN SETUP (re-runs only when inputText changes) ── */
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  // Physics + render loop — stops automatically when nodes settle
-  const startPhysicsLoop = useCallback(() => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    physicsActiveRef.current = true;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+
+    const scene = new THREE.Scene();
+    const bg = getNetworkThemeBackground();
+    scene.background = new THREE.Color(bg.threeColor);
+    sceneRef.current = scene;
+
+    // Orthographic camera: 1 world unit = 1 CSS pixel at zoom=1
+    const camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, -10000, 10000);
+    camera.position.set(0, 0, 1);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // Pan + zoom only — no orbit rotation for 2D
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableRotate = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+    controlsRef.current = controls;
+
+    // Build graph
+    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
+    scatterNodes2D(nodes, w, h);
+    graphNodesRef.current = nodes;
+    graphEdgesRef.current = edges;
+    graphNodeArrayRef.current = Array.from(nodes.values());
+    minWordsRef.current = minWords;
+    maxWordsRef.current = maxWords;
+    physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
+    hoveredNodeRef.current = null;
 
-    const loop = () => {
-      const container = containerRef.current;
-      if (container && physicsActiveRef.current) {
-        const maxSpeed = stepPhysics2D(
-          nodesRef.current, edgesRef.current,
-          container.clientWidth, container.clientHeight,
-          physicsParamsRef.current
-        );
-        if (maxSpeed < physicsParamsRef.current.minSpeed) {
-          if (++stillFramesRef.current > 60) {
-            physicsActiveRef.current = false;
-            render();
-            return; // loop stops
-          }
+    const cs = colorSettingsRef.current;
+    const ss = styleSettingsRef.current;
+
+    // Edges with vertex colors
+    edges.forEach(edge => {
+      const colA = getThreeColor(edge.a.wordCount, minWords, maxWords, cs);
+      const colB = getThreeColor(edge.b.wordCount, minWords, maxWords, cs);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(
+        new Float32Array([edge.a.x, edge.a.y, 0, edge.b.x, edge.b.y, 0]), 3
+      ));
+      geometry.setAttribute('color', new THREE.BufferAttribute(
+        new Float32Array([colA.r, colA.g, colA.b, colB.r, colB.g, colB.b]), 3
+      ));
+      const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        vertexColors: true, opacity: ss.edgeOpacity, transparent: true,
+      }));
+      scene.add(line);
+      edge.line = line;
+    });
+
+    // Node sprites
+    nodes.forEach(node => {
+      const color = getColorString(node.wordCount, minWords, maxWords, cs);
+      const sprite = createTextSprite2D(node.label, color, false, ss.nodeScale);
+      sprite.userData.label = node.label;
+      sprite.position.set(node.x, node.y, 0);
+      scene.add(sprite);
+      node.textSprite = sprite;
+    });
+    spritesArrayRef.current = graphNodeArrayRef.current
+      .map(n => n.textSprite).filter(Boolean) as THREE.Object3D[];
+
+    // Hover via raycasting
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const rebuildSprite = (node: GraphNode, highlighted: boolean) => {
+      if (!node.textSprite || !sceneRef.current) return;
+      const color = getColorString(node.wordCount, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+      const newSprite = createTextSprite2D(node.label, color, highlighted, styleSettingsRef.current.nodeScale);
+      newSprite.userData.label = node.label;
+      newSprite.position.copy(node.textSprite.position);
+      sceneRef.current.remove(node.textSprite);
+      disposeSprite(node.textSprite);
+      sceneRef.current.add(newSprite);
+      node.textSprite = newSprite;
+      spritesArrayRef.current = graphNodeArrayRef.current
+        .map(n => n.textSprite).filter(Boolean) as THREE.Object3D[];
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hit = raycaster.intersectObjects(spritesArrayRef.current)[0];
+      const hitLabel = hit ? (hit.object as THREE.Sprite).userData.label as string : null;
+      const prev = hoveredNodeRef.current;
+      const next = hitLabel ? graphNodesRef.current.get(hitLabel) ?? null : null;
+      if (prev?.label === next?.label) return;
+      if (prev) rebuildSprite(prev, false);
+      if (next) rebuildSprite(next, true);
+      hoveredNodeRef.current = next;
+      renderer.domElement.style.cursor = next ? 'pointer' : 'default';
+    };
+
+    const handleMouseLeave = () => {
+      if (hoveredNodeRef.current) {
+        rebuildSprite(hoveredNodeRef.current, false);
+        hoveredNodeRef.current = null;
+        renderer.domElement.style.cursor = 'default';
+      }
+    };
+
+    renderer.domElement.addEventListener('mousemove', handleMouseMove);
+    renderer.domElement.addEventListener('mouseleave', handleMouseLeave);
+
+    // Animation loop
+    const animate = () => {
+      animFrameRef.current = requestAnimationFrame(animate);
+
+      if (physicsEnabledRef.current) {
+        const avgMovement = applyPhysics2D(graphEdgesRef.current, physicsParamsRef.current, graphNodeArrayRef.current);
+        syncVisuals2D(graphEdgesRef.current, graphNodeArrayRef.current);
+        if (physicsParamsRef.current.turbulence > 0) {
+          stillFramesRef.current = 0;
+        } else if (avgMovement < 0.5) {
+          if (++stillFramesRef.current > 60) physicsEnabledRef.current = false;
         } else {
           stillFramesRef.current = 0;
         }
       }
-      render();
-      animFrameRef.current = requestAnimationFrame(loop);
+
+      controls.update();
+      renderer.render(scene, camera);
     };
+    animate();
 
-    animFrameRef.current = requestAnimationFrame(loop);
-  }, [render]);
-
-  // Build graph when text changes
-  useEffect(() => {
-    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
-    nodesRef.current = nodes;
-    edgesRef.current = edges;
-    minWordsRef.current = minWords;
-    maxWordsRef.current = maxWords;
-
-    const container = containerRef.current;
-    if (container) scatterNodes(nodes, container.clientWidth, container.clientHeight);
-
-    startPhysicsLoop();
-  }, [inputText, startPhysicsLoop]);
-
-  // Restart physics when physics params change
-  useEffect(() => {
-    physicsParamsRef.current = physicsParams;
-    startPhysicsLoop();
-  }, [physicsParams, startPhysicsLoop]);
-
-  // Re-render only when color/style changes (no physics restart)
-  useEffect(() => { colorSettingsRef.current = colorSettings; render(); }, [colorSettings, render]);
-  useEffect(() => { styleSettingsRef.current = styleSettings; render(); }, [styleSettings, render]);
-
-  // Event handlers (mount only — reads all live state from refs)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const getNodeAtPoint = (mouseX: number, mouseY: number): string | null => {
-      const ctx = canvas.getContext('2d')!;
-      ctx.font = `600 11px "Space Grotesk", sans-serif`;
-      const t = transformRef.current;
-      const wx = (mouseX - t.x) / t.scale;
-      const wy = (mouseY - t.y) / t.scale;
-      const padding = 6, fontSize = 11, lineHeight = fontSize * 1.2;
-
-      for (const node of nodesRef.current.values()) {
-        const words = node.label.split(' ');
-        const maxW = Math.max(...words.map(w => ctx.measureText(w).width));
-        const scale = styleSettingsRef.current.nodeScale * Math.max(0.6, 1 - node.wordCount * 0.04);
-        const sw = (maxW + padding * 2) * scale;
-        const sh = (words.length * lineHeight + padding * 2) * scale;
-        if (wx >= node.x - sw / 2 && wx <= node.x + sw / 2 &&
-            wy >= node.y - sh / 2 && wy <= node.y + sh / 2) return node.label;
-      }
-      return null;
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      const t = transformRef.current;
-      const newScale = Math.max(0.05, Math.min(20, t.scale * factor));
-      transformRef.current = {
-        x: mx - (mx - t.x) * (newScale / t.scale),
-        y: my - (my - t.y) * (newScale / t.scale),
-        scale: newScale,
-      };
-      render();
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      isDraggingRef.current = true;
-      dragStartRef.current = { x: e.clientX, y: e.clientY };
-      dragTransformStartRef.current = { x: transformRef.current.x, y: transformRef.current.y };
-      canvas.style.cursor = 'grabbing';
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDraggingRef.current) {
-        transformRef.current = {
-          ...transformRef.current,
-          x: dragTransformStartRef.current.x + (e.clientX - dragStartRef.current.x),
-          y: dragTransformStartRef.current.y + (e.clientY - dragStartRef.current.y),
-        };
-        render();
-        return;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const newHovered = getNodeAtPoint(e.clientX - rect.left, e.clientY - rect.top);
-      if (newHovered !== hoveredNodeLabelRef.current) {
-        hoveredNodeLabelRef.current = newHovered;
-        canvas.style.cursor = newHovered ? 'pointer' : 'default';
-        render();
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (isDraggingRef.current) {
-        isDraggingRef.current = false;
-        canvas.style.cursor = 'default';
-      }
-    };
-
-    const handleMouseLeave = () => {
-      isDraggingRef.current = false;
-      hoveredNodeLabelRef.current = null;
-      canvas.style.cursor = 'default';
-      render();
-    };
-
+    // Resize
     const handleResize = () => {
-      scatterNodes(nodesRef.current, container.clientWidth, container.clientHeight);
-      startPhysicsLoop();
+      const nw = container.clientWidth, nh = container.clientHeight;
+      camera.left = -nw / 2; camera.right = nw / 2;
+      camera.top = nh / 2;   camera.bottom = -nh / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
     };
-
-    canvas.addEventListener('wheel', handleWheel, { passive: false });
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    let resizeTimeout: number;
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = window.setTimeout(handleResize, 150);
-    });
-    resizeObserver.observe(container);
+    const ro = new ResizeObserver(handleResize);
+    ro.observe(container);
     window.addEventListener('resize', handleResize);
 
     return () => {
-      canvas.removeEventListener('wheel', handleWheel);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-      window.removeEventListener('mouseup', handleMouseUp);
+      renderer.domElement.removeEventListener('mousemove', handleMouseMove);
+      renderer.domElement.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('resize', handleResize);
-      resizeObserver.disconnect();
-      clearTimeout(resizeTimeout);
+      ro.disconnect();
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      controls.dispose();
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
+      renderer.dispose();
     };
-  }, [render, startPhysicsLoop]);
+  }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cancel loop on unmount
+  /* ── COLOR SETTINGS ── */
   useEffect(() => {
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
-  }, []);
+    colorSettingsRef.current = colorSettings;
+    if (!sceneRef.current || !graphNodesRef.current.size) return;
+    const minW = minWordsRef.current, maxW = maxWordsRef.current;
 
-  return (
-    <div ref={containerRef} className="w-full h-full relative bg-zinc-950 overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-    </div>
-  );
+    graphNodesRef.current.forEach(node => {
+      if (!node.textSprite) return;
+      const color = getColorString(node.wordCount, minW, maxW, colorSettings);
+      const isHovered = hoveredNodeRef.current?.label === node.label;
+      const newSprite = createTextSprite2D(node.label, color, isHovered, styleSettingsRef.current.nodeScale);
+      newSprite.userData.label = node.label;
+      newSprite.position.copy(node.textSprite.position);
+      sceneRef.current!.remove(node.textSprite);
+      disposeSprite(node.textSprite);
+      sceneRef.current!.add(newSprite);
+      node.textSprite = newSprite;
+      if (isHovered) hoveredNodeRef.current = node;
+    });
+    spritesArrayRef.current = graphNodeArrayRef.current.map(n => n.textSprite).filter(Boolean) as THREE.Object3D[];
+
+    graphEdgesRef.current.forEach(edge => {
+      if (!edge.line) return;
+      const colA = getThreeColor(edge.a.wordCount, minW, maxW, colorSettings);
+      const colB = getThreeColor(edge.b.wordCount, minW, maxW, colorSettings);
+      const attr = edge.line.geometry.attributes.color as THREE.BufferAttribute;
+      attr.setXYZ(0, colA.r, colA.g, colA.b);
+      attr.setXYZ(1, colB.r, colB.g, colB.b);
+      attr.needsUpdate = true;
+    });
+  }, [colorSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── STYLE SETTINGS ── */
+  useEffect(() => {
+    styleSettingsRef.current = styleSettings;
+    graphNodesRef.current.forEach(node => {
+      if (!node.textSprite) return;
+      const { baseScale, aspectRatio } = node.textSprite.userData;
+      const ns = styleSettings.nodeScale;
+      node.textSprite.scale.set(baseScale * ns, baseScale * ns * aspectRatio, 1);
+    });
+    graphEdgesRef.current.forEach(edge => {
+      if (!edge.line) return;
+      (edge.line.material as THREE.LineBasicMaterial).opacity = styleSettings.edgeOpacity;
+      (edge.line.material as THREE.LineBasicMaterial).needsUpdate = true;
+    });
+  }, [styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── PHYSICS PARAMS ── */
+  useEffect(() => {
+    physicsParamsRef.current = physicsParams;
+    physicsEnabledRef.current = true;
+    stillFramesRef.current = 0;
+  }, [physicsParams]);
+
+  /* ── THEME ── */
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const bg = getNetworkThemeBackground();
+    sceneRef.current.background = new THREE.Color(bg.threeColor);
+
+    if (!graphNodesRef.current.size) return;
+    const minW = minWordsRef.current, maxW = maxWordsRef.current;
+    graphNodesRef.current.forEach(node => {
+      if (!node.textSprite) return;
+      const color = getColorString(node.wordCount, minW, maxW, colorSettingsRef.current);
+      const isHovered = hoveredNodeRef.current?.label === node.label;
+      const newSprite = createTextSprite2D(node.label, color, isHovered, styleSettingsRef.current.nodeScale);
+      newSprite.userData.label = node.label;
+      newSprite.position.copy(node.textSprite.position);
+      sceneRef.current!.remove(node.textSprite);
+      disposeSprite(node.textSprite);
+      sceneRef.current!.add(newSprite);
+      node.textSprite = newSprite;
+      if (isHovered) hoveredNodeRef.current = node;
+    });
+    spritesArrayRef.current = graphNodeArrayRef.current.map(n => n.textSprite).filter(Boolean) as THREE.Object3D[];
+  }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <div ref={containerRef} className="w-full h-full" />;
 }
 
 Network2D.displayName = 'Network2D';
