@@ -129,36 +129,32 @@ export default function App() {
     const prev = getTimelineState();
     const currentTime = playheadRef.current;
 
-    // Capture physics params at current time for all 3 tracks
-    setPhysicsKeyframes(prevPkfs => {
-      const next: Record<string, PhysicsKeyframe[]> = { ...prevPkfs };
-      for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
-        const param = PHYS_TRACK_PARAM[trackId] as keyof typeof physicsParams;
-        const filtered = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
-        next[trackId] = [...filtered, { time: currentTime, value: physicsParams[param] }].sort((a, b) => a.time - b.time);
-      }
-      physicsKeyframesRef.current = next;
-      return next;
-    });
+    // Compute next physics kfs synchronously from current physicsParams
+    const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
+    for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
+      const param = PHYS_TRACK_PARAM[trackId] as keyof typeof physicsParams;
+      const filtered = (nextPhysKfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
+      nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: physicsParams[param] }].sort((a, b) => a.time - b.time);
+    }
+    physicsKeyframesRef.current = nextPhysKfs;
+    setPhysicsKeyframes(nextPhysKfs);
 
     if (viewMode !== '3D') {
-      // No camera keyframe in 2D — still push history after physics capture
-      // (will be pushed below)
-      const next = getTimelineState();
-      pushHistory(prev, next);
+      pushHistory(prev, { cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: nextPhysKfs });
       return;
     }
 
     const keyframe = network3DRef.current?.getCameraKeyframe();
-    if (!keyframe) return;
+    if (!keyframe) {
+      pushHistory(prev, { cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: nextPhysKfs });
+      return;
+    }
 
-    setCameraKeyframes(prevCkfs => {
-      const filtered = prevCkfs.filter(s => Math.abs(s.time - currentTime) > 0.1);
-      const next = [...filtered, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
-      cameraKeyframesRef.current = next;
-      pushHistory(prev, getTimelineState());
-      return next;
-    });
+    const filteredCkfs = cameraKeyframesRef.current.filter(s => Math.abs(s.time - currentTime) > 0.1);
+    const nextCkfs = [...filteredCkfs, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
+    cameraKeyframesRef.current = nextCkfs;
+    setCameraKeyframes(nextCkfs);
+    pushHistory(prev, { cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
 
   const handleCameraChange = useCallback(() => {
@@ -175,14 +171,17 @@ export default function App() {
 
   const handleMoveKeyframe = useCallback((trackId: string, oldTime: number, newTime: number) => {
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prev =>
-        prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s)
-          .sort((a, b) => a.time - b.time)
-      );
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prev => {
         const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - oldTime) < 0.01 ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
-        return { ...prev, [trackId]: kfs };
+        const next = { ...prev, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
       });
     }
   }, []);
@@ -191,13 +190,17 @@ export default function App() {
     const clamped = Math.max(0, Math.min(1, weight));
     const key = side === 'out' ? 'outWeight' : 'inWeight';
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prev =>
-        prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, [key]: clamped } : s)
-      );
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, [key]: clamped } : s);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prev => {
         const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - time) < 0.01 ? { ...k, [key]: clamped } : k);
-        return { ...prev, [trackId]: kfs };
+        const next = { ...prev, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
       });
     }
   }, []);

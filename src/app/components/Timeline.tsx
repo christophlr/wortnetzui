@@ -6,6 +6,8 @@ import { segmentBezierPath, computeAutoWeights } from '../easing';
 
 /* ── Types & constants ── */
 
+type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+
 interface TimelineProps {
   isPlaying: boolean;
   onPlayPause: () => void;
@@ -15,12 +17,15 @@ interface TimelineProps {
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
   cameraKeyframes?: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
+  physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   onCaptureKeyframe?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
-  onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
-  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
+  onSetHandle?: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (trackId: string, time: number, mode: 'auto' | 'manual') => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   timecode?: string;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -249,15 +254,16 @@ const EASING_PRESETS_GRID = [
 ] as const;
 
 function EasingPicker({
-  anchorX, anchorY, kfTime, nextKfTime,
+  anchorX, anchorY, trackId, kfTime, nextKfTime,
   currentOutW, currentInW, isAuto,
   onSetHandle, onSetInterpolation, onClose,
 }: {
   anchorX: number; anchorY: number;
+  trackId: string;
   kfTime: number; nextKfTime: number;
   currentOutW: number; currentInW: number; isAuto: boolean;
-  onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
-  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
+  onSetHandle: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (trackId: string, time: number, mode: 'auto' | 'manual') => void;
   onClose: () => void;
 }) {
   const pickerW = 268;
@@ -288,13 +294,13 @@ function EasingPicker({
                 key={preset.label}
                 onClick={() => {
                   if (preset.label === 'Auto') {
-                    onSetInterpolation?.(kfTime, 'auto');
-                    onSetInterpolation?.(nextKfTime, 'auto');
+                    onSetInterpolation?.(trackId, kfTime, 'auto');
+                    onSetInterpolation?.(trackId, nextKfTime, 'auto');
                   } else {
-                    onSetHandle(kfTime, 'out', preset.outW);
-                    onSetHandle(nextKfTime, 'in', preset.inW);
-                    onSetInterpolation?.(kfTime, 'manual');
-                    onSetInterpolation?.(nextKfTime, 'manual');
+                    onSetHandle(trackId, kfTime, 'out', preset.outW);
+                    onSetHandle(trackId, nextKfTime, 'in', preset.inW);
+                    onSetInterpolation?.(trackId, kfTime, 'manual');
+                    onSetInterpolation?.(trackId, nextKfTime, 'manual');
                   }
                   onClose();
                 }}
@@ -330,11 +336,14 @@ function EasingPicker({
 }
 
 function EasingTrackRow({
-  keyframeData, onSetHandle, onSetInterpolation, viewWindow,
+  trackId, keyframeData, onSetHandle, onSetInterpolation, onDragStart, onDragEnd, viewWindow,
 }: {
+  trackId: string;
   keyframeData: Array<{ time: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
-  onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
-  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
+  onSetHandle: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (trackId: string, time: number, mode: 'auto' | 'manual') => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   viewWindow: ViewWindow;
 }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -361,13 +370,16 @@ function EasingTrackRow({
       const weight = side === 'out'
         ? Math.max(0, Math.min(1, frac))
         : Math.max(0, Math.min(1, 1 - frac));
-      onSetHandle(kfTime, side, weight);
+      onSetHandle(trackId, kfTime, side, weight);
     };
-    const onUp = () => setDragging(null);
+    const onUp = () => {
+      onDragEnd?.();
+      setDragging(null);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [dragging, onSetHandle]);
+  }, [dragging, trackId, onSetHandle, onDragEnd]);
 
   return (
     <div className="flex border-b border-border/50" style={{ height: EASING_H }}>
@@ -421,12 +433,14 @@ function EasingTrackRow({
           const startDragOut = (e: React.MouseEvent) => {
             if (isAuto) return;
             e.stopPropagation();
+            onDragStart?.();
             const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: kf.time, side: 'out', segLeft, segWidth });
           };
           const startDragIn = (e: React.MouseEvent) => {
             if (isAuto) return;
             e.stopPropagation();
+            onDragStart?.();
             const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: nextKf.time, side: 'in', segLeft, segWidth });
           };
@@ -545,6 +559,7 @@ function EasingTrackRow({
           <EasingPicker
             anchorX={picker.anchorX}
             anchorY={picker.anchorY}
+            trackId={trackId}
             kfTime={picker.kfTime}
             nextKfTime={picker.nextKfTime}
             currentOutW={kf?.outWeight ?? 0}
@@ -564,6 +579,7 @@ function EasingTrackRow({
 
 function TrackRow({
   track, color, selectedKeyframe, onKeyframeSelect, onMoveKeyframe, onKeyframeContextMenu,
+  onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
   track: { id: string; name: string; kfs: number[]; graph: boolean };
@@ -572,6 +588,8 @@ function TrackRow({
   onKeyframeSelect: (track: string, time: number) => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement | null>;
   playheadPosition: number;
@@ -603,14 +621,17 @@ function TrackRow({
         setDraggingKf({ ...draggingKf, time: newTime });
       }
     };
-    const handleMouseUp = () => setDraggingKf(null);
+    const handleMouseUp = () => {
+      onDragEnd?.();
+      setDraggingKf(null);
+    };
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingKf, timeFromClientX, onMoveKeyframe, track.id]);
+  }, [draggingKf, timeFromClientX, onMoveKeyframe, onDragEnd, track.id]);
 
   return (
     <div className="flex border-b border-border/50" style={{ height: 26 }}>
@@ -636,9 +657,8 @@ function TrackRow({
               key={`${track.id}-${t}-${idx}`}
               onMouseDown={e => {
                 e.stopPropagation();
-                if (track.id === 'camera-keyframes') {
-                  setDraggingKf({ time: t, startX: e.clientX });
-                }
+                onDragStart?.();
+                setDraggingKf({ time: t, startX: e.clientX });
                 onKeyframeSelect(track.id, t);
               }}
               onContextMenu={e => {
@@ -674,9 +694,9 @@ function TrackRow({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraKeyframes,
-  onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, snap, contentRef,
-  playheadPosition, duration, viewWindow,
+  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
+  onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, onDragStart, onDragEnd,
+  snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
@@ -684,10 +704,13 @@ function TrackGroup({
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
   cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
+  physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
-  onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
-  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
+  onSetHandle?: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (trackId: string, time: number, mode: 'auto' | 'manual') => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement | null>;
   playheadPosition: number;
@@ -723,35 +746,48 @@ function TrackGroup({
       </div>
 
       {expanded && group.tracks.map(track => {
+        const isPhysics = group.id === 'physics';
         const dynamicKfs = track.id === 'camera-keyframes'
           ? cameraKeyframes.map(s => s.time)
-          : track.kfs;
+          : isPhysics
+            ? (physicsKeyframes?.[track.id] ?? []).map(k => k.time)
+            : track.kfs;
+        const easingData = track.id === 'camera-keyframes'
+          ? cameraKeyframes
+          : isPhysics
+            ? (physicsKeyframes?.[track.id] ?? [])
+            : [];
         return (
-          <TrackRow
-            key={track.id}
-            track={{ ...track, kfs: dynamicKfs }}
-            color={group.color}
-            selectedKeyframe={selectedKeyframe}
-            onKeyframeSelect={onKeyframeSelect}
-            onMoveKeyframe={onMoveKeyframe}
-            onKeyframeContextMenu={onKeyframeContextMenu}
-            snap={snap}
-            contentRef={contentRef}
-            playheadPosition={playheadPosition}
-            duration={duration}
-            viewWindow={viewWindow}
-          />
+          <div key={track.id}>
+            <TrackRow
+              track={{ ...track, kfs: dynamicKfs }}
+              color={group.color}
+              selectedKeyframe={selectedKeyframe}
+              onKeyframeSelect={onKeyframeSelect}
+              onMoveKeyframe={onMoveKeyframe}
+              onKeyframeContextMenu={onKeyframeContextMenu}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              snap={snap}
+              contentRef={contentRef}
+              playheadPosition={playheadPosition}
+              duration={duration}
+              viewWindow={viewWindow}
+            />
+            {onSetHandle && (
+              <EasingTrackRow
+                trackId={track.id}
+                keyframeData={easingData}
+                onSetHandle={onSetHandle}
+                onSetInterpolation={onSetInterpolation}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                viewWindow={viewWindow}
+              />
+            )}
+          </div>
         );
       })}
-
-      {expanded && group.id === 'camera' && onSetHandle && (
-        <EasingTrackRow
-          keyframeData={cameraKeyframes}
-          onSetHandle={onSetHandle}
-          onSetInterpolation={onSetInterpolation}
-          viewWindow={viewWindow}
-        />
-      )}
     </>
   );
 }
@@ -767,12 +803,15 @@ export function Timeline({
   selectedKeyframe,
   onKeyframeSelect,
   cameraKeyframes = [],
+  physicsKeyframes,
   onCaptureKeyframe,
   onMoveKeyframe,
   onSetHandle,
   onSetInterpolation,
   onDeleteKeyframe,
   onDuplicateKeyframe,
+  onDragStart,
+  onDragEnd,
   timecode = '00:00:00:00',
   onUndo,
   onRedo,
@@ -789,9 +828,14 @@ export function Timeline({
   const [clipboard, setClipboard] = useState<{ trackId: string; time: number } | null>(null);
 
   useEffect(() => {
-    const maxKfTime = cameraKeyframes.reduce((max, s) => Math.max(max, s.time), 0);
+    let maxKfTime = cameraKeyframes.reduce((max, s) => Math.max(max, s.time), 0);
+    if (physicsKeyframes) {
+      for (const kfs of Object.values(physicsKeyframes)) {
+        for (const k of kfs) maxKfTime = Math.max(maxKfTime, k.time);
+      }
+    }
     if (maxKfTime > duration * 0.9) setDuration(d => d + 60);
-  }, [cameraKeyframes, duration]);
+  }, [cameraKeyframes, physicsKeyframes, duration]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -1112,10 +1156,13 @@ export function Timeline({
               selectedKeyframe={selectedKeyframe}
               onKeyframeSelect={onKeyframeSelect}
               cameraKeyframes={cameraKeyframes}
+              physicsKeyframes={physicsKeyframes}
               onMoveKeyframe={onMoveKeyframe}
               onSetHandle={onSetHandle}
               onSetInterpolation={onSetInterpolation}
               onKeyframeContextMenu={handleKeyframeContextMenu}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
               snap={snap}
               contentRef={contentRef}
               playheadPosition={playheadPosition}

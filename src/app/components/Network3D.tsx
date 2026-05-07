@@ -5,11 +5,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { solveBezierEasing, applyEasing, computeAutoWeights } from '../easing';
 import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
+type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+
 interface Network3DProps {
   isPlaying: boolean;
   playheadPosition: number;
   inputText?: string;
   theme?: 'light' | 'dark' | 'system';
+  viewMode?: '2D' | '3D';
   physicsParams?: {
     repulsion: number;
     springK: number;
@@ -19,6 +22,7 @@ interface Network3DProps {
     gravity: number;
     turbulence: number;
   };
+  physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraKeyframes?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>;
@@ -126,6 +130,39 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   });
 }
 
+const PHYS_TRACK_PARAM: Record<string, keyof typeof DEFAULT_PHYSICS> = {
+  'phys-rep': 'repulsion',
+  'phys-spk': 'springK',
+  'phys-dmp': 'damping',
+};
+
+function interpolatePhysicsParam(kfs: PhysicsKeyframe[], time: number): number | null {
+  if (kfs.length === 0) return null;
+  const sorted = [...kfs].sort((a, b) => a.time - b.time);
+  if (time <= sorted[0].time) return sorted[0].value;
+  if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    if (time >= a.time && time <= b.time) {
+      const segDur = b.time - a.time;
+      const tRaw = (time - a.time) / segDur;
+      const isAuto = a.interpolation === 'auto' || b.interpolation === 'auto';
+      let outW: number, inW: number;
+      if (isAuto) {
+        const prevDur = i > 0 ? a.time - sorted[i - 1].time : null;
+        const nextDur = i + 2 < sorted.length ? sorted[i + 2].time - b.time : null;
+        ({ outWeight: outW, inWeight: inW } = computeAutoWeights(segDur, prevDur, nextDur));
+      } else {
+        outW = a.outWeight ?? 0;
+        inW = b.inWeight ?? 0;
+      }
+      const easedT = solveBezierEasing(tRaw, outW, inW);
+      return a.value + (b.value - a.value) * easedT;
+    }
+  }
+  return null;
+}
+
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
 }
@@ -135,7 +172,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   playheadPosition,
   inputText = DEFAULT_TEXT,
   theme = 'system',
+  viewMode = '3D',
   physicsParams = DEFAULT_PHYSICS,
+  physicsKeyframes,
   colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   cameraKeyframes = [],
@@ -143,7 +182,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 }: Network3DProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
-  const cameraRef = useRef<THREE.PerspectiveCamera>();
+  const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
   const graphNodesRef = useRef<Map<string, GraphNode>>(new Map());
@@ -183,10 +222,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const colorSettingsRef = useRef(colorSettings);
   const styleSettingsRef = useRef(styleSettings);
   const onCameraChangeRef = useRef(onCameraChange);
+  const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { physicsKeyframesRef.current = physicsKeyframes ?? {}; }, [physicsKeyframes]);
   useEffect(() => { colorSettingsRef.current = colorSettings; }, [colorSettings]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
@@ -358,6 +399,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       node.vy = (Math.random() - 0.5) * 3;
       node.vz = (Math.random() - 0.5) * 3;
     });
+  };
+
+  /* ── INITIAL LAYOUT (2D FLAT SCATTER) ── */
+  const scatterNodes2D = (nodes: Map<string, GraphNode>, width: number, height: number) => {
+    const spread = Math.min(width, height) * 0.35;
+    for (const node of nodes.values()) {
+      node.x = (Math.random() - 0.5) * spread * 2;
+      node.y = (Math.random() - 0.5) * spread * 2;
+      node.z = 0;
+      node.vx = (Math.random() - 0.5) * 2;
+      node.vy = (Math.random() - 0.5) * 2;
+      node.vz = 0;
+    }
   };
 
   /* ── PHYSICS CACHE ── */
@@ -564,8 +618,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
     } else if (highlighted) {
       context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-      context.lineWidth = 6; // Thicker on hover for visibility
-      context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
+      context.lineWidth = 16;
+      context.strokeRect(8, 8, logicalWidth - 16, logicalHeight - 16);
     } else {
       context.strokeStyle = color;
       context.lineWidth = 2;
@@ -688,38 +742,49 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     scene.background = new THREE.Color(bgColors.threeColor);
     sceneRef.current = scene;
 
-    // Setup camera
-    const camera = new THREE.PerspectiveCamera(
-      50,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
-      1,
-      15000
-    );
-    camera.position.set(1200, 800, 1500);
-    camera.lookAt(0, 400, 0);
+    const is2D = viewMode === '2D';
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+
+    // Camera — orthographic for 2D (1 world unit = 1 CSS px at zoom=1), perspective for 3D
+    let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+    if (is2D) {
+      camera = new THREE.OrthographicCamera(-cw / 2, cw / 2, ch / 2, -ch / 2, -10000, 10000);
+      camera.position.set(0, 0, 1);
+    } else {
+      camera = new THREE.PerspectiveCamera(50, cw / ch, 1, 15000);
+      camera.position.set(1200, 800, 1500);
+      camera.lookAt(0, 400, 0);
+    }
     cameraRef.current = camera;
 
     // Setup renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    renderer.setSize(cw, ch);
     renderer.setPixelRatio(window.devicePixelRatio);
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Setup OrbitControls
+    // OrbitControls — pan+zoom only in 2D, full orbit in 3D
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minDistance = 10; // Allow very close zoom
-    controls.maxDistance = 50000; // Allow very far zoom
-    controls.target.set(0, 400, 0);
+    if (is2D) {
+      controls.enableRotate = false;
+      controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+      controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+    } else {
+      controls.minDistance = 10;
+      controls.maxDistance = 50000;
+      controls.target.set(0, 400, 0);
+    }
     controls.update();
     controlsRef.current = controls;
     let applyingKeyframe = false;
     const handleCameraChange = () => {
       if (!applyingKeyframe) {
         onCameraChangeRef.current?.();
-        if (zoomSliderRef.current) {
+        if (!is2D && zoomSliderRef.current) {
           zoomSliderRef.current.value = distToSliderVal(
             camera.position.distanceTo(controls.target)
           ).toString();
@@ -730,18 +795,25 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Build network
     const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
-    arrangeNodesCone3D(nodes, minWords, maxWords);
 
-    // Pre-simulate to settled positions so nodes appear static on first render
-    let stillCount = 0;
-    for (let i = 0; i < 500; i++) {
-      const movement = applyPhysics(nodes, edges, DEFAULT_PHYSICS);
-      if (movement < 0.5) { if (++stillCount >= 10) break; }
-      else stillCount = 0;
+    if (is2D) {
+      // 2D: scatter randomly then let live physics find the layout
+      scatterNodes2D(nodes, cw, ch);
+      physicsEnabledRef.current = true;
+      stillFramesRef.current = 0;
+    } else {
+      // 3D: sphere layout then pre-simulate to settled state before first render
+      arrangeNodesCone3D(nodes, minWords, maxWords);
+      let stillCount = 0;
+      for (let i = 0; i < 500; i++) {
+        const movement = applyPhysics(nodes, edges, DEFAULT_PHYSICS);
+        if (movement < 0.5) { if (++stillCount >= 10) break; }
+        else stillCount = 0;
+      }
+      nodes.forEach(n => { n.vx = 0; n.vy = 0; n.vz = 0; });
+      physicsEnabledRef.current = false;
+      stillFramesRef.current = 9999;
     }
-    nodes.forEach(n => { n.vx = 0; n.vy = 0; n.vz = 0; });
-    physicsEnabledRef.current = false;
-    stillFramesRef.current = 9999;
 
     graphNodesRef.current = nodes;
     graphEdgesRef.current = edges;
@@ -920,11 +992,42 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           }
         }
 
+        // Apply physics keyframe overrides during playback
+        if (isPlayingRef.current) {
+          const pkfs = physicsKeyframesRef.current;
+          const t = playheadRef.current;
+          // Use a fresh copy only if we have overrides to avoid mutating shared refs
+          let overridden = false;
+          const scratch = physicsBlendScratchRef.current;
+          for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
+            const val = interpolatePhysicsParam(pkfs[trackId] ?? [], t);
+            if (val !== null) {
+              if (!overridden) {
+                // Copy paramsForFrame into scratch first time
+                scratch.repulsion    = paramsForFrame.repulsion;
+                scratch.springK      = paramsForFrame.springK;
+                scratch.damping      = paramsForFrame.damping;
+                scratch.minSpeed     = paramsForFrame.minSpeed;
+                scratch.linkDistance = paramsForFrame.linkDistance;
+                scratch.gravity      = paramsForFrame.gravity;
+                scratch.turbulence   = paramsForFrame.turbulence;
+                overridden = true;
+              }
+              (scratch as Record<string, number>)[param] = val;
+            }
+          }
+          if (overridden) paramsForFrame = scratch;
+        }
+
         effectivePhysicsRef.current = paramsForFrame;
         const avgMovement = applyPhysics(
           graphNodesRef.current, graphEdgesRef.current, paramsForFrame,
           graphNodeArrayRef.current, sharedPairMatrixRef.current
         );
+        // In 2D mode keep all nodes on the z=0 plane (repulsion/turbulence can drift z slightly)
+        if (is2D) {
+          for (const node of graphNodeArrayRef.current) { node.z = 0; node.vz = 0; }
+        }
         syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, graphNodeArrayRef.current);
 
         // Auto-stop physics when system has stabilized (disabled when turbulence is active)
@@ -941,46 +1044,48 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
       frameCount++;
 
-      // Apply camera animation from keyframes
-      const time = playheadRef.current;
-      const keyframes = cameraKeyframesRef.current;
-      const shouldApply = isPlayingRef.current || time !== lastAppliedTimeRef.current;
-      if (shouldApply) {
-        applyingKeyframe = true;
-        applyCameraKeyframes(keyframes, time);
-        lastAppliedTimeRef.current = time;
+      if (!is2D) {
+        // Camera keyframe animation (3D only)
+        const time = playheadRef.current;
+        const keyframes = cameraKeyframesRef.current;
+        const shouldApply = isPlayingRef.current || time !== lastAppliedTimeRef.current;
+        if (shouldApply) {
+          applyingKeyframe = true;
+          applyCameraKeyframes(keyframes, time);
+          lastAppliedTimeRef.current = time;
+        }
+
+        // Animated zoom (+/− buttons)
+        if (zoomAnimRef.current) {
+          const { from, to, startTime, duration } = zoomAnimRef.current;
+          const t = Math.min(1, (performance.now() - startTime) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          const dist = from + (to - from) * eased;
+          const dir = camera.position.clone().sub(controls.target).normalize();
+          camera.position.copy(controls.target).addScaledVector(dir, dist);
+          if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(dist).toString();
+          if (t >= 1) zoomAnimRef.current = null;
+        }
+
+        // Camera fly-to (gizmo double-click reset)
+        if (cameraFlyRef.current) {
+          const { fromPos, toPos, fromTarget, toTarget, startTime, duration } = cameraFlyRef.current;
+          const t = Math.min(1, (performance.now() - startTime) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          camera.position.lerpVectors(fromPos, toPos, eased);
+          controls.target.lerpVectors(fromTarget, toTarget, eased);
+          if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(camera.position.distanceTo(controls.target)).toString();
+          if (t >= 1) cameraFlyRef.current = null;
+        }
       }
 
-      // Smooth fly-to target (if requested)
+      // Smooth fly-to target (node center — works in both modes)
       if (flyToTargetRef.current && controlsRef.current) {
         controlsRef.current.target.lerp(flyToTargetRef.current, 0.08);
         if (controlsRef.current.target.distanceTo(flyToTargetRef.current) < 0.5) {
           controlsRef.current.target.copy(flyToTargetRef.current);
           flyToTargetRef.current = null;
         }
-      }
-
-      // Animated zoom (+/− buttons)
-      if (zoomAnimRef.current) {
-        const { from, to, startTime, duration } = zoomAnimRef.current;
-        const t = Math.min(1, (performance.now() - startTime) / duration);
-        const eased = 1 - Math.pow(1 - t, 3);
-        const dist = from + (to - from) * eased;
-        const dir = camera.position.clone().sub(controls.target).normalize();
-        camera.position.copy(controls.target).addScaledVector(dir, dist);
-        if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(dist).toString();
-        if (t >= 1) zoomAnimRef.current = null;
-      }
-
-      // Camera fly-to (gizmo double-click reset)
-      if (cameraFlyRef.current) {
-        const { fromPos, toPos, fromTarget, toTarget, startTime, duration } = cameraFlyRef.current;
-        const t = Math.min(1, (performance.now() - startTime) / duration);
-        const eased = 1 - Math.pow(1 - t, 3);
-        camera.position.lerpVectors(fromPos, toPos, eased);
-        controls.target.lerpVectors(fromTarget, toTarget, eased);
-        if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(camera.position.distanceTo(controls.target)).toString();
-        if (t >= 1) cameraFlyRef.current = null;
       }
 
       // Update controls (for damping) — fires 'change' synchronously if camera moved
@@ -991,8 +1096,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
       renderer.render(scene, camera);
 
-      if (gizmoCanvasRef.current) {
-        drawGizmoCanvas(camera, gizmoCanvasRef.current);
+      if (!is2D && gizmoCanvasRef.current) {
+        drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current);
       }
     };
     animate();
@@ -1000,9 +1105,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     // Handle resize
     const handleResize = () => {
       if (!containerRef.current || !camera || !renderer) return;
-      camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      const nw = containerRef.current.clientWidth;
+      const nh = containerRef.current.clientHeight;
+      if (is2D) {
+        const cam = camera as THREE.OrthographicCamera;
+        cam.left = -nw / 2; cam.right = nw / 2;
+        cam.top = nh / 2;   cam.bottom = -nh / 2;
+      } else {
+        (camera as THREE.PerspectiveCamera).aspect = nw / nh;
+      }
       camera.updateProjectionMatrix();
-      renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      renderer.setSize(nw, nh);
     };
     window.addEventListener('resize', handleResize);
 
@@ -1025,7 +1138,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         rendererRef.current.dispose();
       }
     };
-  }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inputText, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
@@ -1152,44 +1265,48 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   return (
     <>
       <div ref={containerRef} className="w-full h-full relative">
-        {/* Orientation gizmo */}
-        <canvas
-          ref={gizmoCanvasRef}
-          width={90}
-          height={90}
-          className="absolute top-3 right-3 z-10"
-          style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer' }}
-          onDoubleClick={handleGizmoDoubleClick}
-          title="Double-click to reset view"
-        />
+        {/* Orientation gizmo — 3D only */}
+        {viewMode !== '2D' && (
+          <canvas
+            ref={gizmoCanvasRef}
+            width={90}
+            height={90}
+            className="absolute top-3 right-3 z-10"
+            style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer' }}
+            onDoubleClick={handleGizmoDoubleClick}
+            title="Double-click to reset view"
+          />
+        )}
 
-        {/* Zoom slider */}
-        <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none"
-             style={{ top: '50%', transform: 'translateY(-50%)' }}>
-          <button
-            onMouseDown={() => handleZoomBy(0.75)}
-            className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
-            title="Zoom in"
-          >+</button>
-          <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <input
-              ref={zoomSliderRef}
-              type="range"
-              min={0}
-              max={100}
-              step={0.5}
-              defaultValue={distToSliderVal(1962)}
-              onChange={(e) => handleZoomSlider(parseFloat(e.target.value))}
-              className="zoom-slider"
-              style={{ position: 'absolute', width: 88, transform: 'rotate(-90deg)', cursor: 'pointer' }}
-            />
+        {/* Zoom slider — 3D only */}
+        {viewMode !== '2D' && (
+          <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none"
+               style={{ top: '50%', transform: 'translateY(-50%)' }}>
+            <button
+              onMouseDown={() => handleZoomBy(0.75)}
+              className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
+              title="Zoom in"
+            >+</button>
+            <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <input
+                ref={zoomSliderRef}
+                type="range"
+                min={0}
+                max={100}
+                step={0.5}
+                defaultValue={distToSliderVal(1962)}
+                onChange={(e) => handleZoomSlider(parseFloat(e.target.value))}
+                className="zoom-slider"
+                style={{ position: 'absolute', width: 88, transform: 'rotate(-90deg)', cursor: 'pointer' }}
+              />
+            </div>
+            <button
+              onMouseDown={() => handleZoomBy(1.33)}
+              className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
+              title="Zoom out"
+            >−</button>
           </div>
-          <button
-            onMouseDown={() => handleZoomBy(1.33)}
-            className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
-            title="Zoom out"
-          >−</button>
-        </div>
+        )}
       </div>
       {contextMenu && createPortal(
         <>
@@ -1198,7 +1315,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
             style={{
               left: Math.min(contextMenu.x, window.innerWidth - 196 - 8),
-              top: Math.min(contextMenu.y, window.innerHeight - 48 - 8),
+              top: Math.min(contextMenu.y, window.innerHeight - 96 - 8),
               width: 196
             }}
             onMouseDown={e => e.stopPropagation()}
@@ -1211,7 +1328,33 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
               }}
               className="w-full px-3 py-[5px] text-[11px] rounded transition-colors text-foreground hover:bg-muted cursor-pointer text-left"
             >
-              Center in camera
+              Center
+            </button>
+            <button
+              onMouseDown={e => {
+                e.stopPropagation();
+                const nodePos = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
+                if (viewMode !== '2D' && cameraRef.current && controlsRef.current) {
+                  const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+                  cameraFlyRef.current = {
+                    fromPos: cameraRef.current.position.clone(),
+                    toPos: nodePos.clone().addScaledVector(dir, 320),
+                    fromTarget: controlsRef.current.target.clone(),
+                    toTarget: nodePos.clone(),
+                    startTime: performance.now(),
+                    duration: 700,
+                  };
+                } else if (viewMode === '2D' && cameraRef.current) {
+                  flyToTargetRef.current = nodePos.clone();
+                  const cam = cameraRef.current as THREE.OrthographicCamera;
+                  cam.zoom = Math.max(cam.zoom, 3);
+                  cam.updateProjectionMatrix();
+                }
+                setContextMenu(null);
+              }}
+              className="w-full px-3 py-[5px] text-[11px] rounded transition-colors text-foreground hover:bg-muted cursor-pointer text-left"
+            >
+              Fill view
             </button>
           </div>
         </>

@@ -1,6 +1,7 @@
 import { Network3D, type Network3DHandle } from './Network3D';
-import { Network2D } from './Network2D';
 import { forwardRef } from 'react';
+
+type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
 interface PreviewProps {
   viewMode: '2D' | '3D';
@@ -17,6 +18,7 @@ interface PreviewProps {
     gravity: number;
     turbulence: number;
   };
+  physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   inputText?: string;
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
@@ -30,6 +32,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   isPlaying,
   playheadPosition,
   physicsParams,
+  physicsKeyframes,
   inputText,
   colorSettings,
   styleSettings,
@@ -39,38 +42,27 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
 }: PreviewProps, ref) {
   return (
     <div className="flex-1 bg-background relative overflow-hidden">
-      {viewMode === '2D' ? (
-        <div className="absolute inset-0">
-          <Network2D
-            inputText={inputText}
-            colorSettings={colorSettings}
-            styleSettings={styleSettings}
-            physicsParams={physicsParams}
-            theme={theme}
-          />
-        </div>
-      ) : (
-        /* 3D View */
-        <div className="absolute inset-0">
-          <Network3D
-            ref={ref}
-            isPlaying={isPlaying}
-            playheadPosition={playheadPosition}
-            physicsParams={physicsParams}
-            inputText={inputText}
-            colorSettings={colorSettings}
-            styleSettings={styleSettings}
-            cameraKeyframes={cameraKeyframes}
-            onCameraChange={onCameraChange}
-            theme={theme}
-          />
-        </div>
-      )}
+      <div className="absolute inset-0">
+        <Network3D
+          ref={ref}
+          viewMode={viewMode}
+          isPlaying={isPlaying}
+          playheadPosition={playheadPosition}
+          physicsParams={physicsParams}
+          physicsKeyframes={physicsKeyframes}
+          inputText={inputText}
+          colorSettings={colorSettings}
+          styleSettings={styleSettings}
+          cameraKeyframes={cameraKeyframes}
+          onCameraChange={onCameraChange}
+          theme={theme}
+        />
+      </div>
 
       {/* Top-left badges - visible in both modes */}
       <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none z-10">
-        
-        
+
+
       </div>
 
       {/* Top-right: playing indicator - visible in both modes */}
