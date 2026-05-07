@@ -227,6 +227,59 @@ function ContextMenu({
 
 const EASING_H = 56;
 
+const EASING_PRESETS = [
+  { label: 'Linear',   outW: 0,    inW: 0,    path: (w: number, h: number) => `M 0 ${h} L ${w} 0` },
+  { label: 'Ease Out', outW: 0.42, inW: 0,    path: (w: number, h: number) => `M 0 ${h} C ${0.42*w} ${h} ${w} 0 ${w} 0` },
+  { label: 'Ease In',  outW: 0,    inW: 0.42, path: (w: number, h: number) => `M 0 ${h} C 0 ${h} ${(1-0.42)*w} 0 ${w} 0` },
+  { label: 'Smooth',   outW: 0.33, inW: 0.33, path: (w: number, h: number) => `M 0 ${h} C ${0.33*w} ${h} ${(1-0.33)*w} 0 ${w} 0` },
+] as const;
+
+function EasingPresetPopup({
+  x, y, kfTime, nextKfTime, onSetHandle, onClose,
+}: {
+  x: number; y: number;
+  kfTime: number; nextKfTime: number;
+  onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
+  onClose: () => void;
+}) {
+  const pw = 176, ph = 140;
+  const left = Math.min(x, window.innerWidth - pw - 8);
+  const top  = Math.min(y, window.innerHeight - ph - 8);
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onMouseDown={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
+      <div
+        className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
+        style={{ left, top, width: pw }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <div className="px-3 pt-1 pb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          Easing Preset
+        </div>
+        <div className="border-t border-border/60 mx-2 mb-1" />
+        {EASING_PRESETS.map(preset => (
+          <button
+            key={preset.label}
+            className="w-full flex items-center gap-2.5 px-3 py-[5px] text-[11px] text-foreground hover:bg-muted transition-colors cursor-pointer"
+            onClick={() => {
+              onSetHandle(kfTime, 'out', preset.outW);
+              onSetHandle(nextKfTime, 'in', preset.inW);
+              onClose();
+            }}
+          >
+            <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0" fill="none">
+              <path d={preset.path(36, 18)} stroke="#2dd4bf" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <span>{preset.label}</span>
+          </button>
+        ))}
+      </div>
+    </>,
+    document.body
+  );
+}
+
 function EasingTrackRow({
   snapshots, onSetHandle, viewWindow,
 }: {
@@ -244,6 +297,10 @@ function EasingTrackRow({
     side: 'out' | 'in';
     segLeft: number;
     segWidth: number;
+  } | null>(null);
+
+  const [presetPopup, setPresetPopup] = useState<{
+    x: number; y: number; kfTime: number; nextKfTime: number;
   } | null>(null);
 
   useEffect(() => {
@@ -272,6 +329,7 @@ function EasingTrackRow({
           <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
         </svg>
         <span className="text-[10px] text-muted-foreground flex-1 truncate">Easing</span>
+        <span className="text-[9px] text-muted-foreground/40 hidden sm:block">right-click segment</span>
       </div>
 
       <div ref={trackRef} className="flex-1 relative bg-teal-950/5 overflow-visible">
@@ -290,25 +348,34 @@ function EasingTrackRow({
           if (rightPct <= 0 || leftPct >= 100) return null;
           const widthPct = rightPct - leftPct;
 
-          const outW = kf.outWeight ?? 0.33;
-          const inW = nextKf.inWeight ?? 0.33;
+          const outW = kf.outWeight ?? 0;
+          const inW = nextKf.inWeight ?? 0;
           const curvePath = segmentBezierPath(outW, inW, 100, EASING_H);
+
+          const getSegRect = () => {
+            if (!trackRef.current) return { segLeft: 0, segWidth: 1 };
+            const trackRect = trackRef.current.getBoundingClientRect();
+            return {
+              segLeft: trackRect.left + (leftPct / 100) * trackRect.width,
+              segWidth: (widthPct / 100) * trackRect.width,
+            };
+          };
 
           const startDragOut = (e: React.MouseEvent) => {
             e.stopPropagation();
-            if (!trackRef.current) return;
-            const trackRect = trackRef.current.getBoundingClientRect();
-            const segLeft = trackRect.left + (leftPct / 100) * trackRect.width;
-            const segWidth = (widthPct / 100) * trackRect.width;
+            const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: kf.time, side: 'out', segLeft, segWidth });
           };
           const startDragIn = (e: React.MouseEvent) => {
             e.stopPropagation();
-            if (!trackRef.current) return;
-            const trackRect = trackRef.current.getBoundingClientRect();
-            const segLeft = trackRect.left + (leftPct / 100) * trackRect.width;
-            const segWidth = (widthPct / 100) * trackRect.width;
+            const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: nextKf.time, side: 'in', segLeft, segWidth });
+          };
+
+          const openPreset = (e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setPresetPopup({ x: e.clientX, y: e.clientY, kfTime: kf.time, nextKfTime: nextKf.time });
           };
 
           return (
@@ -316,18 +383,27 @@ function EasingTrackRow({
               key={`seg-${kf.time}-${nextKf.time}`}
               className="absolute inset-y-0 overflow-visible"
               style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+              onContextMenu={openPreset}
             >
-              {/* Bezier curve */}
+              {/* Bezier curve + hit area */}
               <svg
-                className="absolute inset-0 w-full h-full pointer-events-none"
+                className="absolute inset-0 w-full h-full"
                 viewBox={`0 0 100 ${EASING_H}`}
                 preserveAspectRatio="none"
+                style={{ cursor: 'context-menu' }}
               >
+                {/* Transparent wider hit area for context menu */}
+                <path
+                  d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`}
+                  fill="transparent"
+                  stroke="none"
+                />
                 {/* Fill */}
                 <path
                   d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`}
                   fill="#2dd4bf"
-                  fillOpacity={0.07}
+                  fillOpacity={0.08}
+                  style={{ pointerEvents: 'none' }}
                 />
                 {/* Curve */}
                 <path
@@ -335,53 +411,60 @@ function EasingTrackRow({
                   fill="none"
                   stroke="#2dd4bf"
                   strokeWidth="1.5"
-                  strokeOpacity={0.7}
+                  strokeOpacity={0.75}
                   vectorEffect="non-scaling-stroke"
                   strokeLinecap="round"
+                  style={{ pointerEvents: 'none' }}
                 />
                 {/* Handle arm — out (bottom) */}
-                <line
-                  x1="0" y1={EASING_H}
-                  x2={outW * 100} y2={EASING_H}
-                  stroke="#2dd4bf" strokeWidth="1"
-                  strokeOpacity="0.45"
-                  vectorEffect="non-scaling-stroke"
-                />
+                {outW > 0.01 && (
+                  <line
+                    x1="0" y1={EASING_H}
+                    x2={outW * 100} y2={EASING_H}
+                    stroke="#2dd4bf" strokeWidth="1"
+                    strokeOpacity="0.4"
+                    vectorEffect="non-scaling-stroke"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
                 {/* Handle arm — in (top) */}
-                <line
-                  x1="100" y1="0"
-                  x2={(1 - inW) * 100} y2="0"
-                  stroke="#2dd4bf" strokeWidth="1"
-                  strokeOpacity="0.45"
-                  vectorEffect="non-scaling-stroke"
-                />
+                {inW > 0.01 && (
+                  <line
+                    x1="100" y1="0"
+                    x2={(1 - inW) * 100} y2="0"
+                    stroke="#2dd4bf" strokeWidth="1"
+                    strokeOpacity="0.4"
+                    vectorEffect="non-scaling-stroke"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
               </svg>
 
-              {/* Out-handle circle (bottom edge) */}
+              {/* Out-handle circle (bottom edge) — always visible */}
               <div
                 className="absolute z-10 cursor-ew-resize select-none"
                 style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
                 onMouseDown={startDragOut}
-                title={`Ease-out weight: ${(outW * 100).toFixed(0)}%`}
+                title={`Ease-out: ${(outW * 200).toFixed(0)}% — drag or right-click segment for presets`}
               >
-                <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${
+                <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                   dragging?.kfTime === kf.time && dragging.side === 'out'
-                    ? 'bg-teal-300 border-teal-200'
-                    : 'bg-teal-700 border-teal-400 hover:bg-teal-400'
+                    ? 'bg-teal-300 border-teal-200 scale-125'
+                    : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
                 }`} />
               </div>
 
-              {/* In-handle circle (top edge) */}
+              {/* In-handle circle (top edge) — always visible */}
               <div
                 className="absolute z-10 cursor-ew-resize select-none"
                 style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
                 onMouseDown={startDragIn}
-                title={`Ease-in weight: ${(inW * 100).toFixed(0)}%`}
+                title={`Ease-in: ${(inW * 200).toFixed(0)}% — drag or right-click segment for presets`}
               >
-                <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${
+                <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                   dragging?.kfTime === nextKf.time && dragging.side === 'in'
-                    ? 'bg-teal-300 border-teal-200'
-                    : 'bg-teal-700 border-teal-400 hover:bg-teal-400'
+                    ? 'bg-teal-300 border-teal-200 scale-125'
+                    : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
                 }`} />
               </div>
             </div>
@@ -401,6 +484,17 @@ function EasingTrackRow({
           );
         })}
       </div>
+
+      {presetPopup && (
+        <EasingPresetPopup
+          x={presetPopup.x}
+          y={presetPopup.y}
+          kfTime={presetPopup.kfTime}
+          nextKfTime={presetPopup.nextKfTime}
+          onSetHandle={onSetHandle}
+          onClose={() => setPresetPopup(null)}
+        />
+      )}
     </div>
   );
 }

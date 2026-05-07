@@ -1,7 +1,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { solveBezierEasing } from '../easing';
+import { solveBezierEasing, applyEasing } from '../easing';
 import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
 interface Network3DProps {
@@ -558,7 +558,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     const segDuration = next.time - prev.time;
     const rawT = segDuration > 0 ? Math.max(0, Math.min(1, (time - prev.time) / segDuration)) : 0;
-    const smoothT = solveBezierEasing(rawT, prev.outWeight ?? 0.33, next.inWeight ?? 0.33);
+    const smoothT = solveBezierEasing(rawT, prev.outWeight ?? 0, next.inWeight ?? 0);
 
     const camX = prev.position.x + (next.position.x - prev.position.x) * smoothT;
     const camY = prev.position.y + (next.position.y - prev.position.y) * smoothT;

@@ -33,3 +33,25 @@ export function segmentBezierPath(outW: number, inW: number, w: number, h: numbe
   const iw = (1 - Math.max(0, Math.min(0.5, inW))) * w;
   return `M 0 ${h} C ${ow} ${h} ${iw} 0 ${w} 0`;
 }
+
+// Standard easing functions (0-1 normalized time)
+export function applyEasing(t: number, type: 'linear' | 'easeInOut' | 'easeIn' | 'easeOut'): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  
+  switch (type) {
+    case 'linear':
+      return t;
+    case 'easeInOut':
+      // Smooth cubic ease-in-out
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    case 'easeIn':
+      // Cubic ease-in
+      return t * t * t;
+    case 'easeOut':
+      // Cubic ease-out
+      return 1 - Math.pow(1 - t, 3);
+    default:
+      return t;
+  }
+}
