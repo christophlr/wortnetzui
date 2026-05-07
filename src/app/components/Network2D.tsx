@@ -156,8 +156,8 @@ const applyLightPhysics = (
   iterations: number = 3
 ) => {
   const nodeArray = Array.from(nodes.values());
-  const minDistance = 80;
-  const repelForce = 0.5;
+  const minDistance = 120;
+  const repelForce = 2.5;
 
   for (let iter = 0; iter < iterations; iter++) {
     // Reset velocities
@@ -277,7 +277,11 @@ const renderCanvas = (
     const scaledWidth = boxWidth * scale;
     const scaledHeight = boxHeight * scale;
 
-    // Draw black box
+    // Draw node box with shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
     ctx.fillStyle = getNetworkLabelStyle().backgroundHex;
     ctx.fillRect(
       node.x - scaledWidth / 2,
@@ -285,10 +289,12 @@ const renderCanvas = (
       scaledWidth,
       scaledHeight
     );
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
 
     // Draw colored border
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(
       node.x - scaledWidth / 2,
       node.y - scaledHeight / 2,
@@ -337,7 +343,7 @@ export function Network2D({
       const width = containerRef.current.clientWidth;
       const height = containerRef.current.clientHeight;
       arrangeNodes2D(nodes, minWords, maxWords, width, height);
-      applyLightPhysics(nodes, edges, 5);
+      applyLightPhysics(nodes, edges, 80);
       renderCanvas(canvasRef.current, nodes, edges, minWords, maxWords, colorSettings, styleSettings);
     }
   }, [inputText]);
@@ -369,7 +375,7 @@ export function Network2D({
       const height = container.clientHeight;
 
       arrangeNodes2D(nodesRef.current, minWordsRef.current, maxWordsRef.current, width, height);
-      applyLightPhysics(nodesRef.current, edgesRef.current, 5);
+      applyLightPhysics(nodesRef.current, edgesRef.current, 80);
       renderCanvas(
         canvas,
         nodesRef.current,

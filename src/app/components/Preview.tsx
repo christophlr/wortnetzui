@@ -1,12 +1,13 @@
 import { Network3D, type Network3DHandle } from './Network3D';
 import { Network2D } from './Network2D';
-import { useEffect, forwardRef } from 'react';
+import { forwardRef } from 'react';
 
 interface PreviewProps {
   viewMode: '2D' | '3D';
   physicsEnabled: boolean;
   isPlaying: boolean;
   playheadPosition: number;
+  theme?: 'light' | 'dark' | 'system';
   physicsParams?: {
     repulsion: number;
     springK: number;
@@ -31,6 +32,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   styleSettings,
   cameraSnapshots,
   onCameraChange,
+  theme,
 }: PreviewProps, ref) {
   return (
     <div className="flex-1 bg-background relative overflow-hidden">
@@ -55,6 +57,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             styleSettings={styleSettings}
             cameraSnapshots={cameraSnapshots}
             onCameraChange={onCameraChange}
+            theme={theme}
           />
         </div>
       )}

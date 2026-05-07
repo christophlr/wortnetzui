@@ -34,5 +34,5 @@ export function getNetworkLabelStyle(): NetworkLabelStyle {
     return { backgroundHex: '#0a0b0d' };
   }
 
-  return { backgroundHex: '#ececf0' };
+  return { backgroundHex: '#ffffff' };
 }

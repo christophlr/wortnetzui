@@ -834,12 +834,34 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [styleSettings.edgeOpacity, styleSettings.edgeWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update background color when theme changes
+  // Update background color and node label sprites when theme changes
   useEffect(() => {
     if (!sceneRef.current) return;
     const bgColors = getThemeBackgroundColors();
     sceneRef.current.background = new THREE.Color(bgColors.threeColor);
-  }, [theme]);
+
+    const nodes = graphNodesRef.current;
+    if (nodes.size === 0) return;
+    const minW = minWordsRef.current;
+    const maxW = maxWordsRef.current;
+    nodes.forEach(node => {
+      if (node.textSprite) {
+        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
+        const newSprite = createTextSprite(node.label, color);
+        newSprite.position.copy(node.textSprite.position);
+        const baseScale = newSprite.userData.baseScale || 1;
+        const aspectRatio = newSprite.userData.aspectRatio || 1;
+        newSprite.scale.set(
+          baseScale * styleSettings.nodeScale,
+          baseScale * styleSettings.nodeScale * aspectRatio,
+          1
+        );
+        sceneRef.current!.remove(node.textSprite);
+        sceneRef.current!.add(newSprite);
+        node.textSprite = newSprite;
+      }
+    });
+  }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={containerRef} className="w-full h-full" />;
 });
