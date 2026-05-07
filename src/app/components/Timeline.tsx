@@ -2,8 +2,7 @@ import { createPortal } from 'react-dom';
 import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TIMELINE_DURATION } from '../constants';
-import { EASING_PRESETS, easingCurvePath } from '../easing';
-import type { EasingType } from '../easing';
+import { segmentBezierPath } from '../easing';
 
 /* ── Types & constants ── */
 
@@ -15,10 +14,10 @@ interface TimelineProps {
   onPlayheadChange: (pos: number) => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots?: Array<{ time: number; position: any; target: any; easing?: EasingType }>;
+  cameraSnapshots?: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number }>;
   onCaptureSnapshot?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
-  onChangeEasing?: (time: number, easing: EasingType) => void;
+  onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
   timecode?: string;
@@ -224,157 +223,185 @@ function ContextMenu({
   );
 }
 
-/* ── Easing preset picker (portal) ── */
+/* ── Easing track row — bezier curve editor ── */
 
-function EasingPicker({
-  anchorX, anchorY, currentEasing, onSelect, onClose,
-}: {
-  anchorX: number;
-  anchorY: number;
-  currentEasing: EasingType;
-  onSelect: (t: EasingType) => void;
-  onClose: () => void;
-}) {
-  const pickerW = 268;
-  const left = Math.max(8, Math.min(window.innerWidth - pickerW - 8, anchorX - pickerW / 2));
-  const bottom = window.innerHeight - anchorY + 10;
-
-  return createPortal(
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div
-        className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-xl p-2.5 shadow-2xl"
-        style={{ left, bottom }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-0.5">
-          Easing preset
-        </div>
-        <div className="grid grid-cols-4 gap-1.5">
-          {EASING_PRESETS.map(preset => (
-            <button
-              key={preset.id}
-              onClick={() => { onSelect(preset.id); onClose(); }}
-              className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${
-                preset.id === currentEasing
-                  ? 'border-border bg-muted'
-                  : 'border-transparent hover:border-border/60 hover:bg-muted/60'
-              }`}
-              title={preset.label}
-            >
-              <svg width="42" height="26" viewBox="0 0 42 26" className="overflow-visible">
-                <path
-                  d={easingCurvePath(preset.id, 42, 26)}
-                  fill="none"
-                  stroke={preset.color}
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">{preset.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>,
-    document.body
-  );
-}
-
-/* ── Easing track row ── */
+const EASING_H = 56;
 
 function EasingTrackRow({
-  snapshots, onChangeEasing, duration, viewWindow,
+  snapshots, onSetHandle, viewWindow,
 }: {
-  snapshots: Array<{ time: number; easing?: EasingType }>;
-  onChangeEasing: (time: number, easing: EasingType) => void;
-  duration: number;
+  snapshots: Array<{ time: number; outWeight?: number; inWeight?: number }>;
+  onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
   viewWindow: ViewWindow;
 }) {
-  const [picker, setPicker] = useState<{ fromTime: number; anchorX: number; anchorY: number } | null>(null);
   const visibleDuration = viewWindow.end - viewWindow.start;
+  const trackRef = useRef<HTMLDivElement>(null);
 
-  const segments = useMemo(() => {
-    const sorted = [...snapshots].sort((a, b) => a.time - b.time);
-    return sorted.slice(0, -1).map((kf, i) => ({
-      fromTime: kf.time,
-      toTime: sorted[i + 1].time,
-      easing: (kf.easing ?? 'easeInOut') as EasingType,
-    }));
-  }, [snapshots]);
+  const keyframes = useMemo(() => [...snapshots].sort((a, b) => a.time - b.time), [snapshots]);
 
-  const preset = (e: EasingType) => EASING_PRESETS.find(p => p.id === e) ?? EASING_PRESETS[3];
+  const [dragging, setDragging] = useState<{
+    kfTime: number;
+    side: 'out' | 'in';
+    segLeft: number;
+    segWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const { kfTime, side, segLeft, segWidth } = dragging;
+      const frac = (e.clientX - segLeft) / segWidth;
+      const weight = side === 'out'
+        ? Math.max(0, Math.min(0.5, frac))
+        : Math.max(0, Math.min(0.5, 1 - frac));
+      onSetHandle(kfTime, side, weight);
+    };
+    const onUp = () => setDragging(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [dragging, onSetHandle]);
 
   return (
-    <>
-      <div className="flex border-b border-border/50" style={{ height: 30 }}>
-        <div
-          className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background gap-1.5"
-          style={{ width: LABEL_W }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
-            <path d="M 0 9 Q 3 9 5 5 Q 7 1 10 1" strokeLinecap="round" />
-          </svg>
-          <span className="text-[10px] text-muted-foreground flex-1 truncate">Easing</span>
-        </div>
-
-        <div className="flex-1 relative bg-teal-950/5 overflow-hidden">
-          {segments.length === 0 && (
-            <div className="absolute inset-0 flex items-center px-3">
-              <div className="w-full border-t border-dashed border-border/60" />
-            </div>
-          )}
-          {segments.map(seg => {
-            const p = preset(seg.easing);
-            const leftPct = ((seg.fromTime - viewWindow.start) / visibleDuration) * 100;
-            const rightPct = ((viewWindow.end - seg.toTime) / visibleDuration) * 100;
-            return (
-              <button
-                key={seg.fromTime}
-                className="absolute inset-y-1 rounded overflow-hidden group transition-opacity hover:opacity-90 cursor-pointer"
-                style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
-                onClick={e => {
-                  e.stopPropagation();
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  setPicker({ fromTime: seg.fromTime, anchorX: rect.left + rect.width / 2, anchorY: rect.top });
-                }}
-                title={`${p.label} — click to change`}
-              >
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
-                  <rect x="0" y="0" width="100" height="28" fill={p.color} fillOpacity="0.07" rx="1" />
-                  <path
-                    d={easingCurvePath(seg.easing, 100, 28)}
-                    fill="none"
-                    stroke={p.color}
-                    strokeWidth="1.6"
-                    strokeOpacity="0.65"
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-                <span
-                  className="absolute inset-0 flex items-center justify-center text-[8px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                  style={{ color: p.color }}
-                >
-                  {p.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+    <div className="flex border-b border-border/50" style={{ height: EASING_H }}>
+      <div
+        className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background gap-1.5"
+        style={{ width: LABEL_W }}
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
+        </svg>
+        <span className="text-[10px] text-muted-foreground flex-1 truncate">Easing</span>
       </div>
 
-      {picker && (
-        <EasingPicker
-          anchorX={picker.anchorX}
-          anchorY={picker.anchorY}
-          currentEasing={segments.find(s => s.fromTime === picker.fromTime)?.easing ?? 'easeInOut'}
-          onSelect={easing => onChangeEasing(picker.fromTime, easing)}
-          onClose={() => setPicker(null)}
-        />
-      )}
-    </>
+      <div ref={trackRef} className="flex-1 relative bg-teal-950/5 overflow-visible">
+        {keyframes.length === 0 && (
+          <div className="absolute inset-0 flex items-center px-3">
+            <div className="w-full border-t border-dashed border-border/40" />
+          </div>
+        )}
+
+        {keyframes.map((kf, i) => {
+          if (i === keyframes.length - 1) return null;
+          const nextKf = keyframes[i + 1];
+
+          const leftPct = ((kf.time - viewWindow.start) / visibleDuration) * 100;
+          const rightPct = ((nextKf.time - viewWindow.start) / visibleDuration) * 100;
+          if (rightPct <= 0 || leftPct >= 100) return null;
+          const widthPct = rightPct - leftPct;
+
+          const outW = kf.outWeight ?? 0.33;
+          const inW = nextKf.inWeight ?? 0.33;
+          const curvePath = segmentBezierPath(outW, inW, 100, EASING_H);
+
+          const startDragOut = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (!trackRef.current) return;
+            const trackRect = trackRef.current.getBoundingClientRect();
+            const segLeft = trackRect.left + (leftPct / 100) * trackRect.width;
+            const segWidth = (widthPct / 100) * trackRect.width;
+            setDragging({ kfTime: kf.time, side: 'out', segLeft, segWidth });
+          };
+          const startDragIn = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (!trackRef.current) return;
+            const trackRect = trackRef.current.getBoundingClientRect();
+            const segLeft = trackRect.left + (leftPct / 100) * trackRect.width;
+            const segWidth = (widthPct / 100) * trackRect.width;
+            setDragging({ kfTime: nextKf.time, side: 'in', segLeft, segWidth });
+          };
+
+          return (
+            <div
+              key={`seg-${kf.time}-${nextKf.time}`}
+              className="absolute inset-y-0 overflow-visible"
+              style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+            >
+              {/* Bezier curve */}
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 100 ${EASING_H}`}
+                preserveAspectRatio="none"
+              >
+                {/* Fill */}
+                <path
+                  d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`}
+                  fill="#2dd4bf"
+                  fillOpacity={0.07}
+                />
+                {/* Curve */}
+                <path
+                  d={curvePath}
+                  fill="none"
+                  stroke="#2dd4bf"
+                  strokeWidth="1.5"
+                  strokeOpacity={0.7}
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinecap="round"
+                />
+                {/* Handle arm — out (bottom) */}
+                <line
+                  x1="0" y1={EASING_H}
+                  x2={outW * 100} y2={EASING_H}
+                  stroke="#2dd4bf" strokeWidth="1"
+                  strokeOpacity="0.45"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {/* Handle arm — in (top) */}
+                <line
+                  x1="100" y1="0"
+                  x2={(1 - inW) * 100} y2="0"
+                  stroke="#2dd4bf" strokeWidth="1"
+                  strokeOpacity="0.45"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+
+              {/* Out-handle circle (bottom edge) */}
+              <div
+                className="absolute z-10 cursor-ew-resize select-none"
+                style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
+                onMouseDown={startDragOut}
+                title={`Ease-out weight: ${(outW * 100).toFixed(0)}%`}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${
+                  dragging?.kfTime === kf.time && dragging.side === 'out'
+                    ? 'bg-teal-300 border-teal-200'
+                    : 'bg-teal-700 border-teal-400 hover:bg-teal-400'
+                }`} />
+              </div>
+
+              {/* In-handle circle (top edge) */}
+              <div
+                className="absolute z-10 cursor-ew-resize select-none"
+                style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
+                onMouseDown={startDragIn}
+                title={`Ease-in weight: ${(inW * 100).toFixed(0)}%`}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full border-2 transition-colors ${
+                  dragging?.kfTime === nextKf.time && dragging.side === 'in'
+                    ? 'bg-teal-300 border-teal-200'
+                    : 'bg-teal-700 border-teal-400 hover:bg-teal-400'
+                }`} />
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Vertical keyframe tick marks */}
+        {keyframes.map(kf => {
+          const pct = ((kf.time - viewWindow.start) / visibleDuration) * 100;
+          if (pct < 0 || pct > 100) return null;
+          return (
+            <div
+              key={`tick-${kf.time}`}
+              className="absolute inset-y-0 w-px bg-teal-500/30 pointer-events-none"
+              style={{ left: `${pct}%` }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -391,7 +418,7 @@ function TrackRow({
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
   snap: boolean;
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
   playheadPosition: number;
   duration: number;
   viewWindow: ViewWindow;
@@ -493,7 +520,7 @@ function TrackRow({
 
 function TrackGroup({
   group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots,
-  onMoveKeyframe, onChangeEasing, onKeyframeContextMenu, snap, contentRef,
+  onMoveKeyframe, onSetHandle, onKeyframeContextMenu, snap, contentRef,
   playheadPosition, duration, viewWindow,
 }: {
   group: typeof TRACK_GROUPS[number];
@@ -501,12 +528,12 @@ function TrackGroup({
   onToggle: () => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots: Array<{ time: number; position: any; target: any; easing?: EasingType }>;
+  cameraSnapshots: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number }>;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
-  onChangeEasing?: (time: number, easing: EasingType) => void;
+  onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
   snap: boolean;
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
   playheadPosition: number;
   duration: number;
   viewWindow: ViewWindow;
@@ -561,11 +588,10 @@ function TrackGroup({
         );
       })}
 
-      {expanded && group.id === 'camera' && onChangeEasing && (
+      {expanded && group.id === 'camera' && onSetHandle && (
         <EasingTrackRow
           snapshots={cameraSnapshots}
-          onChangeEasing={onChangeEasing}
-          duration={duration}
+          onSetHandle={onSetHandle}
           viewWindow={viewWindow}
         />
       )}
@@ -586,7 +612,7 @@ export function Timeline({
   cameraSnapshots = [],
   onCaptureSnapshot,
   onMoveKeyframe,
-  onChangeEasing,
+  onSetHandle,
   onDeleteKeyframe,
   onDuplicateKeyframe,
   timecode = '00:00:00:00',
@@ -916,7 +942,7 @@ export function Timeline({
               onKeyframeSelect={onKeyframeSelect}
               cameraSnapshots={cameraSnapshots}
               onMoveKeyframe={onMoveKeyframe}
-              onChangeEasing={onChangeEasing}
+              onSetHandle={onSetHandle}
               onKeyframeContextMenu={handleKeyframeContextMenu}
               snap={snap}
               contentRef={contentRef}

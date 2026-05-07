@@ -1,8 +1,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { applyEasing } from '../easing';
-import type { EasingType } from '../easing';
+import { solveBezierEasing } from '../easing';
 import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
 interface Network3DProps {
@@ -18,7 +17,7 @@ interface Network3DProps {
   };
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
-  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; easing?: EasingType }>;
+  cameraSnapshots?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>;
   onCameraChange?: () => void;
 }
 
@@ -532,25 +531,24 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   };
 
   const applyCameraSnapshots = (
-    snapshots: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } }>,
+    snapshots: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>,
     time: number
   ) => {
     if (!cameraRef.current || !controlsRef.current) return;
     if (snapshots.length === 0) return;
 
     const sorted = [...snapshots].sort((a, b) => a.time - b.time);
+
     let prev = sorted[0];
     let next = sorted[sorted.length - 1];
 
     if (sorted.length === 1 || time <= sorted[0].time) {
-      prev = sorted[0];
-      next = sorted[0];
+      prev = next = sorted[0];
     } else if (time >= sorted[sorted.length - 1].time) {
-      prev = sorted[sorted.length - 1];
-      next = sorted[sorted.length - 1];
+      prev = next = sorted[sorted.length - 1];
     } else {
       for (let i = 0; i < sorted.length - 1; i++) {
-        if (sorted[i].time <= time && sorted[i + 1].time >= time) {
+        if (time >= sorted[i].time && time <= sorted[i + 1].time) {
           prev = sorted[i];
           next = sorted[i + 1];
           break;
@@ -558,10 +556,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     }
 
-    const duration = next.time - prev.time;
-    const elapsed = time - prev.time;
-    const t = duration > 0 ? Math.max(0, Math.min(1, elapsed / duration)) : 0;
-    const smoothT = applyEasing(t, prev.easing ?? 'easeInOut');
+    const segDuration = next.time - prev.time;
+    const rawT = segDuration > 0 ? Math.max(0, Math.min(1, (time - prev.time) / segDuration)) : 0;
+    const smoothT = solveBezierEasing(rawT, prev.outWeight ?? 0.33, next.inWeight ?? 0.33);
 
     const camX = prev.position.x + (next.position.x - prev.position.x) * smoothT;
     const camY = prev.position.y + (next.position.y - prev.position.y) * smoothT;

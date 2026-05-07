@@ -6,9 +6,7 @@ import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultNetworkColorSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
-import type { EasingType } from './easing';
-
-type Snapshot = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; easing?: EasingType };
+type Snapshot = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number };
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -131,9 +129,11 @@ export default function App() {
     }
   }, []);
 
-  const handleChangeEasing = useCallback((time: number, easing: EasingType) => {
+  const handleSetHandle = useCallback((time: number, side: 'out' | 'in', weight: number) => {
     setCameraSnapshots(prev =>
-      prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, easing } : s)
+      prev.map(s => Math.abs(s.time - time) < 0.01
+        ? { ...s, [side === 'out' ? 'outWeight' : 'inWeight']: Math.max(0, Math.min(0.5, weight)) }
+        : s)
     );
   }, []);
 
@@ -239,7 +239,7 @@ export default function App() {
         selectedKeyframe={selectedKeyframe}
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
         cameraSnapshots={cameraSnapshots} onCaptureSnapshot={handleCaptureSnapshot}
-        onMoveKeyframe={handleMoveKeyframe} onChangeEasing={handleChangeEasing}
+        onMoveKeyframe={handleMoveKeyframe} onSetHandle={handleSetHandle}
         onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
         timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
         canUndo={historyIndex > 0} canRedo={historyIndex < snapshotHistory.length - 1}
