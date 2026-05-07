@@ -134,7 +134,7 @@ export default function App() {
   const handleSetHandle = useCallback((time: number, side: 'out' | 'in', weight: number) => {
     setCameraKeyframes(prev =>
       prev.map(s => Math.abs(s.time - time) < 0.01
-        ? { ...s, [side === 'out' ? 'outWeight' : 'inWeight']: Math.max(0, Math.min(0.5, weight)) }
+        ? { ...s, [side === 'out' ? 'outWeight' : 'inWeight']: Math.max(0, Math.min(1, weight)) }
         : s)
     );
   }, []);

@@ -45,6 +45,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             inputText={inputText}
             colorSettings={colorSettings}
             styleSettings={styleSettings}
+            physicsParams={physicsParams}
           />
         </div>
       ) : (

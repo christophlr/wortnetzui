@@ -359,8 +359,8 @@ function EasingTrackRow({
       const { kfTime, side, segLeft, segWidth } = dragging;
       const frac = (e.clientX - segLeft) / segWidth;
       const weight = side === 'out'
-        ? Math.max(0, Math.min(0.5, frac))
-        : Math.max(0, Math.min(0.5, 1 - frac));
+        ? Math.max(0, Math.min(1, frac))
+        : Math.max(0, Math.min(1, 1 - frac));
       onSetHandle(kfTime, side, weight);
     };
     const onUp = () => setDragging(null);
@@ -494,7 +494,7 @@ function EasingTrackRow({
                   className="absolute z-10 cursor-ew-resize select-none"
                   style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
                   onMouseDown={startDragOut}
-                  title={`Ease-out: ${(outW * 200).toFixed(0)}% — drag to adjust, click curve for presets`}
+                  title={`Ease-out: ${(outW * 100).toFixed(0)}% — drag to adjust, click curve for presets`}
                 >
                   <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                     dragging?.kfTime === kf.time && dragging.side === 'out'
@@ -510,7 +510,7 @@ function EasingTrackRow({
                   className="absolute z-10 cursor-ew-resize select-none"
                   style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
                   onMouseDown={startDragIn}
-                  title={`Ease-in: ${(inW * 200).toFixed(0)}% — drag to adjust, click curve for presets`}
+                  title={`Ease-in: ${(inW * 100).toFixed(0)}% — drag to adjust, click curve for presets`}
                 >
                   <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                     dragging?.kfTime === nextKf.time && dragging.side === 'in'

@@ -63,6 +63,74 @@ const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
   return getNetworkThemeBackground();
 };
 
+/* ── ZOOM SLIDER HELPERS ── */
+const MIN_ZOOM_DIST = 100;
+const MAX_ZOOM_DIST = 8000;
+
+function distToSliderVal(d: number): number {
+  const clamped = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, d));
+  return (Math.log(MAX_ZOOM_DIST) - Math.log(clamped)) /
+         (Math.log(MAX_ZOOM_DIST) - Math.log(MIN_ZOOM_DIST)) * 100;
+}
+
+function sliderValToDist(s: number): number {
+  return Math.exp(Math.log(MAX_ZOOM_DIST) - (s / 100) * (Math.log(MAX_ZOOM_DIST) - Math.log(MIN_ZOOM_DIST)));
+}
+
+/* ── ORIENTATION GIZMO ── */
+function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const size = canvas.width;
+  const c = size / 2;
+  const r = size * 0.36;
+
+  ctx.clearRect(0, 0, size, size);
+
+  ctx.beginPath();
+  ctx.arc(c, c, c - 1, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15, 15, 20, 0.82)';
+  ctx.fill();
+
+  const invQ = camera.quaternion.clone().invert();
+  const axes = [
+    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: '#7f1d1d', label: 'x' },
+    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: '#14532d', label: 'y' },
+    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: '#1e3a5f', label: 'z' },
+  ];
+
+  const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
+  axes.forEach(({ dir, posColor, negColor, label }) => {
+    const pos = dir.clone().applyQuaternion(invQ);
+    const neg = dir.clone().negate().applyQuaternion(invQ);
+    segs.push({ x: c + pos.x * r, y: c - pos.y * r, z: pos.z, color: posColor, label });
+    segs.push({ x: c + neg.x * r, y: c - neg.y * r, z: neg.z, color: negColor, label: '' });
+  });
+
+  segs.sort((a, b) => a.z - b.z);
+
+  segs.forEach(({ x, y, color, label }) => {
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    if (label) {
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.font = 'bold 10px system-ui,sans-serif';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x, y);
+    }
+  });
+}
+
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
 }
@@ -108,6 +176,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const hoveredNodeRef = useRef<GraphNode | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
   const flyToTargetRef = useRef<THREE.Vector3 | null>(null);
+  const gizmoCanvasRef = useRef<HTMLCanvasElement>(null);
+  const zoomSliderRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const colorSettingsRef = useRef(colorSettings);
   const styleSettingsRef = useRef(styleSettings);
@@ -492,8 +562,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       context.lineWidth = 4;
       context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
     } else if (highlighted) {
-      context.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-      context.lineWidth = 3;
+      context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      context.lineWidth = 6; // Thicker on hover for visibility
       context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
     } else {
       context.strokeStyle = color;
@@ -501,12 +571,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
     }
 
-    // Text
+    // Text with optional stroke for readability when highlighted
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-    // If highlighted but also selected, let highlighted slightly brighten the text
-    context.fillStyle = highlighted ? 'rgba(255,255,255,0.95)' : color;
+    context.fillStyle = color; // Keep original color for legibility
     context.textAlign = 'center';
     context.textBaseline = 'middle';
+
+    if (highlighted) {
+      // Add stroke to text for contrast against white border
+      context.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      context.lineWidth = 1.5;
+      words.forEach((word, i) => {
+        const y = padding + lineHeight / 2 + i * lineHeight;
+        context.strokeText(word, logicalWidth / 2, y);
+      });
+    }
 
     words.forEach((word, i) => {
       const y = padding + lineHeight / 2 + i * lineHeight;
@@ -636,7 +715,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controls.update();
     controlsRef.current = controls;
     let applyingKeyframe = false;
-    const handleCameraChange = () => { if (!applyingKeyframe) onCameraChangeRef.current?.(); };
+    const handleCameraChange = () => {
+      if (!applyingKeyframe) {
+        onCameraChangeRef.current?.();
+        if (zoomSliderRef.current) {
+          zoomSliderRef.current.value = distToSliderVal(
+            camera.position.distanceTo(controls.target)
+          ).toString();
+        }
+      }
+    };
     controls.addEventListener('change', handleCameraChange);
 
     // Build network
@@ -878,6 +966,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       applyingKeyframe = false;
 
       renderer.render(scene, camera);
+
+      if (gizmoCanvasRef.current) {
+        drawGizmoCanvas(camera, gizmoCanvasRef.current);
+      }
     };
     animate();
 
@@ -925,7 +1017,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       if (node.textSprite) {
         const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
         const isHovered = hoveredNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered);
+        const isSelected = selectedNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
         newSprite.userData.label = node.label;
         newSprite.position.copy(node.textSprite.position);
         const baseScale = newSprite.userData.baseScale || 1;
@@ -985,7 +1078,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       if (node.textSprite) {
         const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
         const isHovered = hoveredNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered);
+        const isSelected = selectedNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
         newSprite.userData.label = node.label;
         newSprite.position.copy(node.textSprite.position);
         const baseScale = newSprite.userData.baseScale || 1;
@@ -1003,7 +1097,91 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  const handleZoomBy = (factor: number) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const current = cameraRef.current.position.distanceTo(controlsRef.current.target);
+    const newDist = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, current * factor));
+    const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+    cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
+    controlsRef.current.update();
+    if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(newDist).toString();
+  };
+
+  const handleZoomSlider = (s: number) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const newDist = sliderValToDist(s);
+    const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+    cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
+    controlsRef.current.update();
+  };
+
+  return (
+    <>
+      <div ref={containerRef} className="w-full h-full relative">
+        {/* Orientation gizmo */}
+        <canvas
+          ref={gizmoCanvasRef}
+          width={90}
+          height={90}
+          className="absolute top-3 right-3 z-10 pointer-events-none"
+          style={{ borderRadius: '50%' }}
+        />
+
+        {/* Zoom slider */}
+        <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none"
+             style={{ top: '50%', transform: 'translateY(-50%)' }}>
+          <button
+            onMouseDown={() => handleZoomBy(0.75)}
+            className="w-6 h-6 rounded flex items-center justify-center bg-black/40 hover:bg-black/60 text-white/60 hover:text-white text-base leading-none"
+            title="Zoom in"
+          >+</button>
+          <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <input
+              ref={zoomSliderRef}
+              type="range"
+              min={0}
+              max={100}
+              step={0.5}
+              defaultValue={distToSliderVal(1962)}
+              onChange={(e) => handleZoomSlider(parseFloat(e.target.value))}
+              className="zoom-slider"
+              style={{ position: 'absolute', width: 88, transform: 'rotate(-90deg)', cursor: 'pointer' }}
+            />
+          </div>
+          <button
+            onMouseDown={() => handleZoomBy(1.33)}
+            className="w-6 h-6 rounded flex items-center justify-center bg-black/40 hover:bg-black/60 text-white/60 hover:text-white text-base leading-none"
+            title="Zoom out"
+          >−</button>
+        </div>
+      </div>
+      {contextMenu && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
+          <div
+            className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 196 - 8),
+              top: Math.min(contextMenu.y, window.innerHeight - 48 - 8),
+              width: 196
+            }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <button
+              onMouseDown={e => {
+                e.stopPropagation();
+                flyToTargetRef.current = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
+                setContextMenu(null);
+              }}
+              className="w-full px-3 py-[5px] text-[11px] rounded transition-colors text-foreground hover:bg-muted cursor-pointer text-left"
+            >
+              Center in camera
+            </button>
+          </div>
+        </>
+      , document.body)}
+    </>
+  );
 });
 
 Network3D.displayName = 'Network3D';
