@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
 interface Network2DProps {
   isPlaying?: boolean;
@@ -213,9 +214,7 @@ const getColorFromWordCount = (
 
 // Helper to get the background color from CSS variables
 const getBackgroundColor = (): string => {
-  const root = document.documentElement;
-  const bgVar = getComputedStyle(root).getPropertyValue('--canvas-background').trim();
-  return bgVar || '#d5d5d5'; // Fallback
+  return getNetworkThemeBackground().hex;
 };
 
 const renderCanvas = (
@@ -279,7 +278,7 @@ const renderCanvas = (
     const scaledHeight = boxHeight * scale;
 
     // Draw black box
-    ctx.fillStyle = '#0a0b0d';
+    ctx.fillStyle = getNetworkLabelStyle().backgroundHex;
     ctx.fillRect(
       node.x - scaledWidth / 2,
       node.y - scaledHeight / 2,
@@ -315,7 +314,7 @@ const renderCanvas = (
 
 export function Network2D({
   inputText = DEFAULT_TEXT,
-  colorSettings = { hueStart: 30, hueEnd: 0, saturation: 100, lightness: 65 },
+  colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
 }: Network2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);

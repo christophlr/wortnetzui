@@ -4,6 +4,7 @@ import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
+import { defaultNetworkColorSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
 import type { EasingType } from './easing';
 
@@ -17,7 +18,7 @@ export default function App() {
   const [selectedKeyframe, setSelectedKeyframe] = useState<{ track: string; time: number } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
-  const [colorSettings, setColorSettings] = useState({ hueStart: 30, hueEnd: 0, saturation: 100, lightness: 65 });
+  const [colorSettings, setColorSettings] = useState(defaultNetworkColorSettings);
   const [styleSettings, setStyleSettings] = useState({ edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 });
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5 });
   const [cameraSnapshots, setCameraSnapshots] = useState<Snapshot[]>([]);

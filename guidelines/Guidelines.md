@@ -16,6 +16,8 @@ For example:
 * Only use absolute positioning when necessary. Opt for responsive and well structured layouts that use flexbox and grid by default
 * Refactor code as you go to keep code clean
 * Keep file sizes small and put helper functions and components in their own files.
+* Never hardcode colors in UI, canvas, or chart code. Use theme tokens, CSS variables, or shared color helpers so light and dark mode stay consistent.
+* Keep the 2D and 3D network implementations visually and behaviorally in sync. If you change color, background, spacing, label, or interaction behavior in one, mirror the intent in the other unless there is a documented reason not to.
 
 --------------
 

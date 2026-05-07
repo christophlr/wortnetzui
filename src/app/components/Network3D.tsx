@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { applyEasing } from '../easing';
 import type { EasingType } from '../easing';
+import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
 
 interface Network3DProps {
   isPlaying: boolean;
@@ -41,6 +42,8 @@ interface GraphEdge {
   line?: THREE.Line;
 }
 
+type NodePosition = { x: number; y: number; z: number };
+
 const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes, far away up the hill. It was 3am that day, cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write, I write like a ritual over and over. The more exist the more I go I fly, they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
 
 const DEFAULT_PHYSICS = {
@@ -52,10 +55,7 @@ const DEFAULT_PHYSICS = {
 
 /* ── THEME-AWARE BACKGROUND COLORS ── */
 const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
-  const isDark = document.documentElement.classList.contains('dark');
-  return isDark
-    ? { hex: '#0a0b0d', threeColor: 0x0d0e10 }
-    : { hex: '#ffffff', threeColor: 0xffffff };
+  return getNetworkThemeBackground();
 };
 
 export interface Network3DHandle {
@@ -68,7 +68,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   inputText = DEFAULT_TEXT,
   theme = 'system',
   physicsParams = DEFAULT_PHYSICS,
-  colorSettings = { hueStart: 180, hueEnd: 120, saturation: 75, lightness: 65 },
+  colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   cameraSnapshots = [],
   onCameraChange,
@@ -95,6 +95,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const physicsBlendDurationRef = useRef<number>(260);
   const physicsBlendFromRef = useRef(physicsParams);
   const physicsBlendToRef = useRef(physicsParams);
+  const physicsTransitionActiveRef = useRef(false);
+  const physicsTransitionStartRef = useRef<number>(0);
+  const physicsTransitionDurationRef = useRef<number>(700);
+  const physicsTransitionFromRef = useRef<Map<string, NodePosition>>(new Map());
+  const physicsTransitionToRef = useRef<Map<string, NodePosition>>(new Map());
   const lastAppliedTimeRef = useRef<number | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
@@ -107,8 +112,54 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     physicsBlendToRef.current = physicsParams;
     physicsBlendStartRef.current = performance.now();
     physicsBlendActiveRef.current = true;
+    physicsTransitionActiveRef.current = false;
+    physicsTransitionFromRef.current = new Map();
+    physicsTransitionToRef.current = new Map();
     physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
+
+    if (graphNodesRef.current.size > 0) {
+      const fromPositions = new Map<string, NodePosition>();
+      const targetNodes = new Map<string, GraphNode>();
+      const targetEdges: GraphEdge[] = [];
+
+      graphNodesRef.current.forEach((node, key) => {
+        fromPositions.set(key, { x: node.x, y: node.y, z: node.z });
+        targetNodes.set(key, {
+          ...node,
+          sentenceIds: new Set(node.sentenceIds),
+          textSprite: undefined,
+          mesh: undefined,
+          vx: node.vx,
+          vy: node.vy,
+          vz: node.vz,
+        });
+      });
+
+      graphEdgesRef.current.forEach(edge => {
+        const a = targetNodes.get(edge.a.label);
+        const b = targetNodes.get(edge.b.label);
+        if (a && b) {
+          targetEdges.push({ a, b });
+        }
+      });
+
+      for (let i = 0; i < 80; i++) {
+        const movement = applyPhysics(targetNodes, targetEdges, physicsParams);
+        if (movement < 0.2) break;
+      }
+
+      const targetPositions = new Map<string, NodePosition>();
+      targetNodes.forEach((node, key) => {
+        targetPositions.set(key, { x: node.x, y: node.y, z: node.z });
+      });
+
+      physicsTransitionFromRef.current = fromPositions;
+      physicsTransitionToRef.current = targetPositions;
+      physicsTransitionStartRef.current = performance.now();
+      physicsTransitionActiveRef.current = true;
+      physicsEnabledRef.current = false;
+    }
   }, [physicsParams]);
 
   useImperativeHandle(ref, () => ({
@@ -375,7 +426,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     });
 
-    // Update edge positions
+    syncGraphVisuals(nodes, edges);
+
+    return totalMovement / nodeArray.length; // Average movement
+  };
+
+  const syncGraphVisuals = (nodes: Map<string, GraphNode>, edges: GraphEdge[]) => {
+    nodes.forEach(node => {
+      if (node.textSprite) {
+        node.textSprite.position.set(node.x, node.y, node.z);
+      }
+    });
+
     edges.forEach(edge => {
       if (edge.line) {
         const positions = edge.line.geometry.attributes.position;
@@ -384,8 +446,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         positions.needsUpdate = true;
       }
     });
-
-    return totalMovement / nodeArray.length; // Average movement
   };
 
   /* ── CREATE TEXT SPRITE WITH BILLBOARDING ── */
@@ -416,7 +476,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Background box with colored border
     const bgColors = getThemeBackgroundColors();
-    context.fillStyle = bgColors.hex;
+    context.fillStyle = getNetworkLabelStyle().backgroundHex;
     context.fillRect(0, 0, logicalWidth, logicalHeight);
 
     context.strokeStyle = color;
@@ -609,6 +669,30 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
       if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
         let paramsForFrame = physicsParamsRef.current;
+
+        if (physicsTransitionActiveRef.current) {
+          const elapsed = performance.now() - physicsTransitionStartRef.current;
+          const tRaw = Math.max(0, Math.min(1, elapsed / physicsTransitionDurationRef.current));
+          const t = applyEasing(tRaw, 'easeInOut');
+
+          graphNodesRef.current.forEach((node, key) => {
+            const from = physicsTransitionFromRef.current.get(key);
+            const to = physicsTransitionToRef.current.get(key);
+            if (!from || !to) return;
+
+            node.x = from.x + (to.x - from.x) * t;
+            node.y = from.y + (to.y - from.y) * t;
+            node.z = from.z + (to.z - from.z) * t;
+          });
+
+          syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current);
+
+          if (tRaw >= 1) {
+            physicsTransitionActiveRef.current = false;
+            physicsEnabledRef.current = true;
+            stillFramesRef.current = 0;
+          }
+        }
 
         if (physicsBlendActiveRef.current) {
           const elapsed = performance.now() - physicsBlendStartRef.current;
