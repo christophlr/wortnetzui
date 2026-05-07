@@ -19,9 +19,13 @@ jobs:
         with:
           node-version: 20
 
-      - run: npm install
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
 
-      - run: npm run build
+      - run: pnpm install
+
+      - run: pnpm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
