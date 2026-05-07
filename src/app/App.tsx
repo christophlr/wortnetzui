@@ -137,6 +137,32 @@ export default function App() {
     );
   }, []);
 
+  const handleDeleteKeyframe = useCallback((trackId: string, time: number) => {
+    if (trackId === 'camera-snapshots') {
+      setCameraSnapshots(prev => {
+        const next = prev.filter(s => Math.abs(s.time - time) > 0.1);
+        pushHistory(prev, next);
+        return next;
+      });
+      setSelectedKeyframe(prev =>
+        prev?.track === trackId && Math.abs(prev.time - time) < 0.1 ? null : prev
+      );
+    }
+  }, [pushHistory]);
+
+  const handleDuplicateKeyframe = useCallback((trackId: string, srcTime: number, destTime: number) => {
+    if (trackId === 'camera-snapshots') {
+      setCameraSnapshots(prev => {
+        const src = prev.find(s => Math.abs(s.time - srcTime) < 0.01);
+        if (!src) return prev;
+        const filtered = prev.filter(s => Math.abs(s.time - destTime) > 0.1);
+        const next = [...filtered, { ...src, time: destTime }].sort((a, b) => a.time - b.time);
+        pushHistory(prev, next);
+        return next;
+      });
+    }
+  }, [pushHistory]);
+
   // Theme: class-based, respects system preference
   useEffect(() => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -214,6 +240,7 @@ export default function App() {
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
         cameraSnapshots={cameraSnapshots} onCaptureSnapshot={handleCaptureSnapshot}
         onMoveKeyframe={handleMoveKeyframe} onChangeEasing={handleChangeEasing}
+        onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
         timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
         canUndo={historyIndex > 0} canRedo={historyIndex < snapshotHistory.length - 1}
       />

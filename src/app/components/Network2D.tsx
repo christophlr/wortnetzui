@@ -224,7 +224,8 @@ const renderCanvas = (
   minWords: number,
   maxWords: number,
   colorSettings: { hueStart: number; hueEnd: number; saturation: number; lightness: number },
-  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number }
+  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number },
+  hoveredNodeLabel?: string | null
 ) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -302,6 +303,18 @@ const renderCanvas = (
       scaledHeight
     );
 
+    // Hover highlight border
+    if (node.label === hoveredNodeLabel) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        node.x - scaledWidth / 2 - 3,
+        node.y - scaledHeight / 2 - 3,
+        scaledWidth + 6,
+        scaledHeight + 6
+      );
+    }
+
     // Draw text
     ctx.fillStyle = color;
     ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
@@ -330,6 +343,7 @@ export function Network2D({
   const minWordsRef = useRef(Infinity);
   const maxWordsRef = useRef(-Infinity);
   const animationFrameRef = useRef<number>();
+  const hoveredNodeLabelRef = useRef<string | null>(null);
 
   // Build graph on input text change
   useEffect(() => {
@@ -344,7 +358,7 @@ export function Network2D({
       const height = containerRef.current.clientHeight;
       arrangeNodes2D(nodes, minWords, maxWords, width, height);
       applyLightPhysics(nodes, edges, 80);
-      renderCanvas(canvasRef.current, nodes, edges, minWords, maxWords, colorSettings, styleSettings);
+      renderCanvas(canvasRef.current, nodes, edges, minWords, maxWords, colorSettings, styleSettings, hoveredNodeLabelRef.current);
     }
   }, [inputText]);
 
@@ -358,7 +372,8 @@ export function Network2D({
         minWordsRef.current,
         maxWordsRef.current,
         colorSettings,
-        styleSettings
+        styleSettings,
+        hoveredNodeLabelRef.current
       );
     }
   }, [colorSettings, styleSettings]);
@@ -383,9 +398,52 @@ export function Network2D({
         minWordsRef.current,
         maxWordsRef.current,
         colorSettings,
-        styleSettings
+        styleSettings,
+        hoveredNodeLabelRef.current
       );
     };
+
+    const getNodeAtPoint = (mouseX: number, mouseY: number): string | null => {
+      const ctx = canvas.getContext('2d')!;
+      ctx.font = `600 11px "Space Grotesk", sans-serif`;
+      for (const node of nodesRef.current.values()) {
+        const fontSize = 11;
+        const lineHeight = fontSize * 1.2;
+        const words = node.label.split(' ');
+        const padding = 6;
+        const maxWidth = Math.max(...words.map(w => ctx.measureText(w).width));
+        const boxWidth = maxWidth + padding * 2;
+        const boxHeight = words.length * lineHeight + padding * 2;
+        const wordCountScale = Math.max(0.6, 1 - (node.wordCount * 0.04));
+        const scale = styleSettings.nodeScale * wordCountScale;
+        const scaledWidth = boxWidth * scale;
+        const scaledHeight = boxHeight * scale;
+        if (
+          mouseX >= node.x - scaledWidth / 2 &&
+          mouseX <= node.x + scaledWidth / 2 &&
+          mouseY >= node.y - scaledHeight / 2 &&
+          mouseY <= node.y + scaledHeight / 2
+        ) return node.label;
+      }
+      return null;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const newHovered = getNodeAtPoint(e.clientX - rect.left, e.clientY - rect.top);
+      if (newHovered !== hoveredNodeLabelRef.current) {
+        hoveredNodeLabelRef.current = newHovered;
+        canvas.style.cursor = newHovered ? 'pointer' : 'default';
+      }
+    };
+
+    const handleMouseLeave = () => {
+      hoveredNodeLabelRef.current = null;
+      canvas.style.cursor = 'default';
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
 
     let resizeTimeout: number;
     const resizeObserver = new ResizeObserver(() => {
@@ -404,7 +462,8 @@ export function Network2D({
         minWordsRef.current,
         maxWordsRef.current,
         colorSettings,
-        styleSettings
+        styleSettings,
+        hoveredNodeLabelRef.current
       );
       animationFrameRef.current = requestAnimationFrame(animate);
     };
@@ -418,6 +477,8 @@ export function Network2D({
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
       clearTimeout(resizeTimeout);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [colorSettings, styleSettings]);
 

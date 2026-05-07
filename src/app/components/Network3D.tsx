@@ -101,11 +101,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const physicsTransitionFromRef = useRef<Map<string, NodePosition>>(new Map());
   const physicsTransitionToRef = useRef<Map<string, NodePosition>>(new Map());
   const lastAppliedTimeRef = useRef<number | null>(null);
+  const hoveredNodeRef = useRef<GraphNode | null>(null);
+  const colorSettingsRef = useRef(colorSettings);
+  const styleSettingsRef = useRef(styleSettings);
   const onCameraChangeRef = useRef(onCameraChange);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
   useEffect(() => { cameraSnapshotsRef.current = cameraSnapshots; }, [cameraSnapshots]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { colorSettingsRef.current = colorSettings; }, [colorSettings]);
+  useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
     physicsParamsRef.current = physicsParams;
     physicsBlendFromRef.current = effectivePhysicsRef.current;
@@ -449,7 +454,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   };
 
   /* ── CREATE TEXT SPRITE WITH BILLBOARDING ── */
-  const createTextSprite = (text: string, color: string) => {
+  const createTextSprite = (text: string, color: string, highlighted = false) => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
 
@@ -479,8 +484,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     context.fillStyle = getNetworkLabelStyle().backgroundHex;
     context.fillRect(0, 0, logicalWidth, logicalHeight);
 
-    context.strokeStyle = color;
-    context.lineWidth = 2;
+    context.strokeStyle = highlighted ? 'rgba(255, 255, 255, 0.85)' : color;
+    context.lineWidth = highlighted ? 3 : 2;
     context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
 
     // Text
@@ -643,6 +648,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     nodes.forEach(node => {
       const color = getColorFromWordCount(node.wordCount, minWords, maxWords, colorSettings);
       const sprite = createTextSprite(node.label, color);
+      sprite.userData.label = node.label;
       sprite.position.set(node.x, node.y, node.z);
       // Apply user scale proportionally
       const baseScale = sprite.userData.baseScale || 1;
@@ -655,6 +661,59 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       scene.add(sprite);
       node.textSprite = sprite;
     });
+
+    // Hover detection via raycasting
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const rebuildSprite = (node: GraphNode, highlighted: boolean) => {
+      if (!node.textSprite || !sceneRef.current) return;
+      const cs = colorSettingsRef.current;
+      const ss = styleSettingsRef.current;
+      const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, cs);
+      const newSprite = createTextSprite(node.label, color, highlighted);
+      newSprite.userData.label = node.label;
+      newSprite.position.copy(node.textSprite.position);
+      const baseScale = newSprite.userData.baseScale || 1;
+      const aspectRatio = newSprite.userData.aspectRatio || 1;
+      newSprite.scale.set(baseScale * ss.nodeScale, baseScale * ss.nodeScale * aspectRatio, 1);
+      sceneRef.current.remove(node.textSprite);
+      node.textSprite.material.dispose();
+      sceneRef.current.add(newSprite);
+      node.textSprite = newSprite;
+    };
+
+    const handleHoverMove = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const sprites: THREE.Object3D[] = [];
+      graphNodesRef.current.forEach(node => { if (node.textSprite) sprites.push(node.textSprite); });
+
+      const intersects = raycaster.intersectObjects(sprites);
+      const hitLabel = intersects.length > 0 ? (intersects[0].object as THREE.Sprite).userData.label as string : null;
+      const prevNode = hoveredNodeRef.current;
+      const nextNode = hitLabel ? graphNodesRef.current.get(hitLabel) ?? null : null;
+
+      if (prevNode?.label === nextNode?.label) return;
+      if (prevNode) rebuildSprite(prevNode, false);
+      if (nextNode) rebuildSprite(nextNode, true);
+      hoveredNodeRef.current = nextNode;
+      renderer.domElement.style.cursor = nextNode ? 'pointer' : 'default';
+    };
+
+    const handleHoverLeave = () => {
+      if (hoveredNodeRef.current) {
+        rebuildSprite(hoveredNodeRef.current, false);
+        hoveredNodeRef.current = null;
+        renderer.domElement.style.cursor = 'default';
+      }
+    };
+
+    renderer.domElement.addEventListener('mousemove', handleHoverMove);
+    renderer.domElement.addEventListener('mouseleave', handleHoverLeave);
 
     // Animation loop
     let frameCount = 0;
@@ -761,6 +820,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Cleanup
     return () => {
+      renderer.domElement.removeEventListener('mousemove', handleHoverMove);
+      renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -789,8 +850,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     nodes.forEach(node => {
       if (node.textSprite) {
         const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
-        // Re-create sprite with new color
-        const newSprite = createTextSprite(node.label, color);
+        const isHovered = hoveredNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered);
+        newSprite.userData.label = node.label;
         newSprite.position.copy(node.textSprite.position);
         const baseScale = newSprite.userData.baseScale || 1;
         const aspectRatio = newSprite.userData.aspectRatio || 1;
@@ -802,6 +864,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         sceneRef.current!.remove(node.textSprite);
         sceneRef.current!.add(newSprite);
         node.textSprite = newSprite;
+        if (isHovered) hoveredNodeRef.current = node;
       }
     });
   }, [colorSettings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -847,7 +910,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     nodes.forEach(node => {
       if (node.textSprite) {
         const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
-        const newSprite = createTextSprite(node.label, color);
+        const isHovered = hoveredNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered);
+        newSprite.userData.label = node.label;
         newSprite.position.copy(node.textSprite.position);
         const baseScale = newSprite.userData.baseScale || 1;
         const aspectRatio = newSprite.userData.aspectRatio || 1;
@@ -859,6 +924,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         sceneRef.current!.remove(node.textSprite);
         sceneRef.current!.add(newSprite);
         node.textSprite = newSprite;
+        if (isHovered) hoveredNodeRef.current = node;
       }
     });
   }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
