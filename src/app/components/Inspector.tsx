@@ -2,8 +2,8 @@ import * as Accordion from '@radix-ui/react-accordion';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as Slider from '@radix-ui/react-slider';
 import * as Tabs from '@radix-ui/react-tabs';
-import { ChevronRight, Diamond } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { ChevronRight, Diamond, Type, Layers, Camera, Zap } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 /* ─── helpers ─── */
 
@@ -49,34 +49,101 @@ function ParamRow({
   );
 }
 
+/*
+ * SliderParam — numeric slider with click-to-type value editing.
+ *
+ * The numeric badge on the right is always clickable: clicking it opens an
+ * inline input so the user can type an exact value with the keyboard.
+ * Press Enter or Tab to commit, Escape to cancel.
+ *
+ * Props:
+ *   displayFn   — converts raw slider value array → display string (e.g. v[0] * 10)
+ *   parseInput  — converts a typed string back to the raw slider integer; defaults to
+ *                 clamping the parsed number to [min, max]. For scaled params (e.g.
+ *                 repulsion where display = slider * 10) pass e.g. s => parseFloat(s) / 10.
+ *   description — short help text shown below the slider row.
+ */
 function SliderParam({
-  kfKey, label, value, onChange, color, kfs, onToggle, displayFn, min = 0, max = 200,
+  kfKey, label, value, onChange, color, kfs, onToggle,
+  displayFn, parseInput, description, min = 0, max = 200,
 }: {
   kfKey: string; label: string; value: number[]; onChange: (v: number[]) => void;
   color: 'teal' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
-  displayFn?: (v: number[]) => string; min?: number; max?: number;
+  displayFn?: (v: number[]) => string;
+  parseInput?: (s: string) => number;
+  description?: string;
+  min?: number; max?: number;
 }) {
   const trackCls = color === 'teal' ? 'bg-teal-600/50' : 'bg-orange-600/50';
   const thumbCls = color === 'teal' ? 'bg-teal-400' : 'bg-orange-400';
+  const focusBorderCls = color === 'teal' ? 'border-teal-500/60' : 'border-orange-500/60';
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const displayStr = displayFn ? displayFn(value) : String(value[0]);
+
+  const startEdit = () => {
+    setDraft(displayStr);
+    setEditing(true);
+    // Focus after render
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    if (draft.trim() !== '') {
+      const parsed = parseInput
+        ? parseInput(draft)
+        : Math.max(min, Math.min(max, Math.round(parseFloat(draft) || min)));
+      const clamped = Math.max(min, Math.min(max, Math.round(parsed)));
+      onChange([clamped]);
+    }
+    setEditing(false);
+  };
 
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
         <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
         <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
-        <span className="text-[11px] font-mono text-muted-foreground/60 w-9 text-right shrink-0">
-          {displayFn ? displayFn(value) : value[0]}
-        </span>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            className={`w-12 h-5 px-1 bg-input border ${focusBorderCls} rounded text-[11px] font-mono text-right text-foreground focus:outline-none shrink-0`}
+            autoFocus
+          />
+        ) : (
+          <button
+            onClick={startEdit}
+            title="Click to type a value"
+            className="text-[11px] font-mono text-muted-foreground/60 hover:text-muted-foreground w-12 text-right shrink-0 cursor-text tabindex-0"
+          >
+            {displayStr}
+          </button>
+        )}
       </div>
-      <Slider.Root
-        className="relative flex items-center w-full h-4 pl-7"
-        value={value} onValueChange={onChange} min={min} max={max} step={1}
-      >
-        <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
-          <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
-        </Slider.Track>
-        <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
-      </Slider.Root>
+      <div className="pl-7">
+        <Slider.Root
+          className="relative flex items-center w-full h-4"
+          value={value} onValueChange={onChange} min={min} max={max} step={1}
+        >
+          <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
+            <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
+          </Slider.Track>
+          <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
+        </Slider.Root>
+      </div>
+      {description && (
+        <p className="text-[9px] text-muted-foreground/50 mt-1 pl-7 leading-relaxed">{description}</p>
+      )}
     </div>
   );
 }
@@ -138,13 +205,17 @@ interface InspectorProps {
     springK: number;
     damping: number;
     minSpeed: number;
+    linkDistance: number;
+    gravity: number;
+    turbulence: number;
   }) => void;
   onTextChange?: (text: string) => void;
   onColorChange?: (settings: { hueStart: number; hueEnd: number; saturation: number; lightness: number }) => void;
   onStyleChange?: (settings: { edgeOpacity: number; edgeWidth: number; nodeScale: number }) => void;
   currentTime?: number;
-  cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
-  onDeleteSnapshot?: (time: number) => void;
+  cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
+  onDeleteKeyframe?: (time: number) => void;
+  width?: number;
 }
 
 export function Inspector({
@@ -153,13 +224,15 @@ export function Inspector({
   onColorChange,
   onStyleChange,
   currentTime = 0,
-  cameraSnapshots = [],
-  onDeleteSnapshot
+  cameraKeyframes = [],
+  onDeleteKeyframe,
+  width = 268,
 }: InspectorProps = {}) {
   const [kfs, setKfs] = useState<Record<string, boolean>>({
     saturation: false, lightness: false,
     edgeOpacity: false, edgeWidth: false, nodeScale: false,
     repulsion: false, springK: true, damping: false, minSpeed: false,
+    linkDistance: false, gravity: false, turbulence: false,
   });
   const [parsingMode, setParsingMode] = useState('word');
   const [zoomVal, setZoomVal] = useState([800]);
@@ -167,6 +240,9 @@ export function Inspector({
   const [springKVal, setSpringKVal] = useState([6]);
   const [dampingVal, setDampingVal] = useState([88]);
   const [minSpeedVal, setMinSpeedVal] = useState(0.5);
+  const [linkDistanceVal, setLinkDistanceVal] = useState([80]);
+  const [gravityVal, setGravityVal] = useState([0]);
+  const [turbulenceVal, setTurbulenceVal] = useState([0]);
   const [textInput, setTextInput] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
   const [colorScheme, setColorScheme] = useState('cyan-green');
   const [saturation, setSaturation] = useState([75]);
@@ -183,14 +259,17 @@ export function Inspector({
       repulsion: repulsionVal[0] * 10,
       springK: springKVal[0] / 100,
       damping: dampingVal[0] / 100,
-      minSpeed: minSpeedVal
+      minSpeed: minSpeedVal,
+      linkDistance: linkDistanceVal[0],
+      gravity: gravityVal[0],
+      turbulence: turbulenceVal[0],
     });
   };
 
   // Call on mount and when values change
   useEffect(() => {
     notifyPhysicsChange();
-  }, [repulsionVal, springKVal, dampingVal, minSpeedVal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [repulsionVal, springKVal, dampingVal, minSpeedVal, linkDistanceVal, gravityVal, turbulenceVal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify color changes
   useEffect(() => {
@@ -217,7 +296,7 @@ export function Inspector({
 
 
   return (
-    <div className="w-[268px] bg-background border-r border-border flex flex-col shrink-0 overflow-hidden">
+    <div className="bg-background border-r border-border flex flex-col shrink-0 overflow-hidden" style={{ width }}>
       {/* Panel Header */}
       
 
@@ -226,27 +305,27 @@ export function Inspector({
         <Tabs.List className="flex border-b border-border shrink-0">
           <Tabs.Trigger
             value="content"
-            className="flex-1 h-9 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-purple-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-purple-500/60"
           >
-            Inhalt
+            <Type size={10} />Inhalt
           </Tabs.Trigger>
           <Tabs.Trigger
             value="visual"
-            className="flex-1 h-9 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
-            Visuell
+            <Layers size={10} />Visuell
           </Tabs.Trigger>
           <Tabs.Trigger
             value="camera"
-            className="flex-1 h-9 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
           >
-            Kamera
+            <Camera size={10} />Kamera
           </Tabs.Trigger>
           <Tabs.Trigger
             value="physics"
-            className="flex-1 h-9 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
           >
-            Physik
+            <Zap size={10} />Physik
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -256,7 +335,7 @@ export function Inspector({
             {/* TEXT */}
             <AccSection value="text" label="Text">
               <textarea
-                className="w-full h-[176px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] font-mono text-foreground resize-none focus:outline-none transition-colors leading-relaxed"
+                className="w-full h-[176px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-none focus:outline-none transition-colors leading-relaxed"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
@@ -341,11 +420,13 @@ export function Inspector({
                   kfKey="saturation" label="Sättigung" value={saturation} onChange={setSaturation}
                   color="teal" kfs={kfs} onToggle={toggle} min={30} max={100}
                   displayFn={v => v[0] + '%'}
+                  description="Farbintensität. Niedriger = matter/grauer; höher = lebhafter."
                 />
                 <SliderParam
                   kfKey="lightness" label="Helligkeit" value={lightness} onChange={setLightness}
                   color="teal" kfs={kfs} onToggle={toggle} min={40} max={80}
                   displayFn={v => v[0] + '%'}
+                  description="Helligkeit der Knotenbezeichnungen. Für helle oder dunkle Hintergründe anpassen."
                 />
               </div>
             </AccSection>
@@ -357,15 +438,18 @@ export function Inspector({
                   kfKey="edgeOpacity" label="Linien-Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
                   color="teal" kfs={kfs} onToggle={toggle} min={10} max={100}
                   displayFn={v => v[0] + '%'}
+                  description="Transparenz der Verbindungslinien zwischen Wörtern."
                 />
                 <SliderParam
                   kfKey="edgeWidth" label="Linien-Stärke" value={edgeWidth} onChange={setEdgeWidth}
                   color="teal" kfs={kfs} onToggle={toggle} min={1} max={5}
+                  description="Pixelbreite der Verbindungslinien."
                 />
                 <SliderParam
                   kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
                   color="teal" kfs={kfs} onToggle={toggle} min={50} max={150}
                   displayFn={v => v[0] + '%'}
+                  description="Einheitliche Skalierung aller Wortbezeichnungen."
                 />
               </div>
             </AccSection>
@@ -374,7 +458,7 @@ export function Inspector({
 
         {/* CAMERA TAB */}
         <Tabs.Content value="camera" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['camera-controls', 'camera-snapshots']}>
+          <Accordion.Root type="multiple" defaultValue={['camera-controls', 'camera-keyframes']}>
             {/* CAMERA CONTROLS */}
             <AccSection value="camera-controls" label="Steuerung" color="teal">
               <div className="text-[10px] text-muted-foreground leading-relaxed mb-3">
@@ -427,32 +511,32 @@ export function Inspector({
               </div>
             </AccSection>
 
-            {/* CAMERA SNAPSHOTS */}
-            <AccSection value="camera-snapshots" label="Snapshots" color="teal">
+            {/* CAMERA KEYFRAMES */}
+            <AccSection value="camera-keyframes" label="Keyframes" color="teal">
               <div className="text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1.5 border border-border">
-                💡 Benutze den <span className="text-teal-400">📸 Snapshot</span> Button in der Timeline
+                💡 Benutze den <span className="text-teal-400">◆ Keyframe</span> Button in der Timeline
               </div>
 
-              {cameraSnapshots.length > 0 && (
+              {cameraKeyframes.length > 0 && (
                 <div className="mt-3 space-y-1">
                   <span className="text-[10px] text-muted-foreground block mb-1.5">
-                    Gespeicherte Snapshots:
+                    Gespeicherte Keyframes:
                   </span>
-                  {cameraSnapshots.map((snapshot, idx) => (
+                  {cameraKeyframes.map((kf, idx) => (
                     <div
                       key={idx}
                       className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${
-                        Math.abs(snapshot.time - currentTime) < 0.1
+                        Math.abs(kf.time - currentTime) < 0.1
                           ? 'bg-teal-900/30 border border-teal-700/40'
                         : 'bg-muted/30 border border-border'
                       }`}
                     >
                       <span className="text-muted-foreground font-mono">
-                        {Math.floor(snapshot.time / 60).toString().padStart(2, '0')}:
-                        {(snapshot.time % 60).toFixed(1).padStart(4, '0')}s
+                        {Math.floor(kf.time / 60).toString().padStart(2, '0')}:
+                        {(kf.time % 60).toFixed(1).padStart(4, '0')}s
                       </span>
                       <button
-                        onClick={() => onDeleteSnapshot?.(snapshot.time)}
+                        onClick={() => onDeleteKeyframe?.(kf.time)}
                         className="text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         ✕
@@ -475,18 +559,46 @@ export function Inspector({
                   color="orange" kfs={kfs} onToggle={toggle}
                   min={10} max={500}
                   displayFn={v => (v[0] * 10).toFixed(0)}
+                  parseInput={s => Math.round(parseFloat(s) / 10)}
+                  description="Wie stark Knoten sich gegenseitig abstoßen. Höher = weiter auseinander."
                 />
                 <SliderParam
-                  kfKey="springK" label="Spring K" value={springKVal} onChange={setSpringKVal}
+                  kfKey="springK" label="Spring Stiffness" value={springKVal} onChange={setSpringKVal}
                   color="orange" kfs={kfs} onToggle={toggle}
                   min={1} max={20}
                   displayFn={v => (v[0] / 100).toFixed(2)}
+                  parseInput={s => Math.round(parseFloat(s) * 100)}
+                  description="Stärke der Kantenverbindungen. Höher = engere Gruppierung verbundener Wörter."
                 />
                 <SliderParam
                   kfKey="damping" label="Damping" value={dampingVal} onChange={setDampingVal}
                   color="orange" kfs={kfs} onToggle={toggle}
                   min={80} max={99}
                   displayFn={v => (v[0] / 100).toFixed(2)}
+                  parseInput={s => Math.round(parseFloat(s) * 100)}
+                  description="Geschwindigkeitsabfall pro Frame (0–1). Niedriger = schnelleres Einpendeln; höher = flüssigere Bewegung."
+                />
+                <SliderParam
+                  kfKey="linkDistance" label="Link Distance" value={linkDistanceVal} onChange={setLinkDistanceVal}
+                  color="orange" kfs={kfs} onToggle={toggle}
+                  min={10} max={300}
+                  displayFn={v => v[0] + 'px'}
+                  parseInput={s => Math.round(parseFloat(s))}
+                  description="Ziel-Ruhelänge der Kanten. Kanten ziehen oder stoßen Knoten ab, um diesen Abstand zu halten."
+                />
+                <SliderParam
+                  kfKey="gravity" label="Gravity" value={gravityVal} onChange={setGravityVal}
+                  color="orange" kfs={kfs} onToggle={toggle}
+                  min={0} max={100}
+                  displayFn={v => v[0].toFixed(0)}
+                  description="Zieht alle Knoten zur Mitte, verhindert das Auseinanderdriften des Graphen."
+                />
+                <SliderParam
+                  kfKey="turbulence" label="Turbulence" value={turbulenceVal} onChange={setTurbulenceVal}
+                  color="orange" kfs={kfs} onToggle={toggle}
+                  min={0} max={20}
+                  displayFn={v => v[0].toFixed(0)}
+                  description="Zufälliger Impuls pro Frame. Hält die Simulation mit organischer Bewegung am Laufen."
                 />
                 <div className="flex items-center gap-2 h-[26px]">
                   <KfDiamond active={kfs.minSpeed} color="orange" onClick={() => toggle('minSpeed')} />

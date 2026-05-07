@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
-import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TIMELINE_DURATION } from '../constants';
-import { segmentBezierPath } from '../easing';
+import { segmentBezierPath, computeAutoWeights } from '../easing';
 
 /* ── Types & constants ── */
 
@@ -14,10 +14,11 @@ interface TimelineProps {
   onPlayheadChange: (pos: number) => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots?: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number }>;
-  onCaptureSnapshot?: () => void;
+  cameraKeyframes?: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
+  onCaptureKeyframe?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
   timecode?: string;
@@ -25,6 +26,7 @@ interface TimelineProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  height?: number;
 }
 
 interface ViewWindow {
@@ -38,7 +40,7 @@ const TRACK_GROUPS = [
   {
     id: 'camera', name: 'Camera', color: 'cyan' as const,
     tracks: [
-      { id: 'camera-snapshots', name: 'Snapshots', kfs: [], graph: false },
+      { id: 'camera-keyframes', name: 'Keyframes', kfs: [], graph: false },
     ],
   },
   {
@@ -79,7 +81,7 @@ function TBtn({
           ? 'opacity-30 cursor-not-allowed text-muted-foreground/40'
           : active
             ? 'bg-muted text-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            : 'bg-muted/30 text-foreground/60 hover:bg-muted hover:text-foreground'
       }`}
     >
       {children}
@@ -91,13 +93,11 @@ function TBtn({
 
 function TCDisplay({ value, accent = false }: { value: string; accent?: boolean }) {
   return (
-    <div className={`px-2 py-[3px] bg-input rounded border font-mono text-[11px] text-center tracking-wide ${
-      accent
-        ? 'border-blue-800/60 ring-1 ring-blue-800/30 text-blue-400 min-w-[100px]'
-        : 'border-border text-muted-foreground min-w-[80px]'
+    <span className={`text-[11px] tabular-nums tracking-wide ${
+      accent ? 'text-foreground font-medium' : 'text-muted-foreground'
     }`}>
       {value}
-    </div>
+    </span>
   );
 }
 
@@ -105,7 +105,14 @@ function TCDisplay({ value, accent = false }: { value: string; accent?: boolean 
 
 function Ruler({ zoom, duration, viewWindow }: { zoom: number; duration: number; viewWindow: ViewWindow }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
-  const majorStep = zoom >= 20 ? 0.5 : zoom >= 10 ? 1 : zoom >= 5 ? 2 : zoom >= 2 ? 5 : visibleDuration > 60 ? 10 : 5;
+  const majorStep =
+    zoom >= 100 ? 0.1  :
+    zoom >= 50  ? 0.25 :
+    zoom >= 20  ? 0.5  :
+    zoom >= 10  ? 1    :
+    zoom >= 5   ? 2    :
+    zoom >= 2   ? 5    :
+    visibleDuration > 60 ? 10 : 5;
   const minorStep = majorStep / 5;
 
   const ticks: { t: number; major: boolean; leftPct: number }[] = [];
@@ -131,7 +138,9 @@ function Ruler({ zoom, duration, viewWindow }: { zoom: number; duration: number;
           <div className={`w-px ${major ? 'h-3.5 bg-muted-foreground' : 'h-2 bg-muted-foreground/60'}`} />
           {major && (
             <span className="text-[9px] font-mono text-muted-foreground ml-0.5 mt-0.5 leading-none">
-              {t >= 60 ? `${Math.floor(t / 60)}m${t % 60 > 0 ? `${t % 60}s` : ''}` : `${t}s`}
+              {t >= 60
+                ? `${Math.floor(t / 60)}m${t % 60 > 0 ? `${(t % 60).toFixed(t % 1 !== 0 ? 2 : 0)}s` : ''}`
+                : t % 1 !== 0 ? `${t.toFixed(2)}s` : `${t}s`}
             </span>
           )}
         </div>
@@ -166,11 +175,12 @@ function GraphCurve({ kfs, color, viewWindow }: { kfs: number[]; color: string; 
 /* ── Context menu ── */
 
 function ContextMenu({
-  x, y, hasClipboard, onCopy, onCut, onPaste, onDelete, onClose,
+  x, y, hasClipboard, hasKeyframe = true, onCopy, onCut, onPaste, onDelete, onClose,
 }: {
   x: number;
   y: number;
   hasClipboard: boolean;
+  hasKeyframe?: boolean;
   onCopy: () => void;
   onCut: () => void;
   onPaste: () => void;
@@ -212,11 +222,11 @@ function ContextMenu({
         style={{ left, top, width: menuW }}
         onMouseDown={e => e.stopPropagation()}
       >
-        <Item label="Copy" shortcut="⌘C" action={onCopy} />
-        <Item label="Cut" shortcut="⌘X" action={onCut} />
+        <Item label="Copy" shortcut="⌘C" action={onCopy} disabled={!hasKeyframe} />
+        <Item label="Cut" shortcut="⌘X" action={onCut} disabled={!hasKeyframe} />
         <Item label="Paste at Playhead" shortcut="⌘V" action={onPaste} disabled={!hasClipboard} />
         <div className="border-t border-border/60 my-1 mx-2" />
-        <Item label="Delete" shortcut="⌫" action={onDelete} danger />
+        <Item label="Delete" shortcut="⌫" action={onDelete} danger disabled={!hasKeyframe} />
       </div>
     </>,
     document.body
@@ -227,53 +237,92 @@ function ContextMenu({
 
 const EASING_H = 56;
 
-const EASING_PRESETS = [
-  { label: 'Linear',   outW: 0,    inW: 0,    path: (w: number, h: number) => `M 0 ${h} L ${w} 0` },
-  { label: 'Ease Out', outW: 0.42, inW: 0,    path: (w: number, h: number) => `M 0 ${h} C ${0.42*w} ${h} ${w} 0 ${w} 0` },
-  { label: 'Ease In',  outW: 0,    inW: 0.42, path: (w: number, h: number) => `M 0 ${h} C 0 ${h} ${(1-0.42)*w} 0 ${w} 0` },
-  { label: 'Smooth',   outW: 0.33, inW: 0.33, path: (w: number, h: number) => `M 0 ${h} C ${0.33*w} ${h} ${(1-0.33)*w} 0 ${w} 0` },
+const EASING_PRESETS_GRID = [
+  { label: 'Linear',     outW: 0,    inW: 0,    color: '#9ca3af' },
+  { label: 'Ease Out',   outW: 0.42, inW: 0,    color: '#a78bfa' },
+  { label: 'Ease In',    outW: 0,    inW: 0.42, color: '#60a5fa' },
+  { label: 'Smooth',     outW: 0.33, inW: 0.33, color: '#22d3ee' },
+  { label: 'Strong Out', outW: 0.5,  inW: 0,    color: '#34d399' },
+  { label: 'Strong In',  outW: 0,    inW: 0.5,  color: '#fbbf24' },
+  { label: 'Heavy',      outW: 0.5,  inW: 0.5,  color: '#fb923c' },
+  { label: 'Auto',       outW: -1,   inW: -1,   color: '#2dd4bf' },
 ] as const;
 
-function EasingPresetPopup({
-  x, y, kfTime, nextKfTime, onSetHandle, onClose,
+function EasingPicker({
+  anchorX, anchorY, kfTime, nextKfTime,
+  currentOutW, currentInW, isAuto,
+  onSetHandle, onSetInterpolation, onClose,
 }: {
-  x: number; y: number;
+  anchorX: number; anchorY: number;
   kfTime: number; nextKfTime: number;
+  currentOutW: number; currentInW: number; isAuto: boolean;
   onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
   onClose: () => void;
 }) {
-  const pw = 176, ph = 140;
-  const left = Math.min(x, window.innerWidth - pw - 8);
-  const top  = Math.min(y, window.innerHeight - ph - 8);
+  const pickerW = 268;
+  const left = Math.max(8, Math.min(window.innerWidth - pickerW - 8, anchorX - pickerW / 2));
+  const bottom = window.innerHeight - anchorY + 10;
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-40" onMouseDown={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
+      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
       <div
-        className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
-        style={{ left, top, width: pw }}
-        onMouseDown={e => e.stopPropagation()}
+        className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-2.5 shadow-2xl"
+        style={{ left, bottom }}
+        onClick={e => e.stopPropagation()}
       >
-        <div className="px-3 pt-1 pb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-          Easing Preset
+        <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mb-2 px-0.5">
+          Easing preset
         </div>
-        <div className="border-t border-border/60 mx-2 mb-1" />
-        {EASING_PRESETS.map(preset => (
-          <button
-            key={preset.label}
-            className="w-full flex items-center gap-2.5 px-3 py-[5px] text-[11px] text-foreground hover:bg-muted transition-colors cursor-pointer"
-            onClick={() => {
-              onSetHandle(kfTime, 'out', preset.outW);
-              onSetHandle(nextKfTime, 'in', preset.inW);
-              onClose();
-            }}
-          >
-            <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0" fill="none">
-              <path d={preset.path(36, 18)} stroke="#2dd4bf" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <span>{preset.label}</span>
-          </button>
-        ))}
+        <div className="grid grid-cols-4 gap-1.5">
+          {EASING_PRESETS_GRID.map(preset => {
+            const isActive = preset.label === 'Auto'
+              ? isAuto
+              : !isAuto && Math.abs(currentOutW - preset.outW) < 0.01 && Math.abs(currentInW - preset.inW) < 0.01;
+            const curvePath = preset.label === 'Auto'
+              ? segmentBezierPath(0.33, 0.33, 42, 26)
+              : segmentBezierPath(preset.outW, preset.inW, 42, 26);
+            return (
+              <button
+                key={preset.label}
+                onClick={() => {
+                  if (preset.label === 'Auto') {
+                    onSetInterpolation?.(kfTime, 'auto');
+                    onSetInterpolation?.(nextKfTime, 'auto');
+                  } else {
+                    onSetHandle(kfTime, 'out', preset.outW);
+                    onSetHandle(nextKfTime, 'in', preset.inW);
+                    onSetInterpolation?.(kfTime, 'manual');
+                    onSetInterpolation?.(nextKfTime, 'manual');
+                  }
+                  onClose();
+                }}
+                className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${
+                  isActive
+                    ? 'border-zinc-500 bg-zinc-800'
+                    : 'border-transparent hover:border-zinc-700/80 hover:bg-zinc-800/60'
+                }`}
+                title={preset.label}
+              >
+                <svg width="42" height="26" viewBox={`0 0 42 26`} className="overflow-visible">
+                  <path
+                    d={curvePath}
+                    fill="none"
+                    stroke={preset.color}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {preset.label === 'Auto' && (
+                    <text x="21" y="13" textAnchor="middle" dominantBaseline="middle" fontSize="7" fill={preset.color} fontFamily="monospace" opacity="0.8">auto</text>
+                  )}
+                </svg>
+                <span className="text-[9px] text-zinc-400 leading-none whitespace-nowrap">{preset.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </>,
     document.body
@@ -281,16 +330,17 @@ function EasingPresetPopup({
 }
 
 function EasingTrackRow({
-  snapshots, onSetHandle, viewWindow,
+  keyframeData, onSetHandle, onSetInterpolation, viewWindow,
 }: {
-  snapshots: Array<{ time: number; outWeight?: number; inWeight?: number }>;
+  keyframeData: Array<{ time: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
   onSetHandle: (time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
   viewWindow: ViewWindow;
 }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const keyframes = useMemo(() => [...snapshots].sort((a, b) => a.time - b.time), [snapshots]);
+  const keyframes = useMemo(() => [...keyframeData].sort((a, b) => a.time - b.time), [keyframeData]);
 
   const [dragging, setDragging] = useState<{
     kfTime: number;
@@ -299,8 +349,8 @@ function EasingTrackRow({
     segWidth: number;
   } | null>(null);
 
-  const [presetPopup, setPresetPopup] = useState<{
-    x: number; y: number; kfTime: number; nextKfTime: number;
+  const [picker, setPicker] = useState<{
+    anchorX: number; anchorY: number; kfTime: number; nextKfTime: number;
   } | null>(null);
 
   useEffect(() => {
@@ -329,7 +379,7 @@ function EasingTrackRow({
           <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
         </svg>
         <span className="text-[10px] text-muted-foreground flex-1 truncate">Easing</span>
-        <span className="text-[9px] text-muted-foreground/40 hidden sm:block">right-click segment</span>
+        <span className="text-[9px] text-muted-foreground/40 hidden sm:block">click curve</span>
       </div>
 
       <div ref={trackRef} className="flex-1 relative bg-teal-950/5 overflow-visible">
@@ -348,8 +398,15 @@ function EasingTrackRow({
           if (rightPct <= 0 || leftPct >= 100) return null;
           const widthPct = rightPct - leftPct;
 
-          const outW = kf.outWeight ?? 0;
-          const inW = nextKf.inWeight ?? 0;
+          const isAuto = kf.interpolation === 'auto' || nextKf.interpolation === 'auto';
+          const segDur = nextKf.time - kf.time;
+          const prevKf = i > 0 ? keyframes[i - 1] : null;
+          const nextNextKf = i + 2 < keyframes.length ? keyframes[i + 2] : null;
+          const autoW = isAuto
+            ? computeAutoWeights(segDur, prevKf ? kf.time - prevKf.time : null, nextNextKf ? nextNextKf.time - nextKf.time : null)
+            : null;
+          const outW = autoW ? autoW.outWeight : (kf.outWeight ?? 0);
+          const inW  = autoW ? autoW.inWeight  : (nextKf.inWeight ?? 0);
           const curvePath = segmentBezierPath(outW, inW, 100, EASING_H);
 
           const getSegRect = () => {
@@ -362,20 +419,23 @@ function EasingTrackRow({
           };
 
           const startDragOut = (e: React.MouseEvent) => {
+            if (isAuto) return;
             e.stopPropagation();
             const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: kf.time, side: 'out', segLeft, segWidth });
           };
           const startDragIn = (e: React.MouseEvent) => {
+            if (isAuto) return;
             e.stopPropagation();
             const { segLeft, segWidth } = getSegRect();
             setDragging({ kfTime: nextKf.time, side: 'in', segLeft, segWidth });
           };
 
-          const openPreset = (e: React.MouseEvent) => {
+          const openPicker = (e: React.MouseEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            setPresetPopup({ x: e.clientX, y: e.clientY, kfTime: kf.time, nextKfTime: nextKf.time });
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setPicker({ anchorX: rect.left + rect.width / 2, anchorY: rect.top, kfTime: kf.time, nextKfTime: nextKf.time });
           };
 
           return (
@@ -383,90 +443,82 @@ function EasingTrackRow({
               key={`seg-${kf.time}-${nextKf.time}`}
               className="absolute inset-y-0 overflow-visible"
               style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-              onContextMenu={openPreset}
             >
-              {/* Bezier curve + hit area */}
+              {/* Bezier curve + click-to-open-picker hit area */}
               <svg
                 className="absolute inset-0 w-full h-full"
                 viewBox={`0 0 100 ${EASING_H}`}
                 preserveAspectRatio="none"
-                style={{ cursor: 'context-menu' }}
+                style={{ cursor: 'pointer' }}
+                onClick={openPicker}
               >
-                {/* Transparent wider hit area for context menu */}
-                <path
-                  d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`}
-                  fill="transparent"
-                  stroke="none"
-                />
+                {/* Transparent hit area */}
+                <path d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`} fill="transparent" stroke="none" />
                 {/* Fill */}
                 <path
                   d={`${curvePath} L 100 ${EASING_H} L 0 ${EASING_H} Z`}
                   fill="#2dd4bf"
-                  fillOpacity={0.08}
+                  fillOpacity={isAuto ? 0.05 : 0.08}
                   style={{ pointerEvents: 'none' }}
                 />
-                {/* Curve */}
+                {/* Curve — dashed when auto */}
                 <path
                   d={curvePath}
                   fill="none"
                   stroke="#2dd4bf"
                   strokeWidth="1.5"
-                  strokeOpacity={0.75}
+                  strokeOpacity={isAuto ? 0.5 : 0.75}
+                  strokeDasharray={isAuto ? '4 3' : undefined}
                   vectorEffect="non-scaling-stroke"
                   strokeLinecap="round"
                   style={{ pointerEvents: 'none' }}
                 />
-                {/* Handle arm — out (bottom) */}
-                {outW > 0.01 && (
-                  <line
-                    x1="0" y1={EASING_H}
-                    x2={outW * 100} y2={EASING_H}
-                    stroke="#2dd4bf" strokeWidth="1"
-                    strokeOpacity="0.4"
-                    vectorEffect="non-scaling-stroke"
-                    style={{ pointerEvents: 'none' }}
+                {/* Handle arms — hidden in auto mode */}
+                {!isAuto && outW > 0.01 && (
+                  <line x1="0" y1={EASING_H} x2={outW * 100} y2={EASING_H}
+                    stroke="#2dd4bf" strokeWidth="1" strokeOpacity="0.4"
+                    vectorEffect="non-scaling-stroke" style={{ pointerEvents: 'none' }}
                   />
                 )}
-                {/* Handle arm — in (top) */}
-                {inW > 0.01 && (
-                  <line
-                    x1="100" y1="0"
-                    x2={(1 - inW) * 100} y2="0"
-                    stroke="#2dd4bf" strokeWidth="1"
-                    strokeOpacity="0.4"
-                    vectorEffect="non-scaling-stroke"
-                    style={{ pointerEvents: 'none' }}
+                {!isAuto && inW > 0.01 && (
+                  <line x1="100" y1="0" x2={(1 - inW) * 100} y2="0"
+                    stroke="#2dd4bf" strokeWidth="1" strokeOpacity="0.4"
+                    vectorEffect="non-scaling-stroke" style={{ pointerEvents: 'none' }}
                   />
                 )}
               </svg>
 
-              {/* Out-handle circle (bottom edge) — always visible */}
-              <div
-                className="absolute z-10 cursor-ew-resize select-none"
-                style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
-                onMouseDown={startDragOut}
-                title={`Ease-out: ${(outW * 200).toFixed(0)}% — drag or right-click segment for presets`}
-              >
-                <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
-                  dragging?.kfTime === kf.time && dragging.side === 'out'
-                    ? 'bg-teal-300 border-teal-200 scale-125'
-                    : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
-                }`} />
-              </div>
+              {/* Out-handle circle — hidden in auto mode */}
+              {!isAuto && (
+                <div
+                  className="absolute z-10 cursor-ew-resize select-none"
+                  style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
+                  onMouseDown={startDragOut}
+                  title={`Ease-out: ${(outW * 200).toFixed(0)}% — drag to adjust, click curve for presets`}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
+                    dragging?.kfTime === kf.time && dragging.side === 'out'
+                      ? 'bg-teal-300 border-teal-200 scale-125'
+                      : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
+                  }`} />
+                </div>
+              )}
 
-              {/* In-handle circle (top edge) — always visible */}
-              <div
-                className="absolute z-10 cursor-ew-resize select-none"
-                style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
-                onMouseDown={startDragIn}
-                title={`Ease-in: ${(inW * 200).toFixed(0)}% — drag or right-click segment for presets`}
-              >
-                <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
-                  dragging?.kfTime === nextKf.time && dragging.side === 'in'
-                    ? 'bg-teal-300 border-teal-200 scale-125'
-                    : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
-                }`} />
-              </div>
+              {/* In-handle circle — hidden in auto mode */}
+              {!isAuto && (
+                <div
+                  className="absolute z-10 cursor-ew-resize select-none"
+                  style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
+                  onMouseDown={startDragIn}
+                  title={`Ease-in: ${(inW * 200).toFixed(0)}% — drag to adjust, click curve for presets`}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
+                    dragging?.kfTime === nextKf.time && dragging.side === 'in'
+                      ? 'bg-teal-300 border-teal-200 scale-125'
+                      : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
+                  }`} />
+                </div>
+              )}
             </div>
           );
         })}
@@ -485,16 +537,25 @@ function EasingTrackRow({
         })}
       </div>
 
-      {presetPopup && (
-        <EasingPresetPopup
-          x={presetPopup.x}
-          y={presetPopup.y}
-          kfTime={presetPopup.kfTime}
-          nextKfTime={presetPopup.nextKfTime}
-          onSetHandle={onSetHandle}
-          onClose={() => setPresetPopup(null)}
-        />
-      )}
+      {picker && (() => {
+        const kf = keyframes.find(k => k.time === picker.kfTime);
+        const nextKf = keyframes.find(k => k.time === picker.nextKfTime);
+        const isAuto = kf?.interpolation === 'auto' || nextKf?.interpolation === 'auto';
+        return (
+          <EasingPicker
+            anchorX={picker.anchorX}
+            anchorY={picker.anchorY}
+            kfTime={picker.kfTime}
+            nextKfTime={picker.nextKfTime}
+            currentOutW={kf?.outWeight ?? 0}
+            currentInW={nextKf?.inWeight ?? 0}
+            isAuto={isAuto ?? false}
+            onSetHandle={onSetHandle}
+            onSetInterpolation={onSetInterpolation}
+            onClose={() => setPicker(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -575,7 +636,7 @@ function TrackRow({
               key={`${track.id}-${t}-${idx}`}
               onMouseDown={e => {
                 e.stopPropagation();
-                if (track.id === 'camera-snapshots') {
+                if (track.id === 'camera-keyframes') {
                   setDraggingKf({ time: t, startX: e.clientX });
                 }
                 onKeyframeSelect(track.id, t);
@@ -613,8 +674,8 @@ function TrackRow({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraSnapshots,
-  onMoveKeyframe, onSetHandle, onKeyframeContextMenu, snap, contentRef,
+  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraKeyframes,
+  onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, snap, contentRef,
   playheadPosition, duration, viewWindow,
 }: {
   group: typeof TRACK_GROUPS[number];
@@ -622,9 +683,10 @@ function TrackGroup({
   onToggle: () => void;
   selectedKeyframe: { track: string; time: number } | null;
   onKeyframeSelect: (track: string, time: number) => void;
-  cameraSnapshots: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number }>;
+  cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onSetHandle?: (time: number, side: 'out' | 'in', weight: number) => void;
+  onSetInterpolation?: (time: number, mode: 'auto' | 'manual') => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
   snap: boolean;
   contentRef: React.RefObject<HTMLDivElement | null>;
@@ -661,8 +723,8 @@ function TrackGroup({
       </div>
 
       {expanded && group.tracks.map(track => {
-        const dynamicKfs = track.id === 'camera-snapshots'
-          ? cameraSnapshots.map(s => s.time)
+        const dynamicKfs = track.id === 'camera-keyframes'
+          ? cameraKeyframes.map(s => s.time)
           : track.kfs;
         return (
           <TrackRow
@@ -684,8 +746,9 @@ function TrackGroup({
 
       {expanded && group.id === 'camera' && onSetHandle && (
         <EasingTrackRow
-          snapshots={cameraSnapshots}
+          keyframeData={cameraKeyframes}
           onSetHandle={onSetHandle}
+          onSetInterpolation={onSetInterpolation}
           viewWindow={viewWindow}
         />
       )}
@@ -703,10 +766,11 @@ export function Timeline({
   onPlayheadChange,
   selectedKeyframe,
   onKeyframeSelect,
-  cameraSnapshots = [],
-  onCaptureSnapshot,
+  cameraKeyframes = [],
+  onCaptureKeyframe,
   onMoveKeyframe,
   onSetHandle,
+  onSetInterpolation,
   onDeleteKeyframe,
   onDuplicateKeyframe,
   timecode = '00:00:00:00',
@@ -714,6 +778,7 @@ export function Timeline({
   onRedo,
   canUndo = false,
   canRedo = false,
+  height = 268,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
   const [zoom, setZoom] = useState(1);
@@ -724,9 +789,9 @@ export function Timeline({
   const [clipboard, setClipboard] = useState<{ trackId: string; time: number } | null>(null);
 
   useEffect(() => {
-    const maxKfTime = cameraSnapshots.reduce((max, s) => Math.max(max, s.time), 0);
+    const maxKfTime = cameraKeyframes.reduce((max, s) => Math.max(max, s.time), 0);
     if (maxKfTime > duration * 0.9) setDuration(d => d + 60);
-  }, [cameraSnapshots, duration]);
+  }, [cameraKeyframes, duration]);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -752,6 +817,7 @@ export function Timeline({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    e.preventDefault();
     isDragging.current = true;
     const pos = posFromEvent(e);
     if (pos !== null) onPlayheadChange(pos);
@@ -794,7 +860,7 @@ export function Timeline({
         const timeAtCursor = vw.start + frac * (vw.end - vw.start);
 
         const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-        const newZoom = Math.max(1, Math.min(50, z * factor));
+        const newZoom = Math.max(1, Math.min(200, z * factor));
         const newVisibleDuration = duration / newZoom;
         const newPanStart = Math.max(0, Math.min(duration - newVisibleDuration, timeAtCursor - frac * newVisibleDuration));
 
@@ -882,7 +948,7 @@ export function Timeline({
 
   const zoomIn = () => {
     setZoom(z => {
-      const newZ = Math.min(50, z * 1.5);
+      const newZ = Math.min(200, z * 1.5);
       // Keep the center of the view fixed
       const mid = (viewWindow.start + viewWindow.end) / 2;
       const newVisible = duration / newZ;
@@ -903,7 +969,7 @@ export function Timeline({
   };
 
   return (
-    <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height: 268 }}>
+    <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height }}>
 
       {/* ── Toolbar ── */}
       <div className="h-14 bg-background border-b border-border flex items-center px-3 shrink-0 relative">
@@ -917,7 +983,7 @@ export function Timeline({
             <Plus size={10} />Parameter
           </button>
           <button
-            onClick={onCaptureSnapshot}
+            onClick={onCaptureKeyframe}
             className="flex items-center gap-1 h-6 px-2.5 bg-teal-600/80 hover:bg-teal-600 text-white rounded border border-teal-500/60 transition-colors text-[10px] font-medium shadow-sm"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
@@ -951,8 +1017,8 @@ export function Timeline({
               title={isPlaying ? 'Pause' : 'Play (Space)'}
               className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
                 isPlaying
-                  ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/40'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'bg-interactive/15 text-interactive ring-1 ring-interactive/30'
+                  : 'bg-muted/30 text-foreground/60 hover:bg-muted hover:text-foreground'
               }`}
             >
               {isPlaying
@@ -983,20 +1049,20 @@ export function Timeline({
               {zoom >= 10 ? `${Math.round(zoom)}×` : `${zoom.toFixed(1)}×`}
             </button>
           )}
-          <TBtn onClick={zoomIn} title="Zoom in" disabled={zoom >= 50}>
+          <TBtn onClick={zoomIn} title="Zoom in" disabled={zoom >= 200}>
             <ZoomIn size={12} />
           </TBtn>
           <div className="w-px h-4 bg-border mx-0.5" />
           <button
             onClick={() => setSnap(s => !s)}
             title={snap ? 'Snap on (0.5s)' : 'Snap off'}
-            className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
               snap
                 ? 'border-border bg-muted text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            snap
+            <Magnet size={9} />snap
           </button>
         </div>
       </div>
@@ -1008,7 +1074,7 @@ export function Timeline({
         <div className="flex shrink-0 border-b border-border" style={{ height: 24 }}>
           <div className="shrink-0 bg-background border-r border-border" style={{ width: LABEL_W }} />
           <div
-            className="flex-1 relative bg-background cursor-col-resize overflow-hidden"
+            className="flex-1 relative bg-background cursor-col-resize overflow-hidden select-none"
             onMouseDown={handleMouseDown}
           >
             <Ruler zoom={zoom} duration={duration} viewWindow={viewWindow} />
@@ -1025,7 +1091,18 @@ export function Timeline({
         </div>
 
         {/* Track rows */}
-        <div className="flex-1 overflow-y-auto" onMouseDown={handleMouseDown}>
+        <div
+          className="flex-1 overflow-y-auto select-none"
+          onMouseDown={handleMouseDown}
+          onContextMenu={e => {
+            e.preventDefault();
+            setContextMenu({
+              x: e.clientX, y: e.clientY,
+              trackId: selectedKeyframe?.track ?? 'camera-keyframes',
+              time: selectedKeyframe?.time ?? playheadPosition,
+            });
+          }}
+        >
           {TRACK_GROUPS.map(group => (
             <TrackGroup
               key={group.id}
@@ -1034,9 +1111,10 @@ export function Timeline({
               onToggle={() => setExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
               selectedKeyframe={selectedKeyframe}
               onKeyframeSelect={onKeyframeSelect}
-              cameraSnapshots={cameraSnapshots}
+              cameraKeyframes={cameraKeyframes}
               onMoveKeyframe={onMoveKeyframe}
               onSetHandle={onSetHandle}
+              onSetInterpolation={onSetInterpolation}
               onKeyframeContextMenu={handleKeyframeContextMenu}
               snap={snap}
               contentRef={contentRef}
@@ -1063,18 +1141,24 @@ export function Timeline({
       </div>
 
       {/* Context menu */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          hasClipboard={!!clipboard}
-          onCopy={copyKeyframe}
-          onCut={cutKeyframe}
-          onPaste={pasteKeyframe}
-          onDelete={deleteKeyframe}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {contextMenu && (() => {
+        const hasKeyframe = !!selectedKeyframe &&
+          selectedKeyframe.track === contextMenu.trackId &&
+          Math.abs(selectedKeyframe.time - contextMenu.time) < 0.01;
+        return (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            hasClipboard={!!clipboard}
+            hasKeyframe={hasKeyframe}
+            onCopy={copyKeyframe}
+            onCut={cutKeyframe}
+            onPaste={pasteKeyframe}
+            onDelete={deleteKeyframe}
+            onClose={() => setContextMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

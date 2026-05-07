@@ -13,11 +13,14 @@ interface PreviewProps {
     springK: number;
     damping: number;
     minSpeed: number;
+    linkDistance: number;
+    gravity: number;
+    turbulence: number;
   };
   inputText?: string;
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
-  cameraSnapshots?: Array<{ time: number; position: any; target: any }>;
+  cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onCameraChange?: () => void;
 }
 
@@ -30,7 +33,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   inputText,
   colorSettings,
   styleSettings,
-  cameraSnapshots,
+  cameraKeyframes,
   onCameraChange,
   theme,
 }: PreviewProps, ref) {
@@ -55,7 +58,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             inputText={inputText}
             colorSettings={colorSettings}
             styleSettings={styleSettings}
-            cameraSnapshots={cameraSnapshots}
+            cameraKeyframes={cameraKeyframes}
             onCameraChange={onCameraChange}
             theme={theme}
           />

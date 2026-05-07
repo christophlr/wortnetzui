@@ -6,7 +6,7 @@ import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultNetworkColorSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
-type Snapshot = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number };
+type Keyframe = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -18,35 +18,37 @@ export default function App() {
   const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
   const [colorSettings, setColorSettings] = useState(defaultNetworkColorSettings);
   const [styleSettings, setStyleSettings] = useState({ edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1 });
-  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5 });
-  const [cameraSnapshots, setCameraSnapshots] = useState<Snapshot[]>([]);
+  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
+  const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
+  const [inspectorWidth, setInspectorWidth] = useState(268);
+  const [timelineHeight, setTimelineHeight] = useState(240);
 
-  // Undo/redo history (keyframes only)
-  const [snapshotHistory, setSnapshotHistory] = useState<Snapshot[][]>([[]]);
+  // Undo/redo history
+  const [keyframeHistory, setKeyframeHistory] = useState<Keyframe[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const pushHistory = useCallback((prev: Snapshot[], next: Snapshot[]) => {
-    setSnapshotHistory(h => [...h.slice(0, historyIndex + 1), prev, next].slice(-50));
+  const pushHistory = useCallback((prev: Keyframe[], next: Keyframe[]) => {
+    setKeyframeHistory(h => [...h.slice(0, historyIndex + 1), prev, next].slice(-50));
     setHistoryIndex(i => Math.min(i + 1, 49));
   }, [historyIndex]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex <= 0) return;
-    setCameraSnapshots(snapshotHistory[historyIndex - 1] ?? []);
+    setCameraKeyframes(keyframeHistory[historyIndex - 1] ?? []);
     setHistoryIndex(i => i - 1);
-  }, [historyIndex, snapshotHistory]);
+  }, [historyIndex, keyframeHistory]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex >= snapshotHistory.length - 1) return;
-    setCameraSnapshots(snapshotHistory[historyIndex + 1]);
+    if (historyIndex >= keyframeHistory.length - 1) return;
+    setCameraKeyframes(keyframeHistory[historyIndex + 1]);
     setHistoryIndex(i => i + 1);
-  }, [historyIndex, snapshotHistory]);
+  }, [historyIndex, keyframeHistory]);
 
   const network3DRef = useRef<Network3DHandle>(null);
   const playheadRef = useRef(playheadPosition);
-  const cameraSnapshotsRef = useRef(cameraSnapshots);
+  const cameraKeyframesRef = useRef(cameraKeyframes);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
-  useEffect(() => { cameraSnapshotsRef.current = cameraSnapshots; }, [cameraSnapshots]);
+  useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
 
   const animationRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(0);
@@ -94,14 +96,14 @@ export default function App() {
   const handlePlayPause = () => setIsPlaying(p => !p);
   const handleStop = () => { setIsPlaying(false); setPlayheadPosition(0); };
 
-  const handleCaptureSnapshot = useCallback(() => {
+  const handleCaptureKeyframe = useCallback(() => {
     if (viewMode !== '3D') return;
-    const snapshot = network3DRef.current?.getCameraSnapshot();
-    if (!snapshot) return;
+    const keyframe = network3DRef.current?.getCameraKeyframe();
+    if (!keyframe) return;
     const currentTime = playheadRef.current;
-    setCameraSnapshots(prev => {
+    setCameraKeyframes(prev => {
       const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
-      const next = [...filtered, { ...snapshot, time: currentTime }].sort((a, b) => a.time - b.time);
+      const next = [...filtered, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
       pushHistory(prev, next);
       return next;
     });
@@ -111,18 +113,18 @@ export default function App() {
   const handleCameraChange = useCallback(() => {
     if (viewMode !== '3D') return;
     const currentTime = playheadRef.current;
-    if (!cameraSnapshotsRef.current.some(s => Math.abs(s.time - currentTime) < 0.1)) return;
-    const snapshot = network3DRef.current?.getCameraSnapshot();
-    if (!snapshot) return;
-    setCameraSnapshots(prev => {
+    if (!cameraKeyframesRef.current.some(s => Math.abs(s.time - currentTime) < 0.1)) return;
+    const keyframe = network3DRef.current?.getCameraKeyframe();
+    if (!keyframe) return;
+    setCameraKeyframes(prev => {
       const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
-      return [...filtered, { ...snapshot, time: currentTime }].sort((a, b) => a.time - b.time);
+      return [...filtered, { ...keyframe, time: currentTime }].sort((a, b) => a.time - b.time);
     });
   }, [viewMode]);
 
   const handleMoveKeyframe = useCallback((trackId: string, oldTime: number, newTime: number) => {
-    if (trackId === 'camera-snapshots') {
-      setCameraSnapshots(prev =>
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev =>
         prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s)
           .sort((a, b) => a.time - b.time)
       );
@@ -130,16 +132,22 @@ export default function App() {
   }, []);
 
   const handleSetHandle = useCallback((time: number, side: 'out' | 'in', weight: number) => {
-    setCameraSnapshots(prev =>
+    setCameraKeyframes(prev =>
       prev.map(s => Math.abs(s.time - time) < 0.01
         ? { ...s, [side === 'out' ? 'outWeight' : 'inWeight']: Math.max(0, Math.min(0.5, weight)) }
         : s)
     );
   }, []);
 
+  const handleSetInterpolation = useCallback((time: number, mode: 'auto' | 'manual') => {
+    setCameraKeyframes(prev =>
+      prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, interpolation: mode } : s)
+    );
+  }, []);
+
   const handleDeleteKeyframe = useCallback((trackId: string, time: number) => {
-    if (trackId === 'camera-snapshots') {
-      setCameraSnapshots(prev => {
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev => {
         const next = prev.filter(s => Math.abs(s.time - time) > 0.1);
         pushHistory(prev, next);
         return next;
@@ -151,8 +159,8 @@ export default function App() {
   }, [pushHistory]);
 
   const handleDuplicateKeyframe = useCallback((trackId: string, srcTime: number, destTime: number) => {
-    if (trackId === 'camera-snapshots') {
-      setCameraSnapshots(prev => {
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev => {
         const src = prev.find(s => Math.abs(s.time - srcTime) < 0.01);
         if (!src) return prev;
         const filtered = prev.filter(s => Math.abs(s.time - destTime) > 0.1);
@@ -162,6 +170,24 @@ export default function App() {
       });
     }
   }, [pushHistory]);
+
+  const startInspectorResize = useCallback((e: React.MouseEvent) => {
+    const startX = e.clientX;
+    const startWidth = inspectorWidth;
+    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(180, Math.min(520, startWidth + ev.clientX - startX)));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [inspectorWidth]);
+
+  const startTimelineResize = useCallback((e: React.MouseEvent) => {
+    const startY = e.clientY;
+    const startHeight = timelineHeight;
+    const onMove = (ev: MouseEvent) => setTimelineHeight(Math.max(100, Math.min(600, startHeight - (ev.clientY - startY))));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timelineHeight]);
 
   // Theme: class-based, respects system preference
   useEffect(() => {
@@ -182,7 +208,7 @@ export default function App() {
         viewMode={viewMode} onViewModeChange={setViewMode}
         theme={theme} onThemeChange={setTheme}
         onSaveState={() => {
-          const state = { inputText, colorSettings, styleSettings, physicsParams, viewMode, cameraSnapshots };
+          const state = { inputText, colorSettings, styleSettings, physicsParams, viewMode, cameraKeyframes };
           const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob); const a = document.createElement('a');
           a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
@@ -202,7 +228,7 @@ export default function App() {
                   if (s.styleSettings) setStyleSettings(s.styleSettings);
                   if (s.physicsParams) setPhysicsParams(s.physicsParams);
                   if (s.viewMode) setViewMode(s.viewMode);
-                  if (s.cameraSnapshots) setCameraSnapshots(s.cameraSnapshots);
+                  if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
                 } catch (err) { console.error('Failed to load state:', err); }
               };
               reader.readAsText(file);
@@ -215,34 +241,45 @@ export default function App() {
         <Inspector
           onPhysicsChange={setPhysicsParams} onTextChange={setInputText}
           onColorChange={setColorSettings} onStyleChange={setStyleSettings}
-          currentTime={playheadPosition} cameraSnapshots={cameraSnapshots}
-          onDeleteSnapshot={(time) => {
-            setCameraSnapshots(prev => {
+          currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
+          width={inspectorWidth}
+          onDeleteKeyframe={(time) => {
+            setCameraKeyframes(prev => {
               const next = prev.filter(s => Math.abs(s.time - time) > 0.1);
               pushHistory(prev, next); return next;
             });
           }}
+        />
+        <div
+          className="w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-interactive/40 transition-colors"
+          onMouseDown={startInspectorResize}
         />
         <Preview
           ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
           isPlaying={isPlaying} playheadPosition={playheadPosition}
           physicsParams={physicsParams} inputText={inputText}
           colorSettings={colorSettings} styleSettings={styleSettings}
-          cameraSnapshots={cameraSnapshots} onCameraChange={handleCameraChange}
+          cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
           theme={theme}
         />
       </div>
+      <div
+        className="h-1 shrink-0 cursor-row-resize bg-border/30 hover:bg-interactive/40 transition-colors"
+        onMouseDown={startTimelineResize}
+      />
       <Timeline
         isPlaying={isPlaying} onPlayPause={handlePlayPause} onStop={handleStop}
         playheadPosition={playheadPosition}
         onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
         selectedKeyframe={selectedKeyframe}
         onKeyframeSelect={(track, time) => setSelectedKeyframe({ track, time })}
-        cameraSnapshots={cameraSnapshots} onCaptureSnapshot={handleCaptureSnapshot}
+        cameraKeyframes={cameraKeyframes} onCaptureKeyframe={handleCaptureKeyframe}
         onMoveKeyframe={handleMoveKeyframe} onSetHandle={handleSetHandle}
+        onSetInterpolation={handleSetInterpolation}
         onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
         timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
-        canUndo={historyIndex > 0} canRedo={historyIndex < snapshotHistory.length - 1}
+        canUndo={historyIndex > 0} canRedo={historyIndex < keyframeHistory.length - 1}
+        height={timelineHeight}
       />
     </div>
   );

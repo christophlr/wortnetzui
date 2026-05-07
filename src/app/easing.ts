@@ -25,6 +25,20 @@ export function solveBezierEasing(t: number, outWeight: number, inWeight: number
   return s * s * (3 - 2 * s); // smoothstep
 }
 
+// Auto-bezier: computes outWeight/inWeight for a segment based on adjacent segment durations.
+// For equal adjacent segments this equals Smooth (0.33). Adapts proportionally for unequal lengths.
+// prevDur = duration of the segment arriving at the left keyframe (null if it's the first keyframe).
+// nextDur = duration of the segment leaving the right keyframe (null if it's the last keyframe).
+export function computeAutoWeights(
+  currDur: number,
+  prevDur: number | null,
+  nextDur: number | null
+): { outWeight: number; inWeight: number } {
+  const outWeight = prevDur === null ? 0.33 : Math.min(0.5, 0.33 * 2 * prevDur / (prevDur + currDur));
+  const inWeight  = nextDur === null ? 0.33 : Math.min(0.5, 0.33 * 2 * nextDur  / (currDur + nextDur));
+  return { outWeight, inWeight };
+}
+
 // SVG cubic-bezier path for the easing track.
 // w/h are the segment viewBox dimensions.
 // outW = outWeight of the left keyframe, inW = inWeight of the right keyframe.
