@@ -89,18 +89,27 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const cameraSnapshotsRef = useRef(cameraSnapshots);
   const isPlayingRef = useRef(isPlaying);
   const physicsParamsRef = useRef(physicsParams);
+  const effectivePhysicsRef = useRef(physicsParams);
+  const physicsBlendActiveRef = useRef(false);
+  const physicsBlendStartRef = useRef<number>(0);
+  const physicsBlendDurationRef = useRef<number>(260);
+  const physicsBlendFromRef = useRef(physicsParams);
+  const physicsBlendToRef = useRef(physicsParams);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
-  const transitionActiveRef = useRef(false);
-  const transitionStartRef = useRef<number>(0);
-  const transitionDurationRef = useRef<number>(600);
-  const transitionOriginalRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
-  const transitionTargetRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
   useEffect(() => { cameraSnapshotsRef.current = cameraSnapshots; }, [cameraSnapshots]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { physicsParamsRef.current = physicsParams; }, [physicsParams]);
+  useEffect(() => {
+    physicsParamsRef.current = physicsParams;
+    physicsBlendFromRef.current = effectivePhysicsRef.current;
+    physicsBlendToRef.current = physicsParams;
+    physicsBlendStartRef.current = performance.now();
+    physicsBlendActiveRef.current = true;
+    physicsEnabledRef.current = true;
+    stillFramesRef.current = 0;
+  }, [physicsParams]);
 
   useImperativeHandle(ref, () => ({
     getCameraSnapshot: () => {
@@ -598,29 +607,31 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const delta = (now - lastTime) / 16.67; // Normalize to ~60fps
       lastTime = now;
 
-      if (transitionActiveRef.current) {
-        // Interpolate from original -> target over configured duration
-        const elapsed = now - transitionStartRef.current;
-        const tRaw = Math.max(0, Math.min(1, elapsed / transitionDurationRef.current));
-        const t = applyEasing(tRaw, 'easeInOut');
+      if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
+        let paramsForFrame = physicsParamsRef.current;
 
-        graphNodesRef.current.forEach((node, key) => {
-          const orig = transitionOriginalRef.current.get(key);
-          const targ = transitionTargetRef.current.get(key);
-          if (!orig || !targ) return;
-          node.x = orig.x + (targ.x - orig.x) * t;
-          node.y = orig.y + (targ.y - orig.y) * t;
-          node.z = orig.z + (targ.z - orig.z) * t;
-          if (node.textSprite) node.textSprite.position.set(node.x, node.y, node.z);
-        });
+        if (physicsBlendActiveRef.current) {
+          const elapsed = performance.now() - physicsBlendStartRef.current;
+          const tRaw = Math.max(0, Math.min(1, elapsed / physicsBlendDurationRef.current));
+          const t = applyEasing(tRaw, 'easeInOut');
+          const from = physicsBlendFromRef.current;
+          const to = physicsBlendToRef.current;
 
-        if (tRaw >= 1) {
-          transitionActiveRef.current = false;
-          physicsEnabledRef.current = true;
-          stillFramesRef.current = 0;
+          paramsForFrame = {
+            repulsion: from.repulsion + (to.repulsion - from.repulsion) * t,
+            springK: from.springK + (to.springK - from.springK) * t,
+            damping: from.damping + (to.damping - from.damping) * t,
+            minSpeed: from.minSpeed + (to.minSpeed - from.minSpeed) * t,
+          };
+
+          if (tRaw >= 1) {
+            physicsBlendActiveRef.current = false;
+            paramsForFrame = physicsBlendToRef.current;
+          }
         }
-      } else if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
-        const avgMovement = applyPhysics(graphNodesRef.current, graphEdgesRef.current, physicsParamsRef.current);
+
+        effectivePhysicsRef.current = paramsForFrame;
+        const avgMovement = applyPhysics(graphNodesRef.current, graphEdgesRef.current, paramsForFrame);
 
         // Auto-stop physics when system has stabilized
         if (avgMovement < 0.5) {
@@ -680,12 +691,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     };
   }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Re-enable physics when parameters change
-  useEffect(() => {
-    physicsEnabledRef.current = true;
-    stillFramesRef.current = 0;
-  }, [physicsParams]);
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
