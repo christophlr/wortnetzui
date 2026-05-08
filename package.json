@@ -1,12 +1,13 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.54",
+  "version": "0.55",
   "type": "module",
   "scripts": {
-  "prebuild": "node ./scripts/sync-version.mjs",
-  "build": "vite build",
-  "dev": "vite --host"
+    "predev": "node ./scripts/sync-version.mjs",
+    "prebuild": "node ./scripts/sync-version.mjs",
+    "build": "vite build",
+    "dev": "vite --host"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -86,9 +87,12 @@
     }
   },
   "pnpm": {
-  "overrides": {
-    "vite": "6.3.5"
-  },
-  "onlyBuiltDependencies": ["@tailwindcss/oxide", "esbuild"]
-}
+    "overrides": {
+      "vite": "6.3.5"
+    },
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "esbuild"
+    ]
+  }
 }

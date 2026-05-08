@@ -30,7 +30,7 @@ function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' 
       className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
         active
           ? activeCls
-          : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'
+          : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent/60'
       }`}
     >
       <Diamond size={11} fill={active ? 'currentColor' : 'none'} />
@@ -80,6 +80,7 @@ function ParamRow({
 function SliderParam({
   kfKey, label, value, onChange, color, kfs, onToggle,
   displayFn, parseInput, description, min = 0, max = 200,
+  effectiveValue,
 }: {
   kfKey: string; label: string; value: number[]; onChange: (v: number[]) => void;
   color: 'teal' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
@@ -87,7 +88,13 @@ function SliderParam({
   parseInput?: (s: string) => number;
   description?: string;
   min?: number; max?: number;
+  effectiveValue?: number;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragVelocity, setDragVelocity] = useState(0);
+  const lastDragValueRef = useRef(value[0]);
+  const lastDragTimeRef = useRef(Date.now());
+  const [animatedValue, setAnimatedValue] = useState(value[0]);
   const trackCls = color === 'teal' ? 'bg-teal-600/50' : 'bg-orange-600/50';
   const thumbCls = color === 'teal' ? 'bg-teal-400' : 'bg-orange-400';
   const focusBorderCls = color === 'teal' ? 'border-teal-500/60' : 'border-orange-500/60';
@@ -95,6 +102,52 @@ function SliderParam({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Animate toward effective value when not dragging, responsive to drag velocity
+  useEffect(() => {
+    if (isDragging || effectiveValue === undefined || effectiveValue === null) {
+      setAnimatedValue(value[0]);
+      return;
+    }
+
+    let animationId: number;
+    const animate = () => {
+      setAnimatedValue(prev => {
+        const target = effectiveValue;
+        const diff = target - prev;
+        
+        // Spring stiffness scales with drag velocity (faster drags = snappier response)
+        const velocityResponse = Math.min(Math.abs(dragVelocity) * 2, 1);
+        const stiffness = 0.12 + velocityResponse * 0.08; // 0.12 to 0.20
+        
+        return prev + diff * stiffness;
+      });
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, [isDragging, effectiveValue, value, dragVelocity]);
+
+  const handleSliderChange = (newVal: number[]) => {
+    const now = Date.now();
+    const timeDelta = Math.max(16, now - lastDragTimeRef.current); // Min 16ms (60fps frame)
+    const valueDelta = newVal[0] - lastDragValueRef.current;
+    
+    // Calculate velocity in value-units per millisecond
+    setDragVelocity(valueDelta / timeDelta);
+    lastDragValueRef.current = newVal[0];
+    lastDragTimeRef.current = now;
+
+    onChange(newVal);
+    setAnimatedValue(newVal[0]);
+  };
+
+  const handleSliderPointerDown = () => setIsDragging(true);
+  const handleSliderPointerUp = () => {
+    setIsDragging(false);
+    setDragVelocity(0);
+  };
 
   const displayStr = displayFn ? displayFn(value) : String(value[0]);
 
@@ -146,12 +199,16 @@ function SliderParam({
       </div>
       <Slider.Root
         className="relative flex items-center w-full h-4"
-        value={value} onValueChange={onChange} min={min} max={max} step={1}
+        value={value} onValueChange={handleSliderChange} min={min} max={max} step={1}
       >
         <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
           <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
         </Slider.Track>
-        <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
+        <Slider.Thumb 
+          className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`}
+          onPointerDown={handleSliderPointerDown}
+          onPointerUp={handleSliderPointerUp}
+        />
       </Slider.Root>
       {description && (
         <p className="text-[9px] text-muted-foreground/50 mt-1 leading-relaxed">{description}</p>
@@ -221,7 +278,7 @@ interface InspectorProps {
     gravity: number;
     turbulence: number;
   }) => void;
-  physicsDisplayParams?: {
+  effectivePhysicsParams?: {
     repulsion: number;
     springK: number;
     damping: number;
@@ -252,7 +309,7 @@ const PHYS_PARAM_TRACK: Record<string, string> = { repulsion: 'phys-rep', spring
 
 export function Inspector({
   onPhysicsChange,
-  physicsDisplayParams,
+  effectivePhysicsParams,
   onTextChange,
   onParsingChange,
   onGradientChange,
@@ -299,11 +356,6 @@ export function Inspector({
   const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
   const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
   const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
-  const physicsDisplayRef = useRef(physicsDisplayParams);
-
-  useEffect(() => {
-    physicsDisplayRef.current = physicsDisplayParams;
-  }, [physicsDisplayParams]);
 
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
@@ -347,20 +399,6 @@ export function Inspector({
   useEffect(() => {
     notifyPhysicsChange();
   }, [repulsionVal, springKVal, dampingVal, minSpeedVal, linkDistanceVal, gravityVal, turbulenceVal]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync visible physics controls to timeline-interpolated values when playhead changes.
-  // This keeps Inspector in lockstep while scrubbing/playing without clobbering edits at a static time.
-  useEffect(() => {
-    const p = physicsDisplayRef.current;
-    if (!p) return;
-    setRepulsionVal([Math.round(p.repulsion / 10)]);
-    setSpringKVal([Math.round(p.springK * 100)]);
-    setDampingVal([Math.round(p.damping * 100)]);
-    setMinSpeedVal(p.minSpeed);
-    setLinkDistanceVal([Math.round(p.linkDistance)]);
-    setGravityVal([Math.round(p.gravity)]);
-    setTurbulenceVal([Math.round(p.turbulence)]);
-  }, [currentTime]);
 
   // Sync gravity default when viewMode switches
   useEffect(() => {
@@ -410,20 +448,20 @@ export function Inspector({
         <Tabs.List className="flex border-b border-border shrink-0">
           <Tabs.Trigger
             value="content"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-purple-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-purple-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
           >
             <Type size={10} />Inhalt
           </Tabs.Trigger>
           <Tabs.Trigger
             value="visual"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-teal-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
           >
             <Layers size={10} />Visuell
           </Tabs.Trigger>
 
           <Tabs.Trigger
             value="physics"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
+            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-orange-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
           >
             <Zap size={10} />Physik
           </Tabs.Trigger>
@@ -673,6 +711,7 @@ export function Inspector({
                   min={10} max={500}
                   displayFn={v => (v[0] * 10).toFixed(0)}
                   parseInput={s => Math.round(parseFloat(s) / 10)}
+                  effectiveValue={effectivePhysicsParams?.repulsion}
                   description="Wie stark Knoten sich gegenseitig abstoßen. Höher = weiter auseinander."
                 />
                 <SliderParam
@@ -681,6 +720,7 @@ export function Inspector({
                   min={1} max={20}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
+                  effectiveValue={effectivePhysicsParams?.springK}
                   description="Stärke der Kantenverbindungen. Höher = engere Gruppierung verbundener Wörter."
                 />
                 <SliderParam
@@ -689,6 +729,7 @@ export function Inspector({
                   min={80} max={99}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
+                  effectiveValue={effectivePhysicsParams?.damping}
                   description="Geschwindigkeitsabfall pro Frame (0–1). Niedriger = schnelleres Einpendeln; höher = flüssigere Bewegung."
                 />
                 <SliderParam
@@ -697,6 +738,7 @@ export function Inspector({
                   min={10} max={300}
                   displayFn={v => v[0] + 'px'}
                   parseInput={s => Math.round(parseFloat(s))}
+                  effectiveValue={effectivePhysicsParams?.linkDistance}
                   description="Ziel-Ruhelänge der Kanten. Kanten ziehen oder stoßen Knoten ab, um diesen Abstand zu halten."
                 />
                 <SliderParam
@@ -704,6 +746,7 @@ export function Inspector({
                   color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={0} max={100}
                   displayFn={v => v[0].toFixed(0)}
+                  effectiveValue={effectivePhysicsParams?.gravity}
                   description="Zieht alle Knoten zur Mitte, verhindert das Auseinanderdriften des Graphen."
                 />
                 <SliderParam
@@ -711,6 +754,7 @@ export function Inspector({
                   color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={0} max={20}
                   displayFn={v => v[0].toFixed(0)}
+                  effectiveValue={effectivePhysicsParams?.turbulence}
                   description="Zufälliger Impuls pro Frame. Hält die Simulation mit organischer Bewegung am Laufen."
                 />
                 <div className="flex items-center gap-2 h-[26px]">

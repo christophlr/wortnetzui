@@ -176,7 +176,7 @@ export default function App() {
   const handlePlayPause = () => setIsPlaying(p => !p);
   const handleStop = () => { setIsPlaying(false); setPlayheadPosition(0); };
 
-  const inspectorPhysicsParams = useMemo(() => {
+  const effectivePhysicsParams = useMemo(() => {
     const next = { ...physicsParams };
     for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
       const sorted = [...(physicsKeyframes[trackId] ?? [])].sort((a, b) => a.time - b.time);
@@ -561,7 +561,7 @@ export default function App() {
           onParsingChange={setParseMode}
           onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
-          physicsDisplayParams={inspectorPhysicsParams}
+          effectivePhysicsParams={effectivePhysicsParams}
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
           physicsKeyframes={physicsKeyframes}
           onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
@@ -571,7 +571,7 @@ export default function App() {
           }}
         />
         <div
-          className="w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-interactive/40 transition-colors"
+          className="w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
           onMouseDown={startInspectorResize}
         />
         <Preview
@@ -588,7 +588,7 @@ export default function App() {
         />
       </div>
       <div
-        className="h-1 shrink-0 cursor-row-resize bg-border/30 hover:bg-interactive/40 transition-colors"
+        className="h-1 shrink-0 cursor-row-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
         onMouseDown={startTimelineResize}
       />
       <Timeline

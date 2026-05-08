@@ -1263,7 +1263,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                style={{ top: '50%', transform: 'translateY(-50%)' }}>
             <button
               onMouseDown={() => handleZoomBy(0.75)}
-              className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
+              className="w-6 h-6 rounded-md border border-border bg-background text-muted-foreground text-sm leading-none transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               title="Zoom in"
             >+</button>
             <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1281,7 +1281,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             </div>
             <button
               onMouseDown={() => handleZoomBy(1.33)}
-              className="w-6 h-6 rounded flex items-center justify-center bg-muted/70 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-sm leading-none transition-colors"
+              className="w-6 h-6 rounded-md border border-border bg-background text-muted-foreground text-sm leading-none transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               title="Zoom out"
             >−</button>
           </div>
@@ -1291,7 +1291,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
+            className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden text-popover-foreground"
             style={{
               left: Math.min(contextMenu.x, window.innerWidth - 196 - 8),
               top: Math.min(contextMenu.y, window.innerHeight - 96 - 8),
@@ -1305,7 +1305,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                 flyToTargetRef.current = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
                 setContextMenu(null);
               }}
-              className="w-full px-3 py-[5px] text-[11px] rounded transition-colors text-foreground hover:bg-muted cursor-pointer text-left"
+              className="w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
             >
               Center
             </button>
@@ -1331,7 +1331,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                 }
                 setContextMenu(null);
               }}
-              className="w-full px-3 py-[5px] text-[11px] rounded transition-colors text-foreground hover:bg-muted cursor-pointer text-left"
+              className="w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
             >
               Fill view
             </button>

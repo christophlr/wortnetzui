@@ -125,8 +125,8 @@ export function TopBar({
               onClick={() => onViewModeChange(mode)}
               className={`h-6 ${segmentedButtonBase} ${i > 0 ? 'border-l border-border' : ''} ${
                 viewMode === mode
-                  ? 'border-blue-500/60 bg-blue-600 text-white shadow-sm'
-                  : neutralSegmentedButton
+                  ? 'border-border bg-accent text-accent-foreground shadow-sm'
+                  : 'border-transparent bg-background text-muted-foreground hover:bg-accent/60 hover:text-foreground'
               }`}
             >
               {mode}
@@ -143,8 +143,8 @@ export function TopBar({
               onClick={() => onRenderModeChange?.(mode)}
               className={`h-6 capitalize ${segmentedButtonBase} ${i > 0 ? 'border-l border-border' : ''} ${
                 renderMode === mode
-                  ? 'border-purple-500/60 bg-purple-600 text-white shadow-sm'
-                  : neutralSegmentedButton
+                  ? 'border-border bg-accent text-accent-foreground shadow-sm'
+                  : 'border-transparent bg-background text-muted-foreground hover:bg-accent/60 hover:text-foreground'
               }`}
             >
               {mode}
