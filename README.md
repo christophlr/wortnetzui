@@ -1,8 +1,3 @@
-
-  # Wortnetzui
-
-  This is a code bundle for Wortnetzui. The original project is available at https://www.figma.com/design/a3aeTyUjyepEXbu7eJtYlY/Wortnetzui.
-
   ## Running the code
 
   Run `npm i` to install the dependencies.
