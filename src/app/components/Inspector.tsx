@@ -4,6 +4,15 @@ import * as Slider from '@radix-ui/react-slider';
 import * as Tabs from '@radix-ui/react-tabs';
 import { ChevronRight, Diamond, Type, Layers, Camera, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import type { NodeShape } from '../networkTheme';
+
+const GRADIENT_PRESETS = [
+  { name: 'Cyan → Grün', inner: '#06b6d4', outer: '#10b981' },
+  { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
+  { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
+  { name: 'Blau → Violett', inner: '#3b82f6', outer: '#8b5cf6' },
+  { name: 'Gold → Kupfer', inner: '#f59e0b', outer: '#b45309' },
+];
 
 /* ─── helpers ─── */
 
@@ -211,8 +220,8 @@ interface InspectorProps {
   }) => void;
   onTextChange?: (text: string) => void;
   onParsingChange?: (mode: 'sentence' | 'word' | 'both') => void;
-  onColorChange?: (settings: { hueStart: number; hueEnd: number; saturation: number; lightness: number }) => void;
-  onStyleChange?: (settings: { edgeOpacity: number; edgeWidth: number; nodeScale: number }) => void;
+  onGradientChange?: (settings: { mode: 'solid' | 'gradient'; innerColor: string; outerColor: string }) => void;
+  onStyleChange?: (settings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: NodeShape; nodeBorderWidth: number; depthSizeEnabled: boolean; depthSizeStrength: number }) => void;
   onNodeAppearanceChange?: (a: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string }) => void;
   onEdgeAppearanceChange?: (a: { color: 'auto' | string }) => void;
   currentTime?: number;
@@ -229,7 +238,7 @@ export function Inspector({
   onPhysicsChange,
   onTextChange,
   onParsingChange,
-  onColorChange,
+  onGradientChange,
   onStyleChange,
   onNodeAppearanceChange,
   onEdgeAppearanceChange,
@@ -240,7 +249,7 @@ export function Inspector({
   viewMode = '3D',
 }: InspectorProps = {}) {
   const [kfs, setKfs] = useState<Record<string, boolean>>({
-    saturation: false, lightness: false,
+    nodeBorderWidth: false, depthSizeStrength: false,
     edgeOpacity: false, edgeWidth: false, nodeScale: false,
     repulsion: false, springK: true, damping: false, minSpeed: false,
     linkDistance: false, gravity: false, turbulence: false,
@@ -255,12 +264,19 @@ export function Inspector({
   const [gravityVal, setGravityVal] = useState([0]);
   const [turbulenceVal, setTurbulenceVal] = useState([0]);
   const [textInput, setTextInput] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
-  const [colorScheme, setColorScheme] = useState('cyan-green');
-  const [saturation, setSaturation] = useState([75]);
-  const [lightness, setLightness] = useState([65]);
+  // Gradient settings
+  const [gradientMode, setGradientMode] = useState<'solid' | 'gradient'>('gradient');
+  const [innerColor, setInnerColor] = useState('#06b6d4');
+  const [outerColor, setOuterColor] = useState('#10b981');
+  // Style settings
+  const [nodeShapeVal, setNodeShapeVal] = useState<NodeShape>('rectangle');
+  const [nodeBorderWidthVal, setNodeBorderWidthVal] = useState([2]);
+  const [depthSizeEnabled, setDepthSizeEnabled] = useState(false);
+  const [depthSizeStrengthVal, setDepthSizeStrengthVal] = useState([50]);
   const [edgeOpacity, setEdgeOpacity] = useState([85]);
   const [edgeWidth, setEdgeWidth] = useState([2]);
   const [nodeScale, setNodeScale] = useState([100]);
+  // Appearance colors
   const [nodeBorderColor, setNodeBorderColor] = useState<string | 'auto'>('auto');
   const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
   const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
@@ -291,28 +307,23 @@ export function Inspector({
     setGravityVal([viewMode === '2D' ? 3 : 0]);
   }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Notify color changes
+  // Notify gradient changes
   useEffect(() => {
-    const schemes: Record<string, { hueStart: number; hueEnd: number }> = {
-      'cyan-green': { hueStart: 180, hueEnd: 120 },
-      'cyan-green-bright': { hueStart: 140, hueEnd: 85 },
-      'purple-pink': { hueStart: 280, hueEnd: 320 },
-      'orange-red': { hueStart: 40, hueEnd: 0 },
-      'yellow-green': { hueStart: 60, hueEnd: 120 },
-      'blue-purple': { hueStart: 220, hueEnd: 280 },
-    };
-    const scheme = schemes[colorScheme] || schemes['cyan-green'];
-    onColorChange?.({ ...scheme, saturation: saturation[0], lightness: lightness[0] });
-  }, [colorScheme, saturation, lightness]); // eslint-disable-line react-hooks/exhaustive-deps
+    onGradientChange?.({ mode: gradientMode, innerColor, outerColor });
+  }, [gradientMode, innerColor, outerColor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify style changes
   useEffect(() => {
     onStyleChange?.({
       edgeOpacity: edgeOpacity[0] / 100,
       edgeWidth: edgeWidth[0],
-      nodeScale: nodeScale[0] / 100
+      nodeScale: nodeScale[0] / 100,
+      nodeShape: nodeShapeVal,
+      nodeBorderWidth: nodeBorderWidthVal[0],
+      depthSizeEnabled,
+      depthSizeStrength: depthSizeStrengthVal[0],
     });
-  }, [edgeOpacity, edgeWidth, nodeScale]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [edgeOpacity, edgeWidth, nodeScale, nodeShapeVal, nodeBorderWidthVal, depthSizeEnabled, depthSizeStrengthVal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify appearance changes
   useEffect(() => {
@@ -411,71 +422,113 @@ export function Inspector({
 
         {/* VISUAL TAB */}
         <Tabs.Content value="visual" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['colors', 'appearance', 'style']}>
-            {/* COLORS */}
-            <AccSection value="colors" label="Farben" color="purple">
-              <span className="text-[10px] text-muted-foreground block mb-3">
-                Farbschema (kurz → lang)
-              </span>
-              <RadioGroup.Root value={colorScheme} onValueChange={setColorScheme} className="flex flex-col gap-1.5">
-                {[
-                  { value: 'cyan-green', label: 'Cyan → Grün' },
-                  { value: 'cyan-green-bright', label: 'Cyan → Grün (hell)' },
-                  { value: 'purple-pink', label: 'Lila → Pink' },
-                  { value: 'orange-red', label: 'Orange → Rot' },
-                  { value: 'yellow-green', label: 'Gelb → Grün' },
-                  { value: 'blue-purple', label: 'Blau → Lila' },
-                ].map(opt => (
-                  <label key={opt.value} className="flex items-center gap-2.5 h-6 cursor-pointer group">
-                    <RadioGroup.Item
-                      value={opt.value}
-                      className="w-4 h-4 rounded-sm border border-border data-[state=checked]:border-border shrink-0 flex items-center justify-center transition-all overflow-hidden relative"
-                      style={{
-                        background: opt.value === 'cyan-green' ? 'linear-gradient(135deg, #06b6d4, #10b981)' :
-                                    opt.value === 'cyan-green-bright' ? 'linear-gradient(135deg, #22d3ee, #34d399)' :
-                                    opt.value === 'purple-pink' ? 'linear-gradient(135deg, #a855f7, #ec4899)' :
-                                    opt.value === 'orange-red' ? 'linear-gradient(135deg, #f97316, #ef4444)' :
-                                    opt.value === 'yellow-green' ? 'linear-gradient(135deg, #eab308, #22c55e)' :
-                                    opt.value === 'blue-purple' ? 'linear-gradient(135deg, #3b82f6, #a855f7)' :
-                                    '#18181b'
-                      }}
-                    >
-                      <RadioGroup.Indicator>
-                        <div className="w-2 h-2 rounded-[1px] bg-white/90 shadow-sm" />
-                      </RadioGroup.Indicator>
-                    </RadioGroup.Item>
-                    <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
-                  </label>
-                ))}
-              </RadioGroup.Root>
+          <Accordion.Root type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
 
-              <div className="mt-4 space-y-3">
-                <SliderParam
-                  kfKey="saturation" label="Sättigung" value={saturation} onChange={setSaturation}
-                  color="teal" kfs={kfs} onToggle={toggle} min={30} max={100}
-                  displayFn={v => v[0] + '%'}
-                  description="Farbintensität. Niedriger = matter/grauer; höher = lebhafter."
-                />
-                <SliderParam
-                  kfKey="lightness" label="Helligkeit" value={lightness} onChange={setLightness}
-                  color="teal" kfs={kfs} onToggle={toggle} min={40} max={80}
-                  displayFn={v => v[0] + '%'}
-                  description="Helligkeit der Knotenbezeichnungen. Für helle oder dunkle Hintergründe anpassen."
-                />
+            {/* VERLAUF */}
+            <AccSection value="gradient" label="Verlauf" color="purple">
+              {/* Mode toggle */}
+              <div className="flex rounded border border-border overflow-hidden mb-3">
+                <button
+                  onClick={() => setGradientMode('solid')}
+                  className={`flex-1 h-7 text-[11px] transition-colors ${gradientMode === 'solid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Einfarbig
+                </button>
+                <button
+                  onClick={() => setGradientMode('gradient')}
+                  className={`flex-1 h-7 text-[11px] transition-colors border-l border-border ${gradientMode === 'gradient' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Verlauf
+                </button>
+              </div>
+
+              {gradientMode === 'solid' ? (
+                <div className="flex items-center gap-2 h-[26px]">
+                  <span className="text-[11px] text-muted-foreground flex-1">Knotenfarbe</span>
+                  <input
+                    type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Innen</span>
+                    <input
+                      type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
+                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
+                    />
+                  </div>
+                  <div
+                    className="flex-1 h-6 rounded border border-border"
+                    style={{ background: `linear-gradient(to right, ${innerColor}, ${outerColor})` }}
+                  />
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Außen</span>
+                    <input
+                      type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
+                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Preset chips */}
+              <SubLabel>Schnellauswahl</SubLabel>
+              <div className="flex gap-1.5 flex-wrap">
+                {GRADIENT_PRESETS.map(p => (
+                  <button
+                    key={p.name}
+                    onClick={() => { setGradientMode('gradient'); setInnerColor(p.inner); setOuterColor(p.outer); }}
+                    title={p.name}
+                    className="w-8 h-8 rounded border border-border/60 hover:border-border transition-all hover:scale-110"
+                    style={{ background: `linear-gradient(135deg, ${p.inner}, ${p.outer})` }}
+                  />
+                ))}
               </div>
             </AccSection>
 
-            {/* APPEARANCE */}
-            <AccSection value="appearance" label="Erscheinungsbild" color="teal">
-              <div className="space-y-2">
-                {(
-                  [
-                    { label: 'Knoten: Rahmen', value: nodeBorderColor, set: setNodeBorderColor },
-                    { label: 'Knoten: Füllung', value: nodeFillColor, set: setNodeFillColor },
-                    { label: 'Knoten: Text', value: nodeTextColor, set: setNodeTextColor },
-                    { label: 'Kanten', value: edgeColor, set: setEdgeColor },
-                  ] as const
-                ).map(({ label, value, set }) => (
+            {/* KNOTEN */}
+            <AccSection value="nodes" label="Knoten" color="teal">
+              {/* Shape selector */}
+              <SubLabel>Form</SubLabel>
+              <div className="flex gap-1 mb-3">
+                {(['rectangle', 'rounded-rectangle', 'ellipse'] as NodeShape[]).map(shape => (
+                  <button
+                    key={shape}
+                    onClick={() => setNodeShapeVal(shape)}
+                    title={shape}
+                    className={`flex-1 h-9 flex items-center justify-center rounded border transition-colors ${
+                      nodeShapeVal === shape
+                        ? 'bg-teal-600/20 border-teal-500/60 text-teal-300'
+                        : 'bg-input border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <svg width="24" height="16" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      {shape === 'rectangle' && <rect x="1" y="2" width="22" height="12" rx="0" />}
+                      {shape === 'rounded-rectangle' && <rect x="1" y="2" width="22" height="12" rx="4" />}
+                      {shape === 'ellipse' && <ellipse cx="12" cy="8" rx="11" ry="6" />}
+                    </svg>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <SliderParam
+                  kfKey="nodeBorderWidth" label="Rahmenbreite" value={nodeBorderWidthVal} onChange={setNodeBorderWidthVal}
+                  color="teal" kfs={kfs} onToggle={toggle} min={0} max={8}
+                  displayFn={v => v[0] + 'px'}
+                  description="Stärke der Knotenumrandung."
+                />
+              </div>
+
+              <SubLabel>Farben</SubLabel>
+              <div className="space-y-2 mb-3">
+                {([
+                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor, hint: 'auto = Verlaufsfarbe' },
+                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor, hint: 'auto = Hintergrund' },
+                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor, hint: 'auto = Verlaufsfarbe' },
+                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void; hint: string }[]).map(({ label, value, set, hint }) => (
                   <div key={label} className="flex items-center gap-2 h-[26px]">
                     <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
                     <input
@@ -483,44 +536,74 @@ export function Inspector({
                       value={value === 'auto' ? '#6b7280' : value}
                       onChange={e => set(e.target.value)}
                       className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                      title={value === 'auto' ? 'Auto (gradient)' : value}
+                      title={value === 'auto' ? hint : value}
                     />
                     {value !== 'auto' && (
-                      <button
-                        onClick={() => set('auto')}
-                        className="text-[10px] text-muted-foreground hover:text-foreground px-1"
-                        title="Zurücksetzen"
-                      >
-                        ↺
-                      </button>
+                      <button onClick={() => set('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
                     )}
                   </div>
                 ))}
               </div>
+
+              <SubLabel>Tiefengröße</SubLabel>
+              <div className="flex items-center gap-2 h-[26px] mb-2">
+                <span className="text-[11px] text-muted-foreground flex-1">Nach Tiefe skalieren</span>
+                <button
+                  onClick={() => setDepthSizeEnabled(v => !v)}
+                  className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${depthSizeEnabled ? 'bg-teal-500/70' : 'bg-border'}`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${depthSizeEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                </button>
+              </div>
+              {depthSizeEnabled && (
+                <div className="mb-3">
+                  <SliderParam
+                    kfKey="depthSizeStrength" label="Stärke" value={depthSizeStrengthVal} onChange={setDepthSizeStrengthVal}
+                    color="teal" kfs={kfs} onToggle={toggle} min={0} max={100}
+                    displayFn={v => v[0] + '%'}
+                    description="Größenvariation: Innere Knoten (1 Wort) werden größer, äußere kleiner."
+                  />
+                </div>
+              )}
+
+              <SliderParam
+                kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
+                color="teal" kfs={kfs} onToggle={toggle} min={50} max={150}
+                displayFn={v => v[0] + '%'}
+                description="Einheitliche Skalierung aller Wortbezeichnungen."
+              />
             </AccSection>
 
-            {/* STYLE */}
-            <AccSection value="style" label="Darstellung" color="teal">
+            {/* KANTEN */}
+            <AccSection value="edges" label="Kanten" color="teal">
               <div className="space-y-3">
+                <div className="flex items-center gap-2 h-[26px]">
+                  <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
+                  <input
+                    type="color"
+                    value={edgeColor === 'auto' ? '#9aa0aa' : edgeColor}
+                    onChange={e => setEdgeColor(e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
+                    title={edgeColor === 'auto' ? 'Auto (grau)' : edgeColor}
+                  />
+                  {edgeColor !== 'auto' && (
+                    <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
+                  )}
+                </div>
                 <SliderParam
-                  kfKey="edgeOpacity" label="Linien-Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
+                  kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
                   color="teal" kfs={kfs} onToggle={toggle} min={10} max={100}
                   displayFn={v => v[0] + '%'}
-                  description="Transparenz der Verbindungslinien zwischen Wörtern."
+                  description="Transparenz der Verbindungslinien."
                 />
                 <SliderParam
-                  kfKey="edgeWidth" label="Linien-Stärke" value={edgeWidth} onChange={setEdgeWidth}
+                  kfKey="edgeWidth" label="Stärke" value={edgeWidth} onChange={setEdgeWidth}
                   color="teal" kfs={kfs} onToggle={toggle} min={1} max={5}
                   description="Pixelbreite der Verbindungslinien."
                 />
-                <SliderParam
-                  kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
-                  color="teal" kfs={kfs} onToggle={toggle} min={50} max={150}
-                  displayFn={v => v[0] + '%'}
-                  description="Einheitliche Skalierung aller Wortbezeichnungen."
-                />
               </div>
             </AccSection>
+
           </Accordion.Root>
         </Tabs.Content>
 

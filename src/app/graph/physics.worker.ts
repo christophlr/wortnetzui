@@ -27,24 +27,19 @@ interface StepMessage {
   is2D: boolean;
 }
 
+interface SettleMessage {
+  type: 'settle';
+  posVel: Float64Array;       // initial positions from node arrangement — transferred
+  params: PhysicsParams;
+  maxIterations: number;
+}
+
 let edgeIndices: Int32Array;
 let wordCounts: Int32Array;
 let sharedMatrix: Uint8Array;
 let nodeCount = 0;
 
-self.onmessage = (e: MessageEvent<InitMessage | StepMessage>) => {
-  const msg = e.data;
-
-  if (msg.type === 'init') {
-    edgeIndices  = msg.edgeIndices;
-    wordCounts   = msg.wordCounts;
-    sharedMatrix = msg.sharedPairMatrix;
-    nodeCount    = msg.nodeCount;
-    return;
-  }
-
-  // ── STEP ──
-  const { posVel, params, is2D } = msg;
+function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): number {
   const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence } = params;
   const n = nodeCount;
 
@@ -147,8 +142,47 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage>) => {
     }
   }
 
+  return totalMovement / Math.max(n, 1);
+}
+
+self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage>) => {
+  const msg = e.data;
+
+  if (msg.type === 'init') {
+    edgeIndices  = msg.edgeIndices;
+    wordCounts   = msg.wordCounts;
+    sharedMatrix = msg.sharedPairMatrix;
+    nodeCount    = msg.nodeCount;
+    return;
+  }
+
+  if (msg.type === 'settle') {
+    const { posVel, params, maxIterations } = msg;
+    let stillCount = 0;
+    for (let i = 0; i < maxIterations; i++) {
+      const avgMovement = runStep(posVel, params, false);
+      if (avgMovement < 0.5) {
+        if (++stillCount >= 10) break;
+      } else {
+        stillCount = 0;
+      }
+    }
+    // Zero velocities for a clean handoff
+    for (let i = 0; i < nodeCount; i++) {
+      posVel[i * 6 + 3] = 0;
+      posVel[i * 6 + 4] = 0;
+      posVel[i * 6 + 5] = 0;
+    }
+    (self as unknown as Worker).postMessage({ type: 'settled', posVel }, [posVel.buffer]);
+    return;
+  }
+
+  // ── STEP ──
+  const { posVel, params, is2D } = msg;
+  const avgMovement = runStep(posVel, params, is2D);
+
   (self as unknown as Worker).postMessage(
-    { posVel, avgMovement: totalMovement / Math.max(n, 1) },
+    { type: 'step', posVel, avgMovement },
     [posVel.buffer]
   );
 };

@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { solveBezierEasing, applyEasing, computeAutoWeights } from '../easing';
-import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
+import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, type GradientSettings, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
-import { applyPhysics, rebuildPhysicsCache } from '../graph';
+import { rebuildPhysicsCache } from '../graph';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
@@ -26,8 +26,8 @@ interface Network3DProps {
   };
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   parseMode?: 'sentence' | 'word' | 'both';
-  colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
-  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
+  gradientSettings?: GradientSettings;
+  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>;
   onCameraChange?: () => void;
   isDark?: boolean;
@@ -158,8 +158,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   parseMode = 'sentence',
   physicsParams = DEFAULT_PHYSICS,
   physicsKeyframes,
-  colorSettings = defaultNetworkColorSettings,
-  styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
+  gradientSettings = defaultGradientSettings,
+  styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
   cameraKeyframes = [],
   onCameraChange,
   isDark,
@@ -211,7 +211,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     startTime: number; duration: number;
   } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
-  const colorSettingsRef = useRef(colorSettings);
+  const gradientSettingsRef = useRef(gradientSettings);
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(isDark);
   const onReadyRef = useRef(onReady);
@@ -238,7 +238,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
     physicsKeyframesRef.current = sorted;
   }, [physicsKeyframes]);
-  useEffect(() => { colorSettingsRef.current = colorSettings; }, [colorSettings]);
+  useEffect(() => { gradientSettingsRef.current = gradientSettings; }, [gradientSettings]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
     physicsParamsRef.current = physicsParams;
@@ -387,14 +387,53 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     canvas.height = canvasLogicalHeight * pixelRatio;
     context.scale(pixelRatio, pixelRatio);
 
-    // Background box
-    context.fillStyle = effectiveFillColor ?? getNetworkLabelStyle(dark).backgroundHex;
-    context.fillRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
+    const nodeShape = styleSettingsRef.current.nodeShape ?? 'rectangle';
+    const bw = styleSettingsRef.current.nodeBorderWidth ?? 2;
+    const fillColor = effectiveFillColor ?? getNetworkLabelStyle(dark).backgroundHex;
+    const cx = OUTLINE_MARGIN + logicalWidth / 2;
+    const cy = OUTLINE_MARGIN + logicalHeight / 2;
+
+    // Clip to shape so text doesn't bleed outside ellipse
+    context.save();
+    context.beginPath();
+    if (nodeShape === 'ellipse') {
+      context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
+    } else if (nodeShape === 'rounded-rectangle') {
+      context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
+    } else {
+      context.rect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
+    }
+    context.clip();
+
+    // Background fill
+    context.fillStyle = fillColor;
+    if (nodeShape === 'ellipse') {
+      context.beginPath();
+      context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
+      context.fill();
+    } else if (nodeShape === 'rounded-rectangle') {
+      context.beginPath();
+      context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
+      context.fill();
+    } else {
+      context.fillRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
+    }
+    context.restore();
 
     if (!highlighted && !selected) {
-      context.strokeStyle = effectiveBorderColor;
-      context.lineWidth = 2;
-      context.strokeRect(OUTLINE_MARGIN + 1, OUTLINE_MARGIN + 1, logicalWidth - 2, logicalHeight - 2);
+      if (bw > 0) {
+        context.strokeStyle = effectiveBorderColor;
+        context.lineWidth = bw;
+        context.beginPath();
+        if (nodeShape === 'ellipse') {
+          context.ellipse(cx, cy, logicalWidth / 2 - bw / 2, logicalHeight / 2 - bw / 2, 0, 0, Math.PI * 2);
+        } else if (nodeShape === 'rounded-rectangle') {
+          context.roundRect(OUTLINE_MARGIN + bw / 2, OUTLINE_MARGIN + bw / 2, logicalWidth - bw, logicalHeight - bw, 6);
+        } else {
+          context.rect(OUTLINE_MARGIN + bw / 2, OUTLINE_MARGIN + bw / 2, logicalWidth - bw, logicalHeight - bw);
+        }
+        context.stroke();
+      }
     } else {
       const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
       const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
@@ -402,7 +441,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       context.strokeStyle = '#2563eb';
       context.lineWidth = OUTLINE_STROKE;
       context.beginPath();
-      context.roundRect(pathOff, pathOff, pathW, pathH, 5);
+      if (nodeShape === 'ellipse') {
+        context.ellipse(cx, cy, pathW / 2, pathH / 2, 0, 0, Math.PI * 2);
+      } else if (nodeShape === 'rounded-rectangle') {
+        context.roundRect(pathOff, pathOff, pathW, pathH, 8);
+      } else {
+        context.roundRect(pathOff, pathOff, pathW, pathH, 5);
+      }
       context.stroke();
     }
 
@@ -432,6 +477,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   ): THREE.Sprite => {
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.renderOrder = 1; // always draw sprites on top of edge lines
     sprite.userData.label = label;
     sprite.userData.baseScale = baseScale;
     sprite.userData.aspectRatio = aspectRatio;
@@ -439,12 +485,26 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     return sprite;
   };
 
+  const hexLerp = (a: string, b: string, t: number): string => {
+    const p = (h: string) => {
+      const c = h.replace('#', '');
+      return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+    };
+    const ca = p(a), cb = p(b);
+    const r = Math.round(ca[0] + (cb[0] - ca[0]) * t);
+    const g = Math.round(ca[1] + (cb[1] - ca[1]) * t);
+    const bl = Math.round(ca[2] + (cb[2] - ca[2]) * t);
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
+  };
+
+  const getColorFromWordCount = (wordCount: number, min: number, max: number, gs: GradientSettings): string => {
+    const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
+    if (gs.mode === 'solid') return gs.innerColor;
+    return hexLerp(gs.innerColor, gs.outerColor, t);
+  };
+
   /** Build (or rebuild) the 3-state texture cache for all nodes. */
-  const buildTextureCache = (
-    nodes: Map<string, GraphNode>, minW: number, maxW: number,
-    cs: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
-  ) => {
-    // Dispose old textures
+  const buildTextureCache = (nodes: Map<string, GraphNode>, minW: number, maxW: number, gs: GradientSettings) => {
     textureCacheRef.current.forEach(entry => {
       entry.normal.dispose();
       entry.highlighted.dispose();
@@ -452,7 +512,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
     const cache = new Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>();
     nodes.forEach(node => {
-      const color = getColorFromWordCount(node.wordCount, minW, maxW, cs);
+      const color = getColorFromWordCount(node.wordCount, minW, maxW, gs);
       const n = createCanvasTexture(node.label, color, false, false);
       const h = createCanvasTexture(node.label, color, true, false);
       const s = createCanvasTexture(node.label, color, false, true);
@@ -474,9 +534,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     node.textSprite.material.needsUpdate = true;
   };
 
+  const getDepthFactor = (wordCount: number, minW: number, maxW: number, ss: typeof styleSettings): number => {
+    if (!ss.depthSizeEnabled) return 1;
+    const depthT = maxW !== minW ? (wordCount - minW) / (maxW - minW) : 0.5;
+    const strength = (ss.depthSizeStrength ?? 50) / 100;
+    return 1 + strength * 0.5 * (1 - 2 * depthT);
+  };
+
   /** Update all sprite textures from cache (after cache rebuild). */
   const refreshAllSpriteTextures = () => {
     const ss = styleSettingsRef.current;
+    const minW = minWordsRef.current;
+    const maxW = maxWordsRef.current;
     graphNodesRef.current.forEach(node => {
       if (!node.textSprite) return;
       const cached = textureCacheRef.current.get(node.label);
@@ -486,26 +555,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const tex = isSelected ? cached.selected : isHovered ? cached.highlighted : cached.normal;
       node.textSprite.material.map = tex;
       node.textSprite.material.needsUpdate = true;
-      // Update scale in case baseScale changed (different color settings may not change it, but be safe)
       node.textSprite.userData.baseScale = cached.baseScale;
       node.textSprite.userData.aspectRatio = cached.aspectRatio;
+      const depthFactor = getDepthFactor(node.wordCount, minW, maxW, ss);
       node.textSprite.scale.set(
-        cached.baseScale * ss.nodeScale,
-        cached.baseScale * ss.nodeScale * cached.aspectRatio,
+        cached.baseScale * ss.nodeScale * depthFactor,
+        cached.baseScale * ss.nodeScale * depthFactor * cached.aspectRatio,
         1
       );
     });
-  };
-
-  const getColorFromWordCount = (
-    wordCount: number,
-    min: number,
-    max: number,
-    settings: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
-  ) => {
-    const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
-    const hue = settings.hueStart + (settings.hueEnd - settings.hueStart) * t;
-    return `hsl(${hue}, ${settings.saturation}%, ${settings.lightness}%)`;
   };
 
   const applyCameraKeyframes = (
@@ -631,15 +689,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       physicsEnabledRef.current = true;
       stillFramesRef.current = 0;
     } else {
-      // 3D: sphere layout then pre-simulate to settled state before first render
+      // 3D: arrange initially; worker will settle asynchronously (see settle message below)
       arrangeNodesCone3D(nodes, minWords, maxWords);
-      let stillCount = 0;
-      for (let i = 0; i < 500; i++) {
-        const movement = applyPhysics(nodes, edges, DEFAULT_PHYSICS);
-        if (movement < 0.5) { if (++stillCount >= 10) break; }
-        else stillCount = 0;
-      }
-      nodes.forEach(n => { n.vx = 0; n.vy = 0; n.vz = 0; });
       physicsEnabledRef.current = false;
       stillFramesRef.current = 9999;
     }
@@ -683,9 +734,42 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       { type: 'init', edgeIndices: edgeIdxArr, wordCounts: wordCountArr, sharedPairMatrix: spm, nodeCount },
     );
 
-    worker.onmessage = (e: MessageEvent<{ posVel: Float64Array; avgMovement: number }>) => {
-      const { posVel, avgMovement } = e.data;
+    if (!is2D) {
+      // 3D settle: hand initial node positions to the worker so it can run up to 500
+      // physics iterations off the main thread. The loading overlay covers the initial
+      // unsettled state until the worker reports back.
+      const settleBuffer = new Float64Array(nodeCount * 6);
+      nodeArr.forEach((node, i) => {
+        settleBuffer[i * 6]     = node.x;
+        settleBuffer[i * 6 + 1] = node.y;
+        settleBuffer[i * 6 + 2] = node.z;
+        // vx/vy/vz stay 0
+      });
+      worker.postMessage(
+        { type: 'settle', posVel: settleBuffer, params: DEFAULT_PHYSICS, maxIterations: 500 },
+        [settleBuffer.buffer],
+      );
+    }
+
+    worker.onmessage = (e: MessageEvent<{ type: string; posVel: Float64Array; avgMovement?: number }>) => {
+      const { posVel } = e.data;
       const arr = graphNodeArrayRef.current;
+
+      if (e.data.type === 'settled') {
+        // Write settled positions back and reveal the scene
+        for (let i = 0; i < arr.length; i++) {
+          const b = i * 6;
+          arr[i].x = posVel[b]; arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
+          arr[i].vx = 0; arr[i].vy = 0; arr[i].vz = 0;
+        }
+        workerPosVelRef.current = posVel;
+        syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+        requestAnimationFrame(() => onReadyRef.current?.());
+        return;
+      }
+
+      // ── STEP response ──
+      const avgMovement = e.data.avgMovement!;
 
       // Write positions back to node objects
       for (let i = 0; i < arr.length; i++) {
@@ -759,7 +843,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
 
     // Build 3-state texture cache for all nodes (normal, highlighted, selected)
-    buildTextureCache(nodes, minWords, maxWords, colorSettings);
+    buildTextureCache(nodes, minWords, maxWords, gradientSettings);
 
     // Create nodes with billboarded text from cached normal textures
     nodes.forEach(node => {
@@ -988,7 +1072,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     };
     animate();
-    requestAnimationFrame(() => onReadyRef.current?.());
+    // 2D: reveal immediately after the first frame.
+    // 3D: onReady is called once the worker settle completes (see onmessage 'settled' handler).
+    if (is2D) requestAnimationFrame(() => onReadyRef.current?.());
 
     // Handle resize
     const handleResize = () => {
@@ -1045,33 +1131,42 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   // Update node colors when color settings change — rebuild texture cache, then swap textures
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettings);
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettings);
     refreshAllSpriteTextures();
-  }, [colorSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gradientSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild textures when render mode switches (edit vs render colors)
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
     refreshAllSpriteTextures();
   }, [renderMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update node scale when style settings change
+  // Update node scale (and depth-size) when relevant style settings change
   useEffect(() => {
     if (!graphNodesRef.current.size) return;
-
+    const minW = minWordsRef.current;
+    const maxW = maxWordsRef.current;
     graphNodesRef.current.forEach(node => {
       if (node.textSprite) {
         const baseScale = node.textSprite.userData.baseScale || 1;
         const aspectRatio = node.textSprite.userData.aspectRatio || 1;
+        const depthFactor = getDepthFactor(node.wordCount, minW, maxW, styleSettings);
         node.textSprite.scale.set(
-          baseScale * styleSettings.nodeScale,
-          baseScale * styleSettings.nodeScale * aspectRatio,
+          baseScale * styleSettings.nodeScale * depthFactor,
+          baseScale * styleSettings.nodeScale * depthFactor * aspectRatio,
           1
         );
       }
     });
-  }, [styleSettings.nodeScale]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [styleSettings.nodeScale, styleSettings.depthSizeEnabled, styleSettings.depthSizeStrength]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rebuild textures when node shape or border width changes
+  useEffect(() => {
+    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+    refreshAllSpriteTextures();
+  }, [styleSettings.nodeShape, styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update edge material when style settings change
   useEffect(() => {
@@ -1098,7 +1193,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   // Rebuild textures when node appearance settings change
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
     refreshAllSpriteTextures();
   }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1109,7 +1204,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     sceneRef.current.background = new THREE.Color(bgColors.threeColor);
 
     if (graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
     refreshAllSpriteTextures();
   }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
 

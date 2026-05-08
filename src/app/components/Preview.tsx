@@ -21,8 +21,8 @@ interface PreviewProps {
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   inputText?: string;
   parseMode?: 'sentence' | 'word' | 'both';
-  colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
-  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
+  gradientSettings?: { mode: 'solid' | 'gradient'; innerColor: string; outerColor: string };
+  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: string; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onCameraChange?: () => void;
   isDark?: boolean;
@@ -42,7 +42,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   physicsKeyframes,
   inputText,
   parseMode,
-  colorSettings,
+  gradientSettings,
   styleSettings,
   cameraKeyframes,
   onCameraChange,
@@ -66,7 +66,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
           physicsKeyframes={physicsKeyframes}
           inputText={inputText}
           parseMode={parseMode}
-          colorSettings={colorSettings}
+          gradientSettings={gradientSettings}
           styleSettings={styleSettings}
           cameraKeyframes={cameraKeyframes}
           onCameraChange={onCameraChange}
@@ -81,7 +81,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
 
       {/* Loading overlay — shown while scene is rebuilding */}
       {!isNetworkReady && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm pointer-events-none">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background pointer-events-none">
           <div className="w-8 h-8 rounded-full border-2 border-muted border-t-foreground/60 animate-spin" />
         </div>
       )}

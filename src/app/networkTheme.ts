@@ -7,18 +7,18 @@ export type NetworkLabelStyle = {
   backgroundHex: string;
 };
 
-export type NetworkColorSettings = {
-  hueStart: number;
-  hueEnd: number;
-  saturation: number;
-  lightness: number;
+export type NodeShape = 'rectangle' | 'rounded-rectangle' | 'ellipse';
+
+export type GradientSettings = {
+  mode: 'solid' | 'gradient';
+  innerColor: string;
+  outerColor: string;
 };
 
-export const defaultNetworkColorSettings: NetworkColorSettings = {
-  hueStart: 180,
-  hueEnd: 120,
-  saturation: 75,
-  lightness: 65,
+export const defaultGradientSettings: GradientSettings = {
+  mode: 'gradient',
+  innerColor: '#06b6d4',
+  outerColor: '#10b981',
 };
 
 export type NodeAppearanceSettings = {

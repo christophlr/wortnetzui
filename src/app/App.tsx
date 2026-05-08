@@ -4,7 +4,7 @@ import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
-import { defaultNetworkColorSettings, defaultNodeAppearance, defaultEdgeAppearance, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
+import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
 
 type Keyframe = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
@@ -25,8 +25,14 @@ export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('sentence');
-  const [colorSettings, setColorSettings] = useState(defaultNetworkColorSettings);
-  const [styleSettings, setStyleSettings] = useState({ edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1 });
+  const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
+  const [styleSettings, setStyleSettings] = useState({
+    edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1,
+    nodeShape: 'rectangle' as NodeShape,
+    nodeBorderWidth: 2,
+    depthSizeEnabled: false,
+    depthSizeStrength: 50,
+  });
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
@@ -450,7 +456,7 @@ export default function App() {
   // Mark network as not ready whenever a heavy rebuild is triggered
   useEffect(() => {
     setIsNetworkReady(false);
-  }, [inputText, viewMode, parseMode, isDark]);
+  }, [inputText, viewMode, parseMode]);
 
   return (
     <div className="size-full flex flex-col bg-background text-foreground overflow-hidden">
@@ -462,7 +468,7 @@ export default function App() {
         theme={theme} onThemeChange={setTheme}
         renderMode={renderMode} onRenderModeChange={setRenderMode}
         onSaveState={() => {
-          const state = { inputText, parseMode, colorSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
+          const state = { inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
           const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob); const a = document.createElement('a');
           a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
@@ -479,7 +485,7 @@ export default function App() {
                   const s = JSON.parse(ev.target?.result as string);
                   if (s.inputText) setInputText(s.inputText);
                   if (s.parseMode) setParseMode(s.parseMode);
-                  if (s.colorSettings) setColorSettings(s.colorSettings);
+                  if (s.gradientSettings) setGradientSettings(s.gradientSettings);
                   if (s.styleSettings) setStyleSettings(s.styleSettings);
                   if (s.physicsParams) setPhysicsParams(s.physicsParams);
                   if (s.viewMode) setViewMode(s.viewMode);
@@ -498,7 +504,7 @@ export default function App() {
         <Inspector
           onPhysicsChange={setPhysicsParams} onTextChange={setInputText}
           onParsingChange={setParseMode}
-          onColorChange={setColorSettings} onStyleChange={setStyleSettings}
+          onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
           width={inspectorWidth} viewMode={viewMode}
@@ -514,7 +520,7 @@ export default function App() {
           ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
           isPlaying={isPlaying} playheadPosition={playheadPosition}
           physicsParams={physicsParams} inputText={inputText} parseMode={parseMode}
-          colorSettings={colorSettings} styleSettings={styleSettings}
+          gradientSettings={gradientSettings} styleSettings={styleSettings}
           cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
           physicsKeyframes={physicsKeyframes}
           theme={theme} isDark={isDark}
