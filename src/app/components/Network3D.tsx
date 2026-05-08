@@ -179,6 +179,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const sharedPairMatrixRef = useRef<Uint8Array>(new Uint8Array(0));
   const spritesArrayRef = useRef<THREE.Object3D[]>([]);
   const textureCacheRef = useRef<Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>>(new Map());
+  const physicsWorkerRef = useRef<Worker | null>(null);
+  const workerBusyRef = useRef(false);
+  const workerPosVelRef = useRef<Float64Array>(new Float64Array(0));
   const animationFrameRef = useRef<number>();
   const minWordsRef = useRef(Infinity);
   const maxWordsRef = useRef(-Infinity);
@@ -649,6 +652,92 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     graphNodeArrayRef.current = physCache.nodeArray;
     sharedPairMatrixRef.current = physCache.sharedPairMatrix;
 
+    // ── PHYSICS WORKER SETUP ──
+    // Terminate any previous worker before creating a new one
+    physicsWorkerRef.current?.terminate();
+    workerBusyRef.current = false;
+
+    const nodeArr = physCache.nodeArray;
+    const nodeCount = nodeArr.length;
+
+    // Map node labels to stable indices for edge encoding
+    const labelToIdx = new Map<string, number>();
+    nodeArr.forEach((node, i) => labelToIdx.set(node.label, i));
+
+    const edgeIdxArr = new Int32Array(edges.length * 2);
+    edges.forEach((edge, ei) => {
+      edgeIdxArr[ei * 2]     = labelToIdx.get(edge.a.label)!;
+      edgeIdxArr[ei * 2 + 1] = labelToIdx.get(edge.b.label)!;
+    });
+
+    const wordCountArr = new Int32Array(nodeArr.map(n => n.wordCount));
+    const spm = physCache.sharedPairMatrix;
+
+    // Reusable position+velocity buffer (transferred back and forth — zero GC)
+    workerPosVelRef.current = new Float64Array(nodeCount * 6);
+
+    const worker = new Worker(new URL('../graph/physics.worker.ts', import.meta.url), { type: 'module' });
+    physicsWorkerRef.current = worker;
+
+    worker.postMessage(
+      { type: 'init', edgeIndices: edgeIdxArr, wordCounts: wordCountArr, sharedPairMatrix: spm, nodeCount },
+    );
+
+    worker.onmessage = (e: MessageEvent<{ posVel: Float64Array; avgMovement: number }>) => {
+      const { posVel, avgMovement } = e.data;
+      const arr = graphNodeArrayRef.current;
+
+      // Write positions back to node objects
+      for (let i = 0; i < arr.length; i++) {
+        const b = i * 6;
+        arr[i].x = posVel[b];     arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
+        arr[i].vx = posVel[b + 3]; arr[i].vy = posVel[b + 4]; arr[i].vz = posVel[b + 5];
+      }
+
+      // Reclaim the transferred buffer for reuse on the next step
+      workerPosVelRef.current = posVel;
+
+      // 2D sprite-based overlap separation (must run on main thread — reads sprite scales)
+      let maxOverlap = 0;
+      if (is2D) {
+        const n2 = arr.length;
+        for (let pass = 0; pass < 4; pass++) {
+          for (let i = 0; i < n2; i++) {
+            for (let j = i + 1; j < n2; j++) {
+              const a = arr[i], b2 = arr[j];
+              const dx = a.x - b2.x, dy = a.y - b2.y;
+              const distSep = Math.sqrt(dx * dx + dy * dy) + 0.001;
+              const rA = a.textSprite ? (a.textSprite.scale.x + a.textSprite.scale.y) / 4 : 30;
+              const rB = b2.textSprite ? (b2.textSprite.scale.x + b2.textSprite.scale.y) / 4 : 30;
+              const minSep = rA + rB + 6;
+              if (distSep < minSep) {
+                const overlap = minSep - distSep;
+                if (overlap > maxOverlap) maxOverlap = overlap;
+                const push = overlap * 0.5 / distSep;
+                a.x += dx * push;   a.y += dy * push;
+                b2.x -= dx * push;  b2.y -= dy * push;
+              }
+            }
+          }
+        }
+      }
+
+      syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+
+      // Auto-stop heuristic
+      const curParams = effectivePhysicsRef.current;
+      if (curParams.turbulence > 0 || maxOverlap > 1) {
+        stillFramesRef.current = 0;
+      } else if (avgMovement < 0.5) {
+        stillFramesRef.current++;
+        if (stillFramesRef.current > 60) physicsEnabledRef.current = false;
+      } else {
+        stillFramesRef.current = 0;
+      }
+
+      workerBusyRef.current = false;
+    };
+
     // Create edges (adjustable lines)
     const edgeColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
     const edgeMaterial = new THREE.LineBasicMaterial({
@@ -770,7 +859,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       lastTime = now;
 
 
-      if (delta < 5 && physicsEnabledRef.current) { // Skip if tab was hidden
+      // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
+      if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
         let paramsForFrame = physicsParamsRef.current;
 
         if (physicsBlendActiveRef.current) {
@@ -824,63 +914,20 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         }
 
         effectivePhysicsRef.current = paramsForFrame;
-        const avgMovement = applyPhysics(
-          graphNodesRef.current, graphEdgesRef.current, paramsForFrame,
-          graphNodeArrayRef.current, sharedPairMatrixRef.current
+
+        // Pack current positions + velocities into the reusable buffer and transfer to worker
+        const pv = workerPosVelRef.current;
+        const dispArr = graphNodeArrayRef.current;
+        for (let i = 0; i < dispArr.length; i++) {
+          const b = i * 6;
+          pv[b]     = dispArr[i].x;  pv[b + 1] = dispArr[i].y;  pv[b + 2] = dispArr[i].z;
+          pv[b + 3] = dispArr[i].vx; pv[b + 4] = dispArr[i].vy; pv[b + 5] = dispArr[i].vz;
+        }
+        workerBusyRef.current = true;
+        physicsWorkerRef.current!.postMessage(
+          { type: 'step', posVel: pv, params: paramsForFrame, is2D },
+          [pv.buffer]
         );
-        // In 2D mode keep all nodes on the z=0 plane (repulsion/turbulence can drift z slightly)
-        if (is2D) {
-          for (const node of graphNodeArrayRef.current) { node.z = 0; node.vz = 0; }
-        }
-
-        // 2D overlap separation: position-correct nodes whose sprites intersect.
-        // Uses each sprite's actual rendered scale as its collision radius so
-        // long multi-word labels and short single-word labels both get fair space.
-        let maxOverlap = 0;
-        if (is2D) {
-          const arr2 = graphNodeArrayRef.current;
-          const n2 = arr2.length;
-          for (let pass = 0; pass < 4; pass++) {
-            for (let i = 0; i < n2; i++) {
-              for (let j = i + 1; j < n2; j++) {
-                const a = arr2[i];
-                const b = arr2[j];
-                const dx = a.x - b.x;
-                const dy = a.y - b.y;
-                const distSep = Math.sqrt(dx * dx + dy * dy) + 0.001;
-                const sprA = a.textSprite;
-                const sprB = b.textSprite;
-                // Average of half-width and half-height as circular radius approximation
-                const rA = sprA ? (sprA.scale.x + sprA.scale.y) / 4 : 30;
-                const rB = sprB ? (sprB.scale.x + sprB.scale.y) / 4 : 30;
-                const minSep = rA + rB + 6;
-                if (distSep < minSep) {
-                  const overlap = minSep - distSep;
-                  if (overlap > maxOverlap) maxOverlap = overlap;
-                  const push = overlap * 0.5 / distSep;
-                  a.x += dx * push;
-                  a.y += dy * push;
-                  b.x -= dx * push;
-                  b.y -= dy * push;
-                }
-              }
-            }
-          }
-        }
-
-        syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, graphNodeArrayRef.current);
-
-        // Auto-stop physics when system has stabilized (disabled when turbulence is active or overlaps remain)
-        if (paramsForFrame.turbulence > 0 || maxOverlap > 1) {
-          stillFramesRef.current = 0;
-        } else if (avgMovement < 0.5) {
-          stillFramesRef.current++;
-          if (stillFramesRef.current > 60) { // ~1 second of stillness
-            physicsEnabledRef.current = false;
-          }
-        } else {
-          stillFramesRef.current = 0;
-        }
       }
       frameCount++;
 
@@ -987,6 +1034,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         containerRef.current.removeChild(rendererRef.current.domElement);
         rendererRef.current.dispose();
       }
+      physicsWorkerRef.current?.terminate();
+      physicsWorkerRef.current = null;
+      workerBusyRef.current = false;
     };
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
