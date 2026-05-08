@@ -226,7 +226,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   useEffect(() => { renderModeRef.current = renderMode; }, [renderMode]);
   useEffect(() => { nodeAppearanceRef.current = nodeAppearance; }, [nodeAppearance]);
   useEffect(() => { edgeAppearanceRef.current = edgeAppearance; }, [edgeAppearance]);
-  useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
+  useEffect(() => {
+    playheadRef.current = playheadPosition;
+    // When scrubbing (not playing) and keyframes exist, re-enable physics so it responds
+    if (!isPlayingRef.current) {
+      const hasKfs = Object.values(physicsKeyframesRef.current).some(kfs => kfs.length > 0);
+      if (hasKfs) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
+    }
+  }, [playheadPosition]);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => {
@@ -279,6 +286,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
+    if (isPlaying) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
   }, [isPlaying]);
 
 
@@ -970,18 +978,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           }
         }
 
-        // Apply physics keyframe overrides during playback
-        if (isPlayingRef.current) {
+        // Apply physics keyframe overrides (during playback and when scrubbing)
+        {
           const pkfs = physicsKeyframesRef.current;
           const t = playheadRef.current;
-          // Use a fresh copy only if we have overrides to avoid mutating shared refs
           let overridden = false;
           const scratch = physicsBlendScratchRef.current;
           for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
             const val = interpolatePhysicsParam(pkfs[trackId] ?? [], t);
             if (val !== null) {
               if (!overridden) {
-                // Copy paramsForFrame into scratch first time
                 scratch.repulsion    = paramsForFrame.repulsion;
                 scratch.springK      = paramsForFrame.springK;
                 scratch.damping      = paramsForFrame.damping;
@@ -994,7 +1000,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
               (scratch as Record<string, number>)[param] = val;
             }
           }
-          if (overridden) paramsForFrame = scratch;
+          if (overridden) {
+            paramsForFrame = scratch;
+            stillFramesRef.current = 0; // keep physics active while keyframes are driving values
+          }
         }
 
         effectivePhysicsRef.current = paramsForFrame;

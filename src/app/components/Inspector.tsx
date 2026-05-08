@@ -2,7 +2,7 @@ import * as Accordion from '@radix-ui/react-accordion';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as Slider from '@radix-ui/react-slider';
 import * as Tabs from '@radix-ui/react-tabs';
-import { ChevronRight, Diamond, Type, Layers, Camera, Zap } from 'lucide-react';
+import { ChevronRight, Diamond, Type, Layers, Zap } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NodeShape } from '../networkTheme';
 
@@ -119,7 +119,6 @@ function SliderParam({
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
         <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
         {editing ? (
           <input
@@ -143,20 +142,19 @@ function SliderParam({
             {displayStr}
           </button>
         )}
+        <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
       </div>
-      <div className="pl-7">
-        <Slider.Root
-          className="relative flex items-center w-full h-4"
-          value={value} onValueChange={onChange} min={min} max={max} step={1}
-        >
-          <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
-            <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
-          </Slider.Track>
-          <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
-        </Slider.Root>
-      </div>
+      <Slider.Root
+        className="relative flex items-center w-full h-4"
+        value={value} onValueChange={onChange} min={min} max={max} step={1}
+      >
+        <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
+          <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
+        </Slider.Track>
+        <Slider.Thumb className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`} />
+      </Slider.Root>
       {description && (
-        <p className="text-[9px] text-muted-foreground/50 mt-1 pl-7 leading-relaxed">{description}</p>
+        <p className="text-[9px] text-muted-foreground/50 mt-1 leading-relaxed">{description}</p>
       )}
     </div>
   );
@@ -393,12 +391,7 @@ export function Inspector({
           >
             <Layers size={10} />Visuell
           </Tabs.Trigger>
-          <Tabs.Trigger
-            value="camera"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-teal-500/60"
-          >
-            <Camera size={10} />Kamera
-          </Tabs.Trigger>
+
           <Tabs.Trigger
             value="physics"
             className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-muted transition-colors border-b-2 border-transparent data-[state=active]:border-orange-500/60"
@@ -640,99 +633,6 @@ export function Inspector({
           </Accordion.Root>
         </Tabs.Content>
 
-        {/* CAMERA TAB */}
-        <Tabs.Content value="camera" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['camera-controls', 'camera-keyframes']}>
-            {/* CAMERA CONTROLS */}
-            <AccSection value="camera-controls" label="Steuerung" color="teal">
-              <div className="text-[10px] text-muted-foreground leading-relaxed mb-3">
-                Verwende die Maus zum Steuern:
-                <div className="mt-1 space-y-0.5 text-muted-foreground/70">
-                  <div>• Linksklick + Ziehen: Rotieren</div>
-                  <div>• Mausrad: Zoomen</div>
-                  <div>• Rechtsklick + Ziehen: Verschieben</div>
-                </div>
-              </div>
-
-              <SubLabel>Manuelle Steuerung</SubLabel>
-              <div className="space-y-2">
-                <div className="text-[9px] text-muted-foreground mb-1">Position (X, Y, Z)</div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <input
-                    type="number"
-                    placeholder="X"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                </div>
-                <div className="text-[9px] text-muted-foreground mb-1 mt-3">Ziel (X, Y, Z)</div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <input
-                    type="number"
-                    placeholder="X"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Y"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Z"
-                    className="w-full h-6 px-1.5 bg-input border border-border hover:border-border focus:border-teal-600 rounded text-[11px] text-foreground text-center focus:outline-none transition-colors font-mono"
-                  />
-                </div>
-              </div>
-            </AccSection>
-
-            {/* CAMERA KEYFRAMES */}
-            <AccSection value="camera-keyframes" label="Keyframes" color="teal">
-              <div className="text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1.5 border border-border">
-                💡 Benutze den <span className="text-teal-400">◆ Keyframe</span> Button in der Timeline
-              </div>
-
-              {cameraKeyframes.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  <span className="text-[10px] text-muted-foreground block mb-1.5">
-                    Gespeicherte Keyframes:
-                  </span>
-                  {cameraKeyframes.map((kf, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex items-center justify-between px-2 py-1 rounded text-[10px] ${
-                        Math.abs(kf.time - currentTime) < 0.1
-                          ? 'bg-teal-900/30 border border-teal-700/40'
-                        : 'bg-muted/30 border border-border'
-                      }`}
-                    >
-                      <span className="text-muted-foreground font-mono">
-                        {Math.floor(kf.time / 60).toString().padStart(2, '0')}:
-                        {(kf.time % 60).toFixed(1).padStart(4, '0')}s
-                      </span>
-                      <button
-                        onClick={() => onDeleteKeyframe?.(kf.time)}
-                        className="text-muted-foreground hover:text-red-400 transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AccSection>
-          </Accordion.Root>
-        </Tabs.Content>
-
         {/* PHYSICS TAB */}
         <Tabs.Content value="physics" className="flex-1 overflow-y-auto">
           <Accordion.Root type="multiple" defaultValue={['physics-params']}>
@@ -785,7 +685,6 @@ export function Inspector({
                   description="Zufälliger Impuls pro Frame. Hält die Simulation mit organischer Bewegung am Laufen."
                 />
                 <div className="flex items-center gap-2 h-[26px]">
-                  <KfDiamond active={effectiveKfs.minSpeed ?? false} color="orange" onClick={() => toggle('minSpeed')} />
                   <span className="text-[11px] text-muted-foreground flex-1">Min Speed</span>
                   <input
                     type="number"
@@ -794,6 +693,7 @@ export function Inspector({
                     step="0.1"
                     className="w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 font-mono"
                   />
+                  <KfDiamond active={effectiveKfs.minSpeed ?? false} color="orange" onClick={() => toggle('minSpeed')} />
                 </div>
                 <div className="pt-1 flex justify-end">
                   <button

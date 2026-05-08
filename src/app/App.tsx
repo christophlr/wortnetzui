@@ -36,8 +36,8 @@ export default function App() {
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
-  const [inspectorWidth, setInspectorWidth] = useState(268);
-  const [timelineHeight, setTimelineHeight] = useState(240);
+  const [inspectorWidth, setInspectorWidth] = useState(300);
+  const [timelineHeight, setTimelineHeight] = useState(280);
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
   const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);

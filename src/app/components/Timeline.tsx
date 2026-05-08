@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Eye, Lock, ChevronRight, Plus, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet } from 'lucide-react';
+import { Eye, Lock, ChevronRight, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TIMELINE_DURATION } from '../constants';
 import { segmentBezierPath, computeAutoWeights } from '../easing';
@@ -1259,12 +1259,6 @@ export function Timeline({
 
         {/* Left */}
         <div className="flex items-center gap-1.5">
-          <button className="flex items-center gap-1 h-6 px-2 bg-muted hover:bg-muted/80 text-foreground text-[10px] rounded border border-border transition-colors">
-            <Plus size={10} />Track
-          </button>
-          <button className="flex items-center gap-1 h-6 px-2 bg-muted hover:bg-muted/80 text-foreground text-[10px] rounded border border-border transition-colors">
-            <Plus size={10} />Parameter
-          </button>
           <button
             onClick={onCaptureKeyframe}
             title={hasKfAtPlayhead ? 'Update keyframe at playhead' : 'Capture new keyframe at playhead'}
