@@ -420,6 +420,21 @@ export default function App() {
     setSelectedKeyframes(kfs);
   }, []);
 
+  const handleTogglePhysicsKeyframe = useCallback((trackId: string, value: number) => {
+    const prev = getTimelineState();
+    const currentTime = playheadRef.current;
+    setPhysicsKeyframes(prevKfs => {
+      const track = prevKfs[trackId] ?? [];
+      const hasKf = track.some(k => Math.abs(k.time - currentTime) <= 0.1);
+      const next = hasKf
+        ? { ...prevKfs, [trackId]: track.filter(k => Math.abs(k.time - currentTime) > 0.1) }
+        : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, interpolation: 'auto' as const }].sort((a, b) => a.time - b.time) };
+      physicsKeyframesRef.current = next;
+      pushHistory(prev, { ...prev, physicsKeyframes: next });
+      return next;
+    });
+  }, [getTimelineState, pushHistory]);
+
   const startInspectorResize = useCallback((e: React.MouseEvent) => {
     const startX = e.clientX;
     const startWidth = inspectorWidth;
@@ -507,6 +522,8 @@ export default function App() {
           onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
+          physicsKeyframes={physicsKeyframes}
+          onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
           width={inspectorWidth} viewMode={viewMode}
           onDeleteKeyframe={(time) => {
             handleDeleteKeyframe('camera-keyframes', time);

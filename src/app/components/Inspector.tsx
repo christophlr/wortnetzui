@@ -3,7 +3,7 @@ import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as Slider from '@radix-ui/react-slider';
 import * as Tabs from '@radix-ui/react-tabs';
 import { ChevronRight, Diamond, Type, Layers, Camera, Zap } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NodeShape } from '../networkTheme';
 
 const GRADIENT_PRESETS = [
@@ -227,12 +227,16 @@ interface InspectorProps {
   currentTime?: number;
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onDeleteKeyframe?: (time: number) => void;
+  physicsKeyframes?: Record<string, Array<{ time: number; value: number }>>;
+  onTogglePhysicsKeyframe?: (trackId: string, value: number) => void;
   width?: number;
   viewMode?: '2D' | '3D';
 }
 
 const PHYSICS_DEFAULTS_3D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 };
 const PHYSICS_DEFAULTS_2D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 3, turbulence: 0 };
+
+const PHYS_PARAM_TRACK: Record<string, string> = { repulsion: 'phys-rep', springK: 'phys-spk', damping: 'phys-dmp' };
 
 export function Inspector({
   onPhysicsChange,
@@ -245,14 +249,15 @@ export function Inspector({
   currentTime = 0,
   cameraKeyframes = [],
   onDeleteKeyframe,
+  physicsKeyframes,
+  onTogglePhysicsKeyframe,
   width = 268,
   viewMode = '3D',
 }: InspectorProps = {}) {
   const [kfs, setKfs] = useState<Record<string, boolean>>({
     nodeBorderWidth: false, depthSizeStrength: false,
     edgeOpacity: false, edgeWidth: false, nodeScale: false,
-    repulsion: false, springK: true, damping: false, minSpeed: false,
-    linkDistance: false, gravity: false, turbulence: false,
+    minSpeed: false, linkDistance: false, gravity: false, turbulence: false,
   });
   const [parsingMode, setParsingMode] = useState('word');
   const [zoomVal, setZoomVal] = useState([800]);
@@ -282,7 +287,30 @@ export function Inspector({
   const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
   const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
 
-  const toggle = (k: string) => setKfs(prev => ({ ...prev, [k]: !prev[k] }));
+  const physKfActive = useMemo(() => {
+    const result: Record<string, boolean> = {};
+    for (const [k, trackId] of Object.entries(PHYS_PARAM_TRACK)) {
+      result[k] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
+    }
+    return result;
+  }, [physicsKeyframes, currentTime]);
+
+  const effectiveKfs = useMemo(() => ({ ...kfs, ...physKfActive }), [kfs, physKfActive]);
+
+  const physEngineValues = () => ({
+    repulsion: repulsionVal[0] * 10,
+    springK: springKVal[0] / 100,
+    damping: dampingVal[0] / 100,
+  });
+
+  const toggle = (k: string) => {
+    const trackId = PHYS_PARAM_TRACK[k];
+    if (trackId) {
+      onTogglePhysicsKeyframe?.(trackId, (physEngineValues() as Record<string, number>)[k]);
+    } else {
+      setKfs(prev => ({ ...prev, [k]: !prev[k] }));
+    }
+  };
 
   // Notify parent of physics changes
   const notifyPhysicsChange = () => {
@@ -516,7 +544,7 @@ export function Inspector({
               <div className="space-y-3">
                 <SliderParam
                   kfKey="nodeBorderWidth" label="Rahmenbreite" value={nodeBorderWidthVal} onChange={setNodeBorderWidthVal}
-                  color="teal" kfs={kfs} onToggle={toggle} min={0} max={8}
+                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={0} max={8}
                   displayFn={v => v[0] + 'px'}
                   description="Stärke der Knotenumrandung."
                 />
@@ -559,7 +587,7 @@ export function Inspector({
                 <div className="mb-3">
                   <SliderParam
                     kfKey="depthSizeStrength" label="Stärke" value={depthSizeStrengthVal} onChange={setDepthSizeStrengthVal}
-                    color="teal" kfs={kfs} onToggle={toggle} min={0} max={100}
+                    color="teal" kfs={effectiveKfs} onToggle={toggle} min={0} max={100}
                     displayFn={v => v[0] + '%'}
                     description="Größenvariation: Innere Knoten (1 Wort) werden größer, äußere kleiner."
                   />
@@ -568,7 +596,7 @@ export function Inspector({
 
               <SliderParam
                 kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
-                color="teal" kfs={kfs} onToggle={toggle} min={50} max={150}
+                color="teal" kfs={effectiveKfs} onToggle={toggle} min={50} max={150}
                 displayFn={v => v[0] + '%'}
                 description="Einheitliche Skalierung aller Wortbezeichnungen."
               />
@@ -592,13 +620,13 @@ export function Inspector({
                 </div>
                 <SliderParam
                   kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
-                  color="teal" kfs={kfs} onToggle={toggle} min={10} max={100}
+                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={10} max={100}
                   displayFn={v => v[0] + '%'}
                   description="Transparenz der Verbindungslinien."
                 />
                 <SliderParam
                   kfKey="edgeWidth" label="Stärke" value={edgeWidth} onChange={setEdgeWidth}
-                  color="teal" kfs={kfs} onToggle={toggle} min={1} max={5}
+                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={1} max={5}
                   description="Pixelbreite der Verbindungslinien."
                 />
               </div>
@@ -707,7 +735,7 @@ export function Inspector({
               <div className="space-y-3">
                 <SliderParam
                   kfKey="repulsion" label="Repulsion" value={repulsionVal} onChange={setRepulsionVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={10} max={500}
                   displayFn={v => (v[0] * 10).toFixed(0)}
                   parseInput={s => Math.round(parseFloat(s) / 10)}
@@ -715,7 +743,7 @@ export function Inspector({
                 />
                 <SliderParam
                   kfKey="springK" label="Spring Stiffness" value={springKVal} onChange={setSpringKVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={1} max={20}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
@@ -723,7 +751,7 @@ export function Inspector({
                 />
                 <SliderParam
                   kfKey="damping" label="Damping" value={dampingVal} onChange={setDampingVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={80} max={99}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
@@ -731,7 +759,7 @@ export function Inspector({
                 />
                 <SliderParam
                   kfKey="linkDistance" label="Link Distance" value={linkDistanceVal} onChange={setLinkDistanceVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={10} max={300}
                   displayFn={v => v[0] + 'px'}
                   parseInput={s => Math.round(parseFloat(s))}
@@ -739,20 +767,20 @@ export function Inspector({
                 />
                 <SliderParam
                   kfKey="gravity" label="Gravity" value={gravityVal} onChange={setGravityVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={0} max={100}
                   displayFn={v => v[0].toFixed(0)}
                   description="Zieht alle Knoten zur Mitte, verhindert das Auseinanderdriften des Graphen."
                 />
                 <SliderParam
                   kfKey="turbulence" label="Turbulence" value={turbulenceVal} onChange={setTurbulenceVal}
-                  color="orange" kfs={kfs} onToggle={toggle}
+                  color="orange" kfs={effectiveKfs} onToggle={toggle}
                   min={0} max={20}
                   displayFn={v => v[0].toFixed(0)}
                   description="Zufälliger Impuls pro Frame. Hält die Simulation mit organischer Bewegung am Laufen."
                 />
                 <div className="flex items-center gap-2 h-[26px]">
-                  <KfDiamond active={kfs.minSpeed} color="orange" onClick={() => toggle('minSpeed')} />
+                  <KfDiamond active={effectiveKfs.minSpeed ?? false} color="orange" onClick={() => toggle('minSpeed')} />
                   <span className="text-[11px] text-muted-foreground flex-1">Min Speed</span>
                   <input
                     type="number"
