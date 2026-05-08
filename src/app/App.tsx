@@ -460,6 +460,31 @@ export default function App() {
     setSelectedKeyframes(kfs);
   }, []);
 
+  const handlePhysicsChange = useCallback((params: typeof physicsParams) => {
+    setPhysicsParams(params);
+    // When a keyframe exists at the current time, update its value so the
+    // slider change takes effect (keyframe interpolation overrides physicsParams).
+    const currentTime = playheadRef.current;
+    setPhysicsKeyframes(prevKfs => {
+      let changed = false;
+      const nextKfs = { ...prevKfs };
+      for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
+        const track = prevKfs[trackId] ?? [];
+        const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
+        if (kfIdx >= 0) {
+          const newVal = (params as Record<string, number>)[paramName];
+          if (newVal !== track[kfIdx].value) {
+            nextKfs[trackId] = track.map((k, i) => i === kfIdx ? { ...k, value: newVal } : k);
+            changed = true;
+          }
+        }
+      }
+      if (!changed) return prevKfs;
+      physicsKeyframesRef.current = nextKfs;
+      return nextKfs;
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleTogglePhysicsKeyframe = useCallback((trackId: string, value: number) => {
     const prev = getTimelineState();
     const currentTime = playheadRef.current;
@@ -557,7 +582,7 @@ export default function App() {
       />
       <div className="flex-1 flex overflow-hidden min-h-0">
         <Inspector
-          onPhysicsChange={setPhysicsParams} onTextChange={setInputText}
+          onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
           onParsingChange={setParseMode}
           onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
