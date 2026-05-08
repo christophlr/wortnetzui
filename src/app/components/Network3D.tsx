@@ -178,6 +178,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const graphNodeArrayRef = useRef<GraphNode[]>([]);
   const sharedPairMatrixRef = useRef<Uint8Array>(new Uint8Array(0));
   const spritesArrayRef = useRef<THREE.Object3D[]>([]);
+  const textureCacheRef = useRef<Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>>(new Map());
   const animationFrameRef = useRef<number>();
   const minWordsRef = useRef(Infinity);
   const maxWordsRef = useRef(-Infinity);
@@ -344,10 +345,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
   };
 
-  /* ── CREATE TEXT SPRITE WITH BILLBOARDING ── */
+  /* ── CANVAS TEXTURE CREATION (fixed dimensions for all states) ── */
   const EDIT_NODE_COLOR = '#6b7280'; // neutral gray for edit mode
+  // Fixed outline margin — always allocated so all 3 state textures share identical canvas size
+  const OUTLINE_STROKE = 3;
+  const OUTLINE_GAP = 2;
+  const OUTLINE_MARGIN = OUTLINE_STROKE + OUTLINE_GAP;
 
-  const createTextSprite = (text: string, color: string, highlighted = false, selected = false, darkOverride?: boolean) => {
+  const createCanvasTexture = (
+    text: string, color: string, highlighted: boolean, selected: boolean, darkOverride?: boolean
+  ): { texture: THREE.CanvasTexture; baseScale: number; aspectRatio: number } => {
     const dark = darkOverride !== undefined ? darkOverride : isDarkRef.current;
     const na = nodeAppearanceRef.current;
     const isEditMode = renderModeRef.current === 'edit';
@@ -362,43 +369,35 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const fontSize = 28;
     const lineHeight = fontSize * 1.2;
     const padding = 14;
-
-    // High-resolution canvas for crisp text
-    const pixelRatio = 3; // 3x resolution for sharp rendering
+    const pixelRatio = 3;
 
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-
     const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
     const logicalWidth = maxWidth + padding * 2;
     const logicalHeight = words.length * lineHeight + padding * 2;
 
-    // Outside stroke lives in transparent canvas margin so it never overlaps the node border
-    const outlineStroke = (highlighted || selected) ? 3 : 0;
-    const outlineGap = (highlighted || selected) ? 2 : 0;
-    const outlineMargin = outlineStroke + outlineGap; // extra canvas space per side
-
-    const canvasLogicalWidth = logicalWidth + outlineMargin * 2;
-    const canvasLogicalHeight = logicalHeight + outlineMargin * 2;
+    // Always use fixed outline margin so all states have identical canvas dimensions
+    const canvasLogicalWidth = logicalWidth + OUTLINE_MARGIN * 2;
+    const canvasLogicalHeight = logicalHeight + OUTLINE_MARGIN * 2;
 
     canvas.width = canvasLogicalWidth * pixelRatio;
     canvas.height = canvasLogicalHeight * pixelRatio;
     context.scale(pixelRatio, pixelRatio);
 
-    // Background box (offset into canvas center by outlineMargin)
+    // Background box
     context.fillStyle = effectiveFillColor ?? getNetworkLabelStyle(dark).backgroundHex;
-    context.fillRect(outlineMargin, outlineMargin, logicalWidth, logicalHeight);
+    context.fillRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
 
     if (!highlighted && !selected) {
       context.strokeStyle = effectiveBorderColor;
       context.lineWidth = 2;
-      context.strokeRect(outlineMargin + 1, outlineMargin + 1, logicalWidth - 2, logicalHeight - 2);
+      context.strokeRect(OUTLINE_MARGIN + 1, OUTLINE_MARGIN + 1, logicalWidth - 2, logicalHeight - 2);
     } else {
-      // Outside rounded outline: path sits in the gap area, stroke extends outward into transparent margin
-      const pathOff = outlineMargin - outlineGap - outlineStroke / 2;
-      const pathW = logicalWidth + 2 * (outlineGap + outlineStroke / 2);
-      const pathH = logicalHeight + 2 * (outlineGap + outlineStroke / 2);
+      const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
+      const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
+      const pathH = logicalHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
       context.strokeStyle = '#2563eb';
-      context.lineWidth = outlineStroke;
+      context.lineWidth = OUTLINE_STROKE;
       context.beginPath();
       context.roundRect(pathOff, pathOff, pathW, pathH, 5);
       context.stroke();
@@ -408,31 +407,91 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     context.fillStyle = effectiveTextColor;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-
     words.forEach((word, i) => {
-      const y = outlineMargin + padding + lineHeight / 2 + i * lineHeight;
-      context.fillText(word, outlineMargin + logicalWidth / 2, y);
+      const y = OUTLINE_MARGIN + padding + lineHeight / 2 + i * lineHeight;
+      context.fillText(word, OUTLINE_MARGIN + logicalWidth / 2, y);
     });
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
 
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-
-    // Scale based on full canvas size so text appears the same size in both states
-    const wordCount = text.split(' ').length;
+    const wordCount = words.length;
     const scaleFactor = Math.max(0.4, 1 - (wordCount * 0.05));
     const baseScale = (Math.max(canvasLogicalWidth, canvasLogicalHeight) / 2.5) * scaleFactor;
     const aspectRatio = canvasLogicalHeight / canvasLogicalWidth;
-    sprite.scale.set(baseScale, baseScale * aspectRatio, 1);
+
+    return { texture, baseScale, aspectRatio };
+  };
+
+  /** Create a sprite from a pre-built texture. */
+  const createSpriteFromTexture = (
+    texture: THREE.CanvasTexture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
+  ): THREE.Sprite => {
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.userData.label = label;
     sprite.userData.baseScale = baseScale;
     sprite.userData.aspectRatio = aspectRatio;
-
+    sprite.scale.set(baseScale * nodeScale, baseScale * nodeScale * aspectRatio, 1);
     return sprite;
+  };
+
+  /** Build (or rebuild) the 3-state texture cache for all nodes. */
+  const buildTextureCache = (
+    nodes: Map<string, GraphNode>, minW: number, maxW: number,
+    cs: { hueStart: number; hueEnd: number; saturation: number; lightness: number }
+  ) => {
+    // Dispose old textures
+    textureCacheRef.current.forEach(entry => {
+      entry.normal.dispose();
+      entry.highlighted.dispose();
+      entry.selected.dispose();
+    });
+    const cache = new Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>();
+    nodes.forEach(node => {
+      const color = getColorFromWordCount(node.wordCount, minW, maxW, cs);
+      const n = createCanvasTexture(node.label, color, false, false);
+      const h = createCanvasTexture(node.label, color, true, false);
+      const s = createCanvasTexture(node.label, color, false, true);
+      cache.set(node.label, {
+        normal: n.texture, highlighted: h.texture, selected: s.texture,
+        baseScale: n.baseScale, aspectRatio: n.aspectRatio,
+      });
+    });
+    textureCacheRef.current = cache;
+  };
+
+  /** Swap a sprite's texture to the correct cached state (no canvas rebuild). */
+  const swapSpriteTexture = (node: GraphNode, highlighted: boolean, selected: boolean) => {
+    if (!node.textSprite) return;
+    const cached = textureCacheRef.current.get(node.label);
+    if (!cached) return;
+    const tex = selected ? cached.selected : highlighted ? cached.highlighted : cached.normal;
+    node.textSprite.material.map = tex;
+    node.textSprite.material.needsUpdate = true;
+  };
+
+  /** Update all sprite textures from cache (after cache rebuild). */
+  const refreshAllSpriteTextures = () => {
+    const ss = styleSettingsRef.current;
+    graphNodesRef.current.forEach(node => {
+      if (!node.textSprite) return;
+      const cached = textureCacheRef.current.get(node.label);
+      if (!cached) return;
+      const isHovered = hoveredNodeRef.current?.label === node.label;
+      const isSelected = selectedNodeRef.current?.label === node.label;
+      const tex = isSelected ? cached.selected : isHovered ? cached.highlighted : cached.normal;
+      node.textSprite.material.map = tex;
+      node.textSprite.material.needsUpdate = true;
+      // Update scale in case baseScale changed (different color settings may not change it, but be safe)
+      node.textSprite.userData.baseScale = cached.baseScale;
+      node.textSprite.userData.aspectRatio = cached.aspectRatio;
+      node.textSprite.scale.set(
+        cached.baseScale * ss.nodeScale,
+        cached.baseScale * ss.nodeScale * cached.aspectRatio,
+        1
+      );
+    });
   };
 
   const getColorFromWordCount = (
@@ -610,25 +669,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       edge.line = line;
     });
 
-    // Create nodes with billboarded text
+    // Build 3-state texture cache for all nodes (normal, highlighted, selected)
+    buildTextureCache(nodes, minWords, maxWords, colorSettings);
+
+    // Create nodes with billboarded text from cached normal textures
     nodes.forEach(node => {
-      const color = getColorFromWordCount(node.wordCount, minWords, maxWords, colorSettings);
-      const sprite = createTextSprite(node.label, color, false, false);
-      sprite.userData.label = node.label;
-      sprite.position.set(node.x, node.y, node.z);
-      // Apply user scale proportionally
-      const baseScale = sprite.userData.baseScale || 1;
-      const aspectRatio = sprite.userData.aspectRatio || 1;
-      sprite.scale.set(
-        baseScale * styleSettings.nodeScale,
-        baseScale * styleSettings.nodeScale * aspectRatio,
-        1
+      const cached = textureCacheRef.current.get(node.label)!;
+      const sprite = createSpriteFromTexture(
+        cached.normal, node.label, cached.baseScale, cached.aspectRatio, styleSettings.nodeScale
       );
+      sprite.position.set(node.x, node.y, node.z);
       scene.add(sprite);
       node.textSprite = sprite;
     });
 
-    // Cache sprite list for raycasting — rebuilt here and on hover highlight change
+    // Cache sprite list for raycasting — only rebuilt here and on structural changes (text change)
     spritesArrayRef.current = graphNodeArrayRef.current
       .map(n => n.textSprite)
       .filter(Boolean) as THREE.Object3D[];
@@ -636,28 +691,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     // Hover detection via raycasting
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-
-    const rebuildSprite = (node: GraphNode, highlighted: boolean, selected: boolean) => {
-      if (!node.textSprite || !sceneRef.current) return;
-      const cs = colorSettingsRef.current;
-      const ss = styleSettingsRef.current;
-      const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, cs);
-      const newSprite = createTextSprite(node.label, color, highlighted, selected);
-      newSprite.userData.label = node.label;
-      newSprite.position.copy(node.textSprite.position);
-      const baseScale = newSprite.userData.baseScale || 1;
-      const aspectRatio = newSprite.userData.aspectRatio || 1;
-      newSprite.scale.set(baseScale * ss.nodeScale, baseScale * ss.nodeScale * aspectRatio, 1);
-      sceneRef.current.remove(node.textSprite);
-      node.textSprite.material.map?.dispose();
-      node.textSprite.material.dispose();
-      sceneRef.current.add(newSprite);
-      node.textSprite = newSprite;
-      // Keep raycasting cache fresh
-      spritesArrayRef.current = graphNodeArrayRef.current
-        .map(n => n.textSprite)
-        .filter(Boolean) as THREE.Object3D[];
-    };
 
     const handleHoverMove = (e: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -671,8 +704,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const nextNode = hitLabel ? graphNodesRef.current.get(hitLabel) ?? null : null;
 
       if (prevNode?.label === nextNode?.label) return;
-      if (prevNode) rebuildSprite(prevNode, false, prevNode.label === selectedNodeRef.current?.label);
-      if (nextNode) rebuildSprite(nextNode, true, nextNode.label === selectedNodeRef.current?.label);
+      if (prevNode) swapSpriteTexture(prevNode, false, prevNode.label === selectedNodeRef.current?.label);
+      if (nextNode) swapSpriteTexture(nextNode, true, nextNode.label === selectedNodeRef.current?.label);
       hoveredNodeRef.current = nextNode;
       renderer.domElement.style.cursor = nextNode ? 'pointer' : 'default';
     };
@@ -680,7 +713,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const handleHoverLeave = () => {
       if (hoveredNodeRef.current) {
         const was = hoveredNodeRef.current;
-        rebuildSprite(was, false, was.label === selectedNodeRef.current?.label);
+        swapSpriteTexture(was, false, was.label === selectedNodeRef.current?.label);
         hoveredNodeRef.current = null;
         renderer.domElement.style.cursor = 'default';
       }
@@ -699,16 +732,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const prev = selectedNodeRef.current;
 
       if (!hit) {
-        if (prev) rebuildSprite(prev, prev.label === hoveredNodeRef.current?.label, false);
+        if (prev) swapSpriteTexture(prev, prev.label === hoveredNodeRef.current?.label, false);
         selectedNodeRef.current = null;
         return;
       }
 
-      if (prev && prev.label !== hit.label) rebuildSprite(prev, prev.label === hoveredNodeRef.current?.label, false);
+      if (prev && prev.label !== hit.label) swapSpriteTexture(prev, prev.label === hoveredNodeRef.current?.label, false);
 
       const selecting = hit.label !== prev?.label;
       selectedNodeRef.current = selecting ? hit : null;
-      rebuildSprite(hit, hit.label === hoveredNodeRef.current?.label, selecting);
+      swapSpriteTexture(hit, hit.label === hoveredNodeRef.current?.label, selecting);
     };
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -959,64 +992,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
-  // Update node colors when color settings change
+  // Update node colors when color settings change — rebuild texture cache, then swap textures
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-
-    const nodes = graphNodesRef.current;
-    const minW = minWordsRef.current;
-    const maxW = maxWordsRef.current;
-
-    nodes.forEach(node => {
-      if (node.textSprite) {
-        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
-        const isHovered = hoveredNodeRef.current?.label === node.label;
-        const isSelected = selectedNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
-        newSprite.userData.label = node.label;
-        newSprite.position.copy(node.textSprite.position);
-        const baseScale = newSprite.userData.baseScale || 1;
-        const aspectRatio = newSprite.userData.aspectRatio || 1;
-        newSprite.scale.set(
-          baseScale * styleSettings.nodeScale,
-          baseScale * styleSettings.nodeScale * aspectRatio,
-          1
-        );
-        sceneRef.current!.remove(node.textSprite);
-        node.textSprite.material.map?.dispose();
-        node.textSprite.material.dispose();
-        sceneRef.current!.add(newSprite);
-        node.textSprite = newSprite;
-        if (isHovered) hoveredNodeRef.current = node;
-      }
-    });
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettings);
+    refreshAllSpriteTextures();
   }, [colorSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild sprites when render mode switches (edit vs render colors)
+  // Rebuild textures when render mode switches (edit vs render colors)
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    const nodes = graphNodesRef.current;
-    const minW = minWordsRef.current;
-    const maxW = maxWordsRef.current;
-    nodes.forEach(node => {
-      if (node.textSprite) {
-        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettingsRef.current);
-        const isHovered = hoveredNodeRef.current?.label === node.label;
-        const isSelected = selectedNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
-        newSprite.userData.label = node.label;
-        newSprite.position.copy(node.textSprite.position);
-        const baseScale = newSprite.userData.baseScale || 1;
-        const aspectRatio = newSprite.userData.aspectRatio || 1;
-        newSprite.scale.set(baseScale * styleSettingsRef.current.nodeScale, baseScale * styleSettingsRef.current.nodeScale * aspectRatio, 1);
-        sceneRef.current!.remove(node.textSprite);
-        node.textSprite.material.map?.dispose();
-        node.textSprite.material.dispose();
-        sceneRef.current!.add(newSprite);
-        node.textSprite = newSprite;
-        if (isHovered) hoveredNodeRef.current = node;
-      }
-    });
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    refreshAllSpriteTextures();
   }, [renderMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node scale when style settings change
@@ -1058,66 +1045,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [edgeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update node sprites when appearance settings change
+  // Rebuild textures when node appearance settings change
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    const nodes = graphNodesRef.current;
-    const minW = minWordsRef.current;
-    const maxW = maxWordsRef.current;
-    nodes.forEach(node => {
-      if (node.textSprite) {
-        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettingsRef.current);
-        const isHovered = hoveredNodeRef.current?.label === node.label;
-        const isSelected = selectedNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
-        newSprite.userData.label = node.label;
-        newSprite.position.copy(node.textSprite.position);
-        const baseScale = newSprite.userData.baseScale || 1;
-        const aspectRatio = newSprite.userData.aspectRatio || 1;
-        newSprite.scale.set(baseScale * styleSettingsRef.current.nodeScale, baseScale * styleSettingsRef.current.nodeScale * aspectRatio, 1);
-        sceneRef.current!.remove(node.textSprite);
-        node.textSprite.material.map?.dispose();
-        node.textSprite.material.dispose();
-        sceneRef.current!.add(newSprite);
-        node.textSprite = newSprite;
-        if (isHovered) hoveredNodeRef.current = node;
-      }
-    });
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    refreshAllSpriteTextures();
   }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update background color and node label sprites when theme changes
+  // Update background color and rebuild textures when theme changes
   useEffect(() => {
     if (!sceneRef.current) return;
     const bgColors = getNetworkThemeBackground(isDarkRef.current);
     sceneRef.current.background = new THREE.Color(bgColors.threeColor);
 
-    const nodes = graphNodesRef.current;
-    if (nodes.size === 0) return;
-    const minW = minWordsRef.current;
-    const maxW = maxWordsRef.current;
-    nodes.forEach(node => {
-      if (node.textSprite) {
-        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettings);
-        const isHovered = hoveredNodeRef.current?.label === node.label;
-        const isSelected = selectedNodeRef.current?.label === node.label;
-        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
-        newSprite.userData.label = node.label;
-        newSprite.position.copy(node.textSprite.position);
-        const baseScale = newSprite.userData.baseScale || 1;
-        const aspectRatio = newSprite.userData.aspectRatio || 1;
-        newSprite.scale.set(
-          baseScale * styleSettings.nodeScale,
-          baseScale * styleSettings.nodeScale * aspectRatio,
-          1
-        );
-        sceneRef.current!.remove(node.textSprite);
-        node.textSprite.material.map?.dispose();
-        node.textSprite.material.dispose();
-        sceneRef.current!.add(newSprite);
-        node.textSprite = newSprite;
-        if (isHovered) hoveredNodeRef.current = node;
-      }
-    });
+    if (graphNodesRef.current.size === 0) return;
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, colorSettingsRef.current);
+    refreshAllSpriteTextures();
   }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleZoomBy = (factor: number) => {
