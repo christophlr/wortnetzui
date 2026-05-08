@@ -1,5 +1,14 @@
 # Wortnetzuimake — Claude guidance
 
+## Version number
+
+**Every commit must bump the version in `src/version.ts`.**
+
+- Format: `"0.XX"` where XX is the commit count (e.g. commit 54 → `"0.54"`)
+- The build date is injected automatically by Vite at build time — no manual update needed
+- Current commit count as of initial versioning: 53 (version `"0.53"`)
+- The version + build timestamp are displayed in the bottom-left of the Preview component
+
 ## UI conventions
 
 ### Sliders with a numeric value (`SliderParam`)

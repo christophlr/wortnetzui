@@ -1,5 +1,6 @@
 import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef } from 'react';
+import { VERSION, BUILD_DATE } from '../../version';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
@@ -99,6 +100,12 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
           <span className="text-[10px] text-red-400 font-medium tracking-wide">LIVE</span>
         </div>
       )}
+
+      {/* Version indicator (bottom-left) */}
+      <div className="absolute bottom-3 left-3 flex flex-col gap-0.5 pointer-events-none z-10">
+        <span className="text-[9px] font-mono text-muted-foreground">v{VERSION}</span>
+        <span className="text-[9px] font-mono text-muted-foreground">{new Date(BUILD_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · {new Date(BUILD_DATE).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
 
       {/* Camera info overlay (bottom-right) - visible in both modes */}
       <div className="absolute bottom-3 right-3 flex flex-col items-end gap-0.5 pointer-events-none z-10">

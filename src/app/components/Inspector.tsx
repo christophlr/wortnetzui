@@ -17,18 +17,23 @@ const GRADIENT_PRESETS = [
 /* ─── helpers ─── */
 
 function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' | 'orange' | 'purple'; onClick: () => void }) {
-  const cls = {
-    teal:   active ? 'text-teal-400'   : 'text-muted-foreground/40 hover:text-muted-foreground/60',
-    orange: active ? 'text-orange-400' : 'text-muted-foreground/40 hover:text-muted-foreground/60',
-    purple: active ? 'text-purple-400' : 'text-muted-foreground/40 hover:text-muted-foreground/60',
+  const activeCls = {
+    teal:   'text-teal-400 bg-teal-500/15',
+    orange: 'text-orange-400 bg-orange-500/15',
+    purple: 'text-purple-400 bg-purple-500/15',
   }[color];
 
   return (
     <button
       onClick={onClick}
-      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors hover:bg-muted/50 ${cls}`}
+      title={active ? 'Keyframe entfernen' : 'Keyframe setzen'}
+      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors ${
+        active
+          ? activeCls
+          : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'
+      }`}
     >
-      <Diamond size={8} fill={active ? 'currentColor' : 'none'} />
+      <Diamond size={11} fill={active ? 'currentColor' : 'none'} />
     </button>
   );
 }
