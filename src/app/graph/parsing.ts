@@ -2,7 +2,7 @@ import type { GraphNode, GraphEdge } from './types';
 
 export function normalizeText(text: string): string {
   return text
-    .replace(/[,!?;:()"""]/g, '')
+    .replace(/[,!?;:()""\"]/g, '')
     .replace(/\n+/g, ' ')
     .trim()
     .toUpperCase();
@@ -34,7 +34,25 @@ export function buildSubstrings(words: string[], sentenceId: number, nodes: Map<
   }
 }
 
-export function buildInclusionEdges(words: string[], nodes: Map<string, GraphNode>, edges: GraphEdge[]): void {
+/** Add an edge if the canonical key hasn't been seen. O(1) per check. */
+function addEdgeIfNew(
+  a: GraphNode,
+  b: GraphNode,
+  edges: GraphEdge[],
+  edgeSet: Set<string>
+): void {
+  const key = a.label < b.label ? `${a.label}|${b.label}` : `${b.label}|${a.label}`;
+  if (edgeSet.has(key)) return;
+  edgeSet.add(key);
+  edges.push({ a, b });
+}
+
+export function buildInclusionEdges(
+  words: string[],
+  nodes: Map<string, GraphNode>,
+  edges: GraphEdge[],
+  edgeSet: Set<string>
+): void {
   const n = words.length;
 
   for (let i = 0; i < n; i++) {
@@ -53,18 +71,9 @@ export function buildInclusionEdges(words: string[], nodes: Map<string, GraphNod
       const rightLabel = words.slice(i, j - 1).join(' ');
       const right = nodes.get(rightLabel);
 
-      // Add edges if not already present
-      if (left && !edges.some(e =>
-        (e.a === cur && e.b === left) || (e.a === left && e.b === cur)
-      )) {
-        edges.push({ a: cur, b: left });
-      }
-
-      if (right && !edges.some(e =>
-        (e.a === cur && e.b === right) || (e.a === right && e.b === cur)
-      )) {
-        edges.push({ a: cur, b: right });
-      }
+      // Add edges via O(1) Set lookup
+      if (left) addEdgeIfNew(cur, left, edges, edgeSet);
+      if (right) addEdgeIfNew(cur, right, edges, edgeSet);
     }
   }
 }
@@ -87,7 +96,12 @@ export function buildCharSubstrings(word: string, nodes: Map<string, GraphNode>)
   }
 }
 
-export function buildCharInclusionEdges(word: string, nodes: Map<string, GraphNode>, edges: GraphEdge[]): void {
+export function buildCharInclusionEdges(
+  word: string,
+  nodes: Map<string, GraphNode>,
+  edges: GraphEdge[],
+  edgeSet: Set<string>
+): void {
   const n = word.length;
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j <= n; j++) {
@@ -96,10 +110,8 @@ export function buildCharInclusionEdges(word: string, nodes: Map<string, GraphNo
       if (!cur) continue;
       const left = nodes.get(word.slice(i + 1, j));
       const right = nodes.get(word.slice(i, j - 1));
-      if (left && !edges.some(e => (e.a === cur && e.b === left) || (e.a === left && e.b === cur)))
-        edges.push({ a: cur, b: left });
-      if (right && !edges.some(e => (e.a === cur && e.b === right) || (e.a === right && e.b === cur)))
-        edges.push({ a: cur, b: right });
+      if (left) addEdgeIfNew(cur, left, edges, edgeSet);
+      if (right) addEdgeIfNew(cur, right, edges, edgeSet);
     }
   }
 }
@@ -112,6 +124,7 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
 } {
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
+  const edgeSet = new Set<string>();
 
   const clean = normalizeText(text);
   const sentences = splitSentences(clean);
@@ -124,7 +137,7 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
     });
     sentences.forEach((sentence) => {
       const words = sentence.split(/\s+/).filter(Boolean);
-      buildInclusionEdges(words, nodes, edges);
+      buildInclusionEdges(words, nodes, edges, edgeSet);
     });
   }
 
@@ -135,7 +148,7 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
       sentence.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w))
     );
     allWords.forEach(word => buildCharSubstrings(word, nodes));
-    allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges));
+    allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges, edgeSet));
   }
 
   let minW = Infinity;

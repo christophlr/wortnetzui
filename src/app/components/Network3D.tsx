@@ -118,9 +118,9 @@ const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
   'phys-dmp': 'damping',
 };
 
-function interpolatePhysicsParam(kfs: PhysicsKeyframe[], time: number): number | null {
-  if (kfs.length === 0) return null;
-  const sorted = [...kfs].sort((a, b) => a.time - b.time);
+/** Interpolate a physics param from pre-sorted keyframes (sorted once on change, not per frame). */
+function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
+  if (sorted.length === 0) return null;
   if (time <= sorted[0].time) return sorted[0].value;
   if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
   for (let i = 0; i < sorted.length - 1; i++) {
@@ -225,7 +225,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { physicsKeyframesRef.current = physicsKeyframes ?? {}; }, [physicsKeyframes]);
+  useEffect(() => {
+    // Pre-sort keyframes once on change instead of per-frame in interpolatePhysicsParam
+    const raw = physicsKeyframes ?? {};
+    const sorted: Record<string, PhysicsKeyframe[]> = {};
+    for (const [trackId, kfs] of Object.entries(raw)) {
+      sorted[trackId] = [...kfs].sort((a, b) => a.time - b.time);
+    }
+    physicsKeyframesRef.current = sorted;
+  }, [physicsKeyframes]);
   useEffect(() => { colorSettingsRef.current = colorSettings; }, [colorSettings]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {

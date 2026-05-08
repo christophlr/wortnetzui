@@ -92,13 +92,12 @@ export function applyPhysics(
       const diff = Math.abs(a.wordCount - b.wordCount);
       const differenceFactor = 1 + diff * 0.15;
 
-      // Calculate force
-      let force = (repulsion * sentenceMod * differenceFactor) / distSq;
-      force = Math.min(force, 40); // Cap max force
-
-      const fx = (dx / dist) * force;
-      const fy = (dy / dist) * force;
-      const fz = (dz / dist) * force;
+      // Calculate force — fused magnitude + direction to save a division per pair
+      const force = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 40);
+      const invDist = 1 / dist;
+      const fx = dx * invDist * force;
+      const fy = dy * invDist * force;
+      const fz = dz * invDist * force;
 
       a.vx += fx;
       a.vy += fy;
