@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { solveBezierEasing, applyEasing, computeAutoWeights } from '../easing';
 import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackground } from '../networkTheme';
+import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
+import { applyPhysics, rebuildPhysicsCache } from '../graph';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
@@ -35,38 +37,12 @@ interface Network3DProps {
   edgeAppearance?: { color: 'auto' | string };
 }
 
-interface GraphNode {
-  label: string;
-  wordCount: number;
-  sentenceIds: Set<number>;
-  x: number;
-  y: number;
-  z: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  mesh?: THREE.Mesh;
-  textSprite?: THREE.Sprite;
-}
 
-interface GraphEdge {
-  a: GraphNode;
-  b: GraphNode;
-  line?: THREE.Line;
-}
 
 
 const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes, far away up the hill. It was 3am that day, cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write, I write like a ritual over and over. The more exist the more I go I fly, they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
 
-const DEFAULT_PHYSICS = {
-  repulsion: 1500,
-  springK: 0.06,
-  damping: 0.88,
-  minSpeed: 0.5,
-  linkDistance: 80,
-  gravity: 0,
-  turbulence: 0,
-};
+
 
 /* ── THEME-AWARE BACKGROUND COLORS ── */
 const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
@@ -136,7 +112,7 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   });
 }
 
-const PHYS_TRACK_PARAM: Record<string, keyof typeof DEFAULT_PHYSICS> = {
+const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
   'phys-rep': 'repulsion',
   'phys-spk': 'springK',
   'phys-dmp': 'damping',
@@ -293,149 +269,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  /* ── TEXT PARSING ── */
-  const normalizeText = (text: string) => {
-    return text
-      .replace(/[,!?;:()"""]/g, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .toUpperCase();
-  };
 
-  const splitSentences = (text: string) => {
-    return text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
-  };
-
-  const buildSubstrings = (words: string[], sentenceId: number, nodes: Map<string, GraphNode>) => {
-    const n = words.length;
-
-    // Create all possible substrings
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j <= n; j++) {
-        const sub = words.slice(i, j).join(' ');
-        if (!nodes.has(sub)) {
-          nodes.set(sub, {
-            label: sub,
-            wordCount: j - i,
-            sentenceIds: new Set([sentenceId]),
-            x: 0, y: 0, z: 0,
-            vx: 0, vy: 0, vz: 0
-          });
-        } else {
-          nodes.get(sub)!.sentenceIds.add(sentenceId);
-        }
-      }
-    }
-  };
-
-  const buildInclusionEdges = (words: string[], nodes: Map<string, GraphNode>, edges: GraphEdge[]) => {
-    const n = words.length;
-
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j <= n; j++) {
-        if (j - i <= 1) continue; // Need at least 2 words to create sub-edges
-
-        const curLabel = words.slice(i, j).join(' ');
-        const cur = nodes.get(curLabel);
-        if (!cur) continue;
-
-        // Left substring: remove first word
-        const leftLabel = words.slice(i + 1, j).join(' ');
-        const left = nodes.get(leftLabel);
-
-        // Right substring: remove last word
-        const rightLabel = words.slice(i, j - 1).join(' ');
-        const right = nodes.get(rightLabel);
-
-        // Add edges if not already present
-        if (left && !edges.some(e =>
-          (e.a === cur && e.b === left) || (e.a === left && e.b === cur)
-        )) {
-          edges.push({ a: cur, b: left });
-        }
-
-        if (right && !edges.some(e =>
-          (e.a === cur && e.b === right) || (e.a === right && e.b === cur)
-        )) {
-          edges.push({ a: cur, b: right });
-        }
-      }
-    }
-  };
-
-  const buildCharSubstrings = (word: string, nodes: Map<string, GraphNode>) => {
-    const n = word.length;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j <= n; j++) {
-        const sub = word.slice(i, j);
-        if (!nodes.has(sub)) {
-          nodes.set(sub, {
-            label: sub,
-            wordCount: j - i,
-            sentenceIds: new Set(),
-            x: 0, y: 0, z: 0,
-            vx: 0, vy: 0, vz: 0,
-          });
-        }
-      }
-    }
-  };
-
-  const buildCharInclusionEdges = (word: string, nodes: Map<string, GraphNode>, edges: GraphEdge[]) => {
-    const n = word.length;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j <= n; j++) {
-        if (j - i <= 1) continue;
-        const cur = nodes.get(word.slice(i, j));
-        if (!cur) continue;
-        const left = nodes.get(word.slice(i + 1, j));
-        const right = nodes.get(word.slice(i, j - 1));
-        if (left && !edges.some(e => (e.a === cur && e.b === left) || (e.a === left && e.b === cur)))
-          edges.push({ a: cur, b: left });
-        if (right && !edges.some(e => (e.a === cur && e.b === right) || (e.a === right && e.b === cur)))
-          edges.push({ a: cur, b: right });
-      }
-    }
-  };
-
-  const buildNetworkFromText = (text: string, mode: 'sentence' | 'word' | 'both') => {
-    const nodes = new Map<string, GraphNode>();
-    const edges: GraphEdge[] = [];
-
-    const clean = normalizeText(text);
-    const sentences = splitSentences(clean);
-
-    // Word n-gram layer (Satzebene)
-    if (mode === 'sentence' || mode === 'both') {
-      sentences.forEach((sentence, sentenceId) => {
-        const words = sentence.split(/\s+/).filter(Boolean);
-        buildSubstrings(words, sentenceId, nodes);
-      });
-      sentences.forEach((sentence) => {
-        const words = sentence.split(/\s+/).filter(Boolean);
-        buildInclusionEdges(words, nodes, edges);
-      });
-    }
-
-    // Character n-gram layer (Wortebene)
-    if (mode === 'word' || mode === 'both') {
-      const allWords = new Set<string>();
-      sentences.forEach(sentence =>
-        sentence.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w))
-      );
-      allWords.forEach(word => buildCharSubstrings(word, nodes));
-      allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges));
-    }
-
-    let minW = Infinity;
-    let maxW = -Infinity;
-    nodes.forEach(node => {
-      minW = Math.min(minW, node.wordCount);
-      maxW = Math.max(maxW, node.wordCount);
-    });
-
-    return { nodes, edges, minWords: minW, maxWords: maxW };
-  };
 
   /* ── INITIAL LAYOUT (ORGANIC SPHERE) ── */
   const arrangeNodesCone3D = (nodes: Map<string, GraphNode>, minWords: number, maxWords: number) => {
@@ -480,153 +314,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
   };
 
-  /* ── PHYSICS CACHE ── */
-  const rebuildPhysicsCache = (nodes: Map<string, GraphNode>) => {
-    const arr = Array.from(nodes.values());
-    graphNodeArrayRef.current = arr;
-    const n = arr.length;
-    const matrix = new Uint8Array(n * n);
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        for (const id of arr[i].sentenceIds) {
-          if (arr[j].sentenceIds.has(id)) {
-            matrix[i * n + j] = 1;
-            matrix[j * n + i] = 1;
-            break;
-          }
-        }
-      }
-    }
-    sharedPairMatrixRef.current = matrix;
-  };
 
-  /* ── PHYSICS ENGINE ── */
-  const applyPhysics = (
-    nodes: Map<string, GraphNode>,
-    edges: GraphEdge[],
-    params: typeof DEFAULT_PHYSICS,
-    nodeArr?: GraphNode[],
-    sharedMatrix?: Uint8Array
-  ): number => {
-    const nodeArray = nodeArr ?? Array.from(nodes.values());
-    const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence } = params;
 
-    // Reset forces
-    nodeArray.forEach(node => {
-      node.vx *= damping;
-      node.vy *= damping;
-      node.vz *= damping;
 
-      // Gravity toward origin
-      if (gravity > 0) {
-        node.vx -= node.x * gravity * 0.001;
-        node.vy -= node.y * gravity * 0.001;
-        node.vz -= node.z * gravity * 0.001;
-      }
-
-      // Turbulence: random impulse each frame
-      if (turbulence > 0) {
-        node.vx += (Math.random() - 0.5) * turbulence * 0.5;
-        node.vy += (Math.random() - 0.5) * turbulence * 0.5;
-        node.vz += (Math.random() - 0.5) * turbulence * 0.5;
-      }
-    });
-
-    // Repulsion (O(n²))
-    const n = nodeArray.length;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const a = nodeArray[i];
-        const b = nodeArray[j];
-
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dz = a.z - b.z;
-        const distSq = dx * dx + dy * dy + dz * dz + 1;
-        const dist = Math.sqrt(distSq);
-
-        // Use precomputed matrix when available, else fall back to set iteration
-        let sharedSentence: boolean;
-        if (sharedMatrix) {
-          sharedSentence = sharedMatrix[i * n + j] === 1;
-        } else {
-          sharedSentence = false;
-          for (const id of a.sentenceIds) {
-            if (b.sentenceIds.has(id)) { sharedSentence = true; break; }
-          }
-        }
-
-        // Modulation: 0.6 if shared, 1.5 otherwise (less extreme)
-        const sentenceMod = sharedSentence ? 0.6 : 1.5;
-
-        // Difference factor based on word count difference (reduced impact)
-        const diff = Math.abs(a.wordCount - b.wordCount);
-        const differenceFactor = 1 + diff * 0.15;
-
-        // Calculate force
-        let force = (repulsion * sentenceMod * differenceFactor) / distSq;
-        force = Math.min(force, 40); // Cap max force
-
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-        const fz = (dz / dist) * force;
-
-        a.vx += fx;
-        a.vy += fy;
-        a.vz += fz;
-        b.vx -= fx;
-        b.vy -= fy;
-        b.vz -= fz;
-      }
-    }
-
-    // Spring attraction along edges with rest-length
-    edges.forEach(edge => {
-      const dx = edge.b.x - edge.a.x;
-      const dy = edge.b.y - edge.a.y;
-      const dz = edge.b.z - edge.a.z;
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
-
-      // Displacement from rest length
-      const displacement = dist - linkDistance;
-      const forceMag = displacement * springK;
-
-      const fx = (dx / dist) * forceMag;
-      const fy = (dy / dist) * forceMag;
-      const fz = (dz / dist) * forceMag;
-
-      edge.a.vx += fx;
-      edge.a.vy += fy;
-      edge.a.vz += fz;
-      edge.b.vx -= fx;
-      edge.b.vy -= fy;
-      edge.b.vz -= fz;
-    });
-
-    // Apply velocity with speed limit and track total movement
-    const maxSpeed = 20;
-    let totalMovement = 0;
-
-    nodeArray.forEach(node => {
-      const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy + node.vz * node.vz);
-
-      if (speed > maxSpeed) {
-        node.vx = (node.vx / speed) * maxSpeed;
-        node.vy = (node.vy / speed) * maxSpeed;
-        node.vz = (node.vz / speed) * maxSpeed;
-      }
-
-      // Apply minimum speed threshold
-      if (speed > minSpeed) {
-        node.x += node.vx;
-        node.y += node.vy;
-        node.z += node.vz;
-        totalMovement += speed;
-      }
-    });
-
-    return totalMovement / nodeArray.length; // Average movement
-  };
 
   const syncGraphVisuals = (nodes: Map<string, GraphNode>, edges: GraphEdge[], nodeArr?: GraphNode[]) => {
     const arr = nodeArr ?? Array.from(nodes.values());
@@ -888,7 +578,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     graphEdgesRef.current = edges;
     minWordsRef.current = minWords;
     maxWordsRef.current = maxWords;
-    rebuildPhysicsCache(nodes);
+    const physCache = rebuildPhysicsCache(nodes);
+    graphNodeArrayRef.current = physCache.nodeArray;
+    sharedPairMatrixRef.current = physCache.sharedPairMatrix;
 
     // Create edges (adjustable lines)
     const edgeColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
