@@ -8,14 +8,17 @@ import { segmentBezierPath, computeAutoWeights } from '../easing';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
+type SceneMarker = { time: number; label: string };
+
 interface TimelineProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onStop: () => void;
   playheadPosition: number;
   onPlayheadChange: (pos: number) => void;
-  selectedKeyframe: { track: string; time: number } | null;
-  onKeyframeSelect: (track: string, time: number) => void;
+  selectedKeyframes: { track: string; time: number }[];
+  onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
+  onSelectKeyframes?: (kfs: { track: string; time: number }[]) => void;
   cameraKeyframes?: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   onCaptureKeyframe?: () => void;
@@ -32,6 +35,11 @@ interface TimelineProps {
   canUndo?: boolean;
   canRedo?: boolean;
   height?: number;
+  sceneMarkers?: SceneMarker[];
+  onAddSceneMarker?: (time: number) => void;
+  onMoveSceneMarker?: (oldTime: number, newTime: number) => void;
+  onDeleteSceneMarker?: (time: number) => void;
+  onRenameSceneMarker?: (time: number, label: string) => void;
 }
 
 interface ViewWindow {
@@ -578,14 +586,14 @@ function EasingTrackRow({
 /* ── Track row ── */
 
 function TrackRow({
-  track, color, selectedKeyframe, onKeyframeSelect, onMoveKeyframe, onKeyframeContextMenu,
+  track, color, selectedKeyframes, onKeyframeSelect, onMoveKeyframe, onKeyframeContextMenu,
   onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
   track: { id: string; name: string; kfs: number[]; graph: boolean };
   color: keyof typeof COLOR;
-  selectedKeyframe: { track: string; time: number } | null;
-  onKeyframeSelect: (track: string, time: number) => void;
+  selectedKeyframes: { track: string; time: number }[];
+  onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
   onDragStart?: () => void;
@@ -650,21 +658,22 @@ function TrackRow({
         {track.kfs.map((t, idx) => {
           const leftPct = ((t - viewWindow.start) / visibleDuration) * 100;
           if (leftPct < -2 || leftPct > 102) return null;
-          const selected = selectedKeyframe?.track === track.id && selectedKeyframe?.time === t;
+          const selected = selectedKeyframes.some(s => s.track === track.id && Math.abs(s.time - t) < 0.01);
           const onPlayhead = !selected && Math.abs(t - playheadPosition) < 0.1;
           return (
             <button
               key={`${track.id}-${t}-${idx}`}
+              data-keyframe="true"
               onMouseDown={e => {
                 e.stopPropagation();
                 onDragStart?.();
                 setDraggingKf({ time: t, startX: e.clientX });
-                onKeyframeSelect(track.id, t);
+                onKeyframeSelect(track.id, t, e.shiftKey || e.metaKey || e.ctrlKey);
               }}
               onContextMenu={e => {
                 e.preventDefault();
                 e.stopPropagation();
-                onKeyframeSelect(track.id, t);
+                onKeyframeSelect(track.id, t, false);
                 onKeyframeContextMenu?.(track.id, t, e.clientX, e.clientY);
               }}
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
@@ -691,18 +700,175 @@ function TrackRow({
   );
 }
 
+/* ── Scene marker lane ── */
+
+function SceneMarkerLane({
+  markers, contentRef, viewWindow, duration, snap,
+  onAdd, onMove, onDelete, onRename, onDragStart, onDragEnd,
+}: {
+  markers: SceneMarker[];
+  contentRef: React.RefObject<HTMLDivElement | null>;
+  viewWindow: ViewWindow;
+  duration: number;
+  snap: boolean;
+  onAdd: (time: number) => void;
+  onMove: (oldTime: number, newTime: number) => void;
+  onDelete: (time: number) => void;
+  onRename: (time: number, label: string) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+}) {
+  const [draggingMarker, setDraggingMarker] = useState<{ time: number } | null>(null);
+  const [editingMarker, setEditingMarker] = useState<number | null>(null);
+  const [markerContextMenu, setMarkerContextMenu] = useState<{ time: number; x: number; y: number } | null>(null);
+  const visibleDuration = viewWindow.end - viewWindow.start;
+
+  const timeFromClientX = useCallback((clientX: number) => {
+    if (!contentRef.current) return null;
+    const rect = contentRef.current.getBoundingClientRect();
+    const rightW = rect.width - LABEL_W;
+    const x = clientX - rect.left - LABEL_W;
+    const frac = x / rightW;
+    const raw = viewWindow.start + frac * visibleDuration;
+    const clamped = Math.max(0, Math.min(duration, raw));
+    if (snap) return Math.round(clamped * 2) / 2;
+    return clamped;
+  }, [snap, contentRef, duration, viewWindow, visibleDuration]);
+
+  useEffect(() => {
+    if (!draggingMarker) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newTime = timeFromClientX(e.clientX);
+      if (newTime !== null) {
+        onMove(draggingMarker.time, newTime);
+        setDraggingMarker({ time: newTime });
+      }
+    };
+    const handleMouseUp = () => {
+      onDragEnd?.();
+      setDraggingMarker(null);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingMarker, timeFromClientX, onMove, onDragEnd]);
+
+  return (
+    <div className="flex border-b border-purple-500/20 shrink-0" style={{ height: 28 }}>
+      {/* Label */}
+      <div
+        className="shrink-0 flex items-center pl-3 pr-2 border-r border-border bg-background"
+        style={{ width: LABEL_W }}
+      >
+        <span className="text-[9px] font-semibold text-purple-400/70 uppercase tracking-widest">Scene Markers</span>
+      </div>
+      {/* Track area */}
+      <div
+        className="flex-1 relative bg-purple-950/10 overflow-visible cursor-crosshair"
+        onClick={e => {
+          const target = e.target as Element;
+          if (target.closest('[data-scene-marker]')) return;
+          const time = timeFromClientX(e.clientX);
+          if (time !== null) onAdd(time);
+        }}
+      >
+        {markers.map(marker => {
+          const pct = ((marker.time - viewWindow.start) / visibleDuration) * 100;
+          if (pct < -3 || pct > 103) return null;
+          const isEditing = editingMarker === marker.time;
+          return (
+            <div
+              key={`sm-${marker.time}`}
+              data-scene-marker="true"
+              className="absolute top-0 z-10 flex flex-col items-center"
+              style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
+            >
+              {/* Guide line spanning full height of tracks */}
+              <div
+                className="absolute w-px bg-purple-400/20 pointer-events-none"
+                style={{ top: 0, height: '999px' }}
+              />
+              <button
+                data-scene-marker="true"
+                className="relative cursor-grab active:cursor-grabbing group"
+                onMouseDown={e => {
+                  if (e.button !== 0) return;
+                  e.stopPropagation();
+                  onDragStart?.();
+                  setDraggingMarker({ time: marker.time });
+                }}
+                onContextMenu={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMarkerContextMenu({ time: marker.time, x: e.clientX, y: e.clientY });
+                }}
+                onDoubleClick={e => { e.stopPropagation(); setEditingMarker(marker.time); }}
+                title={`${marker.label} — drag to move all keyframes at this time`}
+              >
+                <svg width="16" height="18" viewBox="0 0 16 18" className="drop-shadow-sm group-hover:scale-110 transition-transform">
+                  <path d="M 1 1 L 15 1 L 15 11 L 8 18 L 1 11 Z" fill="#a855f7" fillOpacity="0.8" stroke="#c084fc" strokeWidth="1" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {isEditing ? (
+                <input
+                  autoFocus
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[9px] bg-zinc-900 border border-purple-500/60 rounded px-1.5 py-0.5 text-purple-100 w-24 z-50 outline-none"
+                  defaultValue={marker.label}
+                  onBlur={e => { onRename(marker.time, e.target.value); setEditingMarker(null); }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { onRename(marker.time, e.currentTarget.value); setEditingMarker(null); }
+                    if (e.key === 'Escape') setEditingMarker(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                />
+              ) : (
+                <span className="text-[8px] text-purple-400/60 whitespace-nowrap leading-none mt-0.5 max-w-[60px] truncate select-none pointer-events-none">
+                  {marker.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
+        {markerContextMenu && createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMarkerContextMenu(null)} />
+            <div
+              className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-1 shadow-2xl min-w-[120px]"
+              style={{ left: markerContextMenu.x, top: markerContextMenu.y }}
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button
+                className="w-full text-left text-[11px] text-zinc-300 hover:text-white hover:bg-zinc-700/60 px-3 py-1.5 rounded-lg transition-colors"
+                onClick={() => { setEditingMarker(markerContextMenu.time); setMarkerContextMenu(null); }}
+              >Rename</button>
+              <button
+                className="w-full text-left text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                onClick={() => { onDelete(markerContextMenu.time); setMarkerContextMenu(null); }}
+              >Delete</button>
+            </div>
+          </>,
+          document.body
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframe, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
+  group, expanded, onToggle, selectedKeyframes, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
   onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
   onToggle: () => void;
-  selectedKeyframe: { track: string; time: number } | null;
-  onKeyframeSelect: (track: string, time: number) => void;
+  selectedKeyframes: { track: string; time: number }[];
+  onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
@@ -762,7 +928,7 @@ function TrackGroup({
             <TrackRow
               track={{ ...track, kfs: dynamicKfs }}
               color={group.color}
-              selectedKeyframe={selectedKeyframe}
+              selectedKeyframes={selectedKeyframes}
               onKeyframeSelect={onKeyframeSelect}
               onMoveKeyframe={onMoveKeyframe}
               onKeyframeContextMenu={onKeyframeContextMenu}
@@ -800,8 +966,9 @@ export function Timeline({
   onStop,
   playheadPosition,
   onPlayheadChange,
-  selectedKeyframe,
+  selectedKeyframes,
   onKeyframeSelect,
+  onSelectKeyframes,
   cameraKeyframes = [],
   physicsKeyframes,
   onCaptureKeyframe,
@@ -818,6 +985,11 @@ export function Timeline({
   canUndo = false,
   canRedo = false,
   height = 268,
+  sceneMarkers = [],
+  onAddSceneMarker,
+  onMoveSceneMarker,
+  onDeleteSceneMarker,
+  onRenameSceneMarker,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
   const [zoom, setZoom] = useState(1);
@@ -826,6 +998,8 @@ export function Timeline({
   const [duration, setDuration] = useState(TIMELINE_DURATION);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string; time: number } | null>(null);
   const [clipboard, setClipboard] = useState<{ trackId: string; time: number } | null>(null);
+  const [dragSelect, setDragSelect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const dragSelectActiveRef = useRef(false);
 
   useEffect(() => {
     let maxKfTime = cameraKeyframes.reduce((max, s) => Math.max(max, s.time), 0);
@@ -930,22 +1104,74 @@ export function Timeline({
     return () => el.removeEventListener('wheel', handleWheel);
   }, [duration]);
 
+  // Drag-select rectangle
+  useEffect(() => {
+    if (!dragSelect) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      setDragSelect(prev => prev ? { ...prev, endX: e.clientX, endY: e.clientY } : null);
+    };
+    const handleMouseUp = (e: MouseEvent) => {
+      dragSelectActiveRef.current = false;
+      if (!dragSelect) { setDragSelect(null); return; }
+      const rect = contentRef.current?.getBoundingClientRect();
+      if (rect && onSelectKeyframes) {
+        const minX = Math.min(dragSelect.startX, e.clientX);
+        const maxX = Math.max(dragSelect.startX, e.clientX);
+        const minY = Math.min(dragSelect.startY, e.clientY);
+        const maxY = Math.max(dragSelect.startY, e.clientY);
+        if (maxX - minX > 5 || maxY - minY > 5) {
+          const rightW = rect.width - LABEL_W;
+          const visibleDur = viewWindow.end - viewWindow.start;
+          const hits: { track: string; time: number }[] = [];
+          const trackAreaLeft = rect.left + LABEL_W;
+          const checkTime = (t: number) => {
+            const kfX = trackAreaLeft + ((t - viewWindow.start) / visibleDur) * rightW;
+            return kfX >= minX && kfX <= maxX;
+          };
+          for (const kf of cameraKeyframes) {
+            if (checkTime(kf.time)) hits.push({ track: 'camera-keyframes', time: kf.time });
+          }
+          if (physicsKeyframes) {
+            for (const [trackId, kfs] of Object.entries(physicsKeyframes)) {
+              for (const kf of kfs) {
+                if (checkTime(kf.time)) hits.push({ track: trackId, time: kf.time });
+              }
+            }
+          }
+          onSelectKeyframes(hits);
+        }
+      }
+      setDragSelect(null);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragSelect, contentRef, cameraKeyframes, physicsKeyframes, viewWindow, onSelectKeyframes]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const isMod = e.metaKey || e.ctrlKey;
+      const primarySel = selectedKeyframes[0];
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedKeyframe) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedKeyframes.length > 0) {
         e.preventDefault();
-        onDeleteKeyframe?.(selectedKeyframe.track, selectedKeyframe.time);
-      } else if (isMod && e.key === 'c' && selectedKeyframe) {
+        for (const sel of selectedKeyframes) {
+          onDeleteKeyframe?.(sel.track, sel.time);
+        }
+      } else if (isMod && e.key === 'c' && primarySel) {
         e.preventDefault();
-        setClipboard({ trackId: selectedKeyframe.track, time: selectedKeyframe.time });
-      } else if (isMod && e.key === 'x' && selectedKeyframe) {
+        setClipboard({ trackId: primarySel.track, time: primarySel.time });
+      } else if (isMod && e.key === 'x' && primarySel) {
         e.preventDefault();
-        setClipboard({ trackId: selectedKeyframe.track, time: selectedKeyframe.time });
-        onDeleteKeyframe?.(selectedKeyframe.track, selectedKeyframe.time);
+        setClipboard({ trackId: primarySel.track, time: primarySel.time });
+        for (const sel of selectedKeyframes) {
+          onDeleteKeyframe?.(sel.track, sel.time);
+        }
       } else if (isMod && e.key === 'v' && clipboard) {
         e.preventDefault();
         onDuplicateKeyframe?.(clipboard.trackId, clipboard.time, playheadPosition);
@@ -959,7 +1185,7 @@ export function Timeline({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedKeyframe, clipboard, playheadPosition, onDeleteKeyframe, onDuplicateKeyframe, onUndo, onRedo]);
+  }, [selectedKeyframes, clipboard, playheadPosition, onDeleteKeyframe, onDuplicateKeyframe, onUndo, onRedo]);
 
   const stepFrame = (dir: number) =>
     onPlayheadChange(Math.max(0, Math.min(duration, playheadPosition + dir * (1 / 30))));
@@ -1012,6 +1238,19 @@ export function Timeline({
     });
   };
 
+  const hasKfAtPlayhead = useMemo(() => {
+    const t = playheadPosition;
+    if (cameraKeyframes.some(k => Math.abs(k.time - t) < 0.1)) return true;
+    if (physicsKeyframes) {
+      for (const kfs of Object.values(physicsKeyframes)) {
+        if (kfs.some(k => Math.abs(k.time - t) < 0.1)) return true;
+      }
+    }
+    return false;
+  }, [playheadPosition, cameraKeyframes, physicsKeyframes]);
+
+  const selCount = selectedKeyframes.length;
+
   return (
     <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height }}>
 
@@ -1028,12 +1267,21 @@ export function Timeline({
           </button>
           <button
             onClick={onCaptureKeyframe}
-            className="flex items-center gap-1 h-6 px-2.5 bg-teal-600/80 hover:bg-teal-600 text-white rounded border border-teal-500/60 transition-colors text-[10px] font-medium shadow-sm"
+            title={hasKfAtPlayhead ? 'Update keyframe at playhead' : 'Capture new keyframe at playhead'}
+            className={`flex items-center gap-1.5 h-6 px-2.5 rounded border transition-all text-[10px] font-medium shadow-sm
+              hover:scale-[1.03] active:scale-[0.97]
+              ${hasKfAtPlayhead
+                ? 'bg-amber-600/80 hover:bg-amber-500 border-amber-500/60 text-white hover:shadow-[0_0_6px_rgba(251,191,36,0.35)]'
+                : 'bg-teal-600/80  hover:bg-teal-500  border-teal-500/60  text-white hover:shadow-[0_0_6px_rgba(45,212,191,0.35)]'
+              }`}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <path d="M5 0 L10 5 L5 10 L0 5 Z" />
             </svg>
-            Keyframe
+            {hasKfAtPlayhead ? 'Update' : 'Keyframe'}
+            {selCount > 1 && (
+              <span className="ml-0.5 text-[9px] opacity-75 font-normal">({selCount})</span>
+            )}
           </button>
           <TBtn onClick={onUndo} title="Undo (⌘Z)" disabled={!canUndo}>
             <Undo2 size={11} />
@@ -1137,23 +1385,48 @@ export function Timeline({
         {/* Track rows */}
         <div
           className="flex-1 overflow-y-auto select-none"
-          onMouseDown={handleMouseDown}
+          onMouseDown={e => {
+            if (e.button !== 0) return;
+            const target = e.target as Element;
+            // Start drag-select if not on a keyframe button or scene marker
+            if (!target.closest('[data-keyframe]') && !target.closest('[data-scene-marker]')) {
+              dragSelectActiveRef.current = true;
+              setDragSelect({ startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY });
+            }
+            handleMouseDown(e);
+          }}
           onContextMenu={e => {
             e.preventDefault();
+            const primarySel = selectedKeyframes[0];
             setContextMenu({
               x: e.clientX, y: e.clientY,
-              trackId: selectedKeyframe?.track ?? 'camera-keyframes',
-              time: selectedKeyframe?.time ?? playheadPosition,
+              trackId: primarySel?.track ?? 'camera-keyframes',
+              time: primarySel?.time ?? playheadPosition,
             });
           }}
         >
+          {(onAddSceneMarker && onMoveSceneMarker && onDeleteSceneMarker && onRenameSceneMarker) && (
+            <SceneMarkerLane
+              markers={sceneMarkers}
+              contentRef={contentRef}
+              viewWindow={viewWindow}
+              duration={duration}
+              snap={snap}
+              onAdd={onAddSceneMarker}
+              onMove={onMoveSceneMarker}
+              onDelete={onDeleteSceneMarker}
+              onRename={onRenameSceneMarker}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          )}
           {TRACK_GROUPS.map(group => (
             <TrackGroup
               key={group.id}
               group={group}
               expanded={expanded[group.id]}
               onToggle={() => setExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
-              selectedKeyframe={selectedKeyframe}
+              selectedKeyframes={selectedKeyframes}
               onKeyframeSelect={onKeyframeSelect}
               cameraKeyframes={cameraKeyframes}
               physicsKeyframes={physicsKeyframes}
@@ -1185,13 +1458,27 @@ export function Timeline({
             <div className="absolute top-0 bottom-0 w-px bg-red-500/70" />
           </div>
         )}
+
+        {/* Drag-select rectangle */}
+        {dragSelect && (Math.abs(dragSelect.endX - dragSelect.startX) > 3 || Math.abs(dragSelect.endY - dragSelect.startY) > 3) && createPortal(
+          <div
+            className="fixed pointer-events-none z-50 border border-blue-400/70 bg-blue-400/10 rounded-sm"
+            style={{
+              left: Math.min(dragSelect.startX, dragSelect.endX),
+              top: Math.min(dragSelect.startY, dragSelect.endY),
+              width: Math.abs(dragSelect.endX - dragSelect.startX),
+              height: Math.abs(dragSelect.endY - dragSelect.startY),
+            }}
+          />,
+          document.body
+        )}
       </div>
 
       {/* Context menu */}
       {contextMenu && (() => {
-        const hasKeyframe = !!selectedKeyframe &&
-          selectedKeyframe.track === contextMenu.trackId &&
-          Math.abs(selectedKeyframe.time - contextMenu.time) < 0.01;
+        const hasKeyframe = selectedKeyframes.some(s =>
+          s.track === contextMenu.trackId && Math.abs(s.time - contextMenu.time) < 0.01
+        );
         return (
           <ContextMenu
             x={contextMenu.x}

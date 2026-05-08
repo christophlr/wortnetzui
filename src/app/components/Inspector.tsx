@@ -210,23 +210,34 @@ interface InspectorProps {
     turbulence: number;
   }) => void;
   onTextChange?: (text: string) => void;
+  onParsingChange?: (mode: 'sentence' | 'word' | 'both') => void;
   onColorChange?: (settings: { hueStart: number; hueEnd: number; saturation: number; lightness: number }) => void;
   onStyleChange?: (settings: { edgeOpacity: number; edgeWidth: number; nodeScale: number }) => void;
+  onNodeAppearanceChange?: (a: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string }) => void;
+  onEdgeAppearanceChange?: (a: { color: 'auto' | string }) => void;
   currentTime?: number;
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onDeleteKeyframe?: (time: number) => void;
   width?: number;
+  viewMode?: '2D' | '3D';
 }
+
+const PHYSICS_DEFAULTS_3D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 };
+const PHYSICS_DEFAULTS_2D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 3, turbulence: 0 };
 
 export function Inspector({
   onPhysicsChange,
   onTextChange,
+  onParsingChange,
   onColorChange,
   onStyleChange,
+  onNodeAppearanceChange,
+  onEdgeAppearanceChange,
   currentTime = 0,
   cameraKeyframes = [],
   onDeleteKeyframe,
   width = 268,
+  viewMode = '3D',
 }: InspectorProps = {}) {
   const [kfs, setKfs] = useState<Record<string, boolean>>({
     saturation: false, lightness: false,
@@ -250,6 +261,10 @@ export function Inspector({
   const [edgeOpacity, setEdgeOpacity] = useState([85]);
   const [edgeWidth, setEdgeWidth] = useState([2]);
   const [nodeScale, setNodeScale] = useState([100]);
+  const [nodeBorderColor, setNodeBorderColor] = useState<string | 'auto'>('auto');
+  const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
+  const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
+  const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
 
   const toggle = (k: string) => setKfs(prev => ({ ...prev, [k]: !prev[k] }));
 
@@ -270,6 +285,11 @@ export function Inspector({
   useEffect(() => {
     notifyPhysicsChange();
   }, [repulsionVal, springKVal, dampingVal, minSpeedVal, linkDistanceVal, gravityVal, turbulenceVal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync gravity default when viewMode switches
+  useEffect(() => {
+    setGravityVal([viewMode === '2D' ? 3 : 0]);
+  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify color changes
   useEffect(() => {
@@ -293,6 +313,20 @@ export function Inspector({
       nodeScale: nodeScale[0] / 100
     });
   }, [edgeOpacity, edgeWidth, nodeScale]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notify appearance changes
+  useEffect(() => {
+    onNodeAppearanceChange?.({ borderColor: nodeBorderColor, fillColor: nodeFillColor, textColor: nodeTextColor });
+  }, [nodeBorderColor, nodeFillColor, nodeTextColor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    onEdgeAppearanceChange?.({ color: edgeColor });
+  }, [edgeColor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notify parsing mode changes
+  useEffect(() => {
+    onParsingChange?.(parsingMode as 'sentence' | 'word' | 'both');
+  }, [parsingMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   return (
@@ -351,33 +385,33 @@ export function Inspector({
             <AccSection value="parsing" label="Parsing / Zerteilung" color="purple">
               <RadioGroup.Root value={parsingMode} onValueChange={setParsingMode} className="flex flex-col gap-1">
                 {[
-                  { value: 'sentence', label: 'Satzebene' },
-                  { value: 'word', label: 'Wortebene' },
-                  { value: 'both', label: 'Beides' },
+                  { value: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
+                  { value: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
+                  { value: 'both', label: 'Beides', desc: 'Beide Ebenen (Wörter als Brücke)' },
                 ].map(opt => (
-                  <label key={opt.value} className="flex items-center gap-2.5 h-7 cursor-pointer group">
-                    <RadioGroup.Item
-                      value={opt.value}
-                      className="w-3.5 h-3.5 rounded-full border border-border data-[state=checked]:border-purple-500 bg-input shrink-0 flex items-center justify-center transition-colors"
-                    >
-                      <RadioGroup.Indicator>
-                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                      </RadioGroup.Indicator>
-                    </RadioGroup.Item>
-                    <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
+                  <label key={opt.value} className="flex flex-col cursor-pointer group py-0.5">
+                    <div className="flex items-center gap-2.5 h-6">
+                      <RadioGroup.Item
+                        value={opt.value}
+                        className="w-3.5 h-3.5 rounded-full border border-border data-[state=checked]:border-purple-500 bg-input shrink-0 flex items-center justify-center transition-colors"
+                      >
+                        <RadioGroup.Indicator>
+                          <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                        </RadioGroup.Indicator>
+                      </RadioGroup.Item>
+                      <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
+                    </div>
+                    <span className="text-[9px] text-muted-foreground/60 pl-6">{opt.desc}</span>
                   </label>
                 ))}
               </RadioGroup.Root>
-              <p className="text-[9px] text-muted-foreground mt-2 leading-relaxed">
-                Bestimmt welche Ebenen in der Timeline keyframable sind.
-              </p>
             </AccSection>
           </Accordion.Root>
         </Tabs.Content>
 
         {/* VISUAL TAB */}
         <Tabs.Content value="visual" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['colors', 'style']}>
+          <Accordion.Root type="multiple" defaultValue={['colors', 'appearance', 'style']}>
             {/* COLORS */}
             <AccSection value="colors" label="Farben" color="purple">
               <span className="text-[10px] text-muted-foreground block mb-3">
@@ -428,6 +462,40 @@ export function Inspector({
                   displayFn={v => v[0] + '%'}
                   description="Helligkeit der Knotenbezeichnungen. Für helle oder dunkle Hintergründe anpassen."
                 />
+              </div>
+            </AccSection>
+
+            {/* APPEARANCE */}
+            <AccSection value="appearance" label="Erscheinungsbild" color="teal">
+              <div className="space-y-2">
+                {(
+                  [
+                    { label: 'Knoten: Rahmen', value: nodeBorderColor, set: setNodeBorderColor },
+                    { label: 'Knoten: Füllung', value: nodeFillColor, set: setNodeFillColor },
+                    { label: 'Knoten: Text', value: nodeTextColor, set: setNodeTextColor },
+                    { label: 'Kanten', value: edgeColor, set: setEdgeColor },
+                  ] as const
+                ).map(({ label, value, set }) => (
+                  <div key={label} className="flex items-center gap-2 h-[26px]">
+                    <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
+                    <input
+                      type="color"
+                      value={value === 'auto' ? '#6b7280' : value}
+                      onChange={e => set(e.target.value)}
+                      className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
+                      title={value === 'auto' ? 'Auto (gradient)' : value}
+                    />
+                    {value !== 'auto' && (
+                      <button
+                        onClick={() => set('auto')}
+                        className="text-[10px] text-muted-foreground hover:text-foreground px-1"
+                        title="Zurücksetzen"
+                      >
+                        ↺
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </AccSection>
 
@@ -610,6 +678,23 @@ export function Inspector({
                     step="0.1"
                     className="w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 font-mono"
                   />
+                </div>
+                <div className="pt-1 flex justify-end">
+                  <button
+                    onClick={() => {
+                      const d = viewMode === '2D' ? PHYSICS_DEFAULTS_2D : PHYSICS_DEFAULTS_3D;
+                      setRepulsionVal([d.repulsion]);
+                      setSpringKVal([d.springK]);
+                      setDampingVal([d.damping]);
+                      setMinSpeedVal(d.minSpeed);
+                      setLinkDistanceVal([d.linkDistance]);
+                      setGravityVal([d.gravity]);
+                      setTurbulenceVal([d.turbulence]);
+                    }}
+                    className="px-2 h-6 text-[10px] text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 border border-border rounded transition-colors"
+                  >
+                    Reset Defaults
+                  </button>
                 </div>
               </div>
             </AccSection>

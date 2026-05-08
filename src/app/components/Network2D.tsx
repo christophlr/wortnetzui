@@ -5,6 +5,7 @@ import { defaultNetworkColorSettings, getNetworkLabelStyle, getNetworkThemeBackg
 
 interface Network2DProps {
   inputText?: string;
+  parseMode?: 'sentence' | 'word' | 'both';
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   physicsParams?: {
@@ -80,13 +81,53 @@ const buildInclusionEdges = (words: string[], nodes: Map<string, GraphNode>, edg
   }
 };
 
-const buildNetworkFromText = (text: string) => {
+const buildCharSubstrings = (word: string, nodes: Map<string, GraphNode>) => {
+  const n = word.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j <= n; j++) {
+      const sub = word.slice(i, j);
+      if (!nodes.has(sub)) {
+        nodes.set(sub, { label: sub, wordCount: j - i, sentenceIds: new Set(), x: 0, y: 0, vx: 0, vy: 0 });
+      }
+    }
+  }
+};
+
+const buildCharInclusionEdges = (word: string, nodes: Map<string, GraphNode>, edges: GraphEdge[]) => {
+  const n = word.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j <= n; j++) {
+      if (j - i <= 1) continue;
+      const cur = nodes.get(word.slice(i, j));
+      if (!cur) continue;
+      const left = nodes.get(word.slice(i + 1, j));
+      const right = nodes.get(word.slice(i, j - 1));
+      if (left && !edges.some(e => (e.a === cur && e.b === left) || (e.a === left && e.b === cur)))
+        edges.push({ a: cur, b: left });
+      if (right && !edges.some(e => (e.a === cur && e.b === right) || (e.a === right && e.b === cur)))
+        edges.push({ a: cur, b: right });
+    }
+  }
+};
+
+const buildNetworkFromText = (text: string, mode: 'sentence' | 'word' | 'both' = 'sentence') => {
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
   const clean = normalizeText(text);
   const sentences = splitSentences(clean);
-  sentences.forEach((s, id) => buildSubstrings(s.split(/\s+/).filter(Boolean), id, nodes));
-  sentences.forEach(s => buildInclusionEdges(s.split(/\s+/).filter(Boolean), nodes, edges));
+
+  if (mode === 'sentence' || mode === 'both') {
+    sentences.forEach((s, id) => buildSubstrings(s.split(/\s+/).filter(Boolean), id, nodes));
+    sentences.forEach(s => buildInclusionEdges(s.split(/\s+/).filter(Boolean), nodes, edges));
+  }
+
+  if (mode === 'word' || mode === 'both') {
+    const allWords = new Set<string>();
+    sentences.forEach(s => s.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w)));
+    allWords.forEach(word => buildCharSubstrings(word, nodes));
+    allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges));
+  }
+
   let minW = Infinity, maxW = -Infinity;
   nodes.forEach(n => { minW = Math.min(minW, n.wordCount); maxW = Math.max(maxW, n.wordCount); });
   return { nodes, edges, minWords: minW, maxWords: maxW };
@@ -214,23 +255,34 @@ const createTextSprite2D = (text: string, color: string, highlighted = false, no
   const logicalWidth = maxWidth + padding * 2;
   const logicalHeight = words.length * lineHeight + padding * 2;
 
-  offscreen.width = Math.ceil(logicalWidth * pixelRatio);
-  offscreen.height = Math.ceil(logicalHeight * pixelRatio);
+  // Outside stroke lives in transparent canvas margin so it never overlaps the node border
+  const outlineStroke = highlighted ? 3 : 0;
+  const outlineGap = highlighted ? 2 : 0;
+  const outlineMargin = outlineStroke + outlineGap;
+
+  const canvasLogicalWidth = logicalWidth + outlineMargin * 2;
+  const canvasLogicalHeight = logicalHeight + outlineMargin * 2;
+
+  offscreen.width = Math.ceil(canvasLogicalWidth * pixelRatio);
+  offscreen.height = Math.ceil(canvasLogicalHeight * pixelRatio);
   ctx.scale(pixelRatio, pixelRatio);
 
   ctx.fillStyle = getNetworkLabelStyle().backgroundHex;
-  ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+  ctx.fillRect(outlineMargin, outlineMargin, logicalWidth, logicalHeight);
 
-  ctx.strokeStyle = highlighted ? 'rgba(255,255,255,0.95)' : color;
-  ctx.lineWidth = highlighted ? 4 : 1.5;
-  ctx.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
-
-  if (highlighted) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 1;
-    words.forEach((word, i) => {
-      ctx.strokeText(word, logicalWidth / 2, padding + lineHeight / 2 + i * lineHeight);
-    });
+  if (!highlighted) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(outlineMargin + 1, outlineMargin + 1, logicalWidth - 2, logicalHeight - 2);
+  } else {
+    const pathOff = outlineMargin - outlineGap - outlineStroke / 2;
+    const pathW = logicalWidth + 2 * (outlineGap + outlineStroke / 2);
+    const pathH = logicalHeight + 2 * (outlineGap + outlineStroke / 2);
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = outlineStroke;
+    ctx.beginPath();
+    ctx.roundRect(pathOff, pathOff, pathW, pathH, 5);
+    ctx.stroke();
   }
 
   ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
@@ -238,7 +290,7 @@ const createTextSprite2D = (text: string, color: string, highlighted = false, no
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   words.forEach((word, i) => {
-    ctx.fillText(word, logicalWidth / 2, padding + lineHeight / 2 + i * lineHeight);
+    ctx.fillText(word, outlineMargin + logicalWidth / 2, outlineMargin + padding + lineHeight / 2 + i * lineHeight);
   });
 
   const texture = new THREE.CanvasTexture(offscreen);
@@ -246,8 +298,8 @@ const createTextSprite2D = (text: string, color: string, highlighted = false, no
   const sprite = new THREE.Sprite(material);
 
   const wordCountFactor = Math.max(0.5, 1 - words.length * 0.04);
-  const baseScale = logicalWidth * wordCountFactor;
-  const aspectRatio = logicalHeight / logicalWidth;
+  const baseScale = canvasLogicalWidth * wordCountFactor;
+  const aspectRatio = canvasLogicalHeight / canvasLogicalWidth;
   sprite.scale.set(baseScale * nodeScale, baseScale * nodeScale * aspectRatio, 1);
   sprite.userData.baseScale = baseScale;
   sprite.userData.aspectRatio = aspectRatio;
@@ -265,6 +317,7 @@ const disposeSprite = (sprite: THREE.Sprite) => {
 
 export function Network2D({
   inputText = DEFAULT_TEXT,
+  parseMode = 'sentence',
   colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   physicsParams = DEFAULT_PHYSICS_2D,
@@ -323,7 +376,7 @@ export function Network2D({
     controlsRef.current = controls;
 
     // Build graph
-    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
+    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText, parseMode);
     scatterNodes2D(nodes, w, h);
     graphNodesRef.current = nodes;
     graphEdgesRef.current = edges;
@@ -452,10 +505,16 @@ export function Network2D({
       ro.disconnect();
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       controls.dispose();
+      edges.forEach(e => {
+        if (e.line) {
+          e.line.geometry.dispose();
+          (e.line.material as THREE.Material).dispose();
+        }
+      });
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inputText, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── COLOR SETTINGS ── */
   useEffect(() => {

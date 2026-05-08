@@ -11,6 +11,8 @@ interface TopBarProps {
   onLoadState?: () => void;
   theme?: 'light' | 'dark' | 'system';
   onThemeChange?: (theme: 'light' | 'dark' | 'system') => void;
+  renderMode?: 'edit' | 'render';
+  onRenderModeChange?: (mode: 'edit' | 'render') => void;
 }
 
 function NetworkLogo() {
@@ -36,7 +38,8 @@ function NetworkLogo() {
 
 export function TopBar({
   viewMode, onViewModeChange,
-  onSaveState, onLoadState, theme = 'system', onThemeChange
+  onSaveState, onLoadState, theme = 'system', onThemeChange,
+  renderMode = 'edit', onRenderModeChange,
 }: TopBarProps) {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
 
@@ -112,6 +115,24 @@ export function TopBar({
               className={`px-3 text-[11px] transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
                 viewMode === mode
                   ? 'bg-blue-600 text-white'
+                  : 'text-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-4 w-px bg-border" />
+
+        <div className="flex h-6 rounded overflow-hidden border border-border bg-background">
+          {(['edit', 'render'] as const).map((mode, i) => (
+            <button
+              key={mode}
+              onClick={() => onRenderModeChange?.(mode)}
+              className={`px-3 text-[11px] transition-colors capitalize ${i > 0 ? 'border-l border-border' : ''} ${
+                renderMode === mode
+                  ? 'bg-purple-600 text-white'
                   : 'text-foreground hover:text-foreground hover:bg-muted'
               }`}
             >

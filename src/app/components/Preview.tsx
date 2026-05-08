@@ -20,10 +20,17 @@ interface PreviewProps {
   };
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   inputText?: string;
+  parseMode?: 'sentence' | 'word' | 'both';
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onCameraChange?: () => void;
+  isDark?: boolean;
+  isNetworkReady?: boolean;
+  onNetworkReady?: () => void;
+  renderMode?: 'edit' | 'render';
+  nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
+  edgeAppearance?: { color: 'auto' | string };
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -34,11 +41,18 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   physicsParams,
   physicsKeyframes,
   inputText,
+  parseMode,
   colorSettings,
   styleSettings,
   cameraKeyframes,
   onCameraChange,
   theme,
+  isDark,
+  isNetworkReady,
+  onNetworkReady,
+  renderMode,
+  nodeAppearance,
+  edgeAppearance,
 }: PreviewProps, ref) {
   return (
     <div className="flex-1 bg-background relative overflow-hidden">
@@ -51,13 +65,26 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
           physicsParams={physicsParams}
           physicsKeyframes={physicsKeyframes}
           inputText={inputText}
+          parseMode={parseMode}
           colorSettings={colorSettings}
           styleSettings={styleSettings}
           cameraKeyframes={cameraKeyframes}
           onCameraChange={onCameraChange}
           theme={theme}
+          isDark={isDark}
+          onReady={onNetworkReady}
+          renderMode={renderMode}
+          nodeAppearance={nodeAppearance}
+          edgeAppearance={edgeAppearance}
         />
       </div>
+
+      {/* Loading overlay — shown while scene is rebuilding */}
+      {!isNetworkReady && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm pointer-events-none">
+          <div className="w-8 h-8 rounded-full border-2 border-muted border-t-foreground/60 animate-spin" />
+        </div>
+      )}
 
       {/* Top-left badges - visible in both modes */}
       <div className="absolute top-3 left-3 flex items-center gap-1.5 pointer-events-none z-10">

@@ -26,17 +26,19 @@ export function solveBezierEasing(t: number, outWeight: number, inWeight: number
   return s * s * (3 - 2 * s); // smoothstep
 }
 
-// Auto-bezier: computes outWeight/inWeight for a segment based on adjacent segment durations.
-// For equal adjacent segments this equals Smooth (0.33). Adapts proportionally for unequal lengths.
+// Auto-bezier: computes outWeight/inWeight for a segment to ensure C1-continuous flow.
 // prevDur = duration of the segment arriving at the left keyframe (null if it's the first keyframe).
 // nextDur = duration of the segment leaving the right keyframe (null if it's the last keyframe).
+//
+// C1 guarantee: inWeight of segment[a→b] == outWeight of segment[b→c] at every shared keyframe b,
+// because both evaluate to 0.33 * min(1, shorter/longer) using the same ratio.
 export function computeAutoWeights(
   currDur: number,
   prevDur: number | null,
   nextDur: number | null
 ): { outWeight: number; inWeight: number } {
-  const outWeight = prevDur === null ? 0.33 : Math.min(0.5, 0.33 * 2 * prevDur / (prevDur + currDur));
-  const inWeight  = nextDur === null ? 0.33 : Math.min(0.5, 0.33 * 2 * nextDur  / (currDur + nextDur));
+  const outWeight = prevDur === null ? 0.33 : 0.33 * Math.min(1, currDur / prevDur);
+  const inWeight  = nextDur === null ? 0.33 : 0.33 * Math.min(1, nextDur  / currDur);
   return { outWeight, inWeight };
 }
 

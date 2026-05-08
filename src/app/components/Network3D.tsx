@@ -23,10 +23,16 @@ interface Network3DProps {
     turbulence: number;
   };
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
+  parseMode?: 'sentence' | 'word' | 'both';
   colorSettings?: { hueStart: number; hueEnd: number; saturation: number; lightness: number };
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number };
   cameraKeyframes?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>;
   onCameraChange?: () => void;
+  isDark?: boolean;
+  onReady?: () => void;
+  renderMode?: 'edit' | 'render';
+  nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
+  edgeAppearance?: { color: 'auto' | string };
 }
 
 interface GraphNode {
@@ -173,12 +179,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   inputText = DEFAULT_TEXT,
   theme = 'system',
   viewMode = '3D',
+  parseMode = 'sentence',
   physicsParams = DEFAULT_PHYSICS,
   physicsKeyframes,
   colorSettings = defaultNetworkColorSettings,
   styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1 },
   cameraKeyframes = [],
   onCameraChange,
+  isDark,
+  onReady,
+  renderMode = 'edit',
+  nodeAppearance = { borderColor: 'auto', fillColor: 'auto', textColor: 'auto' },
+  edgeAppearance = { color: 'auto' },
 }: Network3DProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
@@ -221,9 +233,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const colorSettingsRef = useRef(colorSettings);
   const styleSettingsRef = useRef(styleSettings);
+  const isDarkRef = useRef(isDark);
+  const onReadyRef = useRef(onReady);
+  const renderModeRef = useRef(renderMode);
+  const nodeAppearanceRef = useRef(nodeAppearance);
+  const edgeAppearanceRef = useRef(edgeAppearance);
   const onCameraChangeRef = useRef(onCameraChange);
   const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
+  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
+  useEffect(() => { renderModeRef.current = renderMode; }, [renderMode]);
+  useEffect(() => { nodeAppearanceRef.current = nodeAppearance; }, [nodeAppearance]);
+  useEffect(() => { edgeAppearanceRef.current = edgeAppearance; }, [edgeAppearance]);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -341,26 +363,70 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
   };
 
-  const buildNetworkFromText = (text: string) => {
+  const buildCharSubstrings = (word: string, nodes: Map<string, GraphNode>) => {
+    const n = word.length;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j <= n; j++) {
+        const sub = word.slice(i, j);
+        if (!nodes.has(sub)) {
+          nodes.set(sub, {
+            label: sub,
+            wordCount: j - i,
+            sentenceIds: new Set(),
+            x: 0, y: 0, z: 0,
+            vx: 0, vy: 0, vz: 0,
+          });
+        }
+      }
+    }
+  };
+
+  const buildCharInclusionEdges = (word: string, nodes: Map<string, GraphNode>, edges: GraphEdge[]) => {
+    const n = word.length;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j <= n; j++) {
+        if (j - i <= 1) continue;
+        const cur = nodes.get(word.slice(i, j));
+        if (!cur) continue;
+        const left = nodes.get(word.slice(i + 1, j));
+        const right = nodes.get(word.slice(i, j - 1));
+        if (left && !edges.some(e => (e.a === cur && e.b === left) || (e.a === left && e.b === cur)))
+          edges.push({ a: cur, b: left });
+        if (right && !edges.some(e => (e.a === cur && e.b === right) || (e.a === right && e.b === cur)))
+          edges.push({ a: cur, b: right });
+      }
+    }
+  };
+
+  const buildNetworkFromText = (text: string, mode: 'sentence' | 'word' | 'both') => {
     const nodes = new Map<string, GraphNode>();
     const edges: GraphEdge[] = [];
 
     const clean = normalizeText(text);
     const sentences = splitSentences(clean);
 
-    // Build nodes
-    sentences.forEach((sentence, sentenceId) => {
-      const words = sentence.split(/\s+/).filter(Boolean);
-      buildSubstrings(words, sentenceId, nodes);
-    });
+    // Word n-gram layer (Satzebene)
+    if (mode === 'sentence' || mode === 'both') {
+      sentences.forEach((sentence, sentenceId) => {
+        const words = sentence.split(/\s+/).filter(Boolean);
+        buildSubstrings(words, sentenceId, nodes);
+      });
+      sentences.forEach((sentence) => {
+        const words = sentence.split(/\s+/).filter(Boolean);
+        buildInclusionEdges(words, nodes, edges);
+      });
+    }
 
-    // Build inclusion edges
-    sentences.forEach((sentence) => {
-      const words = sentence.split(/\s+/).filter(Boolean);
-      buildInclusionEdges(words, nodes, edges);
-    });
+    // Character n-gram layer (Wortebene)
+    if (mode === 'word' || mode === 'both') {
+      const allWords = new Set<string>();
+      sentences.forEach(sentence =>
+        sentence.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w))
+      );
+      allWords.forEach(word => buildCharSubstrings(word, nodes));
+      allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges));
+    }
 
-    // Find min/max word counts
     let minW = Infinity;
     let maxW = -Infinity;
     nodes.forEach(node => {
@@ -581,7 +647,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   };
 
   /* ── CREATE TEXT SPRITE WITH BILLBOARDING ── */
-  const createTextSprite = (text: string, color: string, highlighted = false, selected = false) => {
+  const EDIT_NODE_COLOR = '#6b7280'; // neutral gray for edit mode
+
+  const createTextSprite = (text: string, color: string, highlighted = false, selected = false, darkOverride?: boolean) => {
+    const dark = darkOverride !== undefined ? darkOverride : isDarkRef.current;
+    const na = nodeAppearanceRef.current;
+    const isEditMode = renderModeRef.current === 'edit';
+    const effectiveColor = isEditMode ? EDIT_NODE_COLOR : color;
+    const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
+    const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : undefined;
+    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : effectiveColor;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
 
@@ -599,52 +674,46 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const logicalWidth = maxWidth + padding * 2;
     const logicalHeight = words.length * lineHeight + padding * 2;
 
-    // Set actual canvas size to high-res
-    canvas.width = logicalWidth * pixelRatio;
-    canvas.height = logicalHeight * pixelRatio;
+    // Outside stroke lives in transparent canvas margin so it never overlaps the node border
+    const outlineStroke = (highlighted || selected) ? 3 : 0;
+    const outlineGap = (highlighted || selected) ? 2 : 0;
+    const outlineMargin = outlineStroke + outlineGap; // extra canvas space per side
 
-    // Scale context to match
+    const canvasLogicalWidth = logicalWidth + outlineMargin * 2;
+    const canvasLogicalHeight = logicalHeight + outlineMargin * 2;
+
+    canvas.width = canvasLogicalWidth * pixelRatio;
+    canvas.height = canvasLogicalHeight * pixelRatio;
     context.scale(pixelRatio, pixelRatio);
 
-    // Background box with colored border
-    const bgColors = getThemeBackgroundColors();
-    context.fillStyle = getNetworkLabelStyle().backgroundHex;
-    context.fillRect(0, 0, logicalWidth, logicalHeight);
+    // Background box (offset into canvas center by outlineMargin)
+    context.fillStyle = effectiveFillColor ?? getNetworkLabelStyle(dark).backgroundHex;
+    context.fillRect(outlineMargin, outlineMargin, logicalWidth, logicalHeight);
 
-    // Border logic: selected wins, otherwise highlighted draws white border
-    if (selected) {
-      context.strokeStyle = 'rgba(80, 180, 255, 0.95)';
-      context.lineWidth = 4;
-      context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
-    } else if (highlighted) {
-      context.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-      context.lineWidth = 16;
-      context.strokeRect(8, 8, logicalWidth - 16, logicalHeight - 16);
-    } else {
-      context.strokeStyle = color;
+    if (!highlighted && !selected) {
+      context.strokeStyle = effectiveBorderColor;
       context.lineWidth = 2;
-      context.strokeRect(1, 1, logicalWidth - 2, logicalHeight - 2);
+      context.strokeRect(outlineMargin + 1, outlineMargin + 1, logicalWidth - 2, logicalHeight - 2);
+    } else {
+      // Outside rounded outline: path sits in the gap area, stroke extends outward into transparent margin
+      const pathOff = outlineMargin - outlineGap - outlineStroke / 2;
+      const pathW = logicalWidth + 2 * (outlineGap + outlineStroke / 2);
+      const pathH = logicalHeight + 2 * (outlineGap + outlineStroke / 2);
+      context.strokeStyle = '#2563eb';
+      context.lineWidth = outlineStroke;
+      context.beginPath();
+      context.roundRect(pathOff, pathOff, pathW, pathH, 5);
+      context.stroke();
     }
 
-    // Text with optional stroke for readability when highlighted
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-    context.fillStyle = color; // Keep original color for legibility
+    context.fillStyle = effectiveTextColor;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
 
-    if (highlighted) {
-      // Add stroke to text for contrast against white border
-      context.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-      context.lineWidth = 1.5;
-      words.forEach((word, i) => {
-        const y = padding + lineHeight / 2 + i * lineHeight;
-        context.strokeText(word, logicalWidth / 2, y);
-      });
-    }
-
     words.forEach((word, i) => {
-      const y = padding + lineHeight / 2 + i * lineHeight;
-      context.fillText(word, logicalWidth / 2, y);
+      const y = outlineMargin + padding + lineHeight / 2 + i * lineHeight;
+      context.fillText(word, outlineMargin + logicalWidth / 2, y);
     });
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -656,11 +725,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
     const sprite = new THREE.Sprite(spriteMaterial);
 
-    // Scale based on word count
+    // Scale based on full canvas size so text appears the same size in both states
     const wordCount = text.split(' ').length;
-    const scaleFactor = Math.max(0.4, 1 - (wordCount * 0.05)); // Longer texts get smaller
-    const baseScale = (Math.max(logicalWidth, logicalHeight) / 2.5) * scaleFactor;
-    const aspectRatio = logicalHeight / logicalWidth;
+    const scaleFactor = Math.max(0.4, 1 - (wordCount * 0.05));
+    const baseScale = (Math.max(canvasLogicalWidth, canvasLogicalHeight) / 2.5) * scaleFactor;
+    const aspectRatio = canvasLogicalHeight / canvasLogicalWidth;
     sprite.scale.set(baseScale, baseScale * aspectRatio, 1);
     sprite.userData.baseScale = baseScale;
     sprite.userData.aspectRatio = aspectRatio;
@@ -738,7 +807,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Setup scene
     const scene = new THREE.Scene();
-    const bgColors = getThemeBackgroundColors();
+    const bgColors = getNetworkThemeBackground(isDarkRef.current);
     scene.background = new THREE.Color(bgColors.threeColor);
     sceneRef.current = scene;
 
@@ -794,7 +863,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controls.addEventListener('change', handleCameraChange);
 
     // Build network
-    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText);
+    const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText, parseMode);
 
     if (is2D) {
       // 2D: scatter randomly then let live physics find the layout
@@ -822,8 +891,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     rebuildPhysicsCache(nodes);
 
     // Create edges (adjustable lines)
+    const edgeColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
     const edgeMaterial = new THREE.LineBasicMaterial({
-      color: 0x9aa0aa,
+      color: edgeColor,
       opacity: styleSettings.edgeOpacity,
       transparent: true,
       linewidth: styleSettings.edgeWidth
@@ -879,6 +949,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const aspectRatio = newSprite.userData.aspectRatio || 1;
       newSprite.scale.set(baseScale * ss.nodeScale, baseScale * ss.nodeScale * aspectRatio, 1);
       sceneRef.current.remove(node.textSprite);
+      node.textSprite.material.map?.dispose();
       node.textSprite.material.dispose();
       sceneRef.current.add(newSprite);
       node.textSprite = newSprite;
@@ -1028,10 +1099,46 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         if (is2D) {
           for (const node of graphNodeArrayRef.current) { node.z = 0; node.vz = 0; }
         }
+
+        // 2D overlap separation: position-correct nodes whose sprites intersect.
+        // Uses each sprite's actual rendered scale as its collision radius so
+        // long multi-word labels and short single-word labels both get fair space.
+        let maxOverlap = 0;
+        if (is2D) {
+          const arr2 = graphNodeArrayRef.current;
+          const n2 = arr2.length;
+          for (let pass = 0; pass < 4; pass++) {
+            for (let i = 0; i < n2; i++) {
+              for (let j = i + 1; j < n2; j++) {
+                const a = arr2[i];
+                const b = arr2[j];
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const distSep = Math.sqrt(dx * dx + dy * dy) + 0.001;
+                const sprA = a.textSprite;
+                const sprB = b.textSprite;
+                // Average of half-width and half-height as circular radius approximation
+                const rA = sprA ? (sprA.scale.x + sprA.scale.y) / 4 : 30;
+                const rB = sprB ? (sprB.scale.x + sprB.scale.y) / 4 : 30;
+                const minSep = rA + rB + 6;
+                if (distSep < minSep) {
+                  const overlap = minSep - distSep;
+                  if (overlap > maxOverlap) maxOverlap = overlap;
+                  const push = overlap * 0.5 / distSep;
+                  a.x += dx * push;
+                  a.y += dy * push;
+                  b.x -= dx * push;
+                  b.y -= dy * push;
+                }
+              }
+            }
+          }
+        }
+
         syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, graphNodeArrayRef.current);
 
-        // Auto-stop physics when system has stabilized (disabled when turbulence is active)
-        if (paramsForFrame.turbulence > 0) {
+        // Auto-stop physics when system has stabilized (disabled when turbulence is active or overlaps remain)
+        if (paramsForFrame.turbulence > 0 || maxOverlap > 1) {
           stillFramesRef.current = 0;
         } else if (avgMovement < 0.5) {
           stillFramesRef.current++;
@@ -1101,6 +1208,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       }
     };
     animate();
+    requestAnimationFrame(() => onReadyRef.current?.());
 
     // Handle resize
     const handleResize = () => {
@@ -1133,12 +1241,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         controlsRef.current.removeEventListener('change', handleCameraChange);
         controlsRef.current.dispose();
       }
+      graphNodesRef.current.forEach(node => {
+        if (node.textSprite) {
+          node.textSprite.material.map?.dispose();
+          node.textSprite.material.dispose();
+        }
+      });
+      graphEdgesRef.current.forEach(edge => {
+        if (edge.line) edge.line.geometry.dispose();
+      });
       if (rendererRef.current && containerRef.current) {
         containerRef.current.removeChild(rendererRef.current.domElement);
         rendererRef.current.dispose();
       }
     };
-  }, [inputText, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
@@ -1166,12 +1283,41 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           1
         );
         sceneRef.current!.remove(node.textSprite);
+        node.textSprite.material.map?.dispose();
+        node.textSprite.material.dispose();
         sceneRef.current!.add(newSprite);
         node.textSprite = newSprite;
         if (isHovered) hoveredNodeRef.current = node;
       }
     });
   }, [colorSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rebuild sprites when render mode switches (edit vs render colors)
+  useEffect(() => {
+    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    const nodes = graphNodesRef.current;
+    const minW = minWordsRef.current;
+    const maxW = maxWordsRef.current;
+    nodes.forEach(node => {
+      if (node.textSprite) {
+        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettingsRef.current);
+        const isHovered = hoveredNodeRef.current?.label === node.label;
+        const isSelected = selectedNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
+        newSprite.userData.label = node.label;
+        newSprite.position.copy(node.textSprite.position);
+        const baseScale = newSprite.userData.baseScale || 1;
+        const aspectRatio = newSprite.userData.aspectRatio || 1;
+        newSprite.scale.set(baseScale * styleSettingsRef.current.nodeScale, baseScale * styleSettingsRef.current.nodeScale * aspectRatio, 1);
+        sceneRef.current!.remove(node.textSprite);
+        node.textSprite.material.map?.dispose();
+        node.textSprite.material.dispose();
+        sceneRef.current!.add(newSprite);
+        node.textSprite = newSprite;
+        if (isHovered) hoveredNodeRef.current = node;
+      }
+    });
+  }, [renderMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node scale when style settings change
   useEffect(() => {
@@ -1201,10 +1347,48 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [styleSettings.edgeOpacity, styleSettings.edgeWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Update edge color when edge appearance changes
+  useEffect(() => {
+    const newColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
+    graphEdgesRef.current.forEach(edge => {
+      if (edge.line) {
+        (edge.line.material as THREE.LineBasicMaterial).color = newColor;
+        (edge.line.material as THREE.LineBasicMaterial).needsUpdate = true;
+      }
+    });
+  }, [edgeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update node sprites when appearance settings change
+  useEffect(() => {
+    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    const nodes = graphNodesRef.current;
+    const minW = minWordsRef.current;
+    const maxW = maxWordsRef.current;
+    nodes.forEach(node => {
+      if (node.textSprite) {
+        const color = getColorFromWordCount(node.wordCount, minW, maxW, colorSettingsRef.current);
+        const isHovered = hoveredNodeRef.current?.label === node.label;
+        const isSelected = selectedNodeRef.current?.label === node.label;
+        const newSprite = createTextSprite(node.label, color, isHovered, isSelected);
+        newSprite.userData.label = node.label;
+        newSprite.position.copy(node.textSprite.position);
+        const baseScale = newSprite.userData.baseScale || 1;
+        const aspectRatio = newSprite.userData.aspectRatio || 1;
+        newSprite.scale.set(baseScale * styleSettingsRef.current.nodeScale, baseScale * styleSettingsRef.current.nodeScale * aspectRatio, 1);
+        sceneRef.current!.remove(node.textSprite);
+        node.textSprite.material.map?.dispose();
+        node.textSprite.material.dispose();
+        sceneRef.current!.add(newSprite);
+        node.textSprite = newSprite;
+        if (isHovered) hoveredNodeRef.current = node;
+      }
+    });
+  }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Update background color and node label sprites when theme changes
   useEffect(() => {
     if (!sceneRef.current) return;
-    const bgColors = getThemeBackgroundColors();
+    const bgColors = getNetworkThemeBackground(isDarkRef.current);
     sceneRef.current.background = new THREE.Color(bgColors.threeColor);
 
     const nodes = graphNodesRef.current;
@@ -1227,6 +1411,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           1
         );
         sceneRef.current!.remove(node.textSprite);
+        node.textSprite.material.map?.dispose();
+        node.textSprite.material.dispose();
         sceneRef.current!.add(newSprite);
         node.textSprite = newSprite;
         if (isHovered) hoveredNodeRef.current = node;
