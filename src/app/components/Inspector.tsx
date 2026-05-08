@@ -27,7 +27,7 @@ function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' 
     <button
       onClick={onClick}
       title={active ? 'Keyframe entfernen' : 'Keyframe setzen'}
-      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-colors ${
+      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
         active
           ? activeCls
           : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'
@@ -137,7 +137,7 @@ function SliderParam({
           <button
             onClick={startEdit}
             title="Click to type a value"
-            className="text-[11px] font-mono text-muted-foreground/60 hover:text-muted-foreground w-12 text-right shrink-0 cursor-text tabindex-0"
+            className="text-[11px] font-mono text-muted-foreground/60 hover:text-muted-foreground w-12 text-right shrink-0 cursor-text focus-visible:outline-none focus-visible:text-foreground"
           >
             {displayStr}
           </button>
@@ -181,7 +181,7 @@ function AccSection({
       <Accordion.Header asChild>
         <div>
           <Accordion.Trigger
-            className={`w-full flex items-center gap-2.5 px-3 h-9 transition-colors hover:bg-muted/30 group ${
+            className={`w-full flex items-center gap-2.5 px-3 h-9 transition-[color,background-color,box-shadow] hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 group ${
               color ? `border-l-2 ${borderCls[color]}` : 'pl-3'
             }`}
           >
@@ -221,6 +221,15 @@ interface InspectorProps {
     gravity: number;
     turbulence: number;
   }) => void;
+  physicsDisplayParams?: {
+    repulsion: number;
+    springK: number;
+    damping: number;
+    minSpeed: number;
+    linkDistance: number;
+    gravity: number;
+    turbulence: number;
+  };
   onTextChange?: (text: string) => void;
   onParsingChange?: (mode: 'sentence' | 'word' | 'both') => void;
   onGradientChange?: (settings: { mode: 'solid' | 'gradient'; innerColor: string; outerColor: string }) => void;
@@ -243,6 +252,7 @@ const PHYS_PARAM_TRACK: Record<string, string> = { repulsion: 'phys-rep', spring
 
 export function Inspector({
   onPhysicsChange,
+  physicsDisplayParams,
   onTextChange,
   onParsingChange,
   onGradientChange,
@@ -289,6 +299,11 @@ export function Inspector({
   const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
   const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
   const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
+  const physicsDisplayRef = useRef(physicsDisplayParams);
+
+  useEffect(() => {
+    physicsDisplayRef.current = physicsDisplayParams;
+  }, [physicsDisplayParams]);
 
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
@@ -332,6 +347,20 @@ export function Inspector({
   useEffect(() => {
     notifyPhysicsChange();
   }, [repulsionVal, springKVal, dampingVal, minSpeedVal, linkDistanceVal, gravityVal, turbulenceVal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync visible physics controls to timeline-interpolated values when playhead changes.
+  // This keeps Inspector in lockstep while scrubbing/playing without clobbering edits at a static time.
+  useEffect(() => {
+    const p = physicsDisplayRef.current;
+    if (!p) return;
+    setRepulsionVal([Math.round(p.repulsion / 10)]);
+    setSpringKVal([Math.round(p.springK * 100)]);
+    setDampingVal([Math.round(p.damping * 100)]);
+    setMinSpeedVal(p.minSpeed);
+    setLinkDistanceVal([Math.round(p.linkDistance)]);
+    setGravityVal([Math.round(p.gravity)]);
+    setTurbulenceVal([Math.round(p.turbulence)]);
+  }, [currentTime]);
 
   // Sync gravity default when viewMode switches
   useEffect(() => {
@@ -412,7 +441,7 @@ export function Inspector({
               />
               <button
                 onClick={() => onTextChange?.(textInput)}
-                className="w-full mt-2 h-7 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 text-[11px] rounded border border-blue-700/40 hover:border-blue-600/50 transition-colors"
+                className="w-full mt-2 h-7 rounded-md border border-input bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               >
                 Anwenden
               </button>
@@ -430,7 +459,7 @@ export function Inspector({
                     <div className="flex items-center gap-2.5 h-6">
                       <RadioGroup.Item
                         value={opt.value}
-                        className="w-3.5 h-3.5 rounded-full border border-border data-[state=checked]:border-purple-500 bg-input shrink-0 flex items-center justify-center transition-colors"
+                        className="w-3.5 h-3.5 rounded-full border border-input bg-background shrink-0 flex items-center justify-center transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 data-[state=checked]:border-purple-500 data-[state=checked]:bg-purple-500/10"
                       >
                         <RadioGroup.Indicator>
                           <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
@@ -456,13 +485,13 @@ export function Inspector({
               <div className="flex rounded border border-border overflow-hidden mb-3">
                 <button
                   onClick={() => setGradientMode('solid')}
-                  className={`flex-1 h-7 text-[11px] transition-colors ${gradientMode === 'solid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] ${gradientMode === 'solid' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                 >
                   Einfarbig
                 </button>
                 <button
                   onClick={() => setGradientMode('gradient')}
-                  className={`flex-1 h-7 text-[11px] transition-colors border-l border-border ${gradientMode === 'gradient' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] border-l border-border ${gradientMode === 'gradient' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
                 >
                   Verlauf
                 </button>
@@ -524,10 +553,10 @@ export function Inspector({
                     key={shape}
                     onClick={() => setNodeShapeVal(shape)}
                     title={shape}
-                    className={`flex-1 h-9 flex items-center justify-center rounded border transition-colors ${
+                    className={`flex-1 h-9 flex items-center justify-center rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
                       nodeShapeVal === shape
-                        ? 'bg-teal-600/20 border-teal-500/60 text-teal-300'
-                        : 'bg-input border-border text-muted-foreground hover:text-foreground'
+                        ? 'bg-teal-600/15 border-teal-500/60 text-teal-300 shadow-sm'
+                        : 'bg-background border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                   >
                     <svg width="24" height="16" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -576,7 +605,7 @@ export function Inspector({
                 <span className="text-[11px] text-muted-foreground flex-1">Nach Tiefe skalieren</span>
                 <button
                   onClick={() => setDepthSizeEnabled(v => !v)}
-                  className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${depthSizeEnabled ? 'bg-teal-500/70' : 'bg-border'}`}
+                  className={`w-9 h-5 rounded-full transition-[color,background-color,box-shadow] relative shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${depthSizeEnabled ? 'bg-teal-500/70 shadow-sm' : 'bg-border'}`}
                 >
                   <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${depthSizeEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                 </button>
@@ -613,7 +642,7 @@ export function Inspector({
                     title={edgeColor === 'auto' ? 'Auto (grau)' : edgeColor}
                   />
                   {edgeColor !== 'auto' && (
-                    <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
+                    <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1 transition-colors focus-visible:outline-none focus-visible:text-foreground" title="Zurücksetzen">↺</button>
                   )}
                 </div>
                 <SliderParam
@@ -707,7 +736,7 @@ export function Inspector({
                       setGravityVal([d.gravity]);
                       setTurbulenceVal([d.turbulence]);
                     }}
-                    className="px-2 h-6 text-[10px] text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 border border-border rounded transition-colors"
+                    className="px-2 h-6 text-[10px] font-medium text-muted-foreground hover:text-foreground bg-background hover:bg-accent border border-border rounded-md transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
                   >
                     Reset Defaults
                   </button>

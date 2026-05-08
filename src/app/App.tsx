@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { TopBar } from './components/TopBar';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
@@ -6,6 +6,7 @@ import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
+import { solveBezierEasing, computeAutoWeights } from './easing';
 
 type Keyframe = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
@@ -14,6 +15,34 @@ type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<str
 
 const EMPTY_PHYSICS_KFS = { 'phys-rep': [] as PhysicsKeyframe[], 'phys-spk': [] as PhysicsKeyframe[], 'phys-dmp': [] as PhysicsKeyframe[] };
 const PHYS_TRACK_PARAM: Record<string, string> = { 'phys-rep': 'repulsion', 'phys-spk': 'springK', 'phys-dmp': 'damping' };
+
+function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
+  if (sorted.length === 0) return null;
+  if (time <= sorted[0].time) return sorted[0].value;
+  if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (time >= a.time && time <= b.time) {
+      const segDur = b.time - a.time;
+      const tRaw = (time - a.time) / segDur;
+      const isAuto = a.interpolation === 'auto' || b.interpolation === 'auto';
+      let outW: number;
+      let inW: number;
+      if (isAuto) {
+        const prevDur = i > 0 ? a.time - sorted[i - 1].time : null;
+        const nextDur = i + 2 < sorted.length ? sorted[i + 2].time - b.time : null;
+        ({ outWeight: outW, inWeight: inW } = computeAutoWeights(segDur, prevDur, nextDur));
+      } else {
+        outW = a.outWeight ?? 0;
+        inW = b.inWeight ?? 0;
+      }
+      const easedT = solveBezierEasing(tRaw, outW, inW);
+      return a.value + (b.value - a.value) * easedT;
+    }
+  }
+  return null;
+}
 
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -147,20 +176,31 @@ export default function App() {
   const handlePlayPause = () => setIsPlaying(p => !p);
   const handleStop = () => { setIsPlaying(false); setPlayheadPosition(0); };
 
+  const inspectorPhysicsParams = useMemo(() => {
+    const next = { ...physicsParams };
+    for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
+      const sorted = [...(physicsKeyframes[trackId] ?? [])].sort((a, b) => a.time - b.time);
+      const v = interpolatePhysicsParam(sorted, playheadPosition);
+      if (v !== null) (next as Record<string, number>)[param] = v;
+    }
+    return next;
+  }, [physicsParams, physicsKeyframes, playheadPosition]);
+
   const handleCaptureKeyframe = useCallback(() => {
     const prev = getTimelineState();
     const currentTime = playheadRef.current;
+    const effectivePhysics = network3DRef.current?.getEffectivePhysicsParams() ?? physicsParams;
 
     // Compute next physics kfs — preserve existing easing, default new ones to auto
     const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
     for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
-      const param = PHYS_TRACK_PARAM[trackId] as keyof typeof physicsParams;
+      const param = PHYS_TRACK_PARAM[trackId] as keyof typeof effectivePhysics;
       const existingK = (nextPhysKfs[trackId] ?? []).find(k => Math.abs(k.time - currentTime) <= 0.1);
       const filtered = (nextPhysKfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
       const easingProps = existingK
         ? { outWeight: existingK.outWeight, inWeight: existingK.inWeight, interpolation: existingK.interpolation }
         : { interpolation: 'auto' as const };
-      nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: physicsParams[param], ...easingProps }]
+      nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: effectivePhysics[param], ...easingProps }]
         .sort((a, b) => a.time - b.time);
     }
     physicsKeyframesRef.current = nextPhysKfs;
@@ -521,6 +561,7 @@ export default function App() {
           onParsingChange={setParseMode}
           onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
+          physicsDisplayParams={inspectorPhysicsParams}
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
           physicsKeyframes={physicsKeyframes}
           onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}

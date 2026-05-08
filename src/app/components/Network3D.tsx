@@ -147,6 +147,7 @@ function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): numbe
 
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
+  getEffectivePhysicsParams: () => PhysicsParams;
 }
 
 export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Network3D({
@@ -234,8 +235,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       if (hasKfs) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
     }
   }, [playheadPosition]);
-  useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => {
     // Pre-sort keyframes once on change instead of per-frame in interpolatePhysicsParam
     const raw = physicsKeyframes ?? {};
@@ -272,12 +271,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           z: controlsRef.current.target.z,
         },
       };
-    }
+    },
+    getEffectivePhysicsParams: () => ({ ...effectivePhysicsRef.current })
   }));
-
-  useEffect(() => {
-    playheadRef.current = playheadPosition;
-  }, [playheadPosition]);
 
   useEffect(() => {
     cameraKeyframesRef.current = cameraKeyframes;

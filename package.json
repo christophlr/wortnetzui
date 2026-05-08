@@ -1,9 +1,10 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.54",
   "type": "module",
   "scripts": {
+  "prebuild": "node ./scripts/sync-version.mjs",
   "build": "vite build",
   "dev": "vite --host"
   },

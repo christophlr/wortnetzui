@@ -89,12 +89,12 @@ function TBtn({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+      className={`w-7 h-7 flex items-center justify-center rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
         disabled
-          ? 'opacity-30 cursor-not-allowed text-muted-foreground/40'
+          ? 'border-transparent opacity-30 cursor-not-allowed text-muted-foreground/40'
           : active
-            ? 'bg-muted text-foreground'
-            : 'bg-muted/30 text-foreground/60 hover:bg-muted hover:text-foreground'
+            ? 'border-border bg-accent text-accent-foreground shadow-sm'
+            : 'border-transparent bg-background text-foreground/60 hover:bg-accent hover:text-accent-foreground'
       }`}
     >
       {children}
@@ -214,12 +214,12 @@ function ContextMenu({
       onMouseDown={e => e.stopPropagation()}
       onClick={() => { if (!disabled) { action(); onClose(); } }}
       disabled={disabled}
-      className={`w-full flex items-center justify-between px-3 py-[5px] text-[11px] rounded transition-colors ${
+      className={`w-full flex items-center justify-between px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] ${
         disabled
           ? 'text-muted-foreground/35 cursor-not-allowed'
           : danger
             ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer'
-            : 'text-foreground hover:bg-muted cursor-pointer'
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer'
       }`}
     >
       <span>{label}</span>
@@ -231,7 +231,7 @@ function ContextMenu({
     <>
       <div className="fixed inset-0 z-40" onMouseDown={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
       <div
-        className="fixed z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden"
+        className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden text-popover-foreground"
         style={{ left, top, width: menuW }}
         onMouseDown={e => e.stopPropagation()}
       >
@@ -282,11 +282,11 @@ function EasingPicker({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }} />
       <div
-        className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-2.5 shadow-2xl"
+        className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-2.5 shadow-2xl text-popover-foreground"
         style={{ left, bottom }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest mb-2 px-0.5">
+        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-0.5">
           Easing preset
         </div>
         <div className="grid grid-cols-4 gap-1.5">
@@ -312,10 +312,10 @@ function EasingPicker({
                   }
                   onClose();
                 }}
-                className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all ${
+                className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-[color,background-color,box-shadow,transform] ${
                   isActive
-                    ? 'border-zinc-500 bg-zinc-800'
-                    : 'border-transparent hover:border-zinc-700/80 hover:bg-zinc-800/60'
+                    ? 'border-border bg-accent text-accent-foreground shadow-sm'
+                    : 'border-transparent bg-background hover:border-border hover:bg-accent/60 hover:text-accent-foreground'
                 }`}
                 title={preset.label}
               >
@@ -332,7 +332,7 @@ function EasingPicker({
                     <text x="21" y="13" textAnchor="middle" dominantBaseline="middle" fontSize="7" fill={preset.color} fontFamily="monospace" opacity="0.8">auto</text>
                   )}
                 </svg>
-                <span className="text-[9px] text-zinc-400 leading-none whitespace-nowrap">{preset.label}</span>
+                <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">{preset.label}</span>
               </button>
             );
           })}
@@ -793,7 +793,7 @@ function SceneMarkerLane({
               />
               <button
                 data-scene-marker="true"
-                className="relative cursor-grab active:cursor-grabbing group"
+                className="relative cursor-grab active:cursor-grabbing group focus-visible:outline-none"
                 onMouseDown={e => {
                   if (e.button !== 0) return;
                   e.stopPropagation();
@@ -815,7 +815,7 @@ function SceneMarkerLane({
               {isEditing ? (
                 <input
                   autoFocus
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[9px] bg-zinc-900 border border-purple-500/60 rounded px-1.5 py-0.5 text-purple-100 w-24 z-50 outline-none"
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[9px] bg-popover border border-border rounded px-1.5 py-0.5 text-popover-foreground w-24 z-50 outline-none shadow-md"
                   defaultValue={marker.label}
                   onBlur={e => { onRename(marker.time, e.target.value); setEditingMarker(null); }}
                   onKeyDown={e => {
@@ -836,16 +836,16 @@ function SceneMarkerLane({
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMarkerContextMenu(null)} />
             <div
-              className="fixed z-50 bg-zinc-900/95 backdrop-blur-sm border border-zinc-700/80 rounded-xl p-1 shadow-2xl min-w-[120px]"
+              className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-1 shadow-2xl min-w-[120px] text-popover-foreground"
               style={{ left: markerContextMenu.x, top: markerContextMenu.y }}
               onMouseDown={e => e.stopPropagation()}
             >
               <button
-                className="w-full text-left text-[11px] text-zinc-300 hover:text-white hover:bg-zinc-700/60 px-3 py-1.5 rounded-lg transition-colors"
+                className="w-full text-left text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground px-3 py-1.5 rounded-lg transition-[color,background-color,box-shadow]"
                 onClick={() => { setEditingMarker(markerContextMenu.time); setMarkerContextMenu(null); }}
               >Rename</button>
               <button
-                className="w-full text-left text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors"
+                className="w-full text-left text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-[color,background-color,box-shadow]"
                 onClick={() => { onDelete(markerContextMenu.time); setMarkerContextMenu(null); }}
               >Delete</button>
             </div>
@@ -889,7 +889,7 @@ function TrackGroup({
     <>
       <div className={`flex border-b border-border border-l-2 ${c.border}`} style={{ height: 30 }}>
         <div
-          className="shrink-0 flex items-center gap-1.5 px-2 cursor-pointer hover:bg-muted/40 transition-colors border-r border-border"
+          className="shrink-0 flex items-center gap-1.5 px-2 cursor-pointer hover:bg-accent/60 transition-[color,background-color,box-shadow] border-r border-border"
           style={{ width: LABEL_W }}
           onClick={onToggle}
         >
@@ -899,10 +899,10 @@ function TrackGroup({
           />
           <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
           <span className="text-[11px] font-medium text-foreground flex-1 truncate">{group.name}</span>
-          <button className="opacity-0 hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+          <button className="opacity-0 hover:opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline-none" onClick={e => e.stopPropagation()}>
             <Eye size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
           </button>
-          <button onClick={e => e.stopPropagation()}>
+          <button className="rounded p-0.5 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none" onClick={e => e.stopPropagation()}>
             <Lock size={11} className="text-muted-foreground/40 hover:text-muted-foreground/60" />
           </button>
         </div>
@@ -1301,10 +1301,10 @@ export function Timeline({
             <button
               onClick={onPlayPause}
               title={isPlaying ? 'Pause' : 'Play (Space)'}
-              className={`w-8 h-8 flex items-center justify-center rounded transition-all ${
+              className={`w-8 h-8 flex items-center justify-center rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
                 isPlaying
-                  ? 'bg-interactive/15 text-interactive ring-1 ring-interactive/30'
-                  : 'bg-muted/30 text-foreground/60 hover:bg-muted hover:text-foreground'
+                  ? 'border-interactive/20 bg-interactive/15 text-interactive ring-1 ring-interactive/30 shadow-sm'
+                  : 'border-border bg-background text-foreground/60 hover:bg-accent hover:text-accent-foreground shadow-sm'
               }`}
             >
               {isPlaying
@@ -1329,7 +1329,7 @@ export function Timeline({
           {zoom > 1.05 && (
             <button
               onClick={() => { setZoom(1); setPanStart(0); }}
-              className="text-[9px] font-mono text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors min-w-[32px] text-center"
+              className="text-[9px] font-mono text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-accent transition-[color,background-color,box-shadow] min-w-[32px] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               title="Reset zoom"
             >
               {zoom >= 10 ? `${Math.round(zoom)}×` : `${zoom.toFixed(1)}×`}
@@ -1342,10 +1342,10 @@ export function Timeline({
           <button
             onClick={() => setSnap(s => !s)}
             title={snap ? 'Snap on (0.5s)' : 'Snap off'}
-            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
               snap
-                ? 'border-border bg-muted text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'border-border bg-accent text-accent-foreground shadow-sm'
+                : 'border-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground'
             }`}
           >
             <Magnet size={9} />snap
