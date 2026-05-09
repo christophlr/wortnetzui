@@ -463,52 +463,11 @@ function ValueGraphTrack({
                     className={onSetValue ? "cursor-ns-resize" : undefined}
                     onMouseDown={onSetValue ? (e) => { e.stopPropagation(); onDragStart?.(); setDraggingValue({ kfTime: kf.time, startY: e.clientY, startValue: kf.value! }); } : undefined}
                   />
-<<<<<<< HEAD
-                )}
-                {!isAuto && inW > 0.01 && (
-                  <line x1="100" y1="0" x2={(1 - inW) * 100} y2="0"
-                    stroke="#2dd4bf" strokeWidth="1" strokeOpacity="0.4"
-                    vectorEffect="non-scaling-stroke" style={{ pointerEvents: 'none' }}
-                  />
-                )}
-              </svg>
-
-              {/* Out-handle circle — hidden in auto mode */}
-              {!isAuto && (
-                <div
-                  className="absolute z-10 cursor-ew-resize select-none"
-                  style={{ left: `${outW * 100}%`, bottom: 0, transform: 'translate(-50%, 50%)' }}
-                  onMouseDown={startDragOut}
-                  title={`Ease-out: ${(outW * 100).toFixed(0)}% — drag to adjust, click curve for presets`}
-                >
-                  <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
-                    dragging?.kfTime === kf.time && dragging.side === 'out'
-                      ? 'bg-blue-300 border-blue-200 scale-125'
-                      : 'bg-blue-600 border-blue-400 hover:bg-blue-400 hover:scale-125'
-                  }`} />
-                </div>
-              )}
-
-              {/* In-handle circle — hidden in auto mode */}
-              {!isAuto && (
-                <div
-                  className="absolute z-10 cursor-ew-resize select-none"
-                  style={{ left: `${(1 - inW) * 100}%`, top: 0, transform: 'translate(-50%, -50%)' }}
-                  onMouseDown={startDragIn}
-                  title={`Ease-in: ${(inW * 100).toFixed(0)}% — drag to adjust, click curve for presets`}
-                >
-                  <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
-                    dragging?.kfTime === nextKf.time && dragging.side === 'in'
-                      ? 'bg-blue-300 border-blue-200 scale-125'
-                      : 'bg-blue-600 border-blue-400 hover:bg-blue-400 hover:scale-125'
-                  }`} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Vertical keyframe tick marks */}
+                </g>
+              );
+            })}
+          </svg>
+        )}
         {keyframes.map(kf => {
           const pct = ((kf.time - viewWindow.start) / visibleDuration) * 100;
           if (pct < 0 || pct > 100) return null;
@@ -520,36 +479,7 @@ function ValueGraphTrack({
             />
           );
         })}
-        </div>
-
-      {picker && (() => {
-        const kf = keyframes.find(k => k.time === picker.kfTime);
-        const nextKf = keyframes.find(k => k.time === picker.nextKfTime);
-        const isAuto = kf?.interpolation === 'auto' || nextKf?.interpolation === 'auto';
-        return (
-          <EasingPicker
-            anchorX={picker.anchorX}
-            anchorY={picker.anchorY}
-            trackId={trackId}
-            kfTime={picker.kfTime}
-            nextKfTime={picker.nextKfTime}
-            currentOutW={kf?.outWeight ?? 0}
-            currentInW={nextKf?.inWeight ?? 0}
-            isAuto={isAuto ?? false}
-            onSetHandle={onSetHandle}
-            onSetInterpolation={onSetInterpolation}
-            onClose={() => setPicker(null)}
-          />
-        );
-      })()}
-=======
-                </g>
-              );
-            })}
-          </svg>
-        )}
       </div>
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
     </div>
   );
 }

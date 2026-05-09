@@ -1,13 +1,8 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { Accordion, AccordionItem, AccordionContent } from './ui/accordion';
 import * as Slider from '@radix-ui/react-slider';
-<<<<<<< HEAD
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { ChevronRight, Diamond, Type, Layers, Zap } from 'lucide-react';
-=======
-import * as Tabs from '@radix-ui/react-tabs';
 import { ChevronRight, Diamond, Type, Layers, Zap, RefreshCw } from 'lucide-react';
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { Button } from './ui/button';
@@ -275,7 +270,6 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-<<<<<<< HEAD
 /* Color helpers */
 function hexToRgb(hex: string) {
   const h = hex.replace('#', '');
@@ -291,7 +285,8 @@ function lightenHex(hex: string, percent: number) {
   const nb = Math.round(b + (255 - b) * p);
   const toHex = (n: number) => n.toString(16).padStart(2, '0');
   return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
-=======
+}
+
 function ColorPill({
   value, onChange, onReset,
 }: { value: string | 'auto'; onChange: (v: string) => void; onReset?: () => void }) {
@@ -320,8 +315,8 @@ function ColorPill({
       )}
     </div>
   );
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
 }
+
 
 /* ─── main ─── */
 
@@ -543,32 +538,20 @@ export function Inspector({
           <Accordion type="multiple" defaultValue={['text', 'parsing']}>
             {/* TEXT */}
             <AccSection value="text" label="Text">
-<<<<<<< HEAD
-              <Textarea
-                className="h-[176px] text-[11px] leading-relaxed"
-=======
               <textarea
                 className="w-full min-h-[260px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-y focus:outline-none transition-colors leading-relaxed"
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full mt-2 h-7 text-[11px]"
-                onClick={() => onTextChange?.(textInput)}
-<<<<<<< HEAD
-              >
-                Anwenden
-              </Button>
-=======
                 className="flex items-center justify-center gap-1.5 w-full mt-2 h-7 rounded-md border border-border bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+                onClick={() => onTextChange?.(textInput)}
               >
                 <RefreshCw size={12} />
                 Aktualisieren
-              </button>
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
+              </Button>
             </AccSection>
 
             {/* PARSING */}
@@ -599,64 +582,6 @@ export function Inspector({
         <TabsContent value="visual" className="flex-1 overflow-y-auto mt-0">
           <Accordion type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
 
-<<<<<<< HEAD
-            {/* VERLAUF */}
-            <AccSection value="gradient" label="Verlauf" color="purple">
-              {/* Mode toggle */}
-              <ToggleGroup
-                type="single"
-                value={gradientMode}
-                onValueChange={(v) => v && setGradientMode(v as 'solid' | 'gradient')}
-                className="w-full h-6 gap-0 mb-3 border border-border rounded-md overflow-hidden bg-background"
-              >
-                <ToggleGroupItem value="solid" className="flex-1 h-6 text-[11px]">Einfarbig</ToggleGroupItem>
-                <ToggleGroupItem value="gradient" className="flex-1 h-6 text-[11px] border-l border-border">Verlauf</ToggleGroupItem>
-              </ToggleGroup>
-
-              {gradientMode === 'solid' ? (
-                <div className="flex items-center gap-2 h-[26px]">
-                  <span className="text-[11px] text-muted-foreground flex-1">Knotenfarbe</span>
-                  <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
-                    <div className="absolute inset-1 rounded" style={{ background: innerColor }} />
-                    <input
-                      type="color"
-                      value={innerColor}
-                      onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Innen</span>
-                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
-                      <div className="absolute inset-1 rounded" style={{ background: innerColor }} />
-                      <input
-                        type="color"
-                        value={innerColor}
-                        onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                  <div
-                    className="flex-1 h-6 rounded border border-border"
-                    style={{ background: `linear-gradient(to right, ${innerColor}, ${outerColor})` }}
-                  />
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Außen</span>
-                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
-                      <div className="absolute inset-1 rounded" style={{ background: outerColor }} />
-                      <input
-                        type="color"
-                        value={outerColor}
-                        onChange={e => { setOuterColor(e.target.value); setColorPreset('custom'); }}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-=======
             {/* FARBEN */}
             <AccSection value="gradient" label="Farben" color="purple">
               {/* Color row: inner swatch — gradient bar — outer swatch — toggle */}
@@ -667,7 +592,7 @@ export function Inspector({
                   title="Innenfarbe"
                 >
                   <input
-                    type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
+                    type="color" value={innerColor} onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
                     className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   />
                 </label>
@@ -685,7 +610,7 @@ export function Inspector({
                   title="Außenfarbe"
                 >
                   <input
-                    type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
+                    type="color" value={outerColor} onChange={e => { setOuterColor(e.target.value); setColorPreset('custom'); }}
                     className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                     tabIndex={gradientMode === 'gradient' ? 0 : -1}
                   />
@@ -698,9 +623,9 @@ export function Inspector({
                   >
                     <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${gradientMode === 'gradient' ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                   </button>
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                 </div>
               </div>
+
 
               {/* Preset chips */}
               <SubLabel>Schnellauswahl</SubLabel>
@@ -782,23 +707,7 @@ export function Inspector({
                 ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void }[]).map(({ label, value, set }) => (
                   <div key={label} className="flex items-center gap-2 h-[26px]">
                     <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
-<<<<<<< HEAD
-                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
-                      <div className="absolute inset-1 rounded" style={{ background: value === 'auto' ? '#6b7280' : String(value) }} />
-                      <input
-                        type="color"
-                        value={value === 'auto' ? '#6b7280' : String(value)}
-                        onChange={e => { set(e.target.value); setColorPreset('custom'); }}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        title={value === 'auto' ? hint : String(value)}
-                      />
-                    </div>
-                    {value !== 'auto' && (
-                      <button onClick={() => { set('auto'); setColorPreset('custom'); }} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
-                    )}
-=======
-                    <ColorPill value={value} onChange={set} onReset={() => set('auto')} />
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
+                    <ColorPill value={value} onChange={v => { set(v); setColorPreset('custom'); }} onReset={() => set('auto')} />
                   </div>
                 ))}
               </div>
@@ -836,23 +745,7 @@ export function Inspector({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
-<<<<<<< HEAD
-                  <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
-                    <div className="absolute inset-1 rounded" style={{ background: edgeColor === 'auto' ? '#9aa0aa' : String(edgeColor) }} />
-                    <input
-                      type="color"
-                      value={edgeColor === 'auto' ? '#9aa0aa' : String(edgeColor)}
-                      onChange={e => { setEdgeColor(e.target.value); setColorPreset('custom'); }}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      title={edgeColor === 'auto' ? 'Auto (grau)' : String(edgeColor)}
-                    />
-                  </div>
-                  {edgeColor !== 'auto' && (
-                    <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1 transition-colors focus-visible:outline-none focus-visible:text-foreground" title="Zurücksetzen">↺</button>
-                  )}
-=======
-                  <ColorPill value={edgeColor} onChange={setEdgeColor} onReset={() => setEdgeColor('auto')} />
->>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
+                    <ColorPill value={edgeColor} onChange={setEdgeColor} onReset={() => setEdgeColor('auto')} />
                 </div>
                 <SliderParam
                   kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
