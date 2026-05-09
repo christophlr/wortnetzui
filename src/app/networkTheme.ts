@@ -17,8 +17,8 @@ export type GradientSettings = {
 
 export const defaultGradientSettings: GradientSettings = {
   mode: 'gradient',
-  innerColor: '#06b6d4',
-  outerColor: '#10b981',
+  innerColor: '#4f46e5',
+  outerColor: '#7c3aed',
 };
 
 export type NodeAppearanceSettings = {

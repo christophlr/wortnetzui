@@ -1205,10 +1205,10 @@ export function Timeline({
   }, []);
 
   return (
-    <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height }}>
+    <div className="flex flex-col bg-zinc-50 border-t border-zinc-200 shrink-0" style={{ height }}>
 
       {/* ── Toolbar ── */}
-      <div className="h-14 bg-background border-b border-border flex items-center px-3 shrink-0 relative">
+      <div className="h-14 bg-accent/5 border-b border-border flex items-center px-3 shrink-0 relative">
 
         {/* Left */}
         <div className="flex items-center gap-1.5">

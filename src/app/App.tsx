@@ -3,10 +3,12 @@ import { TopBar } from './components/TopBar';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/Timeline';
+import { Progress } from './components/ui/progress';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
 import { evaluateHermite, computeCatmullRomTangent } from './easing';
+import { ShortcutsDialog } from './components/ShortcutsDialog';
 
 type Keyframe = {
   time: number;
@@ -90,7 +92,24 @@ export default function App() {
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const [timelineHeight, setTimelineHeight] = useState(DEFAULT_TIMELINE_HEIGHT);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNetworkReady, setIsNetworkReady] = useState(false);
+  const [initProgress, setInitProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isNetworkReady) {
+      setInitProgress(0);
+      const interval = setInterval(() => {
+        setInitProgress(prev => {
+          if (prev >= 95) return prev;
+          return prev + Math.random() * 15;
+        });
+      }, 150);
+      return () => clearInterval(interval);
+    } else {
+      setInitProgress(100);
+    }
+  }, [isNetworkReady]);
   const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
   const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);
   const [lastAppliedPreset, setLastAppliedPreset] = useState<'outline'|'filled'|null>(null);
@@ -99,6 +118,15 @@ export default function App() {
   // Undo/redo history — tracks the full timeline state
   const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS, sceneMarkers: [] }]);
   const [historyIndex, setHistoryIndex] = useState(0);
+
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [shortcuts, setShortcuts] = useState([
+    { id: '1', command: 'Speichern', key: 's' },
+    { id: '2', command: 'Laden', key: 'o' },
+    { id: '3', command: 'Rückgängig', key: 'z' },
+    { id: '4', command: 'Wiederholen', key: 'Z' }, // shift+z
+    { id: '5', command: 'Abspielen/Pause', key: ' ' },
+  ]);
 
   const physicsKeyframesRef = useRef(physicsKeyframes);
   useEffect(() => { physicsKeyframesRef.current = physicsKeyframes; }, [physicsKeyframes]);
@@ -160,16 +188,77 @@ export default function App() {
   const animationRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(0);
 
+  const handleSave = useCallback(() => {
+    const state = { inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }, [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]);
+
+  const handleLoad = useCallback(() => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const s = JSON.parse(ev.target?.result as string);
+            if (s.inputText) setInputText(s.inputText);
+            if (s.parseMode) setParseMode(s.parseMode);
+            if (s.gradientSettings) setGradientSettings(s.gradientSettings);
+            if (s.styleSettings) setStyleSettings(s.styleSettings);
+            if (s.physicsParams) setPhysicsParams(s.physicsParams);
+            if (s.viewMode) setViewMode(s.viewMode);
+            if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
+            if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
+            if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+          } catch (err) { console.error('Failed to load state:', err); }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (isInput) return;
+
+      const isMod = e.metaKey || e.ctrlKey;
+      
+      // Find matching shortcut
+      const match = shortcuts.find(s => {
+        if (s.key === ' ' && e.code === 'Space') return true;
+        if (s.key === 'Z' && e.key === 'Z' && isMod && e.shiftKey) return true; // Shift+Z
+        return isMod && e.key.toLowerCase() === s.key.toLowerCase();
+      });
+
+      if (match) {
         e.preventDefault();
-        setIsPlaying(p => !p);
+        switch (match.command) {
+          case 'Speichern': handleSave(); break;
+          case 'Laden': handleLoad(); break;
+          case 'Rückgängig': handleUndo(); break;
+          case 'Wiederholen': handleRedo(); break;
+          case 'Abspielen/Pause': setIsPlaying(p => !p); break;
+          case 'Sidebar umschalten': setIsSidebarOpen(p => !p); break;
+          default: 
+            // If it's a custom command added by the user, we'd need a more generic way to handle it.
+            // For now, we support the core ones.
+            console.log('Action not implemented:', match.command);
+        }
+      } else if (isMod && e.key === 'y') {
+        // Fallback for Ctrl+Y redo
+        e.preventDefault();
+        handleRedo();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [handleSave, handleLoad, handleUndo, handleRedo, shortcuts]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -752,7 +841,7 @@ export default function App() {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = inspectorWidth;
-    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(DEFAULT_INSPECTOR_WIDTH, Math.min(520, startWidth + ev.clientX - startX)));
+    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(DEFAULT_INSPECTOR_WIDTH, Math.min(600, startWidth + (startX - ev.clientX))));
     const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -789,114 +878,155 @@ export default function App() {
   }, [inputText, viewMode, parseMode]);
 
   return (
-    <div className="app-shell size-full flex flex-col bg-background text-foreground overflow-hidden">
-      <TopBar
-        viewMode={viewMode} onViewModeChange={(mode) => {
-          setViewMode(mode);
-          setPhysicsParams(p => ({ ...p, gravity: mode === '2D' ? 3 : 0 }));
-        }}
-        theme={theme} onThemeChange={setTheme}
-        renderMode={renderMode} onRenderModeChange={setRenderMode}
-        onSaveState={() => {
-          const state = { inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
-          const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob); const a = document.createElement('a');
-          a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
-          URL.revokeObjectURL(url);
-        }}
-        onLoadState={() => {
-          const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
-          input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                try {
-                  const s = JSON.parse(ev.target?.result as string);
-                  if (s.inputText) setInputText(s.inputText);
-                  if (s.parseMode) setParseMode(s.parseMode);
-                  if (s.gradientSettings) setGradientSettings(s.gradientSettings);
-                  if (s.styleSettings) setStyleSettings(s.styleSettings);
-                  if (s.physicsParams) setPhysicsParams(s.physicsParams);
-                  if (s.viewMode) setViewMode(s.viewMode);
-                  if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
-                  if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
-                  if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
-                } catch (err) { console.error('Failed to load state:', err); }
-              };
-              reader.readAsText(file);
-            }
-          };
-          input.click();
-        }}
-         onApplyNodeStylePreset={handleApplyNodeStylePreset}
-      />
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        <Inspector
-          onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
-          onParsingChange={setParseMode}
-          onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
-          onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
-          nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
-          effectivePhysicsParams={effectivePhysicsParams}
-          currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
-          physicsKeyframes={physicsKeyframes}
-          onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
-          width={inspectorWidth} viewMode={viewMode}
-          onDeleteKeyframe={(time) => {
-            handleDeleteKeyframe('camera-keyframes', time);
-          }}
-        />
-        <div
-          className="w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
-          onMouseDown={startInspectorResize}
-          onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
-        />
-        <Preview
-          ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
-          isPlaying={isPlaying} playheadPosition={playheadPosition}
-          physicsParams={physicsParams} inputText={inputText} parseMode={parseMode}
-          gradientSettings={gradientSettings} styleSettings={styleSettings}
-          cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
-          physicsKeyframes={physicsKeyframes}
-          theme={theme} isDark={isDark}
-          isNetworkReady={isNetworkReady} onNetworkReady={() => setIsNetworkReady(true)}
-          renderMode={renderMode}
-          nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
-        />
+    <div className="app-shell flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none">
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
+        {/* Main Viewport Area */}
+        <div className="flex-1 relative overflow-hidden h-full">
+          {/* Background Canvas */}
+          <div className="absolute inset-0 z-0">
+            <Preview
+              ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
+              isPlaying={isPlaying} playheadPosition={playheadPosition}
+              physicsParams={physicsParams} inputText={inputText} parseMode={parseMode}
+              gradientSettings={gradientSettings} styleSettings={styleSettings}
+              cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
+              physicsKeyframes={physicsKeyframes}
+              theme={theme} isDark={isDark}
+              isNetworkReady={isNetworkReady} onNetworkReady={() => setIsNetworkReady(true)}
+              renderMode={renderMode}
+              nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
+            />
+            
+            {!isNetworkReady && (
+              <div className="absolute inset-0 z-[5] flex items-center justify-center bg-white/40 backdrop-blur-sm animate-in fade-in duration-700">
+                <div className="w-64 flex flex-col items-center gap-4">
+                  <div className="w-full space-y-3">
+                    <div className="flex justify-center items-center">
+                      <span className="text-[13px] font-medium text-zinc-700 tracking-tight">Initialisierung</span>
+                    </div>
+                    <Progress value={initProgress} className="h-1 bg-zinc-200/80 overflow-hidden" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Floating TopBar - now constrained to viewport */}
+          <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
+            <TopBar
+              viewMode={viewMode} onViewModeChange={(mode) => {
+                setViewMode(mode);
+                setPhysicsParams(p => ({ ...p, gravity: mode === '2D' ? 3 : 0 }));
+              }}
+              theme={theme} onThemeChange={setTheme}
+              renderMode={renderMode} onRenderModeChange={setRenderMode}
+              onSaveState={handleSave}
+              onLoadState={handleLoad}
+              canUndo={historyIndex > 0}
+              canRedo={historyIndex < keyframeHistory.length - 1}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onApplyNodeStylePreset={handleApplyNodeStylePreset}
+              isSidebarOpen={isSidebarOpen}
+              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              onOpenShortcuts={() => setIsShortcutsOpen(true)}
+            />
+          </div>
+
+          <ShortcutsDialog
+            isOpen={isShortcutsOpen}
+            onOpenChange={setIsShortcutsOpen}
+            shortcuts={shortcuts}
+            onAddShortcut={(command, key) => setShortcuts(prev => [...prev, { id: Date.now().toString(), command, key }])}
+            onRemoveShortcut={(id) => setShortcuts(prev => prev.filter(s => s.id !== id))}
+          />
+
+          {/* Floating Timeline - stays absolute to viewport bottom */}
+          <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
+            <div 
+              className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
+              onMouseDown={startTimelineResize}
+              onDoubleClick={() => setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)}
+            />
+
+            <div className="pointer-events-auto">
+              <Timeline
+                isPlaying={isPlaying} onPlayPause={handlePlayPause} onStop={handleStop}
+                playheadPosition={playheadPosition}
+                onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
+                selectedKeyframes={selectedKeyframes}
+                onKeyframeSelect={handleKeyframeSelect}
+                onSelectKeyframes={handleSelectKeyframes}
+                cameraKeyframes={cameraKeyframes} onCaptureKeyframe={handleCaptureKeyframe}
+                physicsKeyframes={physicsKeyframes}
+                onMoveKeyframe={handleMoveKeyframe}
+                onSetHandle={handleSetHandle}
+                onSetHandle2D={handleSetHandle2D}
+                onSetValue={handleSetValue}
+                onClearHandle={handleClearHandle}
+                onSetInterpolation={handleSetInterpolation}
+                onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
+                onDragStart={handleDragStart} onDragEnd={handleDragEnd}
+                timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
+                canUndo={historyIndex > 0} canRedo={historyIndex < keyframeHistory.length - 1}
+                height={timelineHeight}
+                sceneMarkers={sceneMarkers}
+                onAddSceneMarker={handleAddSceneMarker}
+                onMoveSceneMarker={handleMoveSceneMarker}
+                onDropSceneMarker={handleDropSceneMarker}
+                onDeleteSceneMarker={handleDeleteSceneMarker}
+                onRenameSceneMarker={handleRenameSceneMarker}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Docked Inspector Sidebar */}
+        <div 
+          className="relative h-full flex flex-row border-l border-zinc-200 bg-zinc-50 z-40 transition-all duration-300 ease-in-out"
+          style={{ width: isSidebarOpen ? inspectorWidth : 48 }}
+        >
+          {/* Resize handle (left edge of sidebar) */}
+          {isSidebarOpen && (
+            <div 
+              className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-50"
+              onMouseDown={startInspectorResize}
+              onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
+            />
+          )}
+
+          <Inspector
+            onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
+            inputText={inputText}
+            onParsingChange={setParseMode}
+            onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
+            onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
+            nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
+            effectivePhysicsParams={effectivePhysicsParams}
+            currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
+            physicsKeyframes={physicsKeyframes}
+            onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
+            width={inspectorWidth} viewMode={viewMode}
+            onDeleteKeyframe={(time) => {
+              handleDeleteKeyframe('camera-keyframes', time);
+            }}
+            onCollapse={() => setIsSidebarOpen(false)}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onPanView={(dx, dy) => network3DRef.current?.panView(dx, dy)}
+            onRotateView={(dt, dp) => network3DRef.current?.rotateView(dt, dp)}
+            onSetRotation={(t, p) => network3DRef.current?.setRotation(t, p)}
+            onResetView={() => network3DRef.current?.resetView()}
+          />
+        </div>
       </div>
-      <div
-        className="h-1 shrink-0 cursor-row-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
-        onMouseDown={startTimelineResize}
-        onDoubleClick={() => setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)}
-      />
-      <Timeline
-        isPlaying={isPlaying} onPlayPause={handlePlayPause} onStop={handleStop}
-        playheadPosition={playheadPosition}
-        onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
-        selectedKeyframes={selectedKeyframes}
-        onKeyframeSelect={handleKeyframeSelect}
-        onSelectKeyframes={handleSelectKeyframes}
-        cameraKeyframes={cameraKeyframes} onCaptureKeyframe={handleCaptureKeyframe}
-        physicsKeyframes={physicsKeyframes}
-        onMoveKeyframe={handleMoveKeyframe}
-        onSetHandle={handleSetHandle}
-        onSetHandle2D={handleSetHandle2D}
-        onSetValue={handleSetValue}
-        onClearHandle={handleClearHandle}
-        onSetInterpolation={handleSetInterpolation}
-        onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
-        onDragStart={handleDragStart} onDragEnd={handleDragEnd}
-        timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
-        canUndo={historyIndex > 0} canRedo={historyIndex < keyframeHistory.length - 1}
-        height={timelineHeight}
-        sceneMarkers={sceneMarkers}
-        onAddSceneMarker={handleAddSceneMarker}
-        onMoveSceneMarker={handleMoveSceneMarker}
-        onDropSceneMarker={handleDropSceneMarker}
-        onDeleteSceneMarker={handleDeleteSceneMarker}
-        onRenameSceneMarker={handleRenameSceneMarker}
-      />
+      </div>
     </div>
   );
 }
+
+
+
+
+

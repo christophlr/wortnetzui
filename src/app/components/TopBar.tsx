@@ -1,6 +1,7 @@
 import {
   Settings, Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
-  Square, Cuboid, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw
+  Square, Cuboid, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw,
+  PanelLeft, PanelLeftClose, Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
 import { Button } from './ui/button';
@@ -21,6 +22,9 @@ interface TopBarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onExport?: () => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 function NetworkLogo() {
@@ -50,158 +54,147 @@ export function TopBar({
   renderMode = 'edit', onRenderModeChange,
   onApplyNodeStylePreset,
   onUndo, onRedo, canUndo = false, canRedo = false,
-  onExport,
+  onExport, isSidebarOpen, onToggleSidebar,
+  onOpenShortcuts,
 }: TopBarProps) {
-  const cycleTheme = () => {
-    const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-    onThemeChange?.(next);
-  };
 
-  const themeTitle =
-    theme === 'system' ? 'System (automatisch)' :
-    theme === 'light'  ? 'Hell' : 'Dunkel';
-
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
-    <div className="h-11 bg-background border-b border-border flex items-center px-3 gap-2 select-none shrink-0">
-      {/* Logo */}
-      <div className="flex items-center gap-2 shrink-0">
-        <NetworkLogo />
-        <span className="text-[12px] font-medium text-foreground tracking-tight whitespace-nowrap">Wortnetze</span>
-      </div>
+    <div className="flex items-start justify-between w-full pointer-events-none select-none">
+      {/* Left Pill: Logo & Menubar */}
+      <div className="flex items-center gap-2 px-3 h-11 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl pointer-events-auto">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onToggleSidebar}
+          className="size-8 text-zinc-500 hover:text-zinc-900 -ml-1.5"
+          title={isSidebarOpen ? "Sidebar ausblenden" : "Sidebar einblenden"}
+        >
+          {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+        </Button>
+        <div className="w-px h-4 bg-zinc-200 mx-1" />
+        {/* Logo */}
+        <div className="flex items-center gap-2 shrink-0">
+          <NetworkLogo />
+          <span className="text-[12px] font-medium text-foreground tracking-tight whitespace-nowrap">Wortnetze</span>
+        </div>
 
-      {/* Menubar */}
-      <div className="flex items-center shrink-0">
-        <Menubar>
-          <MenubarMenu>
-            <MenubarTrigger>Datei</MenubarTrigger>
-            <MenubarContent>
-              <MenubarGroup>
-                <MenubarItem onSelect={() => onSaveState?.()}>
-                  <Save size={12} />
-                  Speichern
-                  <MenubarShortcut>⌘S</MenubarShortcut>
-                </MenubarItem>
-                <MenubarItem onSelect={() => onLoadState?.()}>
-                  <FolderOpen size={12} />
-                  Laden
-                  <MenubarShortcut>⌘O</MenubarShortcut>
-                </MenubarItem>
-              </MenubarGroup>
-            </MenubarContent>
-          </MenubarMenu>
+        <div className="h-4 w-px bg-border/50 mx-1 shrink-0" />
 
-          <MenubarMenu>
-            <MenubarTrigger>Bearbeiten</MenubarTrigger>
-            <MenubarContent>
-              <MenubarGroup>
-                <MenubarItem onSelect={() => onUndo?.()} disabled={!canUndo}>
-                  <Undo2 size={12} />
-                  Rückgängig
-                  <MenubarShortcut>⌘Z</MenubarShortcut>
-                </MenubarItem>
-                <MenubarItem onSelect={() => onRedo?.()} disabled={!canRedo}>
-                  <Redo2 size={12} />
-                  Wiederholen
-                  <MenubarShortcut>⌘⇧Z</MenubarShortcut>
-                </MenubarItem>
-              </MenubarGroup>
-            </MenubarContent>
-          </MenubarMenu>
+        {/* Menubar */}
+        <div className="flex items-center shrink-0">
+          <Menubar className="bg-transparent border-none shadow-none h-auto p-0">
+            <MenubarMenu>
+              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Datei</MenubarTrigger>
+              <MenubarContent>
+                <MenubarGroup>
+                  <MenubarItem onSelect={() => onSaveState?.()}>
+                    <Save size={12} />
+                    Speichern
+                    <MenubarShortcut>⌘S</MenubarShortcut>
+                  </MenubarItem>
+                  <MenubarItem onSelect={() => onLoadState?.()}>
+                    <FolderOpen size={12} />
+                    Laden
+                    <MenubarShortcut>⌘O</MenubarShortcut>
+                  </MenubarItem>
+                </MenubarGroup>
+              </MenubarContent>
+            </MenubarMenu>
 
-          <MenubarMenu>
-            <MenubarTrigger>Ansicht</MenubarTrigger>
-            <MenubarContent>
-              <MenubarGroup>
-                <MenubarLabel>Darstellung</MenubarLabel>
-                <MenubarRadioGroup value={viewMode} onValueChange={(v) => onViewModeChange(v as '2D' | '3D')}>
-                  <MenubarRadioItem value="2D"><Square size={12} strokeWidth={2} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />2D</MenubarRadioItem>
-                  <MenubarRadioItem value="3D"><Cuboid size={12} strokeWidth={2} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />3D</MenubarRadioItem>
-                </MenubarRadioGroup>
-              </MenubarGroup>
-              <MenubarSeparator />
-              <MenubarGroup>
-                <MenubarLabel>Modus</MenubarLabel>
-                <MenubarRadioGroup value={renderMode ?? 'edit'} onValueChange={(v) => onRenderModeChange?.(v as 'edit' | 'render')}>
-                  <MenubarRadioItem value="edit"><PencilLine size={12} strokeWidth={2} fill={renderMode === 'edit' ? 'currentColor' : 'none'} fillOpacity={0.12} />Bearbeiten</MenubarRadioItem>
-                  <MenubarRadioItem value="render"><MonitorPlay size={12} strokeWidth={2} fill={renderMode === 'render' ? 'currentColor' : 'none'} fillOpacity={0.12} />Rendern</MenubarRadioItem>
-                </MenubarRadioGroup>
-              </MenubarGroup>
-              <MenubarSeparator />
-              <MenubarGroup>
-                <MenubarLabel>Design</MenubarLabel>
-                <MenubarRadioGroup value={theme ?? 'system'} onValueChange={(v) => onThemeChange?.(v as 'light' | 'dark' | 'system')}>
-                  <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} fill={theme === 'light' ? 'currentColor' : 'none'} fillOpacity={0.12} />Hell</MenubarRadioItem>
-                  <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} fill={theme === 'dark' ? 'currentColor' : 'none'} fillOpacity={0.12} />Dunkel</MenubarRadioItem>
-                  <MenubarRadioItem value="system"><Monitor size={12} strokeWidth={2} fill={theme === 'system' ? 'currentColor' : 'none'} fillOpacity={0.12} />System</MenubarRadioItem>
-                </MenubarRadioGroup>
-              </MenubarGroup>
-            </MenubarContent>
-          </MenubarMenu>
-
-          <MenubarMenu>
-            <MenubarTrigger>Style</MenubarTrigger>
-            <MenubarContent>
-              <MenubarGroup>
-                <MenubarItem onSelect={() => onApplyNodeStylePreset?.('outline')}>
-                  <CircleDashed size={12} />
-                  Outline
-                </MenubarItem>
-                <MenubarItem onSelect={() => onApplyNodeStylePreset?.('filled')}>
-                  <CircleDotDashed size={12} />
-                  Filled
-                </MenubarItem>
+            <MenubarMenu>
+              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Bearbeiten</MenubarTrigger>
+              <MenubarContent>
+                <MenubarGroup>
+                  <MenubarItem onSelect={() => onUndo?.()} disabled={!canUndo}>
+                    <Undo2 size={12} />
+                    Rückgängig
+                    <MenubarShortcut>⌘Z</MenubarShortcut>
+                  </MenubarItem>
+                  <MenubarItem onSelect={() => onRedo?.()} disabled={!canRedo}>
+                    <Redo2 size={12} />
+                    Wiederholen
+                    <MenubarShortcut>⌘⇧Z</MenubarShortcut>
+                  </MenubarItem>
+                </MenubarGroup>
                 <MenubarSeparator />
-                <MenubarItem onSelect={() => onApplyNodeStylePreset?.('reset')}>
-                  <RotateCcw size={12} />
-                  Reset
-                </MenubarItem>
-              </MenubarGroup>
-            </MenubarContent>
-          </MenubarMenu>
-        </Menubar>
+                <MenubarGroup>
+                  <MenubarItem onSelect={() => onOpenShortcuts?.()}>
+                    <Keyboard size={12} />
+                    Tastaturkürzel...
+                  </MenubarItem>
+                </MenubarGroup>
+              </MenubarContent>
+            </MenubarMenu>
+
+            <MenubarMenu>
+              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Ansicht</MenubarTrigger>
+              <MenubarContent>
+                <MenubarGroup>
+                  <MenubarLabel>Modus</MenubarLabel>
+                  <MenubarItem onSelect={() => onRenderModeChange?.(renderMode === 'edit' ? 'render' : 'edit')}>
+                    <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-blue-600' : 'text-muted-foreground'} />
+                    Preview Modus
+                    <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
+                  </MenubarItem>
+                </MenubarGroup>
+                <MenubarSeparator />
+                <MenubarGroup>
+                  <MenubarLabel>Design</MenubarLabel>
+                  <MenubarRadioGroup value={theme ?? 'system'} onValueChange={(v) => onThemeChange?.(v as 'light' | 'dark' | 'system')}>
+                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} fill={theme === 'light' ? 'currentColor' : 'none'} fillOpacity={0.12} />Hell</MenubarRadioItem>
+                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} fill={theme === 'dark' ? 'currentColor' : 'none'} fillOpacity={0.12} />Dunkel</MenubarRadioItem>
+                    <MenubarRadioItem value="system"><Monitor size={12} strokeWidth={2} fill={theme === 'system' ? 'currentColor' : 'none'} fillOpacity={0.12} />System</MenubarRadioItem>
+                  </MenubarRadioGroup>
+                </MenubarGroup>
+              </MenubarContent>
+            </MenubarMenu>
+
+
+          </Menubar>
+        </div>
       </div>
 
-      <div className="h-4 w-px bg-border mx-1 shrink-0" />
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* Right Pill: Toggles & Actions */}
+      <div className="flex items-center gap-3 px-3 h-11 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl pointer-events-auto">
         <ToggleGroup
           type="single"
           value={viewMode}
           onValueChange={(v) => v && onViewModeChange(v as '2D' | '3D')}
-          className="h-6 gap-0 border border-border rounded-md overflow-hidden bg-background"
+          className="h-7 gap-0 border border-border/50 rounded-md overflow-hidden bg-background/50"
         >
-          <ToggleGroupItem value="2D" className="h-6 px-2.5 text-[11px]"><Square size={12} strokeWidth={2} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />2D</ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-6 px-2.5 text-[11px] border-l border-border"><Cuboid size={12} strokeWidth={2} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />3D</ToggleGroupItem>
+          <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
+            <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border/50 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
+            <Cuboid size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
+          </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-border/50" />
 
-        <ToggleGroup
-          type="single"
-          value={renderMode}
-          onValueChange={(v) => v && onRenderModeChange?.(v as 'edit' | 'render')}
-          className="h-6 gap-0 border border-border rounded-md overflow-hidden bg-background"
+        <Button
+          variant="outline"
+          size="sm"
+          className={`h-7 px-3 text-[11px] font-medium transition-all duration-200 ${
+            renderMode === 'render' 
+              ? 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20 hover:text-blue-700' 
+              : 'text-zinc-600 hover:bg-zinc-100 border-zinc-200'
+          }`}
+          onClick={() => onRenderModeChange?.(renderMode === 'edit' ? 'render' : 'edit')}
         >
-          <ToggleGroupItem value="edit" className="h-6 px-2.5 text-[11px]"><PencilLine size={12} strokeWidth={2} fill={renderMode === 'edit' ? 'currentColor' : 'none'} fillOpacity={0.12} />Edit</ToggleGroupItem>
-          <ToggleGroupItem value="render" className="h-6 px-2.5 text-[11px] border-l border-border"><MonitorPlay size={12} strokeWidth={2} fill={renderMode === 'render' ? 'currentColor' : 'none'} fillOpacity={0.12} />Render</ToggleGroupItem>
-        </ToggleGroup>
-
-        <div className="h-4 w-px bg-border" />
-
-        <Button variant="outline" size="sm" className="h-6 text-[11px] px-2.5" onClick={() => onExport?.()}>
-          <Download size={12} />Exportieren
+          <MonitorPlay 
+            size={12} 
+            strokeWidth={2.5} 
+            className={`mr-1.5 transition-transform duration-300 ${renderMode === 'render' ? 'scale-110' : 'opacity-70'}`}
+          />
+          Preview
         </Button>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-border/50" />
 
-        <Button variant="ghost" size="icon" className="size-6" onClick={cycleTheme} title={themeTitle}>
-          <ThemeIcon size={13} />
+        <Button variant="ghost" size="sm" className="h-7 text-[11px] px-3 hover:bg-accent/50" onClick={() => onExport?.()}>
+          <Download size={12} />Export
         </Button>
       </div>
     </div>

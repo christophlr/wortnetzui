@@ -95,7 +95,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   }, [rect]);
 
   return (
-    <div ref={previewRef} className="flex-1 bg-background relative overflow-hidden">
+    <div ref={previewRef} className="w-full h-full relative overflow-hidden">
       <div className="absolute inset-0">
         {mounted && (
           <Network3D
@@ -121,12 +121,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         )}
       </div>
 
-      {/* Loading overlay — shown while scene is rebuilding */}
-      {!isNetworkReady && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-background pointer-events-none">
-          <div className="w-8 h-8 rounded-full border-2 border-muted border-t-foreground/60 animate-spin" />
-        </div>
-      )}
+
 
 
 

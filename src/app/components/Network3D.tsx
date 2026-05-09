@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, type GradientSettings, type NodeShape } from '../networkTheme';
+import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, type GradientSettings, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 
@@ -46,6 +46,7 @@ interface Network3DProps {
   renderMode?: 'edit' | 'render';
   nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
   edgeAppearance?: { color: 'auto' | string };
+  timelineHeight?: number;
 }
 
 
@@ -173,27 +174,33 @@ function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): numbe
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
   getEffectivePhysicsParams: () => PhysicsParams;
+  panView: (dx: number, dy: number) => void;
+  rotateView: (deltaTheta: number, deltaPhi: number) => void;
+  setRotation: (theta: number, phi: number) => void;
+  resetView: () => void;
 }
 
-export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Network3D({
-  isPlaying,
-  playheadPosition,
-  inputText = DEFAULT_TEXT,
-  theme = 'system',
-  viewMode = '3D',
-  parseMode = 'sentence',
-  physicsParams = DEFAULT_PHYSICS,
-  physicsKeyframes,
-  gradientSettings = defaultGradientSettings,
-  styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
-  cameraKeyframes = [],
-  onCameraChange,
-  isDark,
-  onReady,
-  renderMode = 'edit',
-  nodeAppearance = { borderColor: 'auto', fillColor: 'auto', textColor: 'auto' },
-  edgeAppearance = { color: 'auto' },
-}: Network3DProps, ref) {
+export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref) => {
+  const {
+    isPlaying,
+    playheadPosition,
+    inputText = DEFAULT_TEXT,
+    theme = 'system',
+    viewMode = '3D',
+    parseMode = 'sentence',
+    physicsParams = DEFAULT_PHYSICS,
+    physicsKeyframes,
+    gradientSettings = defaultGradientSettings,
+    styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
+    cameraKeyframes = [],
+    onCameraChange,
+    isDark,
+    onReady,
+    renderMode = 'edit',
+    nodeAppearance = defaultNodeAppearance,
+    edgeAppearance = { color: 'auto' },
+    timelineHeight = 0,
+  } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>();
@@ -247,6 +254,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   }>({ isDragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0, hasMoved: false });
   const gizmoHoverRef = useRef<string | null>(null);
   const gizmoActiveRef = useRef<string | null>(null);
+  const [panX, setPanX] = useState(0);
+  const lastPanXRef = useRef(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
@@ -313,13 +322,83 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         },
       };
     },
-    getEffectivePhysicsParams: () => ({ ...effectivePhysicsRef.current })
+    getEffectivePhysicsParams: () => ({ ...effectivePhysicsRef.current }),
+    panView: (dx: number, dy: number) => panView(dx, dy),
+    rotateView: (deltaTheta: number, deltaPhi: number) => {
+      if (!controlsRef.current) return;
+      controlsRef.current.rotateLeft(deltaTheta);
+      controlsRef.current.rotateUp(deltaPhi);
+      controlsRef.current.update();
+    },
+    setRotation: (theta: number, phi: number) => {
+      if (!controlsRef.current || !cameraRef.current) return;
+      const distance = cameraRef.current.position.distanceTo(controlsRef.current.target);
+      const x = distance * Math.sin(phi) * Math.sin(theta);
+      const y = distance * Math.cos(phi);
+      const z = distance * Math.sin(phi) * Math.cos(theta);
+      cameraRef.current.position.set(
+        controlsRef.current.target.x + x,
+        controlsRef.current.target.y + y,
+        controlsRef.current.target.z + z
+      );
+      controlsRef.current.update();
+    },
+    resetView: () => {
+      if (!cameraRef.current || !controlsRef.current) return;
+      cameraFlyRef.current = {
+        fromPos: cameraRef.current.position.clone(),
+        toPos: new THREE.Vector3(1200, 800, 1500),
+        fromTarget: controlsRef.current.target.clone(),
+        toTarget: new THREE.Vector3(0, 400, 0),
+        startTime: performance.now(),
+        duration: 600,
+      };
+    }
   }));
 
   useEffect(() => {
     cameraKeyframesRef.current = cameraKeyframes;
     lastAppliedTimeRef.current = null;
   }, [cameraKeyframes]);
+
+  const panView = (deltaX: number, deltaY: number) => {
+    if (!controlsRef.current || !cameraRef.current) return;
+    const cam = cameraRef.current;
+    const target = controlsRef.current.target;
+    
+    const distance = cam.position.distanceTo(target);
+    const speed = distance * 0.001;
+    
+    const left = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
+    
+    const panVector = new THREE.Vector3()
+      .addScaledVector(left, -deltaX * speed)
+      .addScaledVector(up, deltaY * speed);
+      
+    cam.position.add(panVector);
+    target.add(panVector);
+    controlsRef.current.update();
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't pan if typing in an input
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      const step = e.shiftKey ? 40 : 15;
+      switch (e.key) {
+        case 'ArrowLeft':  panView(-step, 0); break;
+        case 'ArrowRight': panView(step, 0); break;
+        case 'ArrowUp':    panView(0, step); break;
+        case 'ArrowDown':  panView(0, -step); break;
+        default: return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -408,8 +487,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     const isEditMode = renderModeRef.current === 'edit';
     const effectiveColor = isEditMode ? EDIT_NODE_COLOR : color;
     const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
-    const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : undefined;
-    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : effectiveColor;
+    const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
+    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
 
@@ -724,12 +803,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     let animFrame: number;
     let timerId: ReturnType<typeof setTimeout>;
 
-    animFrame = requestAnimationFrame(() => {
-      timerId = setTimeout(() => {
-        if (isCancelled) return;
-
-        // Setup scene
-        const scene = new THREE.Scene();
+    // Setup scene
+    const scene = new THREE.Scene();
     const bgColors = getNetworkThemeBackground(isDarkRef.current);
     scene.background = new THREE.Color(bgColors.threeColor);
     sceneRef.current = scene;
@@ -752,10 +827,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     // Setup renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(cw, ch);
+    renderer.setSize(cw || 1000, ch || 800);
     renderer.setPixelRatio(window.devicePixelRatio);
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
 
     // OrbitControls — pan+zoom only in 2D, full orbit in 3D
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -1279,18 +1355,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       physicsWorkerRef.current = null;
       workerBusyRef.current = false;
     };
-      }, 50);
-    });
-
     // Cleanup
     return () => {
       isCancelled = true;
-      cancelAnimationFrame(animFrame);
-      clearTimeout(timerId);
       if (localCleanup) {
         localCleanup();
       }
     };
+
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Camera settings removed - OrbitControls handles all camera interaction
@@ -1405,6 +1477,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controlsRef.current.update();
   };
 
+  const handlePanSlider = (val: number) => {
+    const delta = val - lastPanXRef.current;
+    panView(delta * 40, 0);
+    lastPanXRef.current = val;
+    setPanX(val);
+  };
+
   const handleGizmoDoubleClick = (e: React.MouseEvent) => {
     if (!cameraRef.current || !controlsRef.current) return;
     
@@ -1439,7 +1518,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     const size = canvas.width;
     const c = size / 2;
-    const r = size * 0.36;
+    const r = size * 0.42;
     const invQ = cameraRef.current.quaternion.clone().invert();
     
     const axes = [
@@ -1556,11 +1635,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         {viewMode !== '2D' && (
           <canvas
             ref={gizmoCanvasRef}
-            width={90}
-            height={90}
+            width={72}
+            height={72}
             draggable={false}
-            className="absolute top-3 right-3 z-10 rounded-full border border-border/25 transition-colors hover:border-border/50"
-            style={{ cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            className="absolute left-1/2 -translate-x-1/2 z-10 rounded-full bg-zinc-50 border border-zinc-200 transition-colors hover:border-zinc-300 shadow-sm"
+            style={{ bottom: 12, cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
             onPointerDown={handleGizmoPointerDown}
             onPointerMove={handleGizmoPointerMove}
             onPointerUp={handleGizmoPointerUp}
@@ -1598,14 +1677,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
         {/* Zoom slider — 3D only */}
         {viewMode !== '2D' && (
-          <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none p-1.5 rounded-full bg-background border border-border shadow-sm"
-               style={{ top: '50%', transform: 'translateY(-50%)' }}>
+          <div className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 select-none p-1 rounded-full bg-zinc-50 border border-zinc-200 shadow-sm"
+               style={{ bottom: 92 }}>
             <button
-              onMouseDown={() => handleZoomBy(0.75)}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-foreground font-medium text-sm leading-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none"
-              title="Zoom in"
-            >+</button>
-            <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              onMouseDown={() => handleZoomBy(1.33)}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-zinc-500 font-medium text-sm leading-none transition-colors hover:bg-zinc-100 focus-visible:outline-none"
+              title="Zoom out"
+            >−</button>
+            <div style={{ width: 64, height: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <input
                 ref={zoomSliderRef}
                 type="range"
@@ -1614,18 +1693,20 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                 step={0.5}
                 defaultValue={distToSliderVal(1962)}
                 onChange={(e) => handleZoomSlider(parseFloat(e.target.value))}
-                className="zoom-slider"
-                style={{ position: 'absolute', width: 88, transform: 'rotate(-90deg)', cursor: 'pointer' }}
+                className="zoom-slider-horizontal"
+                style={{ width: '100%', cursor: 'pointer' }}
               />
             </div>
             <button
-              onMouseDown={() => handleZoomBy(1.33)}
-              className="w-7 h-7 flex items-center justify-center rounded-full text-foreground font-medium text-sm leading-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none"
-              title="Zoom out"
-            >−</button>
+              onMouseDown={() => handleZoomBy(0.75)}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-zinc-500 font-medium text-sm leading-none transition-colors hover:bg-zinc-100 focus-visible:outline-none"
+              title="Zoom in"
+            >+</button>
           </div>
         )}
+
       </div>
+
       {contextMenu && createPortal(
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />

@@ -1,864 +1,504 @@
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { Accordion, AccordionItem, AccordionContent } from './ui/accordion';
-import * as Slider from '@radix-ui/react-slider';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { ChevronRight, Diamond, Type, Layers, Zap, RefreshCw } from 'lucide-react';
-import { useState, useEffect, useRef, useMemo } from 'react';
-import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
+"use client";
+
+import * as React from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  ChevronRight, 
+  Diamond, 
+  Type, 
+  Layers, 
+  Zap, 
+  RefreshCw,
+  MoreHorizontal,
+  ChevronLeft,
+  X,
+  Plus,
+  Minus,
+  Video,
+  Atom
+} from 'lucide-react';
+
 import { Button } from './ui/button';
-import { Toggle } from './ui/toggle';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Switch } from './ui/switch';
+import { Separator } from './ui/separator';
+import { Slider } from './ui/slider';
+import {
+  SidebarContent,
+  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarProvider,
+} from './ui/sidebar';
+
+import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
+import { cn } from './ui/utils';
 
 const GRADIENT_PRESETS = [
+  { name: 'Indigo → Violett', inner: '#4f46e5', outer: '#7c3aed' },
   { name: 'Cyan → Grün', inner: '#06b6d4', outer: '#10b981' },
   { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
   { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
-  { name: 'Blau → Violett', inner: '#3b82f6', outer: '#8b5cf6' },
-  { name: 'Gold → Kupfer', inner: '#f59e0b', outer: '#b45309' },
 ];
 
-/* ─── helpers ─── */
-
-function KfDiamond({ active, color, onClick }: { active: boolean; color: 'blue' | 'orange' | 'purple'; onClick: () => void }) {
-  const activeColor = {
-    blue:   'text-blue-400',
-    orange: 'text-orange-400',
-    purple: 'text-purple-400',
-  }[color];
-
-  return (
-    <button
-      onClick={onClick}
-      title={active ? 'Keyframe entfernen' : 'Keyframe setzen'}
-      className={`size-5 rounded-full shrink-0 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${active ? activeColor : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/60'}`}
-    >
-      <Diamond size={11} fill={active ? 'currentColor' : 'none'} />
-    </button>
-  );
-}
-
-function NumInput({ defaultValue, mono = true }: { defaultValue: number | string; mono?: boolean }) {
-  return (
-    <Input
-      type="number"
-      defaultValue={defaultValue}
-      className={`w-16 h-6 px-1.5 text-[11px] text-right shrink-0 ${mono ? 'font-mono' : ''}`}
-    />
-  );
-}
-
-function ParamRow({
-  kfKey, label, value, color = 'blue', kfs, onToggle,
-}: {
-  kfKey: string; label: string; value: number; color?: 'blue' | 'orange' | 'purple';
-  kfs: Record<string, boolean>; onToggle: (k: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2 h-[26px]">
-      <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
-      <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
-      <NumInput defaultValue={value} />
-    </div>
-  );
-}
-
-/*
- * SliderParam — numeric slider with click-to-type value editing.
- *
- * The numeric badge on the right is always clickable: clicking it opens an
- * inline input so the user can type an exact value with the keyboard.
- * Press Enter or Tab to commit, Escape to cancel.
- *
- * Props:
- *   displayFn   — converts raw slider value array → display string (e.g. v[0] * 10)
- *   parseInput  — converts a typed string back to the raw slider integer; defaults to
- *                 clamping the parsed number to [min, max]. For scaled params (e.g.
- *                 repulsion where display = slider * 10) pass e.g. s => parseFloat(s) / 10.
- *   description — short help text shown below the slider row.
- */
-function SliderParam({
-  kfKey, label, value, onChange, color, kfs, onToggle,
-  displayFn, parseInput, description, min = 0, max = 200,
-  effectiveValue,
-}: {
-  kfKey: string; label: string; value: number[]; onChange: (v: number[]) => void;
-  color: 'blue' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
-  displayFn?: (v: number[]) => string;
-  parseInput?: (s: string) => number;
-  description?: string;
-  min?: number; max?: number;
-  effectiveValue?: number;
-}) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragVelocity, setDragVelocity] = useState(0);
-  const lastDragValueRef = useRef(value[0]);
-  const lastDragTimeRef = useRef(Date.now());
-  const [animatedValue, setAnimatedValue] = useState(value[0]);
-  const trackCls = color === 'blue' ? 'bg-blue-600/50' : 'bg-orange-600/50';
-  const thumbCls = color === 'blue' ? 'bg-blue-400' : 'bg-orange-400';
-  const focusBorderCls = color === 'blue' ? 'border-blue-500/60' : 'border-orange-500/60';
-
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Animate toward effective value when not dragging, responsive to drag velocity
-  useEffect(() => {
-    if (isDragging || effectiveValue === undefined || effectiveValue === null) {
-      setAnimatedValue(value[0]);
-      return;
-    }
-
-    let animationId: number;
-    const animate = () => {
-      setAnimatedValue(prev => {
-        const target = effectiveValue;
-        const diff = target - prev;
-        
-        // Spring stiffness scales with drag velocity (faster drags = snappier response)
-        const velocityResponse = Math.min(Math.abs(dragVelocity) * 2, 1);
-        const stiffness = 0.12 + velocityResponse * 0.08; // 0.12 to 0.20
-        
-        return prev + diff * stiffness;
-      });
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [isDragging, effectiveValue, value, dragVelocity]);
-
-  const handleSliderChange = (newVal: number[]) => {
-    const now = Date.now();
-    const timeDelta = Math.max(16, now - lastDragTimeRef.current); // Min 16ms (60fps frame)
-    const valueDelta = newVal[0] - lastDragValueRef.current;
-    
-    // Calculate velocity in value-units per millisecond
-    setDragVelocity(valueDelta / timeDelta);
-    lastDragValueRef.current = newVal[0];
-    lastDragTimeRef.current = now;
-
-    onChange(newVal);
-    setAnimatedValue(newVal[0]);
-  };
-
-  const handleSliderPointerDown = () => setIsDragging(true);
-  const handleSliderPointerUp = () => {
-    setIsDragging(false);
-    setDragVelocity(0);
-  };
-
-  const displayedSliderValue =
-    !isDragging && effectiveValue !== undefined
-      ? [Math.round(animatedValue)]
-      : value;
-  const displayStr = displayFn ? displayFn(displayedSliderValue) : String(displayedSliderValue[0]);
-
-  const startEdit = () => {
-    setDraft(displayStr);
-    setEditing(true);
-    // Focus after render
-    setTimeout(() => inputRef.current?.select(), 0);
-  };
-
-  const commitEdit = () => {
-    if (draft.trim() !== '') {
-      const parsed = parseInput
-        ? parseInput(draft)
-        : Math.max(min, Math.min(max, Math.round(parseFloat(draft) || min)));
-      const clamped = Math.max(min, Math.min(max, Math.round(parsed)));
-      onChange([clamped]);
-    }
-    setEditing(false);
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
-        {editing ? (
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commitEdit(); }
-              if (e.key === 'Escape') setEditing(false);
-            }}
-            className={`w-12 h-5 px-1 bg-input border ${focusBorderCls} rounded text-[11px] font-mono text-right text-foreground focus:outline-none shrink-0`}
-            autoFocus
-          />
-        ) : (
-          <button
-            onClick={startEdit}
-            title="Click to type a value"
-            className="text-[11px] font-mono text-muted-foreground/60 hover:text-muted-foreground w-12 text-right shrink-0 cursor-text focus-visible:outline-none focus-visible:text-foreground"
-          >
-            {displayStr}
-          </button>
-        )}
-        <KfDiamond active={kfs[kfKey]} color={color} onClick={() => onToggle(kfKey)} />
-      </div>
-      <Slider.Root
-        className="relative flex items-center w-full h-4"
-        value={displayedSliderValue} onValueChange={handleSliderChange} min={min} max={max} step={1}
-      >
-        <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
-          <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
-        </Slider.Track>
-        <Slider.Thumb 
-          className={`block w-2.5 h-2.5 border-[1.5px] border-background rounded-full hover:scale-125 focus:outline-none transition-transform cursor-grab ${thumbCls}`}
-          onPointerDown={handleSliderPointerDown}
-          onPointerUp={handleSliderPointerUp}
-        />
-      </Slider.Root>
-      {description && (
-        <p className="text-[9px] text-muted-foreground/50 mt-1 leading-relaxed">{description}</p>
-      )}
-    </div>
-  );
-}
-
-function AccSection({
-  value, label, color, children,
-}: {
-  value: string; label: string; color?: 'blue' | 'orange' | 'purple'; children: React.ReactNode;
-}) {
-  const borderCls = {
-    blue:   'border-l-blue-500/60',
-    orange: 'border-l-orange-500/60',
-    purple: 'border-l-purple-500/60',
-  };
-  const dotCls = {
-    blue:   'bg-blue-500',
-    orange: 'bg-orange-500',
-    purple: 'bg-purple-500',
-  };
-
-  return (
-    <AccordionItem value={value} className="border-border/50">
-      <AccordionPrimitive.Header asChild>
-        <div>
-          <AccordionPrimitive.Trigger
-            className={`w-full flex items-center gap-2.5 px-3 h-7 transition-[color,background-color,box-shadow] hover:bg-accent/60 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] group ${
-              color ? `border-l-2 ${borderCls[color]}` : 'pl-3'
-            }`}
-          >
-            <ChevronRight size={11} className="text-foreground/70 transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0" />
-            {color && <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls[color]}`} />}
-            <span className="text-[11px] font-medium text-foreground flex-1 text-left">{label}</span>
-          </AccordionPrimitive.Trigger>
-        </div>
-      </AccordionPrimitive.Header>
-      <AccordionContent className="px-3 pb-3 pt-1.5">
-        {children}
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
-
-function SubLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest block mb-1.5 mt-2.5 first:mt-0">
-      {children}
-    </span>
-  );
-}
-
-/* Color helpers */
-function hexToRgb(hex: string) {
-  const h = hex.replace('#', '');
-  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-}
-
-function lightenHex(hex: string, percent: number) {
-  const { r, g, b } = hexToRgb(hex);
-  const p = Math.max(0, Math.min(100, percent)) / 100;
-  const nr = Math.round(r + (255 - r) * p);
-  const ng = Math.round(g + (255 - g) * p);
-  const nb = Math.round(b + (255 - b) * p);
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
-}
-
-function ColorPill({
-  value, onChange, onReset,
-}: { value: string | 'auto'; onChange: (v: string) => void; onReset?: () => void }) {
-  const isAuto = value === 'auto';
-  return (
-    <div className="flex items-center gap-1">
-      <label
-        className={`relative h-6 w-16 rounded-full border text-[10px] transition-colors flex items-center justify-center cursor-pointer ${
-          isAuto
-            ? 'border-border bg-muted text-muted-foreground'
-            : 'border-border/60 hover:brightness-110'
-        }`}
-        style={!isAuto ? { backgroundColor: value } : undefined}
-        title={isAuto ? 'auto' : value}
-      >
-        {isAuto ? 'auto' : ''}
-        <input
-          type="color"
-          value={isAuto ? '#6b7280' : value}
-          onChange={e => onChange(e.target.value)}
-          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-        />
-      </label>
-      {!isAuto && onReset && (
-        <button onClick={onReset} className="text-[10px] text-muted-foreground hover:text-foreground px-0.5 transition-colors" title="Zurücksetzen">↺</button>
-      )}
-    </div>
-  );
-}
-
-
-/* ─── main ─── */
-
 interface InspectorProps {
-  onPhysicsChange?: (params: {
-    repulsion: number;
-    springK: number;
-    damping: number;
-    minSpeed: number;
-    linkDistance: number;
-    gravity: number;
-    turbulence: number;
-  }) => void;
-  effectivePhysicsParams?: {
-    repulsion: number;
-    springK: number;
-    damping: number;
-    minSpeed: number;
-    linkDistance: number;
-    gravity: number;
-    turbulence: number;
-  };
-  onTextChange?: (text: string) => void;
-  onParsingChange?: (mode: 'sentence' | 'word' | 'both') => void;
-  onGradientChange?: (settings: { mode: 'solid' | 'gradient'; innerColor: string; outerColor: string }) => void;
-  onStyleChange?: (settings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: NodeShape; nodeBorderWidth: number; depthSizeEnabled: boolean; depthSizeStrength: number }) => void;
-  onNodeAppearanceChange?: (a: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string }) => void;
-  onEdgeAppearanceChange?: (a: { color: 'auto' | string }) => void;
-  currentTime?: number;
-  cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
-  onDeleteKeyframe?: (time: number) => void;
-  physicsKeyframes?: Record<string, Array<{ time: number; value: number }>>;
-  onTogglePhysicsKeyframe?: (trackId: string, value: number) => void;
-  width?: number;
-  viewMode?: '2D' | '3D';
-  nodeAppearance?: NodeAppearanceSettings;
-  appliedNodePreset?: 'outline' | 'filled' | null;
+  onPhysicsChange: (p: any) => void;
+  onTextChange: (t: string) => void;
+  inputText?: string;
+  onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
+  onGradientChange: (gs: any) => void;
+  onStyleChange: (s: any) => void;
+  onNodeAppearanceChange: (na: NodeAppearanceSettings) => void;
+  onEdgeAppearanceChange: (ea: any) => void;
+  nodeAppearance: NodeAppearanceSettings;
+  appliedNodePreset: 'outline' | 'filled' | null;
+  effectivePhysicsParams: any;
+  currentTime: number;
+  cameraKeyframes: any[];
+  physicsKeyframes: Record<string, any[]>;
+  onTogglePhysicsKeyframe: (track: string, val: number) => void;
+  width: number;
+  viewMode: '2D' | '3D';
+  onDeleteKeyframe: (time: number) => void;
+  onCollapse?: () => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+  onPanView: (dx: number, dy: number) => void;
+  onRotateView: (dTheta: number, dPhi: number) => void;
+  onSetRotation: (theta: number, phi: number) => void;
+  onResetView: () => void;
 }
-
-const PHYSICS_DEFAULTS_3D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 };
-const PHYSICS_DEFAULTS_2D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 3, turbulence: 0 };
-
-const PHYS_PARAM_TRACK: Record<string, string> = { repulsion: 'phys-rep', springK: 'phys-spk', damping: 'phys-dmp' };
 
 export function Inspector({
-  onPhysicsChange,
-  effectivePhysicsParams,
-  onTextChange,
-  onParsingChange,
-  onGradientChange,
-  onStyleChange,
-  onNodeAppearanceChange,
-  onEdgeAppearanceChange,
-  currentTime = 0,
-  cameraKeyframes = [],
-  onDeleteKeyframe,
-  physicsKeyframes,
-  onTogglePhysicsKeyframe,
-  width = 268,
-  viewMode = '3D',
-  nodeAppearance,
-  appliedNodePreset,
-}: InspectorProps = {}) {
-  const [kfs, setKfs] = useState<Record<string, boolean>>({
-    nodeBorderWidth: false, depthSizeStrength: false,
-    edgeOpacity: false, edgeWidth: false, nodeScale: false,
-    minSpeed: false, linkDistance: false, gravity: false, turbulence: false,
-  });
-  const [parsingMode, setParsingMode] = useState('word');
-  const [zoomVal, setZoomVal] = useState([800]);
-  const [repulsionVal, setRepulsionVal] = useState([150]);
-  const [springKVal, setSpringKVal] = useState([6]);
-  const [dampingVal, setDampingVal] = useState([88]);
-  const [minSpeedVal, setMinSpeedVal] = useState(0.5);
-  const [linkDistanceVal, setLinkDistanceVal] = useState([80]);
-  const [gravityVal, setGravityVal] = useState([0]);
-  const [turbulenceVal, setTurbulenceVal] = useState([0]);
-  const [textInput, setTextInput] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
-  // Gradient settings
-  const [gradientMode, setGradientMode] = useState<'solid' | 'gradient'>('gradient');
-  const [innerColor, setInnerColor] = useState('#06b6d4');
-  const [outerColor, setOuterColor] = useState('#10b981');
-  // Preset state for node appearance (outline / filled / custom)
-  const [colorPreset, setColorPreset] = useState<'outline' | 'filled' | 'custom' | null>(null);
-  // Style settings
-  const [nodeShapeVal, setNodeShapeVal] = useState<NodeShape>('rectangle');
-  const [nodeBorderWidthVal, setNodeBorderWidthVal] = useState([2]);
-  const [depthSizeEnabled, setDepthSizeEnabled] = useState(false);
-  const [depthSizeStrengthVal, setDepthSizeStrengthVal] = useState([50]);
-  const [edgeOpacity, setEdgeOpacity] = useState([85]);
-  const [edgeWidth, setEdgeWidth] = useState([2]);
-  const [nodeScale, setNodeScale] = useState([100]);
-  // Appearance colors
-  const [nodeBorderColor, setNodeBorderColor] = useState<string | 'auto'>('auto');
-  const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
-  const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
-  const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
-  // Sync external appearance/preset changes
+  onPhysicsChange, onTextChange, inputText = "", onParsingChange, onParsingChange: _parsingChange, onGradientChange,
+  onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
+  nodeAppearance, appliedNodePreset, effectivePhysicsParams,
+  currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
+  width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
+  onPanView, onRotateView, onSetRotation, onResetView
+}: InspectorProps) {
+  const [localText, setLocalText] = useState(inputText);
+  const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera'>('content');
+  const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
+  const lastPanRef = React.useRef({ x: 0, y: 0 });
+
+  // Sync local text with default input text on load
   useEffect(() => {
-    if (nodeAppearance) {
-      setNodeBorderColor(nodeAppearance.borderColor ?? 'auto');
-      setNodeFillColor(nodeAppearance.fillColor ?? 'auto');
-      setNodeTextColor(nodeAppearance.textColor ?? 'auto');
-      // mark as custom unless an applied preset is supplied
-      if (!appliedNodePreset) setColorPreset('custom');
+    if (inputText && !localText) {
+      setLocalText(inputText);
     }
-  }, [nodeAppearance]);
+  }, [inputText]);
 
-  useEffect(() => {
-    if (appliedNodePreset === 'outline') setColorPreset('outline');
-    if (appliedNodePreset === 'filled') setColorPreset('filled');
-    if (appliedNodePreset === null) setColorPreset(null);
-  }, [appliedNodePreset]);
-
+  // Sync physics keyframe states
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
-    for (const [k, trackId] of Object.entries(PHYS_PARAM_TRACK)) {
-      result[k] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
-    }
+    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp'];
+    tracks.forEach(trackId => {
+      result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
+    });
     return result;
   }, [physicsKeyframes, currentTime]);
 
-  const effectiveKfs = useMemo(() => ({ ...kfs, ...physKfActive }), [kfs, physKfActive]);
-
-  const physEngineValues = () => ({
-    repulsion: repulsionVal[0] * 10,
-    springK: springKVal[0] / 100,
-    damping: dampingVal[0] / 100,
-  });
-
-  const toggle = (k: string) => {
-    const trackId = PHYS_PARAM_TRACK[k];
-    if (trackId) {
-      onTogglePhysicsKeyframe?.(trackId, (physEngineValues() as Record<string, number>)[k]);
-    } else {
-      setKfs(prev => ({ ...prev, [k]: !prev[k] }));
+  const handleTabClick = (id: typeof activeTab) => {
+    setActiveTab(id);
+    if (!isSidebarOpen && onToggleSidebar) {
+      onToggleSidebar();
     }
   };
 
-  // Notify parent of physics changes
-  const notifyPhysicsChange = () => {
-    onPhysicsChange?.({
-      repulsion: repulsionVal[0] * 10,
-      springK: springKVal[0] / 100,
-      damping: dampingVal[0] / 100,
-      minSpeed: minSpeedVal,
-      linkDistance: linkDistanceVal[0],
-      gravity: gravityVal[0],
-      turbulence: turbulenceVal[0],
-    });
-  };
+  const SidebarTab = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
+    <button
+      onClick={() => handleTabClick(id)}
+      className={cn(
+        "group relative flex h-10 w-10 items-center justify-center",
+        activeTab === id ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+      )}
+      title={label}
+    >
+      <Icon size={20} className={cn(activeTab === id ? "scale-110" : "scale-100 group-hover:scale-105")} />
+      {activeTab === id && (
+        <div className="absolute left-0 h-5 w-0.5 bg-zinc-900 rounded-r-full" />
+      )}
+    </button>
+  );
 
-  // Call on mount and when values change
-  useEffect(() => {
-    notifyPhysicsChange();
-  }, [repulsionVal, springKVal, dampingVal, minSpeedVal, linkDistanceVal, gravityVal, turbulenceVal]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync gravity default when viewMode switches
-  useEffect(() => {
-    setGravityVal([viewMode === '2D' ? 3 : 0]);
-  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Notify gradient changes
-  useEffect(() => {
-    onGradientChange?.({ mode: gradientMode, innerColor, outerColor });
-  }, [gradientMode, innerColor, outerColor]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Notify style changes
-  useEffect(() => {
-    onStyleChange?.({
-      edgeOpacity: edgeOpacity[0] / 100,
-      edgeWidth: edgeWidth[0],
-      nodeScale: nodeScale[0] / 100,
-      nodeShape: nodeShapeVal,
-      nodeBorderWidth: nodeBorderWidthVal[0],
-      depthSizeEnabled,
-      depthSizeStrength: depthSizeStrengthVal[0],
-    });
-  }, [edgeOpacity, edgeWidth, nodeScale, nodeShapeVal, nodeBorderWidthVal, depthSizeEnabled, depthSizeStrengthVal]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Notify appearance changes
-  useEffect(() => {
-    onNodeAppearanceChange?.({ borderColor: nodeBorderColor, fillColor: nodeFillColor, textColor: nodeTextColor });
-  }, [nodeBorderColor, nodeFillColor, nodeTextColor]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    onEdgeAppearanceChange?.({ color: edgeColor });
-  }, [edgeColor]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Notify parsing mode changes
-  useEffect(() => {
-    onParsingChange?.(parsingMode as 'sentence' | 'word' | 'both');
-  }, [parsingMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  if (!isSidebarOpen) {
+    return (
+      <div className="flex h-full w-12 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl overflow-hidden pointer-events-auto">
+        <div className="w-full flex flex-col items-center py-4 gap-2 bg-zinc-100/50">
+          <SidebarTab id="content" icon={Type} label="Inhalt" />
+          <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
+          <SidebarTab id="physics" icon={Atom} label="Physik" />
+          <SidebarTab id="camera" icon={Video} label="Kamera" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="select-none bg-background border-r border-border flex flex-col shrink-0 overflow-hidden" style={{ width }}>
-      {/* Panel Header */}
-      
-
-      <Tabs defaultValue="content" className="flex-1 flex flex-col overflow-hidden gap-0">
-        {/* Tab Navigation */}
-        <div className="px-2 pt-2 pb-1 shrink-0">
-          <TabsList className="w-fit h-6 rounded-md p-0.5">
-            <TabsTrigger value="content" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
-              <Type size={11} />Inhalt
-            </TabsTrigger>
-            <TabsTrigger value="visual" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
-              <Layers size={11} />Visuell
-            </TabsTrigger>
-            <TabsTrigger value="physics" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
-              <Zap size={11} />Physik
-            </TabsTrigger>
-          </TabsList>
+    <SidebarProvider className="h-full w-full">
+      <div className="flex h-full w-full bg-zinc-50 border border-zinc-200 shadow-sm rounded-t-xl overflow-hidden pointer-events-auto">
+        
+        {/* VS Code Style Activity Bar (Icons) */}
+        <div className="w-11 border-r border-zinc-200/60 bg-zinc-100/50 flex flex-col items-center py-4 gap-2">
+          <SidebarTab id="content" icon={Type} label="Inhalt" />
+          <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
+          <SidebarTab id="physics" icon={Atom} label="Physik" />
+          <SidebarTab id="camera" icon={Video} label="Kamera" />
+          
+          <div className="mt-auto pb-2">
+             <button 
+              onClick={onCollapse}
+              className="size-8 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+              title="Sidebar ausblenden"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          </div>
         </div>
 
-        {/* CONTENT TAB */}
-        <TabsContent value="content" className="flex-1 overflow-y-auto mt-0">
-          <Accordion type="multiple" defaultValue={['text', 'parsing']}>
-            {/* TEXT */}
-            <AccSection value="text" label="Text">
-              <textarea
-                className="w-full min-h-[260px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-y focus:outline-none transition-colors leading-relaxed"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center justify-center gap-1.5 w-full mt-2 h-7 rounded-md border border-border bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
-                onClick={() => onTextChange?.(textInput)}
-              >
-                <RefreshCw size={12} />
-                Aktualisieren
-              </Button>
-            </AccSection>
+        {/* Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <SidebarHeader className="p-4 pb-2 border-b border-zinc-200/50 flex flex-row items-center justify-between">
+            <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
+              {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : 'Kamera Steuerung'}
+            </h2>
+            <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 transition-colors md:hidden">
+              <X size={16} />
+            </button>
+          </SidebarHeader>
 
-            {/* PARSING */}
-            <AccSection value="parsing" label="Parsing / Zerteilung" color="purple">
-              <RadioGroup value={parsingMode} onValueChange={setParsingMode} className="flex flex-col gap-1">
-                {[
-                  { value: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
-                  { value: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
-                  { value: 'both', label: 'Beides', desc: 'Beide Ebenen (Wörter als Brücke)' },
-                ].map(opt => (
-                  <label key={opt.value} className="flex flex-col cursor-pointer group py-0.5">
-                    <div className="flex items-center gap-2.5 h-6">
-                      <RadioGroupItem
-                        value={opt.value}
-                        className="data-[state=checked]:border-purple-500 data-[state=checked]:bg-purple-500/10 [&_svg]:fill-purple-400 [&_svg]:stroke-none"
-                      />
-                      <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
+          <SidebarContent className="flex-1 overflow-auto p-0">
+            
+            {/* CONTENT TAB */}
+            {activeTab === 'content' && (
+              <div>
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Input Text</SidebarGroupLabel>
+                  <SidebarGroupContent className="space-y-4 pt-1">
+                    <Textarea 
+                      className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans" 
+                      placeholder="Text hier einfügen..."
+                      value={localText}
+                      onChange={(e) => setLocalText(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full h-9 text-xs gap-2 bg-zinc-900 hover:bg-zinc-800 text-white shadow-md active:scale-[0.98] transition-transform"
+                      onClick={() => onTextChange(localText)}
+                    >
+                      <RefreshCw size={14} />
+                      Aktualisieren
+                    </Button>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-200/60 mx-4" />
+
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Parsing / Zerteilung</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-2">
+                    <RadioGroup defaultValue="word" onValueChange={(v) => onParsingChange(v as any)} className="gap-4">
+                      {[
+                        { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
+                        { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
+                        { id: 'both', label: 'Beides', desc: 'Wörter als Brücke' },
+                      ].map((item) => (
+                        <div key={item.id} className="flex items-start space-x-3 group cursor-pointer">
+                          <RadioGroupItem value={item.id} id={item.id} className="mt-0.5 border-zinc-300 text-zinc-900" />
+                          <label htmlFor={item.id} className="text-[12px] font-medium leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-600 transition-colors">
+                            {item.label}
+                            <p className="text-[10px] text-zinc-400 font-normal mt-0.5">{item.desc}</p>
+                          </label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </div>
+            )}
+
+            {/* VISUAL TAB */}
+            {activeTab === 'visual' && (
+              <div>
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Presets</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" className={cn("h-8 text-[11px] bg-white border-zinc-200", appliedNodePreset === 'filled' && "border-indigo-500 bg-indigo-50/30 text-indigo-700")} onClick={() => onNodeAppearanceChange({ borderColor: 'auto', fillColor: 'auto', textColor: '#ffffff' })}>
+                        Filled (Export)
+                      </Button>
+                      <Button variant="outline" size="sm" className={cn("h-8 text-[11px] bg-white border-zinc-200", appliedNodePreset === 'outline' && "border-indigo-500 bg-indigo-50/30 text-indigo-700")} onClick={() => onNodeAppearanceChange({ borderColor: 'auto', fillColor: 'transparent', textColor: 'auto' })}>
+                        Outline (Edit)
+                      </Button>
                     </div>
-                    <span className="text-[9px] text-muted-foreground/60 pl-6">{opt.desc}</span>
-                  </label>
-                ))}
-              </RadioGroup>
-            </AccSection>
-          </Accordion>
-        </TabsContent>
+                  </SidebarGroupContent>
+                </SidebarGroup>
 
-        {/* VISUAL TAB */}
-        <TabsContent value="visual" className="flex-1 overflow-y-auto mt-0">
-          <Accordion type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
+                <Separator className="bg-zinc-200/60 mx-4" />
 
-            {/* FARBEN */}
-            <AccSection value="gradient" label="Farben" color="purple">
-              {/* Color row: inner swatch — gradient bar — outer swatch — toggle */}
-              <div className="flex items-center gap-2 mb-3">
-                <label
-                  className="relative w-10 h-10 rounded-xl border border-border/60 shrink-0 cursor-pointer hover:brightness-110 transition-all"
-                  style={{ backgroundColor: innerColor }}
-                  title="Innenfarbe"
-                >
-                  <input
-                    type="color" value={innerColor} onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
-                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                  />
-                </label>
-                <div
-                  className="flex-1 h-6 rounded-full border border-border transition-all"
-                  style={{
-                    background: gradientMode === 'gradient'
-                      ? `linear-gradient(to right, ${innerColor}, ${outerColor})`
-                      : innerColor,
-                  }}
-                />
-                <label
-                  className={`relative w-10 h-10 rounded-xl border shrink-0 transition-all ${gradientMode === 'gradient' ? 'border-border/60 cursor-pointer hover:brightness-110' : 'border-border/30 opacity-30 pointer-events-none'}`}
-                  style={{ backgroundColor: outerColor }}
-                  title="Außenfarbe"
-                >
-                  <input
-                    type="color" value={outerColor} onChange={e => { setOuterColor(e.target.value); setColorPreset('custom'); }}
-                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                    tabIndex={gradientMode === 'gradient' ? 0 : -1}
-                  />
-                </label>
-                <div className="flex flex-col items-center gap-0.5 ml-0.5">
-                  <span className="text-[9px] text-muted-foreground/60 leading-none">Verlauf</span>
-                  <button
-                    onClick={() => setGradientMode(gradientMode === 'gradient' ? 'solid' : 'gradient')}
-                    className={`w-9 h-5 rounded-full transition-colors relative shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${gradientMode === 'gradient' ? 'bg-purple-500/70' : 'bg-border'}`}
-                  >
-                    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${gradientMode === 'gradient' ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
-                  </button>
-                </div>
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Node Appearance</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-3 space-y-5 px-1">
+                    {/* Node Scale */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Skalierung</span>
+                        <span className="text-[10px] font-mono text-zinc-400">1.0x</span>
+                      </div>
+                      <Slider defaultValue={[100]} max={250} step={5} />
+                    </div>
+
+                    {/* Edge Opacity */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Kanten Deckkraft</span>
+                        <span className="text-[10px] font-mono text-zinc-400">35%</span>
+                      </div>
+                      <Slider defaultValue={[35]} max={100} step={1} />
+                    </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-200/60 mx-4" />
+
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Gradients</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-2 grid grid-cols-2 gap-2">
+                    {GRADIENT_PRESETS.map((p) => (
+                      <button
+                        key={p.name}
+                        className="flex items-center gap-2 p-2 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 transition-colors text-left shadow-xs"
+                        onClick={() => onGradientChange({ mode: 'gradient', innerColor: p.inner, outerColor: p.outer })}
+                      >
+                        <div className="size-3.5 rounded-full shadow-sm" style={{ background: `linear-gradient(to bottom right, ${p.inner}, ${p.outer})` }} />
+                        <span className="text-[10px] font-medium truncate text-zinc-700">{p.name}</span>
+                      </button>
+                    ))}
+                  </SidebarGroupContent>
+                </SidebarGroup>
               </div>
+            )}
 
-
-              {/* Preset chips */}
-              <SubLabel>Schnellauswahl</SubLabel>
-              <div className="flex gap-1.5 flex-wrap">
-                {GRADIENT_PRESETS.map(p => (
-                  <button
-                    key={p.name}
-                    onClick={() => { setGradientMode('gradient'); setInnerColor(p.inner); setOuterColor(p.outer); }}
-                    title={p.name}
-                    className="w-6 h-6 rounded border border-border/60 hover:border-border transition-all hover:scale-110"
-                    style={{ background: `linear-gradient(135deg, ${p.inner}, ${p.outer})` }}
-                  />
-                ))}
+            {/* PHYSICS TAB */}
+            {activeTab === 'physics' && (
+              <div>
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Engine Control</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-3 space-y-8 px-1">
+                    {[
+                      { id: 'phys-rep', label: 'Repulsion (Abstoßung)', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000 },
+                      { id: 'phys-spk', label: 'Federkonstante', value: effectivePhysicsParams?.springK ?? 0.06, max: 0.5 },
+                      { id: 'phys-dmp', label: 'Dämpfung', value: effectivePhysicsParams?.damping ?? 0.88, max: 1 },
+                    ].map((p) => (
+                      <div key={p.id} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-600">{p.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-zinc-400">{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}</span>
+                            <button 
+                              onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                              className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
+                            >
+                              <Diamond size={10} fill={physKfActive[p.id] ? 'currentColor' : 'none'} />
+                            </button>
+                          </div>
+                        </div>
+                        <Slider value={[p.value]} max={p.max} step={p.id === 'phys-spk' ? 0.01 : 1} />
+                      </div>
+                    ))}
+                  </SidebarGroupContent>
+                </SidebarGroup>
               </div>
-            </AccSection>
+            )}
 
-            {/* KNOTEN */}
-            <AccSection value="nodes" label="Knoten" color="blue">
-              {/* Shape selector */}
-              <SubLabel>Form</SubLabel>
-              <div className="flex gap-1 mb-3">
-                {(['rectangle', 'rounded-rectangle', 'ellipse'] as NodeShape[]).map(shape => (
-                  <Toggle
-                    key={shape}
-                    pressed={nodeShapeVal === shape}
-                    onPressedChange={() => setNodeShapeVal(shape)}
-                    title={shape}
-                    variant="outline"
-                    className="flex-1 data-[state=on]:bg-blue-600/15 data-[state=on]:border-blue-500/60 data-[state=on]:text-blue-300"
-                  >
-                    <svg width="24" height="16" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      {shape === 'rectangle' && <rect x="1" y="2" width="22" height="12" rx="0" />}
-                      {shape === 'rounded-rectangle' && <rect x="1" y="2" width="22" height="12" rx="4" />}
-                      {shape === 'ellipse' && <ellipse cx="12" cy="8" rx="11" ry="6" />}
-                    </svg>
-                  </Toggle>
-                ))}
+            {/* CAMERA TAB */}
+            {activeTab === 'camera' && (
+              <div>
+                <SidebarGroup>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">View Positioning</SidebarGroupLabel>
+                  <SidebarGroupContent className="pt-3 space-y-6 px-1">
+                    
+                    {/* Draggable Camera Pad / Joystick */}
+                    <div className="flex flex-col items-center gap-3">
+                      <div 
+                        className="relative size-40 bg-zinc-200/50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
+                        onMouseDown={(e) => {
+                          setIsDraggingPuck(true);
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const centerX = rect.left + rect.width / 2;
+                          const centerY = rect.top + rect.height / 2;
+
+                          const onMove = (ev: MouseEvent) => {
+                            const dx = ev.movementX;
+                            const dy = ev.movementY;
+                            onRotateView(-dx * 0.01, -dy * 0.01);
+
+                            // Calculate puck position relative to center
+                            const relX = ev.clientX - centerX;
+                            const relY = ev.clientY - centerY;
+                            
+                            // Constrain to pad bounds (radius roughly 60px to keep it inside)
+                            const limit = 60;
+                            const dist = Math.sqrt(relX * relX + relY * relY);
+                            if (dist > limit) {
+                              setPuckPos({ x: (relX / dist) * limit, y: (relY / dist) * limit });
+                            } else {
+                              setPuckPos({ x: relX, y: relY });
+                            }
+                          };
+                          const onUp = () => {
+                            setIsDraggingPuck(false);
+                            setPuckPos({ x: 0, y: 0 });
+                            document.body.style.cursor = 'default';
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                          };
+                          document.body.style.cursor = 'grabbing';
+                          window.addEventListener('mousemove', onMove);
+                          window.addEventListener('mouseup', onUp);
+                        }}
+                      >
+                        {/* Background Grid / Axis Lines */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-full h-[1.5px] bg-zinc-300" />
+                          <div className="h-full w-[1.5px] bg-zinc-300" />
+                          <div className="absolute w-full h-[1px] bg-zinc-300/30 rotate-45" />
+                          <div className="absolute w-full h-[1px] bg-zinc-300/30 -rotate-45" />
+                        </div>
+
+                        {/* Snap Points (Clickable Axis Indicators) */}
+                        <div className="absolute inset-0 p-4 flex flex-col justify-between items-center pointer-events-none">
+                          <button 
+                            className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
+                            onClick={() => onSetRotation(0, 0)} // Top View
+                            title="Top View (Y)"
+                          >Y</button>
+                          <div className="flex justify-between w-full items-center">
+                            <button 
+                              className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
+                              onClick={() => onSetRotation(-Math.PI/2, Math.PI/2)} // Left View
+                              title="Left View (-X)"
+                            >-X</button>
+                            
+                            {/* Central Handle / Puck */}
+                            <div 
+                              className={cn(
+                                "size-8 rounded-full bg-white border border-zinc-300 shadow-md flex items-center justify-center text-zinc-400 z-10",
+                                !isDraggingPuck && "transition-transform duration-300 ease-out"
+                              )}
+                              style={{ 
+                                transform: `translate(${puckPos.x}px, ${puckPos.y}px)` 
+                              }}
+                            >
+                              <MoreHorizontal size={14} className="rotate-90" />
+                            </div>
+
+                            <button 
+                              className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
+                              onClick={() => onSetRotation(Math.PI/2, Math.PI/2)} // Right View
+                              title="Right View (X)"
+                            >X</button>
+                          </div>
+                          <button 
+                            className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
+                            onClick={() => onSetRotation(Math.PI, 0)} // Bottom View
+                            title="Bottom View (-Y)"
+                          >-Y</button>
+                        </div>
+                        
+                        {/* Isometric Snap Buttons (Corners) */}
+                        <button onClick={() => onSetRotation(Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 1" />
+                        <button onClick={() => onSetRotation(-Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 2" />
+                        <button onClick={() => onSetRotation(3*Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute bottom-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 3" />
+                        <button onClick={() => onSetRotation(-3*Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute bottom-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 4" />
+                      </div>
+                      
+                      <div className="flex justify-between w-full px-1">
+                         <span className="text-[10px] text-zinc-400 italic">Orbit: Ziehen / Klicken zum Einrasten</span>
+                         <button 
+                           onClick={() => onResetView()}
+                           className="text-[10px] text-zinc-500 hover:text-zinc-900 font-medium underline-offset-2 hover:underline"
+                         >
+                           Reset
+                         </button>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-zinc-200/40" />
+                    {/* Horizontal Pan */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Horizontaler Pan</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{localPan.x}</span>
+                      </div>
+                      <Slider 
+                        value={[localPan.x]} 
+                        min={-100} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => {
+                          const delta = val - lastPanRef.current.x;
+                          onPanView(delta * 40, 0);
+                          lastPanRef.current.x = val;
+                          setLocalPan(prev => ({ ...prev, x: val }));
+                        }}
+                        onPointerUp={() => {
+                          setLocalPan(prev => ({ ...prev, x: 0 }));
+                          lastPanRef.current.x = 0;
+                        }}
+                      />
+                    </div>
+
+                    {/* Vertical Pan */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Vertikaler Pan</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{localPan.y}</span>
+                      </div>
+                      <Slider 
+                        value={[localPan.y]} 
+                        min={-100} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => {
+                          const delta = val - lastPanRef.current.y;
+                          onPanView(0, delta * 40);
+                          lastPanRef.current.y = val;
+                          setLocalPan(prev => ({ ...prev, y: val }));
+                        }}
+                        onPointerUp={() => {
+                          setLocalPan(prev => ({ ...prev, y: 0 }));
+                          lastPanRef.current.y = 0;
+                        }}
+                      />
+                    </div>
+
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-8 text-[11px] bg-white border-zinc-200 mt-4"
+                      onClick={() => {
+                        onResetView();
+                        setLocalPan({ x: 0, y: 0 });
+                        lastPanRef.current = { x: 0, y: 0 };
+                      }}
+                    >
+                      Kamera zurücksetzen
+                    </Button>
+                  </SidebarGroupContent>
+                </SidebarGroup>
               </div>
+            )}
+          </SidebarContent>
 
-              <div className="space-y-3">
-                <SliderParam
-                  kfKey="nodeBorderWidth" label="Rahmenbreite" value={nodeBorderWidthVal} onChange={setNodeBorderWidthVal}
-                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={0} max={8}
-                  displayFn={v => v[0] + 'px'}
-                  description="Stärke der Knotenumrandung."
-                />
-              </div>
-
-              <SubLabel>Farben</SubLabel>
-
-              {/* Style presets: Outline / Filled */}
-              <ToggleGroup
-                type="single"
-                value={colorPreset === 'outline' || colorPreset === 'filled' ? colorPreset : ''}
-                onValueChange={(v) => {
-                  if (v === 'outline') {
-                    setNodeBorderColor(innerColor);
-                    setNodeFillColor(lightenHex(innerColor, 80));
-                    setNodeTextColor(innerColor);
-                    setColorPreset('outline');
-                  } else if (v === 'filled') {
-                    setNodeBorderColor('#FFFFFFCC');
-                    setNodeFillColor(innerColor);
-                    setNodeTextColor('#ffffff');
-                    setColorPreset('filled');
-                  }
-                }}
-                className="w-full h-6 gap-0 mb-2 border border-border rounded-md overflow-hidden bg-background"
-              >
-                <ToggleGroupItem value="outline" className="flex-1 h-6 text-[11px]">Outline</ToggleGroupItem>
-                <ToggleGroupItem value="filled" className="flex-1 h-6 text-[11px] border-l border-border">Filled</ToggleGroupItem>
-              </ToggleGroup>
-
-              <div className="space-y-2 mb-3">
-                {([
-                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor },
-                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor },
-                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor },
-                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void }[]).map(({ label, value, set }) => (
-                  <div key={label} className="flex items-center gap-2 h-[26px]">
-                    <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
-                    <ColorPill value={value} onChange={v => { set(v); setColorPreset('custom'); }} onReset={() => set('auto')} />
-                  </div>
-                ))}
-              </div>
-
-              <SubLabel>Tiefengröße</SubLabel>
-              <div className="flex items-center gap-2 h-[26px] mb-2">
-                <span className="text-[11px] text-muted-foreground flex-1">Nach Tiefe skalieren</span>
-                <Switch
-                  checked={depthSizeEnabled}
-                  onCheckedChange={setDepthSizeEnabled}
-                  className="data-[state=checked]:bg-blue-500/70"
-                />
-              </div>
-              {depthSizeEnabled && (
-                <div className="mb-3">
-                  <SliderParam
-                    kfKey="depthSizeStrength" label="Stärke" value={depthSizeStrengthVal} onChange={setDepthSizeStrengthVal}
-                    color="blue" kfs={effectiveKfs} onToggle={toggle} min={0} max={100}
-                    displayFn={v => v[0] + '%'}
-                    description="Größenvariation: Innere Knoten (1 Wort) werden größer, äußere kleiner."
-                  />
-                </div>
-              )}
-
-              <SliderParam
-                kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
-                color="blue" kfs={effectiveKfs} onToggle={toggle} min={50} max={150}
-                displayFn={v => v[0] + '%'}
-                description="Einheitliche Skalierung aller Wortbezeichnungen."
-              />
-            </AccSection>
-
-            {/* KANTEN */}
-            <AccSection value="edges" label="Kanten" color="blue">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 h-[26px]">
-                  <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
-                    <ColorPill value={edgeColor} onChange={setEdgeColor} onReset={() => setEdgeColor('auto')} />
-                </div>
-                <SliderParam
-                  kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
-                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={10} max={100}
-                  displayFn={v => v[0] + '%'}
-                  description="Transparenz der Verbindungslinien."
-                />
-                <SliderParam
-                  kfKey="edgeWidth" label="Stärke" value={edgeWidth} onChange={setEdgeWidth}
-                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={1} max={5}
-                  description="Pixelbreite der Verbindungslinien."
-                />
-              </div>
-            </AccSection>
-
-          </Accordion>
-        </TabsContent>
-
-        {/* PHYSICS TAB */}
-        <TabsContent value="physics" className="flex-1 overflow-y-auto mt-0">
-          <Accordion type="multiple" defaultValue={['physics-params']}>
-            <AccSection value="physics-params" label="Parameter" color="orange">
-              <div className="space-y-3">
-                <SliderParam
-                  kfKey="repulsion" label="Repulsion" value={repulsionVal} onChange={setRepulsionVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={10} max={500}
-                  displayFn={v => (v[0] * 10).toFixed(0)}
-                  parseInput={s => Math.round(parseFloat(s) / 10)}
-                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.repulsion / 10 : undefined}
-                  description="Wie stark Knoten sich gegenseitig abstoßen. Höher = weiter auseinander."
-                />
-                <SliderParam
-                  kfKey="springK" label="Spring Stiffness" value={springKVal} onChange={setSpringKVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={1} max={20}
-                  displayFn={v => (v[0] / 100).toFixed(2)}
-                  parseInput={s => Math.round(parseFloat(s) * 100)}
-                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.springK * 100 : undefined}
-                  description="Stärke der Kantenverbindungen. Höher = engere Gruppierung verbundener Wörter."
-                />
-                <SliderParam
-                  kfKey="damping" label="Damping" value={dampingVal} onChange={setDampingVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={80} max={99}
-                  displayFn={v => (v[0] / 100).toFixed(2)}
-                  parseInput={s => Math.round(parseFloat(s) * 100)}
-                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.damping * 100 : undefined}
-                  description="Geschwindigkeitsabfall pro Frame (0–1). Niedriger = schnelleres Einpendeln; höher = flüssigere Bewegung."
-                />
-                <SliderParam
-                  kfKey="linkDistance" label="Link Distance" value={linkDistanceVal} onChange={setLinkDistanceVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={10} max={300}
-                  displayFn={v => v[0] + 'px'}
-                  parseInput={s => Math.round(parseFloat(s))}
-                  effectiveValue={effectivePhysicsParams?.linkDistance}
-                  description="Ziel-Ruhelänge der Kanten. Kanten ziehen oder stoßen Knoten ab, um diesen Abstand zu halten."
-                />
-                <SliderParam
-                  kfKey="gravity" label="Gravity" value={gravityVal} onChange={setGravityVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={0} max={100}
-                  displayFn={v => v[0].toFixed(0)}
-                  effectiveValue={effectivePhysicsParams?.gravity}
-                  description="Zieht alle Knoten zur Mitte, verhindert das Auseinanderdriften des Graphen."
-                />
-                <SliderParam
-                  kfKey="turbulence" label="Turbulence" value={turbulenceVal} onChange={setTurbulenceVal}
-                  color="orange" kfs={effectiveKfs} onToggle={toggle}
-                  min={0} max={20}
-                  displayFn={v => v[0].toFixed(0)}
-                  effectiveValue={effectivePhysicsParams?.turbulence}
-                  description="Zufälliger Impuls pro Frame. Hält die Simulation mit organischer Bewegung am Laufen."
-                />
-                <div className="flex items-center gap-2 h-[26px]">
-                  <span className="text-[11px] text-muted-foreground flex-1">Min Speed</span>
-                  <Input
-                    type="number"
-                    value={minSpeedVal}
-                    onChange={(e) => setMinSpeedVal(parseFloat(e.target.value) || 0)}
-                    step="0.1"
-                    className="w-16 h-6 px-1.5 text-[11px] text-right shrink-0 font-mono"
-                  />
-                  <KfDiamond active={effectiveKfs.minSpeed ?? false} color="orange" onClick={() => toggle('minSpeed')} />
-                </div>
-                <div className="pt-1 flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 text-[11px]"
-                    onClick={() => {
-                      const d = viewMode === '2D' ? PHYSICS_DEFAULTS_2D : PHYSICS_DEFAULTS_3D;
-                      setRepulsionVal([d.repulsion]);
-                      setSpringKVal([d.springK]);
-                      setDampingVal([d.damping]);
-                      setMinSpeedVal(d.minSpeed);
-                      setLinkDistanceVal([d.linkDistance]);
-                      setGravityVal([d.gravity]);
-                      setTurbulenceVal([d.turbulence]);
-                    }}
-                  >
-                    Reset Defaults
-                  </Button>
-                </div>
-              </div>
-            </AccSection>
-          </Accordion>
-        </TabsContent>
-      </Tabs>
-
-      {/* Status bar */}
-      
-    </div>
+          <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
+            <p className="text-[9px] text-zinc-400 font-medium tracking-wide uppercase">Workspace Properties</p>
+            <p className="text-[9px] text-zinc-400 font-mono">v0.8.2</p>
+          </div>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
