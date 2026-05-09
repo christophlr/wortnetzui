@@ -850,7 +850,7 @@ function SceneMarkerLane({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, showEasing, onToggleEasing,
+  group, expanded, onToggle,
   selectedKeyframes, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
   onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
@@ -858,8 +858,6 @@ function TrackGroup({
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
   onToggle: () => void;
-  showEasing: boolean;
-  onToggleEasing: () => void;
   selectedKeyframes: { track: string; time: number }[];
   onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
@@ -892,15 +890,6 @@ function TrackGroup({
           />
           <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
           <span className="text-[11px] font-medium text-foreground flex-1 truncate">{group.name}</span>
-          <button
-            title={showEasing ? 'Hide easing' : 'Show easing'}
-            onClick={e => { e.stopPropagation(); onToggleEasing(); }}
-            className={`rounded p-0.5 transition-colors focus-visible:outline-none ${showEasing ? 'text-muted-foreground/60 hover:text-muted-foreground' : 'text-muted-foreground/25 hover:text-muted-foreground/60'}`}
-          >
-            <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
-              <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
-            </svg>
-          </button>
           <button className="opacity-0 hover:opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline-none" onClick={e => e.stopPropagation()}>
             <Eye size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
           </button>
@@ -942,7 +931,7 @@ function TrackGroup({
               duration={duration}
               viewWindow={viewWindow}
             />
-            {onSetHandle && showEasing && (
+            {onSetHandle && (
               <EasingTrackRow
                 trackId={track.id}
                 keyframeData={easingData}
@@ -994,7 +983,6 @@ export function Timeline({
   onRenameSceneMarker,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
-  const [easingExpanded, setEasingExpanded] = useState<Record<string, boolean>>({});
   const [selectedSceneMarkers, setSelectedSceneMarkers] = useState<number[]>([]);
   const [zoom, setZoom] = useState(1);
   const [panStart, setPanStart] = useState(0);
@@ -1463,8 +1451,6 @@ export function Timeline({
               group={group}
               expanded={expanded[group.id]}
               onToggle={() => setExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
-              showEasing={!!easingExpanded[group.id]}
-              onToggleEasing={() => setEasingExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
               selectedKeyframes={selectedKeyframes}
               onKeyframeSelect={onKeyframeSelect}
               cameraKeyframes={cameraKeyframes}
