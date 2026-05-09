@@ -65,7 +65,7 @@ function sliderValToDist(s: number): number {
 }
 
 /* ── ORIENTATION GIZMO ── */
-function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement): void {
+function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement, hoveredLabel: string | null = null, activeLabel: string | null = null): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const size = canvas.width;
@@ -76,9 +76,9 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
 
   const invQ = camera.quaternion.clone().invert();
   const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: 'rgba(239,68,68,0.38)', label: 'x' },
-    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: 'rgba(34,197,94,0.38)', label: 'y' },
-    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: 'rgba(96,165,250,0.38)', label: 'z' },
+    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: 'rgba(239,68,68,0.38)', label: 'X' },
+    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: 'rgba(34,197,94,0.38)', label: 'Y' },
+    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: 'rgba(96,165,250,0.38)', label: 'Z' },
   ];
 
   const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
@@ -92,23 +92,41 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   segs.sort((a, b) => a.z - b.z);
 
   segs.forEach(({ x, y, color, label }) => {
+    const isHovered = label && label === hoveredLabel;
+    const isActive = label && label === activeLabel;
+    
     ctx.beginPath();
     ctx.moveTo(c, c);
     ctx.lineTo(x, y);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = isActive ? 3.5 : (isHovered ? 3 : 2.5);
     ctx.stroke();
 
     if (label) {
+      // Draw flat translucent halo for hover/active states
+      if (isActive || isHovered) {
+        ctx.beginPath();
+        ctx.arc(x, y, isActive ? 14 : 12, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = isActive ? 0.4 : 0.2;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
+
+      let rad = 9;
+      if (isActive) rad = 10.5;
+      else if (isHovered) rad = 9.5;
+      
       ctx.beginPath();
-      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.font = 'bold 10px system-ui,sans-serif';
+      
+      ctx.font = 'bold 11px system-ui,sans-serif';
       ctx.fillStyle = 'white';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, y);
+      ctx.fillText(label, x, y + 0.5);
     }
   });
 }
@@ -213,6 +231,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
     startTime: number; duration: number;
   } | null>(null);
+  const gizmoDragRef = useRef<{
+    isDragging: boolean;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    hasMoved: boolean;
+  }>({ isDragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0, hasMoved: false });
+  const gizmoHoverRef = useRef<string | null>(null);
+  const gizmoActiveRef = useRef<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
@@ -635,8 +663,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Setup scene
-    const scene = new THREE.Scene();
+    let isCancelled = false;
+    let localCleanup: (() => void) | null = null;
+    let animFrame: number;
+    let timerId: ReturnType<typeof setTimeout>;
+
+    animFrame = requestAnimationFrame(() => {
+      timerId = setTimeout(() => {
+        if (isCancelled) return;
+
+        // Setup scene
+        const scene = new THREE.Scene();
     const bgColors = getNetworkThemeBackground(isDarkRef.current);
     scene.background = new THREE.Color(bgColors.threeColor);
     sceneRef.current = scene;
@@ -1128,7 +1165,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       renderer.render(scene, camera);
 
       if (!is2D && gizmoCanvasRef.current) {
-        drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current);
+        drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current, gizmoHoverRef.current, gizmoActiveRef.current);
       }
     };
     animate();
@@ -1153,8 +1190,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
-    return () => {
+    localCleanup = () => {
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       renderer.domElement.removeEventListener('click', handleClick);
@@ -1178,12 +1214,26 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         if (edge.line) edge.line.geometry.dispose();
       });
       if (rendererRef.current && containerRef.current) {
-        containerRef.current.removeChild(rendererRef.current.domElement);
+        if (rendererRef.current.domElement.parentNode === containerRef.current) {
+          containerRef.current.removeChild(rendererRef.current.domElement);
+        }
         rendererRef.current.dispose();
       }
       physicsWorkerRef.current?.terminate();
       physicsWorkerRef.current = null;
       workerBusyRef.current = false;
+    };
+      }, 50);
+    });
+
+    // Cleanup
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(animFrame);
+      clearTimeout(timerId);
+      if (localCleanup) {
+        localCleanup();
+      }
     };
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1317,6 +1367,125 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     setCameraLocked(false);
   };
 
+  const getGizmoAxisAtPoint = (clientX: number, clientY: number) => {
+    if (!cameraRef.current || !gizmoCanvasRef.current) return null;
+    const canvas = gizmoCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+
+    const size = canvas.width;
+    const c = size / 2;
+    const r = size * 0.36;
+    const invQ = cameraRef.current.quaternion.clone().invert();
+    
+    const axes = [
+      { dir: new THREE.Vector3(1, 0, 0), label: 'X' },
+      { dir: new THREE.Vector3(0, 1, 0), label: 'Y' },
+      { dir: new THREE.Vector3(0, 0, 1), label: 'Z' },
+    ];
+
+    let closestHit = null;
+    let maxZ = -Infinity;
+
+    axes.forEach(({ dir, label }) => {
+      const pos = dir.clone().applyQuaternion(invQ);
+      const px = c + pos.x * r;
+      const py = c - pos.y * r;
+      const dist = Math.sqrt(Math.pow(mx - px, 2) + Math.pow(my - py, 2));
+      
+      if (dist <= 12 && pos.z > maxZ) {
+        maxZ = pos.z;
+        closestHit = { dir, label };
+      }
+    });
+
+    return closestHit;
+  };
+
+  const handleGizmoPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    gizmoDragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      hasMoved: false,
+    };
+    const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
+    gizmoActiveRef.current = hit ? hit.label : 'center';
+  };
+
+  const handleGizmoPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = gizmoDragRef.current;
+    
+    if (!drag.isDragging) {
+      const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
+      gizmoHoverRef.current = hit ? hit.label : null;
+      return;
+    }
+    
+    if (!cameraRef.current || !controlsRef.current) return;
+    
+    const dx = e.clientX - drag.lastX;
+    const dy = e.clientY - drag.lastY;
+    
+    if (Math.abs(e.clientX - drag.startX) > 3 || Math.abs(e.clientY - drag.startY) > 3) {
+      drag.hasMoved = true;
+    }
+
+    if (drag.hasMoved) {
+      const cam = cameraRef.current;
+      const target = controlsRef.current.target;
+      
+      const angleX = -dx * 0.01;
+      const angleY = -dy * 0.01;
+
+      const offset = cam.position.clone().sub(target);
+      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleX);
+      
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+      offset.applyAxisAngle(right, angleY);
+
+      cam.position.copy(target).add(offset);
+      cam.lookAt(target);
+      controlsRef.current.update();
+    }
+    
+    drag.lastX = e.clientX;
+    drag.lastY = e.clientY;
+  };
+
+  const handleGizmoPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = gizmoDragRef.current;
+    
+    gizmoActiveRef.current = null;
+    
+    if (!drag.isDragging) return;
+    
+    drag.isDragging = false;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+    if (!drag.hasMoved) {
+      const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
+      if (hit && cameraRef.current && controlsRef.current) {
+        const dist = cameraRef.current.position.distanceTo(controlsRef.current.target);
+        const newOffset = hit.dir.clone().multiplyScalar(dist);
+        
+        cameraFlyRef.current = {
+          fromPos: cameraRef.current.position.clone(),
+          toPos: controlsRef.current.target.clone().add(newOffset),
+          fromTarget: controlsRef.current.target.clone(),
+          toTarget: controlsRef.current.target.clone(),
+          startTime: performance.now(),
+          duration: 400,
+        };
+      }
+    }
+  };
+
   return (
     <>
       <div ref={containerRef} className="w-full h-full relative">
@@ -1327,14 +1496,24 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             width={90}
             height={90}
             draggable={false}
-            className="absolute top-3 right-3 z-10"
-            style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
-            onMouseDown={e => {
-              e.preventDefault();
-            }}
+            className="absolute top-3 right-3 z-10 rounded-full bg-background border border-border shadow-sm transition-all hover:shadow-md"
+            style={{ cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            onPointerDown={handleGizmoPointerDown}
+            onPointerMove={handleGizmoPointerMove}
+            onPointerUp={handleGizmoPointerUp}
+            onPointerCancel={handleGizmoPointerUp}
+            onPointerLeave={() => { gizmoHoverRef.current = null; }}
             onDoubleClick={handleGizmoDoubleClick}
-            title="Double-click to reset view"
+            title="Drag to rotate, click axis to snap, double-click to reset"
           />
+        )}
+
+        {/* Live indicator */}
+        {isPlaying && (
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-destructive/10 dark:bg-destructive/20 border-destructive/20 dark:border-destructive/30 pointer-events-none z-10">
+            <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+            <span className="text-[10px] text-destructive font-medium tracking-wide">LIVE</span>
+          </div>
         )}
 
         {/* Locked camera indicator */}
@@ -1346,7 +1525,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
               e.stopPropagation();
               unlockCamera();
             }}
-            className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-background/40 border-border/40 z-10 text-left transition-[color,background-color,border-color] hover:bg-background/55 hover:border-border/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className={`absolute ${isPlaying ? 'top-11' : 'top-3'} left-3 flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background border-border shadow-sm z-10 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50`}
             title="Unlock camera"
           >
             <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" />
@@ -1356,11 +1535,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
         {/* Zoom slider — 3D only */}
         {viewMode !== '2D' && (
-          <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none"
+          <div className="absolute right-3 z-10 flex flex-col items-center gap-1.5 select-none p-1.5 rounded-full bg-background border border-border shadow-sm"
                style={{ top: '50%', transform: 'translateY(-50%)' }}>
             <button
               onMouseDown={() => handleZoomBy(0.75)}
-              className="w-6 h-6 rounded-md border border-border bg-background text-muted-foreground text-sm leading-none transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+              className="w-7 h-7 flex items-center justify-center rounded-full text-foreground font-medium text-sm leading-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none"
               title="Zoom in"
             >+</button>
             <div style={{ height: 88, width: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1378,7 +1557,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             </div>
             <button
               onMouseDown={() => handleZoomBy(1.33)}
-              className="w-6 h-6 rounded-md border border-border bg-background text-muted-foreground text-sm leading-none transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+              className="w-7 h-7 flex items-center justify-center rounded-full text-foreground font-medium text-sm leading-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none"
               title="Zoom out"
             >−</button>
           </div>

@@ -633,7 +633,7 @@ function TrackRow({
     const frac = x / rightW;
     const raw = viewWindow.start + frac * visibleDuration;
     const clamped = Math.max(0, Math.min(duration, raw));
-    if (snap) return Math.round(clamped * 2) / 2;
+    if (snap) return Math.round(clamped * 30) / 30;
     return clamped;
   }, [snap, contentRef, duration, viewWindow, visibleDuration]);
 
@@ -773,7 +773,7 @@ function SceneMarkerLane({
     const frac = x / rightW;
     const raw = viewWindow.start + frac * visibleDuration;
     const clamped = Math.max(0, Math.min(duration, raw));
-    if (snap) return Math.round(clamped * 2) / 2;
+    if (snap) return Math.round(clamped * 30) / 30;
     return clamped;
   }, [snap, contentRef, duration, viewWindow, visibleDuration]);
 
@@ -1043,7 +1043,7 @@ export function Timeline({
     const frac = x / rightW;
     const raw = viewWindow.start + frac * (viewWindow.end - viewWindow.start);
     const clamped = Math.max(0, Math.min(duration, raw));
-    if (snap) return Math.round(clamped * 2) / 2;
+    if (snap) return Math.round(clamped * 30) / 30;
     return clamped;
   }, [snap, duration, viewWindow]);
 
@@ -1392,7 +1392,7 @@ export function Timeline({
           <div className="w-px h-4 bg-border mx-0.5" />
           <button
             onClick={() => setSnap(s => !s)}
-            title={snap ? 'Snap on (0.5s)' : 'Snap off'}
+            title={snap ? 'Snap on (Frames)' : 'Snap off'}
             className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
               snap
                 ? 'border-border bg-accent text-accent-foreground shadow-sm'

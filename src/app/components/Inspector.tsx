@@ -2,7 +2,7 @@ import * as Accordion from '@radix-ui/react-accordion';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as Slider from '@radix-ui/react-slider';
 import * as Tabs from '@radix-ui/react-tabs';
-import { ChevronRight, Diamond, Type, Layers, Zap } from 'lucide-react';
+import { ChevronRight, Diamond, Type, Layers, Zap, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NodeShape } from '../networkTheme';
 
@@ -477,15 +477,16 @@ export function Inspector({
             {/* TEXT */}
             <AccSection value="text" label="Text">
               <textarea
-                className="w-full h-[176px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-none focus:outline-none transition-colors leading-relaxed"
+                className="w-full min-h-[260px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-y focus:outline-none transition-colors leading-relaxed"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
               <button
                 onClick={() => onTextChange?.(textInput)}
-                className="w-full mt-2 h-7 rounded-md border border-input bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+                className="flex items-center justify-center gap-1.5 w-full mt-2 h-7 rounded-md border border-border bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               >
-                Anwenden
+                <RefreshCw size={12} />
+                Aktualisieren
               </button>
             </AccSection>
 
