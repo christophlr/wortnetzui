@@ -151,21 +151,16 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         </div>
       )}
 
-      {/* Version indicator (bottom-left) */}
+      {/* Version indicator (bottom-left) in format v0.cc.bb and date without seconds */}
       {rect && (
         <div
           className="pointer-events-none z-50"
-          style={{ position: 'fixed', left: rect.left + 12, top: rect.bottom - 12 - 54 }}
+          style={{ position: 'fixed', left: rect.left + 12, top: rect.bottom - 12 - 48 }}
         >
           <div className="flex flex-col gap-0.5">
-            <span className="text-[9px] font-mono text-muted-foreground/60">v{VERSION}</span>
-            <span className="text-[9px] font-mono text-muted-foreground">
-              {import.meta.env.DEV ? '↯ build' : '⬡ build'}{' '}
-              {lastHmr.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-            <span className="text-[9px] font-mono text-muted-foreground/60">
-              ⎇ commit {LAST_COMMIT_HASH}{' '}
-              {new Date(LAST_COMMIT_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}{' '}
+            <span className="text-[10px] font-mono text-muted-foreground/80">v{BUILD_NUMBER}</span>
+            <span className="text-[10px] font-mono text-muted-foreground/60">
+              {new Date(LAST_COMMIT_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}{' '}
               {new Date(LAST_COMMIT_DATE).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
