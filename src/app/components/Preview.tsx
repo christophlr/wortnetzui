@@ -128,22 +128,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         </div>
       )}
 
-      {/* Top-left: playing indicator - visible in both modes */}
-      {isPlaying && rect && (
-        <div
-          className="pointer-events-none z-50"
-          style={{
-            position: 'fixed',
-            left: rect.left + 12,
-            top: rect.top + 12,
-          }}
-        >
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded border bg-red-950/40 border-red-800/40">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[10px] text-red-400 font-medium tracking-wide">LIVE</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Version indicator (bottom-left) in format v0.cc.bb and date without seconds */}
       {rect && (

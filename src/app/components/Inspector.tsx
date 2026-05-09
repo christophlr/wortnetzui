@@ -1,8 +1,13 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { Accordion, AccordionItem, AccordionContent } from './ui/accordion';
 import * as Slider from '@radix-ui/react-slider';
+<<<<<<< HEAD
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ChevronRight, Diamond, Type, Layers, Zap } from 'lucide-react';
+=======
+import * as Tabs from '@radix-ui/react-tabs';
+import { ChevronRight, Diamond, Type, Layers, Zap, RefreshCw } from 'lucide-react';
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { Button } from './ui/button';
@@ -270,6 +275,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+<<<<<<< HEAD
 /* Color helpers */
 function hexToRgb(hex: string) {
   const h = hex.replace('#', '');
@@ -285,6 +291,36 @@ function lightenHex(hex: string, percent: number) {
   const nb = Math.round(b + (255 - b) * p);
   const toHex = (n: number) => n.toString(16).padStart(2, '0');
   return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
+=======
+function ColorPill({
+  value, onChange, onReset,
+}: { value: string | 'auto'; onChange: (v: string) => void; onReset?: () => void }) {
+  const isAuto = value === 'auto';
+  return (
+    <div className="flex items-center gap-1">
+      <label
+        className={`relative h-6 w-16 rounded-full border text-[10px] transition-colors flex items-center justify-center cursor-pointer ${
+          isAuto
+            ? 'border-border bg-muted text-muted-foreground'
+            : 'border-border/60 hover:brightness-110'
+        }`}
+        style={!isAuto ? { backgroundColor: value } : undefined}
+        title={isAuto ? 'auto' : value}
+      >
+        {isAuto ? 'auto' : ''}
+        <input
+          type="color"
+          value={isAuto ? '#6b7280' : value}
+          onChange={e => onChange(e.target.value)}
+          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+        />
+      </label>
+      {!isAuto && onReset && (
+        <button onClick={onReset} className="text-[10px] text-muted-foreground hover:text-foreground px-0.5 transition-colors" title="Zurücksetzen">↺</button>
+      )}
+    </div>
+  );
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
 }
 
 /* ─── main ─── */
@@ -507,8 +543,13 @@ export function Inspector({
           <Accordion type="multiple" defaultValue={['text', 'parsing']}>
             {/* TEXT */}
             <AccSection value="text" label="Text">
+<<<<<<< HEAD
               <Textarea
                 className="h-[176px] text-[11px] leading-relaxed"
+=======
+              <textarea
+                className="w-full min-h-[260px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-y focus:outline-none transition-colors leading-relaxed"
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
@@ -517,9 +558,17 @@ export function Inspector({
                 size="sm"
                 className="w-full mt-2 h-7 text-[11px]"
                 onClick={() => onTextChange?.(textInput)}
+<<<<<<< HEAD
               >
                 Anwenden
               </Button>
+=======
+                className="flex items-center justify-center gap-1.5 w-full mt-2 h-7 rounded-md border border-border bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+              >
+                <RefreshCw size={12} />
+                Aktualisieren
+              </button>
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
             </AccSection>
 
             {/* PARSING */}
@@ -550,6 +599,7 @@ export function Inspector({
         <TabsContent value="visual" className="flex-1 overflow-y-auto mt-0">
           <Accordion type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
 
+<<<<<<< HEAD
             {/* VERLAUF */}
             <AccSection value="gradient" label="Verlauf" color="purple">
               {/* Mode toggle */}
@@ -606,8 +656,51 @@ export function Inspector({
                       />
                     </div>
                   </div>
+=======
+            {/* FARBEN */}
+            <AccSection value="gradient" label="Farben" color="purple">
+              {/* Color row: inner swatch — gradient bar — outer swatch — toggle */}
+              <div className="flex items-center gap-2 mb-3">
+                <label
+                  className="relative w-10 h-10 rounded-xl border border-border/60 shrink-0 cursor-pointer hover:brightness-110 transition-all"
+                  style={{ backgroundColor: innerColor }}
+                  title="Innenfarbe"
+                >
+                  <input
+                    type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                </label>
+                <div
+                  className="flex-1 h-6 rounded-full border border-border transition-all"
+                  style={{
+                    background: gradientMode === 'gradient'
+                      ? `linear-gradient(to right, ${innerColor}, ${outerColor})`
+                      : innerColor,
+                  }}
+                />
+                <label
+                  className={`relative w-10 h-10 rounded-xl border shrink-0 transition-all ${gradientMode === 'gradient' ? 'border-border/60 cursor-pointer hover:brightness-110' : 'border-border/30 opacity-30 pointer-events-none'}`}
+                  style={{ backgroundColor: outerColor }}
+                  title="Außenfarbe"
+                >
+                  <input
+                    type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    tabIndex={gradientMode === 'gradient' ? 0 : -1}
+                  />
+                </label>
+                <div className="flex flex-col items-center gap-0.5 ml-0.5">
+                  <span className="text-[9px] text-muted-foreground/60 leading-none">Verlauf</span>
+                  <button
+                    onClick={() => setGradientMode(gradientMode === 'gradient' ? 'solid' : 'gradient')}
+                    className={`w-9 h-5 rounded-full transition-colors relative shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${gradientMode === 'gradient' ? 'bg-purple-500/70' : 'bg-border'}`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${gradientMode === 'gradient' ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                 </div>
-              )}
+              </div>
 
               {/* Preset chips */}
               <SubLabel>Schnellauswahl</SubLabel>
@@ -683,12 +776,13 @@ export function Inspector({
 
               <div className="space-y-2 mb-3">
                 {([
-                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor, hint: 'auto = Verlaufsfarbe' },
-                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor, hint: 'auto = Hintergrund' },
-                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor, hint: 'auto = Verlaufsfarbe' },
-                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void; hint: string }[]).map(({ label, value, set, hint }) => (
+                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor },
+                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor },
+                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor },
+                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void }[]).map(({ label, value, set }) => (
                   <div key={label} className="flex items-center gap-2 h-[26px]">
                     <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
+<<<<<<< HEAD
                     <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
                       <div className="absolute inset-1 rounded" style={{ background: value === 'auto' ? '#6b7280' : String(value) }} />
                       <input
@@ -702,6 +796,9 @@ export function Inspector({
                     {value !== 'auto' && (
                       <button onClick={() => { set('auto'); setColorPreset('custom'); }} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
                     )}
+=======
+                    <ColorPill value={value} onChange={set} onReset={() => set('auto')} />
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                   </div>
                 ))}
               </div>
@@ -739,6 +836,7 @@ export function Inspector({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
+<<<<<<< HEAD
                   <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
                     <div className="absolute inset-1 rounded" style={{ background: edgeColor === 'auto' ? '#9aa0aa' : String(edgeColor) }} />
                     <input
@@ -752,6 +850,9 @@ export function Inspector({
                   {edgeColor !== 'auto' && (
                     <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1 transition-colors focus-visible:outline-none focus-visible:text-foreground" title="Zurücksetzen">↺</button>
                   )}
+=======
+                  <ColorPill value={edgeColor} onChange={setEdgeColor} onReset={() => setEdgeColor('auto')} />
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
                 </div>
                 <SliderParam
                   kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
