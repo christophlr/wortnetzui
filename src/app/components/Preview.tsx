@@ -1,6 +1,8 @@
 import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef, useState, useEffect, useRef } from 'react';
 import { VERSION, BUILD_DATE, BUILD_NUMBER, LAST_COMMIT_HASH, LAST_COMMIT_DATE } from '../../version';
+import { Progress } from './ui/progress';
+import { Toolbar } from './Toolbar';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
@@ -33,6 +35,9 @@ interface PreviewProps {
   nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
   edgeAppearance?: { color: 'auto' | string };
   canvasAspectRatio?: string;
+  initProgress?: number;
+  activeTool?: any;
+  onToolChange?: (tool: any) => void;
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -56,6 +61,9 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   nodeAppearance,
   edgeAppearance,
   canvasAspectRatio = 'full',
+  initProgress,
+  activeTool,
+  onToolChange,
 }: PreviewProps, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -97,21 +105,36 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   }, [rect]);
 
   return (
-    <div ref={previewRef} className="w-full h-full relative overflow-hidden">
-      <div className="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center overflow-hidden">
+    <div ref={previewRef} className="w-full h-full relative overflow-hidden bg-zinc-100 dark:bg-[#0c0c0e]">
+      {/* Pasteboard Backdrop (Grid) */}
+      <div 
+        className="absolute inset-0 z-0 pointer-events-none opacity-[0.05] dark:opacity-[0.1]"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, currentColor 1px, transparent 1px),
+            linear-gradient(to bottom, currentColor 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px',
+          color: isDark ? '#ffffff' : '#000000'
+        }}
+      />
+
+      <div className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-500 ${canvasAspectRatio === 'full' ? 'p-0' : 'p-8 sm:p-12 lg:p-16'}`}>
         {mounted && (
           <div 
-            className="relative transition-all duration-500 ease-in-out shadow-2xl overflow-hidden"
+            className="relative transition-all duration-500 ease-in-out shadow-[0_30px_90px_rgba(0,0,0,0.4)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6)] overflow-hidden border border-zinc-300 dark:border-white/10 rounded-[2px]"
             style={{
               width: canvasAspectRatio === 'full' ? '100%' : 'auto',
               height: canvasAspectRatio === 'full' ? '100%' : 'auto',
               aspectRatio: canvasAspectRatio === 'din' ? '1.414/1' : 
                           canvasAspectRatio === '16:9' ? '16/9' :
-                          canvasAspectRatio === '4:3' ? '4/3' :
+                          canvasAspectRatio === '4:3' ? '4:3' :
                           canvasAspectRatio === '3:2' ? '3/2' : 'auto',
               maxHeight: '100%',
               maxWidth: '100%',
-              // For DIN we use 1.414 (A4 ratio)
+              background: isDark 
+                ? 'radial-gradient(circle at 50% 50%, #003d7a 0%, #000a14 100%)' 
+                : 'radial-gradient(circle at 50% 50%, #f0f7ff 0%, #cce5ff 100%)'
             }}
           >
             <Network3D
@@ -135,10 +158,18 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
               edgeAppearance={edgeAppearance}
             />
             
-            {/* Artboard edge indicator */}
-            {canvasAspectRatio !== 'full' && (
-              <div className="absolute inset-0 border border-zinc-500/20 pointer-events-none z-10" />
+            {/* Toolbar - Centered to Artboard */}
+            {activeTool && onToolChange && (
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
+                <Toolbar 
+                  activeTool={activeTool} 
+                  onToolChange={onToolChange} 
+                />
+              </div>
             )}
+            
+            {/* Artboard edge indicator - subtle internal border */}
+            <div className="absolute inset-0 border border-white/5 pointer-events-none z-10" />
 
             {/* Version indicator (bottom-left) - now inside artboard */}
             <div className="absolute left-3 bottom-3 z-50 pointer-events-none">
@@ -159,6 +190,20 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
                 <span className="text-[9px] font-mono text-muted-foreground">ZOOM 800px</span>
               </div>
             </div>
+
+            {/* Initializing Loading Indicator - Centered to artboard */}
+            {!isNetworkReady && (
+              <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-sm animate-in fade-in duration-700">
+                <div className="w-64 flex flex-col items-center gap-4">
+                  <div className="w-full space-y-3">
+                    <div className="flex justify-center items-center">
+                      <span className="text-[13px] font-medium text-zinc-700 tracking-tight">Initialisierung</span>
+                    </div>
+                    <Progress value={initProgress} className="h-1 bg-zinc-200/80 overflow-hidden" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

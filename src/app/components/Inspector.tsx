@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from 'react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronRight, 
   Diamond, 
@@ -73,6 +73,8 @@ interface InspectorProps {
   onRotateView: (dTheta: number, dPhi: number) => void;
   onSetRotation: (theta: number, phi: number) => void;
   onResetView: () => void;
+  canvasAspectRatio?: string;
+  onCanvasAspectRatioChange?: (v: string) => void;
 }
 
 export function Inspector({
@@ -100,7 +102,7 @@ export function Inspector({
   // Sync physics keyframe states
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
-    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp'];
+    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-min', 'phys-lnk', 'phys-grv', 'phys-trb'];
     tracks.forEach(trackId => {
       result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
     });
@@ -258,7 +260,12 @@ export function Inspector({
                         <span className="text-[11px] font-medium text-zinc-600">Skalierung</span>
                         <span className="text-[10px] font-mono text-zinc-400">1.0x</span>
                       </div>
-                      <Slider defaultValue={[100]} max={250} step={5} />
+                      <Slider 
+                        value={[nodeAppearance.nodeScale ?? 100]} 
+                        max={250} 
+                        step={5} 
+                        onValueChange={([val]) => onNodeAppearanceChange({ ...nodeAppearance, nodeScale: val })}
+                      />
                     </div>
 
                     <div className="space-y-3">
@@ -266,7 +273,12 @@ export function Inspector({
                         <span className="text-[11px] font-medium text-zinc-600">Kanten Deckkraft</span>
                         <span className="text-[10px] font-mono text-zinc-400">35%</span>
                       </div>
-                      <Slider defaultValue={[35]} max={100} step={1} />
+                      <Slider 
+                        value={[(styleSettings as any)?.edgeOpacity * 100 || 35]} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
+                      />
                     </div>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -298,9 +310,13 @@ export function Inspector({
                   <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Engine Control</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-8 px-1">
                     {[
-                      { id: 'phys-rep', label: 'Repulsion (Abstoßung)', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000 },
-                      { id: 'phys-spk', label: 'Federkonstante', value: effectivePhysicsParams?.springK ?? 0.06, max: 0.5 },
-                      { id: 'phys-dmp', label: 'Dämpfung', value: effectivePhysicsParams?.damping ?? 0.88, max: 1 },
+                      { id: 'phys-rep', label: 'Repulsion (Abstoßung)', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000, step: 10, key: 'repulsion' },
+                      { id: 'phys-spk', label: 'Federkonstante', value: effectivePhysicsParams?.springK ?? 0.06, max: 0.5, step: 0.005, key: 'springK' },
+                      { id: 'phys-dmp', label: 'Dämpfung', value: effectivePhysicsParams?.damping ?? 0.88, max: 1, step: 0.01, key: 'damping' },
+                      { id: 'phys-min', label: 'Min. Geschwindigkeit', value: effectivePhysicsParams?.minSpeed ?? 0.5, max: 2, step: 0.05, key: 'minSpeed' },
+                      { id: 'phys-lnk', label: 'Kantenlänge', value: effectivePhysicsParams?.linkDistance ?? 80, max: 500, step: 1, key: 'linkDistance' },
+                      { id: 'phys-grv', label: 'Schwerkraft', value: effectivePhysicsParams?.gravity ?? 0, min: -5, max: 10, step: 0.1, key: 'gravity' },
+                      { id: 'phys-trb', label: 'Turbulenz', value: effectivePhysicsParams?.turbulence ?? 0, max: 10, step: 0.1, key: 'turbulence' },
                     ].map((p) => (
                       <div key={p.id} className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -315,7 +331,13 @@ export function Inspector({
                             </button>
                           </div>
                         </div>
-                        <Slider value={[p.value]} max={p.max} step={p.id === 'phys-spk' ? 0.01 : 1} />
+                        <Slider 
+                          value={[p.value]} 
+                          min={p.min ?? 0}
+                          max={p.max} 
+                          step={p.step}
+                          onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
+                        />
                       </div>
                     ))}
                   </SidebarGroupContent>

@@ -67,6 +67,10 @@ const TRACK_GROUPS = [
       { id: 'phys-rep',  name: 'Repulsion', kfs: [], graph: false },
       { id: 'phys-spk',  name: 'Spring K',  kfs: [], graph: false },
       { id: 'phys-dmp',  name: 'Damping',   kfs: [], graph: false },
+      { id: 'phys-min',  name: 'Min Speed', kfs: [], graph: false },
+      { id: 'phys-lnk',  name: 'Link Dist', kfs: [], graph: false },
+      { id: 'phys-grv',  name: 'Gravity',   kfs: [], graph: false },
+      { id: 'phys-trb',  name: 'Turbulence',kfs: [], graph: false },
     ],
   },
 ];

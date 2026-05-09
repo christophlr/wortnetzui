@@ -178,6 +178,7 @@ export interface Network3DHandle {
   rotateView: (deltaTheta: number, deltaPhi: number) => void;
   setRotation: (theta: number, phi: number) => void;
   resetView: () => void;
+  fitToView: (instant?: boolean) => void;
 }
 
 export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref) => {
@@ -305,6 +306,73 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
   }, [physicsParams]);
+  
+  const fitToView = (instant = false) => {
+    if (!cameraRef.current || !controlsRef.current || graphNodeArrayRef.current.length === 0) return;
+
+    const box = new THREE.Box3();
+    graphNodeArrayRef.current.forEach(node => {
+      box.expandByPoint(new THREE.Vector3(node.x, node.y, node.z));
+    });
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    if (viewMode === '3D') {
+      const cam = cameraRef.current as THREE.PerspectiveCamera;
+      const fov = cam.fov * (Math.PI / 180);
+      // Determine distance based on FOV to fit the max dimension with padding
+      let distance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5; 
+      distance = Math.max(distance, 800); // Minimum comfortable distance
+
+      // Standard isometric-ish angle for the reset/initial view
+      const offset = new THREE.Vector3(distance * 0.8, distance * 0.5, distance).normalize().multiplyScalar(distance);
+      const toPos = center.clone().add(offset);
+      const toTarget = center.clone();
+
+      if (instant) {
+        cam.position.copy(toPos);
+        controlsRef.current.target.copy(toTarget);
+        cam.lookAt(toTarget);
+        controlsRef.current.update();
+      } else {
+        cameraFlyRef.current = {
+          fromPos: cam.position.clone(),
+          toPos: toPos,
+          fromTarget: controlsRef.current.target.clone(),
+          toTarget: toTarget,
+          startTime: performance.now(),
+          duration: 800,
+        };
+      }
+    } else {
+      const cam = cameraRef.current as THREE.OrthographicCamera;
+      if (!containerRef.current) return;
+      const nw = containerRef.current.clientWidth;
+      const nh = containerRef.current.clientHeight;
+      
+      const zoomX = nw / (size.x || 1);
+      const zoomY = nh / (size.y || 1);
+      const targetZoom = Math.min(zoomX, zoomY) * 0.8;
+
+      if (instant) {
+        cam.zoom = targetZoom;
+        cam.position.set(center.x, center.y, 1);
+        controlsRef.current.target.set(center.x, center.y, 0);
+        cam.updateProjectionMatrix();
+        controlsRef.current.update();
+      } else {
+        flyToTargetRef.current = center.clone();
+        cam.zoom = targetZoom;
+        cam.updateProjectionMatrix();
+      }
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     getCameraKeyframe: () => {
@@ -344,15 +412,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       controlsRef.current.update();
     },
     resetView: () => {
-      if (!cameraRef.current || !controlsRef.current) return;
-      cameraFlyRef.current = {
-        fromPos: cameraRef.current.position.clone(),
-        toPos: new THREE.Vector3(1200, 800, 1500),
-        fromTarget: controlsRef.current.target.clone(),
-        toTarget: new THREE.Vector3(0, 400, 0),
-        startTime: performance.now(),
-        duration: 600,
-      };
+      fitToView(false);
+    },
+    fitToView: (instant = false) => {
+      fitToView(instant);
     }
   }));
 
@@ -805,8 +868,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     // Setup scene
     const scene = new THREE.Scene();
-    const bgColors = getNetworkThemeBackground(isDarkRef.current);
-    scene.background = new THREE.Color(bgColors.threeColor);
+    // scene.background = new THREE.Color(bgColors.threeColor); // Removed for transparency
     sceneRef.current = scene;
 
     const is2D = viewMode === '2D';
@@ -826,7 +888,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     cameraRef.current = camera;
 
     // Setup renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true 
+    });
+    renderer.setClearColor(0x000000, 0); // Transparent background
     renderer.setSize(cw || 1000, ch || 800);
     renderer.setPixelRatio(window.devicePixelRatio);
     containerRef.current.appendChild(renderer.domElement);
@@ -949,6 +1015,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
         workerPosVelRef.current = posVel;
         syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+        fitToView(true);
         requestAnimationFrame(() => onReadyRef.current?.());
         return;
       }
@@ -1303,7 +1370,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     animate();
     // 2D: reveal immediately after the first frame.
     // 3D: onReady is called once the worker settle completes (see onmessage 'settled' handler).
-    if (is2D) requestAnimationFrame(() => onReadyRef.current?.());
+    if (is2D) {
+      fitToView(true);
+      requestAnimationFrame(() => onReadyRef.current?.());
+    }
 
     // Handle resize
     const handleResize = () => {
@@ -1454,8 +1524,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Update background color and rebuild textures when theme changes
   useEffect(() => {
     if (!sceneRef.current) return;
-    const bgColors = getNetworkThemeBackground(isDarkRef.current);
-    sceneRef.current.background = new THREE.Color(bgColors.threeColor);
+    // const bgColors = getNetworkThemeBackground(isDarkRef.current);
+    // sceneRef.current.background = new THREE.Color(bgColors.threeColor);
 
     if (graphNodesRef.current.size === 0) return;
     buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
@@ -1494,14 +1564,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
 
     zoomAnimRef.current = null;
-    cameraFlyRef.current = {
-      fromPos: cameraRef.current.position.clone(),
-      toPos: new THREE.Vector3(1200, 800, 1500),
-      fromTarget: controlsRef.current.target.clone(),
-      toTarget: new THREE.Vector3(0, 400, 0),
-      startTime: performance.now(),
-      duration: 600,
-    };
+    fitToView(false);
   };
 
   const unlockCamera = () => {

@@ -9,6 +9,7 @@ import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, 
 import { TIMELINE_DURATION } from './constants';
 import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
+import { Toolbar, type ToolId } from './components/Toolbar';
 
 type Keyframe = {
   time: number;
@@ -37,10 +38,26 @@ type PhysicsKeyframe = {
 export type SceneMarker = { time: number; label: string };
 type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]>; sceneMarkers: SceneMarker[] };
 
-const EMPTY_PHYSICS_KFS = { 'phys-rep': [] as PhysicsKeyframe[], 'phys-spk': [] as PhysicsKeyframe[], 'phys-dmp': [] as PhysicsKeyframe[] };
+const EMPTY_PHYSICS_KFS = { 
+  'phys-rep': [] as PhysicsKeyframe[], 
+  'phys-spk': [] as PhysicsKeyframe[], 
+  'phys-dmp': [] as PhysicsKeyframe[],
+  'phys-min': [] as PhysicsKeyframe[],
+  'phys-lnk': [] as PhysicsKeyframe[],
+  'phys-grv': [] as PhysicsKeyframe[],
+  'phys-trb': [] as PhysicsKeyframe[]
+};
 const DEFAULT_INSPECTOR_WIDTH = 360;
 const DEFAULT_TIMELINE_HEIGHT = 320;
-const PHYS_TRACK_PARAM: Record<string, string> = { 'phys-rep': 'repulsion', 'phys-spk': 'springK', 'phys-dmp': 'damping' };
+const PHYS_TRACK_PARAM: Record<string, string> = { 
+  'phys-rep': 'repulsion', 
+  'phys-spk': 'springK', 
+  'phys-dmp': 'damping',
+  'phys-min': 'minSpeed',
+  'phys-lnk': 'linkDistance',
+  'phys-grv': 'gravity',
+  'phys-trb': 'turbulence'
+};
 
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
   if (sorted.length === 0) return null;
@@ -96,6 +113,7 @@ export default function App() {
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [initProgress, setInitProgress] = useState(0);
   const [canvasAspectRatio, setCanvasAspectRatio] = useState<string>('full');
+  const [activeTool, setActiveTool] = useState<ToolId>('pointer');
 
   useEffect(() => {
     if (!isNetworkReady) {
@@ -879,7 +897,14 @@ export default function App() {
   }, [inputText, viewMode, parseMode]);
 
   return (
-    <div className="app-shell flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none">
+    <div 
+      className="app-shell flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none"
+      style={{ 
+        cursor: activeTool === 'pan' ? 'grab' : 
+                activeTool === 'paint' ? 'crosshair' : 
+                activeTool === 'zoom' ? 'zoom-in' : 'default' 
+      }}
+    >
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
         {/* Main Viewport Area */}
@@ -898,20 +923,9 @@ export default function App() {
               renderMode={renderMode}
               nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
               canvasAspectRatio={canvasAspectRatio}
+              initProgress={initProgress}
+              activeTool={activeTool} onToolChange={setActiveTool}
             />
-            
-            {!isNetworkReady && (
-              <div className="absolute inset-0 z-[5] flex items-center justify-center bg-white/40 backdrop-blur-sm animate-in fade-in duration-700">
-                <div className="w-64 flex flex-col items-center gap-4">
-                  <div className="w-full space-y-3">
-                    <div className="flex justify-center items-center">
-                      <span className="text-[13px] font-medium text-zinc-700 tracking-tight">Initialisierung</span>
-                    </div>
-                    <Progress value={initProgress} className="h-1 bg-zinc-200/80 overflow-hidden" />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Floating TopBar - now constrained to viewport */}
@@ -930,8 +944,7 @@ export default function App() {
               onUndo={handleUndo}
               onRedo={handleRedo}
               onApplyNodeStylePreset={handleApplyNodeStylePreset}
-              isSidebarOpen={isSidebarOpen}
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+
               onOpenShortcuts={() => setIsShortcutsOpen(true)}
             />
           </div>
@@ -1015,7 +1028,7 @@ export default function App() {
             onDeleteKeyframe={(time) => {
               handleDeleteKeyframe('camera-keyframes', time);
             }}
-            onCollapse={() => setIsSidebarOpen(false)}
+            onCollapse={() => setIsSidebarOpen(!isSidebarOpen)}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             onPanView={(dx, dy) => network3DRef.current?.panView(dx, dy)}

@@ -22,8 +22,6 @@ interface TopBarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onExport?: () => void;
-  isSidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
   onOpenShortcuts?: () => void;
 }
 
@@ -54,7 +52,7 @@ export function TopBar({
   renderMode = 'edit', onRenderModeChange,
   onApplyNodeStylePreset,
   onUndo, onRedo, canUndo = false, canRedo = false,
-  onExport, isSidebarOpen, onToggleSidebar,
+  onExport,
   onOpenShortcuts,
 }: TopBarProps) {
 
@@ -63,16 +61,7 @@ export function TopBar({
     <div className="flex items-start justify-between w-full pointer-events-none select-none">
       {/* Left Pill: Logo & Menubar */}
       <div className="flex items-center gap-2 px-3 h-11 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl pointer-events-auto">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onToggleSidebar}
-          className="size-8 text-zinc-500 hover:text-zinc-900 -ml-1.5"
-          title={isSidebarOpen ? "Sidebar ausblenden" : "Sidebar einblenden"}
-        >
-          {isSidebarOpen ? <PanelRightClose size={18} /> : <PanelRight size={18} />}
-        </Button>
-        <div className="w-px h-4 bg-zinc-200 mx-1" />
+
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <NetworkLogo />
@@ -161,12 +150,12 @@ export function TopBar({
           type="single"
           value={viewMode}
           onValueChange={(v) => v && onViewModeChange(v as '2D' | '3D')}
-          className="h-7 gap-0 border border-border/50 rounded-md overflow-hidden bg-background/50"
+          className="h-7 gap-0 border border-zinc-200 rounded-md overflow-hidden bg-background/50"
         >
           <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
             <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border/50 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
+          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-zinc-200 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
             <Cuboid size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
         </ToggleGroup>
