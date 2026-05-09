@@ -1,7 +1,7 @@
 import {
   Settings, Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
   Square, Cuboid, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw,
-  PanelLeft, PanelLeftClose, Keyboard
+  PanelRight, PanelRightClose, Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
 import { Button } from './ui/button';
@@ -70,7 +70,7 @@ export function TopBar({
           className="size-8 text-zinc-500 hover:text-zinc-900 -ml-1.5"
           title={isSidebarOpen ? "Sidebar ausblenden" : "Sidebar einblenden"}
         >
-          {isSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
+          {isSidebarOpen ? <PanelRightClose size={18} /> : <PanelRight size={18} />}
         </Button>
         <div className="w-px h-4 bg-zinc-200 mx-1" />
         {/* Logo */}
@@ -171,7 +171,7 @@ export function TopBar({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <div className="h-4 w-px bg-border/50" />
+
 
         <Button
           variant="outline"
@@ -191,10 +191,16 @@ export function TopBar({
           Preview
         </Button>
 
-        <div className="h-4 w-px bg-border/50" />
 
-        <Button variant="ghost" size="sm" className="h-7 text-[11px] px-3 hover:bg-accent/50" onClick={() => onExport?.()}>
-          <Download size={12} />Export
+
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="h-7 px-3 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 border-zinc-200 transition-all duration-200" 
+          onClick={() => onExport?.()}
+        >
+          <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
+          Export
         </Button>
       </div>
     </div>

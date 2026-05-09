@@ -32,6 +32,7 @@ interface PreviewProps {
   renderMode?: 'edit' | 'render';
   nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
   edgeAppearance?: { color: 'auto' | string };
+  canvasAspectRatio?: string;
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -54,6 +55,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   renderMode,
   nodeAppearance,
   edgeAppearance,
+  canvasAspectRatio = 'full',
 }: PreviewProps, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -96,64 +98,70 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
 
   return (
     <div ref={previewRef} className="w-full h-full relative overflow-hidden">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center overflow-hidden">
         {mounted && (
-          <Network3D
-            ref={ref}
-            viewMode={viewMode}
-            isPlaying={isPlaying}
-            playheadPosition={playheadPosition}
-            physicsParams={physicsParams}
-            physicsKeyframes={physicsKeyframes}
-            inputText={inputText}
-            parseMode={parseMode}
-            gradientSettings={gradientSettings}
-            styleSettings={styleSettings}
-            cameraKeyframes={cameraKeyframes}
-            onCameraChange={onCameraChange}
-            theme={theme}
-            isDark={isDark}
-            onReady={onNetworkReady}
-            renderMode={renderMode}
-            nodeAppearance={nodeAppearance}
-            edgeAppearance={edgeAppearance}
-          />
+          <div 
+            className="relative transition-all duration-500 ease-in-out shadow-2xl overflow-hidden"
+            style={{
+              width: canvasAspectRatio === 'full' ? '100%' : 'auto',
+              height: canvasAspectRatio === 'full' ? '100%' : 'auto',
+              aspectRatio: canvasAspectRatio === 'din' ? '1.414/1' : 
+                          canvasAspectRatio === '16:9' ? '16/9' :
+                          canvasAspectRatio === '4:3' ? '4/3' :
+                          canvasAspectRatio === '3:2' ? '3/2' : 'auto',
+              maxHeight: '100%',
+              maxWidth: '100%',
+              // For DIN we use 1.414 (A4 ratio)
+            }}
+          >
+            <Network3D
+              ref={ref}
+              viewMode={viewMode}
+              isPlaying={isPlaying}
+              playheadPosition={playheadPosition}
+              physicsParams={physicsParams}
+              physicsKeyframes={physicsKeyframes}
+              inputText={inputText}
+              parseMode={parseMode}
+              gradientSettings={gradientSettings}
+              styleSettings={styleSettings}
+              cameraKeyframes={cameraKeyframes}
+              onCameraChange={onCameraChange}
+              theme={theme}
+              isDark={isDark}
+              onReady={onNetworkReady}
+              renderMode={renderMode}
+              nodeAppearance={nodeAppearance}
+              edgeAppearance={edgeAppearance}
+            />
+            
+            {/* Artboard edge indicator */}
+            {canvasAspectRatio !== 'full' && (
+              <div className="absolute inset-0 border border-zinc-500/20 pointer-events-none z-10" />
+            )}
+
+            {/* Version indicator (bottom-left) - now inside artboard */}
+            <div className="absolute left-3 bottom-3 z-50 pointer-events-none">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-mono text-muted-foreground/80">v{BUILD_NUMBER}</span>
+                <span className="text-[10px] font-mono text-muted-foreground/60">
+                  {new Date(LAST_COMMIT_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}{' '}
+                  {new Date(LAST_COMMIT_DATE).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+
+            {/* Camera info overlay (bottom-right) - now inside artboard */}
+            <div className="absolute right-3 bottom-3 z-50 pointer-events-none">
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-[9px] font-mono text-muted-foreground">CAM · POS 0 / 0 / 500</span>
+                <span className="text-[9px] font-mono text-muted-foreground">ROT 0° / 0° / 0°</span>
+                <span className="text-[9px] font-mono text-muted-foreground">ZOOM 800px</span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-
-
-
-
-
-      {/* Version indicator (bottom-left) in format v0.cc.bb and date without seconds */}
-      {rect && (
-        <div
-          className="pointer-events-none z-50"
-          style={{ position: 'fixed', left: rect.left + 12, top: rect.bottom - 12 - 48 }}
-        >
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-mono text-muted-foreground/80">v{BUILD_NUMBER}</span>
-            <span className="text-[10px] font-mono text-muted-foreground/60">
-              {new Date(LAST_COMMIT_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}{' '}
-              {new Date(LAST_COMMIT_DATE).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Camera info overlay (bottom-right) - visible in both modes */}
-      {rect && (
-        <div
-          className="pointer-events-none z-50"
-          style={{ position: 'fixed', left: rect.right - 12 - 160, top: rect.bottom - 12 - 54 }}
-        >
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-[9px] font-mono text-muted-foreground">CAM · POS 0 / 0 / 500</span>
-            <span className="text-[9px] font-mono text-muted-foreground">ROT 0° / 0° / 0°</span>
-            <span className="text-[9px] font-mono text-muted-foreground">ZOOM 800px</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 });

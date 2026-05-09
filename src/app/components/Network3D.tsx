@@ -1631,8 +1631,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   return (
     <>
       <div ref={containerRef} className="w-full h-full relative">
-        {/* Orientation gizmo — 3D only */}
-        {viewMode !== '2D' && (
+        {/* Orientation gizmo — 3D only — HIDDEN FOR NOW */}
+        {false && viewMode !== '2D' && (
           <canvas
             ref={gizmoCanvasRef}
             width={72}
@@ -1675,8 +1675,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           </button>
         )}
 
-        {/* Zoom slider — 3D only */}
-        {viewMode !== '2D' && (
+        {/* Zoom slider — 3D only — HIDDEN FOR NOW */}
+        {false && viewMode !== '2D' && (
           <div className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 select-none p-1 rounded-full bg-zinc-50 border border-zinc-200 shadow-sm"
                style={{ bottom: 92 }}>
             <button

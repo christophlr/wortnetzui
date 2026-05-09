@@ -95,6 +95,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [initProgress, setInitProgress] = useState(0);
+  const [canvasAspectRatio, setCanvasAspectRatio] = useState<string>('full');
 
   useEffect(() => {
     if (!isNetworkReady) {
@@ -896,6 +897,7 @@ export default function App() {
               isNetworkReady={isNetworkReady} onNetworkReady={() => setIsNetworkReady(true)}
               renderMode={renderMode}
               nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
+              canvasAspectRatio={canvasAspectRatio}
             />
             
             {!isNetworkReady && (
@@ -1004,6 +1006,8 @@ export default function App() {
             onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
             nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
             effectivePhysicsParams={effectivePhysicsParams}
+            canvasAspectRatio={canvasAspectRatio}
+            onCanvasAspectRatioChange={setCanvasAspectRatio}
             currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
             physicsKeyframes={physicsKeyframes}
             onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
@@ -1020,7 +1024,6 @@ export default function App() {
             onResetView={() => network3DRef.current?.resetView()}
           />
         </div>
-      </div>
       </div>
     </div>
   );

@@ -10,12 +10,15 @@ import {
   Zap, 
   RefreshCw,
   MoreHorizontal,
-  ChevronLeft,
+  PanelRight,
+  PanelRightClose,
   X,
   Plus,
   Minus,
   Video,
-  Atom
+  Atom,
+  Monitor,
+  Layout
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -73,17 +76,19 @@ interface InspectorProps {
 }
 
 export function Inspector({
-  onPhysicsChange, onTextChange, inputText = "", onParsingChange, onParsingChange: _parsingChange, onGradientChange,
+  onPhysicsChange, onTextChange, inputText = "", onParsingChange, onGradientChange,
   onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
-  nodeAppearance, appliedNodePreset, effectivePhysicsParams,
+  nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
   width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
   onPanView, onRotateView, onSetRotation, onResetView
 }: InspectorProps) {
   const [localText, setLocalText] = useState(inputText);
-  const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
   const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
-  const lastPanRef = React.useRef({ x: 0, y: 0 });
+  const [puckPos, setPuckPos] = useState({ x: 0, y: 0 });
+  const [isDraggingPuck, setIsDraggingPuck] = useState(false);
+  const lastPanRef = useRef({ x: 0, y: 0 });
 
   // Sync local text with default input text on load
   useEffect(() => {
@@ -129,10 +134,18 @@ export function Inspector({
     return (
       <div className="flex h-full w-12 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-zinc-100/50">
+          <button 
+            onClick={onCollapse}
+            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+            title="Sidebar einblenden"
+          >
+            <PanelRight size={18} />
+          </button>
           <SidebarTab id="content" icon={Type} label="Inhalt" />
           <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
           <SidebarTab id="physics" icon={Atom} label="Physik" />
           <SidebarTab id="camera" icon={Video} label="Kamera" />
+          <SidebarTab id="canvas" icon={Monitor} label="Canvas" />
         </div>
       </div>
     );
@@ -144,27 +157,25 @@ export function Inspector({
         
         {/* VS Code Style Activity Bar (Icons) */}
         <div className="w-11 border-r border-zinc-200/60 bg-zinc-100/50 flex flex-col items-center py-4 gap-2">
+          <button 
+            onClick={onCollapse}
+            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+            title="Sidebar ausblenden"
+          >
+            <PanelRightClose size={18} />
+          </button>
           <SidebarTab id="content" icon={Type} label="Inhalt" />
           <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
           <SidebarTab id="physics" icon={Atom} label="Physik" />
           <SidebarTab id="camera" icon={Video} label="Kamera" />
-          
-          <div className="mt-auto pb-2">
-             <button 
-              onClick={onCollapse}
-              className="size-8 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
-              title="Sidebar ausblenden"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          </div>
+          <SidebarTab id="canvas" icon={Monitor} label="Canvas" />
         </div>
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
           <SidebarHeader className="p-4 pb-2 border-b border-zinc-200/50 flex flex-row items-center justify-between">
             <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
-              {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : 'Kamera Steuerung'}
+              {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : activeTab === 'camera' ? 'Kamera Steuerung' : 'Canvas Layout'}
             </h2>
             <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 transition-colors md:hidden">
               <X size={16} />
@@ -242,7 +253,6 @@ export function Inspector({
                 <SidebarGroup>
                   <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Node Appearance</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-5 px-1">
-                    {/* Node Scale */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Skalierung</span>
@@ -251,7 +261,6 @@ export function Inspector({
                       <Slider defaultValue={[100]} max={250} step={5} />
                     </div>
 
-                    {/* Edge Opacity */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Kanten Deckkraft</span>
@@ -321,7 +330,6 @@ export function Inspector({
                   <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">View Positioning</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-6 px-1">
                     
-                    {/* Draggable Camera Pad / Joystick */}
                     <div className="flex flex-col items-center gap-3">
                       <div 
                         className="relative size-40 bg-zinc-200/50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
@@ -336,11 +344,9 @@ export function Inspector({
                             const dy = ev.movementY;
                             onRotateView(-dx * 0.01, -dy * 0.01);
 
-                            // Calculate puck position relative to center
                             const relX = ev.clientX - centerX;
                             const relY = ev.clientY - centerY;
                             
-                            // Constrain to pad bounds (radius roughly 60px to keep it inside)
                             const limit = 60;
                             const dist = Math.sqrt(relX * relX + relY * relY);
                             if (dist > limit) {
@@ -361,7 +367,6 @@ export function Inspector({
                           window.addEventListener('mouseup', onUp);
                         }}
                       >
-                        {/* Background Grid / Axis Lines */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <div className="w-full h-[1.5px] bg-zinc-300" />
                           <div className="h-full w-[1.5px] bg-zinc-300" />
@@ -369,21 +374,19 @@ export function Inspector({
                           <div className="absolute w-full h-[1px] bg-zinc-300/30 -rotate-45" />
                         </div>
 
-                        {/* Snap Points (Clickable Axis Indicators) */}
                         <div className="absolute inset-0 p-4 flex flex-col justify-between items-center pointer-events-none">
                           <button 
                             className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                            onClick={() => onSetRotation(0, 0)} // Top View
+                            onClick={() => onSetRotation(0, 0)}
                             title="Top View (Y)"
                           >Y</button>
                           <div className="flex justify-between w-full items-center">
                             <button 
                               className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                              onClick={() => onSetRotation(-Math.PI/2, Math.PI/2)} // Left View
+                              onClick={() => onSetRotation(-Math.PI/2, Math.PI/2)}
                               title="Left View (-X)"
                             >-X</button>
                             
-                            {/* Central Handle / Puck */}
                             <div 
                               className={cn(
                                 "size-8 rounded-full bg-white border border-zinc-300 shadow-md flex items-center justify-center text-zinc-400 z-10",
@@ -398,18 +401,17 @@ export function Inspector({
 
                             <button 
                               className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                              onClick={() => onSetRotation(Math.PI/2, Math.PI/2)} // Right View
+                              onClick={() => onSetRotation(Math.PI/2, Math.PI/2)}
                               title="Right View (X)"
                             >X</button>
                           </div>
                           <button 
                             className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                            onClick={() => onSetRotation(Math.PI, 0)} // Bottom View
+                            onClick={() => onSetRotation(Math.PI, 0)}
                             title="Bottom View (-Y)"
                           >-Y</button>
                         </div>
                         
-                        {/* Isometric Snap Buttons (Corners) */}
                         <button onClick={() => onSetRotation(Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 1" />
                         <button onClick={() => onSetRotation(-Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 2" />
                         <button onClick={() => onSetRotation(3*Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute bottom-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 3" />
@@ -428,7 +430,6 @@ export function Inspector({
                     </div>
 
                     <Separator className="bg-zinc-200/40" />
-                    {/* Horizontal Pan */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Horizontaler Pan</span>
@@ -452,7 +453,6 @@ export function Inspector({
                       />
                     </div>
 
-                    {/* Vertical Pan */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Vertikaler Pan</span>
@@ -491,6 +491,58 @@ export function Inspector({
                 </SidebarGroup>
               </div>
             )}
+
+            {activeTab === 'canvas' && (
+              <div className="p-4 space-y-6">
+                <div>
+                  <h3 className="text-[11px] font-semibold text-zinc-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Layout className="w-3.5 h-3.5 text-blue-500" />
+                    Canvas Layout
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[11px] font-medium text-zinc-500 mb-3 block">Aspect Ratio</label>
+                      <RadioGroup 
+                        value={canvasAspectRatio} 
+                        onValueChange={onCanvasAspectRatioChange}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        {[
+                          { id: 'full', label: 'Full Screen' },
+                          { id: '16:9', label: '16:9 Cinema' },
+                          { id: '4:3', label: '4:3 Standard' },
+                          { id: '3:2', label: '3:2 Classic' },
+                          { id: 'din', label: 'DIN Landscape' },
+                        ].map((ratio) => (
+                          <div key={ratio.id}>
+                            <RadioGroupItem
+                              value={ratio.id}
+                              id={`ratio-${ratio.id}`}
+                              className="peer sr-only"
+                            />
+                            <label
+                              htmlFor={`ratio-${ratio.id}`}
+                              className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50/50 cursor-pointer transition-all"
+                            >
+                              <span className="text-[10px] font-medium">{ratio.label}</span>
+                            </label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-100">
+                  <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                    Note: Aspect ratio settings apply a letterbox effect to the viewport for controlled composition and framing.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="h-20" />
           </SidebarContent>
 
           <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
