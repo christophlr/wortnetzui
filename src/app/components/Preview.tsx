@@ -128,21 +128,15 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         </div>
       )}
 
-      {/* Top-left anchor (fixed to preview) */}
-      {rect && (
-        <div
-          className="pointer-events-none z-50"
-          style={{ position: 'fixed', left: rect.left + 12, top: rect.top + 12 }}
-        >
-          <div className="flex items-center gap-1.5" />
-        </div>
-      )}
-
-      {/* Top-right: playing indicator - visible in both modes */}
+      {/* Top-left: playing indicator - visible in both modes */}
       {isPlaying && rect && (
         <div
           className="pointer-events-none z-50"
-          style={{ position: 'fixed', left: rect.right - 12 - 120, top: rect.top + 12 }}
+          style={{
+            position: 'fixed',
+            left: rect.left + 12,
+            top: rect.top + 12,
+          }}
         >
           <div className="flex items-center gap-1.5 px-2 py-1 rounded border bg-red-950/40 border-red-800/40">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />

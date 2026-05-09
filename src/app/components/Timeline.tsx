@@ -572,7 +572,7 @@ function EasingTrackRow({
             />
           );
         })}
-      </div>
+        </div>
 
       {picker && (() => {
         const kf = keyframes.find(k => k.time === picker.kfTime);
@@ -601,7 +601,7 @@ function EasingTrackRow({
 /* ── Track row ── */
 
 function TrackRow({
-  track, color, selectedKeyframes, onKeyframeSelect, onMoveKeyframe, onKeyframeContextMenu,
+  track, color, selectedKeyframes, onKeyframeSelect, onMoveKeyframe, onKeyframeContextMenu, collapsed = false, onToggleCollapsed,
   onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
@@ -611,6 +611,8 @@ function TrackRow({
   onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onKeyframeContextMenu?: (trackId: string, time: number, x: number, y: number) => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   snap: boolean;
@@ -662,65 +664,79 @@ function TrackRow({
         className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background gap-1.5"
         style={{ width: LABEL_W }}
       >
+        {onToggleCollapsed ? (
+          <button
+            type="button"
+            aria-label={collapsed ? `Expand ${track.name} track` : `Collapse ${track.name} track`}
+            onClick={onToggleCollapsed}
+            className="shrink-0 rounded p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:bg-accent"
+          >
+            <ChevronRight size={10} className={`transition-transform duration-150 ${collapsed ? '' : 'rotate-90'}`} />
+          </button>
+        ) : (
+          <div className="w-[14px]" />
+        )}
         <span className="text-[10px] text-muted-foreground flex-1 truncate">{track.name}</span>
         {track.graph && (
           <span className="text-[8px] text-muted-foreground/60 bg-muted border border-border rounded px-1">curve</span>
         )}
       </div>
 
-      <div className={`flex-1 relative overflow-hidden ${c.trackBg}`}>
-        {track.graph && <GraphCurve kfs={track.kfs} color={c.graphStroke} viewWindow={viewWindow} />}
-        {track.kfs.map((t, idx) => {
-          const leftPct = ((t - viewWindow.start) / visibleDuration) * 100;
-          if (leftPct < -2 || leftPct > 102) return null;
-          const selected = selectedKeyframes.some(s => s.track === track.id && Math.abs(s.time - t) < 0.01);
-          const onPlayhead = !selected && selectedKeyframes.length === 0 && Math.abs(t - playheadPosition) < 0.1;
-          return (
-            <button
-              key={`${track.id}-${t}-${idx}`}
-              data-keyframe="true"
-              onMouseDown={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDragStart?.();
-                setDraggingKf({ time: t, startX: e.clientX });
-                onKeyframeSelect(track.id, t, e.shiftKey || e.metaKey || e.ctrlKey);
-              }}
-              onContextMenu={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                onKeyframeSelect(track.id, t, false);
-                onKeyframeContextMenu?.(track.id, t, e.clientX, e.clientY);
-              }}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 flex items-center justify-center hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
-              style={{ left: `${leftPct}%` }}
-            >
-              {selected && (
+      {!collapsed && (
+        <div className={`flex-1 relative overflow-hidden ${c.trackBg}`}>
+          {track.graph && <GraphCurve kfs={track.kfs} color={c.graphStroke} viewWindow={viewWindow} />}
+          {track.kfs.map((t, idx) => {
+            const leftPct = ((t - viewWindow.start) / visibleDuration) * 100;
+            if (leftPct < -2 || leftPct > 102) return null;
+            const selected = selectedKeyframes.some(s => s.track === track.id && Math.abs(s.time - t) < 0.01);
+            const onPlayhead = !selected && selectedKeyframes.length === 0 && Math.abs(t - playheadPosition) < 0.1;
+            return (
+              <button
+                key={`${track.id}-${t}-${idx}`}
+                data-keyframe="true"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDragStart?.();
+                  setDraggingKf({ time: t, startX: e.clientX });
+                  onKeyframeSelect(track.id, t, e.shiftKey || e.metaKey || e.ctrlKey);
+                }}
+                onContextMenu={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onKeyframeSelect(track.id, t, false);
+                  onKeyframeContextMenu?.(track.id, t, e.clientX, e.clientY);
+                }}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 flex items-center justify-center hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
+                style={{ left: `${leftPct}%` }}
+              >
+                {selected && (
+                  <Diamond
+                    size={16}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                  />
+                )}
                 <Diamond
-                  size={16}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="2"
+                  size={10}
+                  className={
+                    selected
+                      ? c.kf
+                      : onPlayhead
+                        ? 'text-blue-400 drop-shadow-[0_0_8px_currentColor]'
+                        : 'text-foreground hover:text-foreground drop-shadow-md'
+                  }
+                  fill={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
+                  stroke={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
+                  strokeWidth={selected || onPlayhead ? 2 : 1.5}
                 />
-              )}
-              <Diamond
-                size={10}
-                className={
-                  selected
-                    ? c.kf
-                    : onPlayhead
-                      ? 'text-blue-400 drop-shadow-[0_0_8px_currentColor]'
-                      : 'text-foreground hover:text-foreground drop-shadow-md'
-                }
-                fill={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
-                stroke={selected ? c.kfFill : onPlayhead ? '#3b82f6' : 'currentColor'}
-                strokeWidth={selected || onPlayhead ? 2 : 1.5}
-              />
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -850,7 +866,7 @@ function SceneMarkerLane({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle,
+  group, expanded, onToggle, collapsedTracks, onToggleTrackCollapsed,
   selectedKeyframes, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
   onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
@@ -858,6 +874,8 @@ function TrackGroup({
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
   onToggle: () => void;
+  collapsedTracks: Record<string, boolean>;
+  onToggleTrackCollapsed: (trackId: string) => void;
   selectedKeyframes: { track: string; time: number }[];
   onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
@@ -914,6 +932,7 @@ function TrackGroup({
           : isPhysics
             ? (physicsKeyframes?.[track.id] ?? [])
             : [];
+        const trackCollapsed = !!collapsedTracks[track.id];
         return (
           <div key={track.id}>
             <TrackRow
@@ -923,6 +942,8 @@ function TrackGroup({
               onKeyframeSelect={onKeyframeSelect}
               onMoveKeyframe={onMoveKeyframe}
               onKeyframeContextMenu={onKeyframeContextMenu}
+              collapsed={trackCollapsed}
+              onToggleCollapsed={() => onToggleTrackCollapsed(track.id)}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               snap={snap}
@@ -931,7 +952,7 @@ function TrackGroup({
               duration={duration}
               viewWindow={viewWindow}
             />
-            {onSetHandle && (
+            {onSetHandle && !trackCollapsed && (
               <EasingTrackRow
                 trackId={track.id}
                 keyframeData={easingData}
@@ -983,6 +1004,7 @@ export function Timeline({
   onRenameSceneMarker,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
+  const [collapsedTracks, setCollapsedTracks] = useState<Record<string, boolean>>({});
   const [selectedSceneMarkers, setSelectedSceneMarkers] = useState<number[]>([]);
   const [zoom, setZoom] = useState(1);
   const [panStart, setPanStart] = useState(0);
@@ -1276,6 +1298,10 @@ export function Timeline({
 
   const selCount = selectedKeyframes.length;
 
+  const toggleTrackCollapsed = useCallback((trackId: string) => {
+    setCollapsedTracks(prev => ({ ...prev, [trackId]: !prev[trackId] }));
+  }, []);
+
   return (
     <div className="flex flex-col bg-background border-t border-border shrink-0" style={{ height }}>
 
@@ -1451,6 +1477,8 @@ export function Timeline({
               group={group}
               expanded={expanded[group.id]}
               onToggle={() => setExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
+              collapsedTracks={collapsedTracks}
+              onToggleTrackCollapsed={toggleTrackCollapsed}
               selectedKeyframes={selectedKeyframes}
               onKeyframeSelect={onKeyframeSelect}
               cameraKeyframes={cameraKeyframes}
