@@ -2,11 +2,11 @@
 
 ## Version number
 
-**Every commit must bump the version in `src/version.ts`.**
+The version is **automatically derived from the git commit count** by `vite.config.ts` — no manual update needed.
 
-- Format: `"0.XX"` where XX is the commit count (e.g. commit 54 → `"0.54"`)
-- The build date is injected automatically by Vite at build time — no manual update needed
-- Current commit count as of initial versioning: 53 (version `"0.53"`)
+- Format: `"0.XX"` where XX is `git rev-list --count HEAD` (e.g. 59 commits → `"0.59"`)
+- Both the version and build timestamp are injected by Vite at build time via `__APP_VERSION__` and `__BUILD_DATE__`
+- `src/version.ts` only contains type declarations — do not hardcode a version string there
 - The version + build timestamp are displayed in the bottom-left of the Preview component
 
 ## UI conventions

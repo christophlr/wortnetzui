@@ -14,6 +14,8 @@ export type SceneMarker = { time: number; label: string };
 type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]>; sceneMarkers: SceneMarker[] };
 
 const EMPTY_PHYSICS_KFS = { 'phys-rep': [] as PhysicsKeyframe[], 'phys-spk': [] as PhysicsKeyframe[], 'phys-dmp': [] as PhysicsKeyframe[] };
+const DEFAULT_INSPECTOR_WIDTH = 300;
+const DEFAULT_TIMELINE_HEIGHT = 280;
 const PHYS_TRACK_PARAM: Record<string, string> = { 'phys-rep': 'repulsion', 'phys-spk': 'springK', 'phys-dmp': 'damping' };
 
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
@@ -65,8 +67,8 @@ export default function App() {
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
-  const [inspectorWidth, setInspectorWidth] = useState(300);
-  const [timelineHeight, setTimelineHeight] = useState(280);
+  const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
+  const [timelineHeight, setTimelineHeight] = useState(DEFAULT_TIMELINE_HEIGHT);
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
   const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);
@@ -501,6 +503,7 @@ export default function App() {
   }, [getTimelineState, pushHistory]);
 
   const startInspectorResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     const startX = e.clientX;
     const startWidth = inspectorWidth;
     const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(180, Math.min(520, startWidth + ev.clientX - startX)));
@@ -510,6 +513,7 @@ export default function App() {
   }, [inspectorWidth]);
 
   const startTimelineResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     const startY = e.clientY;
     const startHeight = timelineHeight;
     const onMove = (ev: MouseEvent) => setTimelineHeight(Math.max(100, Math.min(600, startHeight - (ev.clientY - startY))));
@@ -598,6 +602,7 @@ export default function App() {
         <div
           className="w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
           onMouseDown={startInspectorResize}
+          onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
         />
         <Preview
           ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
@@ -615,6 +620,7 @@ export default function App() {
       <div
         className="h-1 shrink-0 cursor-row-resize bg-border/30 hover:bg-accent/40 transition-[color,background-color,box-shadow]"
         onMouseDown={startTimelineResize}
+        onDoubleClick={() => setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)}
       />
       <Timeline
         isPlaying={isPlaying} onPlayPause={handlePlayPause} onStop={handleStop}

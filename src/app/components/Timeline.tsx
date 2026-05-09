@@ -440,6 +440,7 @@ function EasingTrackRow({
 
           const startDragOut = (e: React.MouseEvent) => {
             if (isAuto) return;
+            e.preventDefault();
             e.stopPropagation();
             onDragStart?.();
             const { segLeft, segWidth } = getSegRect();
@@ -447,6 +448,7 @@ function EasingTrackRow({
           };
           const startDragIn = (e: React.MouseEvent) => {
             if (isAuto) return;
+            e.preventDefault();
             e.stopPropagation();
             onDragStart?.();
             const { segLeft, segWidth } = getSegRect();
@@ -665,6 +667,7 @@ function TrackRow({
               key={`${track.id}-${t}-${idx}`}
               data-keyframe="true"
               onMouseDown={e => {
+                e.preventDefault();
                 e.stopPropagation();
                 onDragStart?.();
                 setDraggingKf({ time: t, startX: e.clientX });

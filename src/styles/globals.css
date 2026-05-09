@@ -1,3 +1,7 @@
+/* Prevent text/element selection on click-drag across the UI */
+* { user-select: none; }
+input, textarea, [contenteditable] { user-select: text; }
+
 .zoom-slider {
   -webkit-appearance: none;
   appearance: none;
