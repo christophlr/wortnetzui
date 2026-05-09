@@ -132,7 +132,7 @@ export function Inspector({
 
   if (!isSidebarOpen) {
     return (
-      <div className="flex h-full w-12 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl overflow-hidden pointer-events-auto">
+      <div className="flex h-full w-12 bg-zinc-50 border border-zinc-200 shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-zinc-100/50">
           <button 
             onClick={onCollapse}
@@ -153,7 +153,7 @@ export function Inspector({
 
   return (
     <SidebarProvider className="h-full w-full">
-      <div className="flex h-full w-full bg-zinc-50 border border-zinc-200 shadow-sm rounded-t-xl overflow-hidden pointer-events-auto">
+      <div className="flex h-full w-full bg-zinc-50 border border-zinc-200 shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
         
         {/* VS Code Style Activity Bar (Icons) */}
         <div className="w-11 border-r border-zinc-200/60 bg-zinc-100/50 flex flex-col items-center py-4 gap-2">
