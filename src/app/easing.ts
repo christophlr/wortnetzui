@@ -1,12 +1,42 @@
-// Cubic bezier easing with draggable handles.
-// Each keyframe stores outWeight (ease-out) and inWeight (ease-in), both in [0, 1].
-// 0 = linear, 0.33 = standard smooth, 0.5 = heavy ease, 1 = extreme/step-like ease.
-//
-// The bezier is cubic-bezier(outWeight, 0, 1-inWeight, 1):
-//   P0=(0,0)  P1=(outWeight,0)  P2=(1-inWeight,1)  P3=(1,1)
-// Y simplifies to smoothstep(s); X is solved for s via binary search.
-// When outWeight + inWeight > 1, handles cross and the curve may become non-monotone.
+export function evaluateHermite(t: number, p0: number, m0: number, p1: number, m1: number, duration: number): number {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = t3 - 2 * t2 + t;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 = t3 - t2;
+  
+  return h00 * p0 + h10 * duration * m0 + h01 * p1 + h11 * duration * m1;
+}
 
+export function computeCatmullRomTangent(
+  prevTime: number | null, prevVal: number | null,
+  currTime: number, currVal: number,
+  nextTime: number | null, nextVal: number | null
+): number {
+  if (prevTime === null && nextTime === null) return 0;
+  
+  if (prevTime === null && nextTime !== null && nextVal !== null) {
+    if (nextTime === currTime) return 0;
+    return (nextVal - currVal) / (nextTime - currTime);
+  }
+  
+  if (nextTime === null && prevTime !== null && prevVal !== null) {
+    if (currTime === prevTime) return 0;
+    return (currVal - prevVal) / (currTime - prevTime);
+  }
+  
+  if (prevTime !== null && prevVal !== null && nextTime !== null && nextVal !== null) {
+    if (nextTime === prevTime) return 0;
+    return (nextVal - prevVal) / (nextTime - prevTime);
+  }
+  
+  return 0;
+}
+
+// Cubic bezier easing (used by Network3D camera/physics keyframes).
+// outWeight/inWeight in [0,1]: 0 = linear, 0.33 = standard, 1 = extreme.
 function _bezierX(s: number, x1: number, x2: number): number {
   const inv = 1 - s;
   return 3 * inv * inv * s * x1 + 3 * inv * s * s * x2 + s * s * s;
@@ -23,15 +53,9 @@ export function solveBezierEasing(t: number, outWeight: number, inWeight: number
     if (_bezierX(mid, x1, x2) < t) lo = mid; else hi = mid;
   }
   const s = (lo + hi) / 2;
-  return s * s * (3 - 2 * s); // smoothstep
+  return s * s * (3 - 2 * s);
 }
 
-// Auto-bezier: computes outWeight/inWeight for a segment to ensure C1-continuous flow.
-// prevDur = duration of the segment arriving at the left keyframe (null if it's the first keyframe).
-// nextDur = duration of the segment leaving the right keyframe (null if it's the last keyframe).
-//
-// C1 guarantee: inWeight of segment[a→b] == outWeight of segment[b→c] at every shared keyframe b,
-// because both evaluate to 0.33 * min(1, shorter/longer) using the same ratio.
 export function computeAutoWeights(
   currDur: number,
   prevDur: number | null,
@@ -42,9 +66,6 @@ export function computeAutoWeights(
   return { outWeight, inWeight };
 }
 
-// SVG cubic-bezier path for the easing track.
-// w/h are the segment viewBox dimensions.
-// outW = outWeight of the left keyframe, inW = inWeight of the right keyframe.
 export function segmentBezierPath(outW: number, inW: number, w: number, h: number): string {
   const ow = Math.max(0, Math.min(1, outW)) * w;
   const iw = (1 - Math.max(0, Math.min(1, inW))) * w;

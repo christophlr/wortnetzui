@@ -6,10 +6,32 @@ import { Timeline } from './components/Timeline';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
 import { TIMELINE_DURATION } from './constants';
-import { solveBezierEasing, computeAutoWeights } from './easing';
+import { evaluateHermite, computeCatmullRomTangent } from './easing';
 
-type Keyframe = { time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
-type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+type Keyframe = {
+  time: number;
+  position: { x: number; y: number; z: number };
+  target: { x: number; y: number; z: number };
+  handleInPos?: { x: number; y: number; z: number };
+  handleOutPos?: { x: number; y: number; z: number };
+  handleInTgt?: { x: number; y: number; z: number };
+  handleOutTgt?: { x: number; y: number; z: number };
+  mode?: 'aligned' | 'broken';
+  tension?: number;
+  tensionHandleIn?: number;
+  tensionHandleOut?: number;
+  tensionHandleInTime?: number;
+  tensionHandleOutTime?: number;
+};
+type PhysicsKeyframe = {
+  time: number;
+  value: number;
+  handleIn?: number;
+  handleOut?: number;
+  handleInTime?: number;
+  handleOutTime?: number;
+  mode?: 'aligned' | 'broken';
+};
 export type SceneMarker = { time: number; label: string };
 type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]>; sceneMarkers: SceneMarker[] };
 
@@ -27,20 +49,19 @@ function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): numbe
     const b = sorted[i + 1];
     if (time >= a.time && time <= b.time) {
       const segDur = b.time - a.time;
+      if (segDur === 0) return a.value;
       const tRaw = (time - a.time) / segDur;
-      const isAuto = a.interpolation === 'auto' || b.interpolation === 'auto';
-      let outW: number;
-      let inW: number;
-      if (isAuto) {
-        const prevDur = i > 0 ? a.time - sorted[i - 1].time : null;
-        const nextDur = i + 2 < sorted.length ? sorted[i + 2].time - b.time : null;
-        ({ outWeight: outW, inWeight: inW } = computeAutoWeights(segDur, prevDur, nextDur));
-      } else {
-        outW = a.outWeight ?? 0;
-        inW = b.inWeight ?? 0;
-      }
-      const easedT = solveBezierEasing(tRaw, outW, inW);
-      return a.value + (b.value - a.value) * easedT;
+      
+      const prevTime = i > 0 ? sorted[i - 1].time : null;
+      const prevVal = i > 0 ? sorted[i - 1].value : null;
+      const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
+      const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
+
+      // Boundary fix: clamp to 0 at first/last keyframe to prevent overshoot spike
+      const m0 = a.handleOut ?? (prevTime === null ? 0 : computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value));
+      const m1 = b.handleIn ?? (nextTime === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal));
+
+      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
     }
   }
   return null;
@@ -200,8 +221,8 @@ export default function App() {
       const existingK = (nextPhysKfs[trackId] ?? []).find(k => Math.abs(k.time - currentTime) <= 0.1);
       const filtered = (nextPhysKfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
       const easingProps = existingK
-        ? { outWeight: existingK.outWeight, inWeight: existingK.inWeight, interpolation: existingK.interpolation }
-        : { interpolation: 'auto' as const };
+        ? { handleOut: existingK.handleOut, handleIn: existingK.handleIn, handleOutTime: existingK.handleOutTime, handleInTime: existingK.handleInTime, mode: existingK.mode }
+        : { mode: 'aligned' as const };
       nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: effectivePhysics[param], ...easingProps }]
         .sort((a, b) => a.time - b.time);
     }
@@ -209,7 +230,15 @@ export default function App() {
     setPhysicsKeyframes(nextPhysKfs);
 
     if (viewMode !== '3D') {
-      pushHistory(prev, { ...prev, physicsKeyframes: nextPhysKfs });
+      let nextMarkers2D = sceneMarkersRef.current;
+      const markerExists2D = nextMarkers2D.some(m => Math.abs(m.time - currentTime) <= 0.1);
+      if (!markerExists2D) {
+        const label = `Scene ${nextMarkers2D.length + 1}`;
+        nextMarkers2D = [...nextMarkers2D, { time: currentTime, label }].sort((a, b) => a.time - b.time);
+        sceneMarkersRef.current = nextMarkers2D;
+        setSceneMarkers(nextMarkers2D);
+      }
+      pushHistory(prev, { ...prev, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers2D });
       return;
     }
 
@@ -223,13 +252,23 @@ export default function App() {
     const existingCK = cameraKeyframesRef.current.find(s => Math.abs(s.time - currentTime) <= 0.1);
     const filteredCkfs = cameraKeyframesRef.current.filter(s => Math.abs(s.time - currentTime) > 0.1);
     const cameraEasingProps = existingCK
-      ? { outWeight: existingCK.outWeight, inWeight: existingCK.inWeight, interpolation: existingCK.interpolation }
-      : { interpolation: 'auto' as const };
+      ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut, tensionHandleInTime: existingCK.tensionHandleInTime, tensionHandleOutTime: existingCK.tensionHandleOutTime }
+      : { mode: 'aligned' as const };
     const nextCkfs = [...filteredCkfs, { ...keyframe, ...cameraEasingProps, time: currentTime }]
       .sort((a, b) => a.time - b.time);
     cameraKeyframesRef.current = nextCkfs;
     setCameraKeyframes(nextCkfs);
-    pushHistory(prev, { ...prev, cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs });
+
+    // Auto-add scene marker at this time if none exists
+    let nextMarkers = sceneMarkersRef.current;
+    const markerExists = nextMarkers.some(m => Math.abs(m.time - currentTime) <= 0.1);
+    if (!markerExists) {
+      const label = `Scene ${nextMarkers.length + 1}`;
+      nextMarkers = [...nextMarkers, { time: currentTime, label }].sort((a, b) => a.time - b.time);
+      sceneMarkersRef.current = nextMarkers;
+      setSceneMarkers(nextMarkers);
+    }
+    pushHistory(prev, { cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
 
   const handleCameraChange = useCallback(() => {
@@ -242,8 +281,8 @@ export default function App() {
       const existingCK = prev.find(s => Math.abs(s.time - currentTime) < 0.1);
       const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
       const easingProps = existingCK
-        ? { outWeight: existingCK.outWeight, inWeight: existingCK.inWeight, interpolation: existingCK.interpolation }
-        : { interpolation: 'auto' as const };
+        ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut }
+        : { mode: 'aligned' as const };
       const next = [...filtered, { ...keyframe, ...easingProps, time: currentTime }].sort((a, b) => a.time - b.time);
       cameraKeyframesRef.current = next;
       return next;
@@ -299,17 +338,34 @@ export default function App() {
   }, []);
 
   const handleSetHandle = useCallback((trackId: string, time: number, side: 'out' | 'in', weight: number) => {
-    const clamped = Math.max(0, Math.min(1, weight));
-    const key = side === 'out' ? 'outWeight' : 'inWeight';
+    const key = side === 'out' ? 'handleOut' : 'handleIn';
     if (trackId === 'camera-keyframes') {
+      const tensionKey = side === 'out' ? 'tensionHandleOut' : 'tensionHandleIn';
       setCameraKeyframes(prev => {
-        const next = prev.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, [key]: clamped } : s);
+        const next = prev.map(s => {
+          if (Math.abs(s.time - time) >= 0.01) return s;
+          const updated: Keyframe = { ...s, [tensionKey]: weight };
+          if (updated.mode !== 'broken') {
+            const oppKey = side === 'out' ? 'tensionHandleIn' : 'tensionHandleOut';
+            (updated as Record<string, unknown>)[oppKey] = weight;
+          }
+          return updated;
+        });
         cameraKeyframesRef.current = next;
         return next;
       });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prev => {
-        const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - time) < 0.01 ? { ...k, [key]: clamped } : k);
+        const kfs = (prev[trackId] ?? []).map(k => {
+          if (Math.abs(k.time - time) >= 0.01) return k;
+          const nextKf = { ...k, [key]: weight };
+          // Apply aligned mode constraint
+          if (nextKf.mode !== 'broken') {
+            const oppKey = side === 'out' ? 'handleIn' : 'handleOut';
+            nextKf[oppKey] = weight;
+          }
+          return nextKf;
+        });
         const next = { ...prev, [trackId]: kfs };
         physicsKeyframesRef.current = next;
         return next;
@@ -317,18 +373,123 @@ export default function App() {
     }
   }, []);
 
-  const handleSetInterpolation = useCallback((trackId: string, time: number, mode: 'auto' | 'manual') => {
+  const handleSetValue = useCallback((trackId: string, time: number, value: number) => {
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => Math.abs(s.time - time) >= 0.01 ? s : { ...s, tension: Math.max(0, value) });
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+    }
+  }, []);
+
+  const handleSetHandle2D = useCallback((trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset: number) => {
+    if (trackId === 'camera-keyframes') {
+      const slopeKey = side === 'out' ? 'tensionHandleOut' : 'tensionHandleIn';
+      const timeKey = side === 'out' ? 'tensionHandleOutTime' : 'tensionHandleInTime';
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => {
+          if (Math.abs(s.time - time) >= 0.01) return s;
+          const updated: Keyframe = { ...s, [slopeKey]: slope, [timeKey]: timeOffset };
+          if (updated.mode !== 'broken') {
+            const oppSlope = side === 'out' ? 'tensionHandleIn' : 'tensionHandleOut';
+            const oppTime = side === 'out' ? 'tensionHandleInTime' : 'tensionHandleOutTime';
+            (updated as Record<string, unknown>)[oppSlope] = slope;
+            (updated as Record<string, unknown>)[oppTime] = timeOffset;
+          }
+          return updated;
+        });
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      const slopeKey = side === 'out' ? 'handleOut' : 'handleIn';
+      const timeKey = side === 'out' ? 'handleOutTime' : 'handleInTime';
+      setPhysicsKeyframes(prev => {
+        const kfs = (prev[trackId] ?? []).map(k => {
+          if (Math.abs(k.time - time) >= 0.01) return k;
+          const nextKf = { ...k, [slopeKey]: slope, [timeKey]: timeOffset };
+          if (nextKf.mode !== 'broken') {
+            const oppSlope = side === 'out' ? 'handleIn' : 'handleOut';
+            const oppTime = side === 'out' ? 'handleInTime' : 'handleOutTime';
+            (nextKf as Record<string, unknown>)[oppSlope] = slope;
+            (nextKf as Record<string, unknown>)[oppTime] = timeOffset;
+          }
+          return nextKf;
+        });
+        const next = { ...prev, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+    }
+  }, []);
+
+  const handleClearHandle = useCallback((trackId: string, time: number) => {
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => {
+          if (Math.abs(s.time - time) >= 0.01) return s;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { tensionHandleIn: _a, tensionHandleOut: _b, tensionHandleInTime: _c, tensionHandleOutTime: _d, ...rest } = s;
+          return rest;
+        });
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prev => {
+        const kfs = (prev[trackId] ?? []).map(k => {
+          if (Math.abs(k.time - time) >= 0.01) return k;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { handleIn: _a, handleOut: _b, handleInTime: _c, handleOutTime: _d, ...rest } = k;
+          return rest;
+        });
+        const next = { ...prev, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+    }
+  }, []);
+
+  const handleSetInterpolation = useCallback((trackId: string, time: number, mode: 'aligned' | 'broken') => {
     const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prevCkfs => {
-        const next = prevCkfs.map(s => Math.abs(s.time - time) < 0.01 ? { ...s, interpolation: mode } : s);
+        const next = prevCkfs.map(s => {
+          if (Math.abs(s.time - time) >= 0.01) return s;
+          const nextKf = { ...s, mode };
+          // If aligned, mirror handles (e.g., out becomes in)
+          if (mode === 'aligned' && nextKf.handleOutPos) {
+            nextKf.handleInPos = { ...nextKf.handleOutPos };
+          }
+          if (mode === 'aligned' && nextKf.handleOutTgt) {
+            nextKf.handleInTgt = { ...nextKf.handleOutTgt };
+          }
+          if (mode === 'aligned' && nextKf.tensionHandleOut !== undefined) {
+            nextKf.tensionHandleIn = nextKf.tensionHandleOut;
+          }
+          if (mode === 'aligned' && nextKf.tensionHandleOutTime !== undefined) {
+            nextKf.tensionHandleInTime = nextKf.tensionHandleOutTime;
+          }
+          return nextKf;
+        });
         cameraKeyframesRef.current = next;
         pushHistory(prev, { ...prev, cameraKeyframes: next });
         return next;
       });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
-        const kfs = (prevPkfs[trackId] ?? []).map(k => Math.abs(k.time - time) < 0.01 ? { ...k, interpolation: mode } : k);
+        const kfs = (prevPkfs[trackId] ?? []).map(k => {
+          if (Math.abs(k.time - time) >= 0.01) return k;
+          const nextKf = { ...k, mode };
+          if (mode === 'aligned' && nextKf.handleOut !== undefined) {
+            nextKf.handleIn = nextKf.handleOut;
+          }
+          if (mode === 'aligned' && nextKf.handleOutTime !== undefined) {
+            nextKf.handleInTime = nextKf.handleOutTime;
+          }
+          return nextKf;
+        });
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
         pushHistory(prev, { ...prev, physicsKeyframes: next });
@@ -396,36 +557,87 @@ export default function App() {
     pushHistory(prev, { ...prev, sceneMarkers: next });
   }, [getTimelineState, pushHistory]);
 
+  // Lightweight: only moves the marker position during drag (no cascade, no swap, no history).
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
-    const delta = newTime - oldTime;
-    const TOLERANCE = 0.1;
     const nextMarkers = sceneMarkersRef.current.map(m =>
       Math.abs(m.time - oldTime) < 0.01 ? { ...m, time: newTime } : m
     ).sort((a, b) => a.time - b.time);
     sceneMarkersRef.current = nextMarkers;
     setSceneMarkers(nextMarkers);
-    setCameraKeyframes(prev => {
-      const next = prev.map(k =>
-        Math.abs(k.time - oldTime) < TOLERANCE
-          ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
-          : k
+  }, []);
+
+  // Full commit on drop: cascade children + collision-swap + push history.
+  const handleDropSceneMarker = useCallback((fromTime: number, toTime: number) => {
+    if (Math.abs(fromTime - toTime) < 0.001) return;
+    const prev = getTimelineState();
+    const CHILD_TOLERANCE = 0.1;
+    const SWAP_THRESHOLD = 0.5;
+    const colliding = sceneMarkersRef.current.find(
+      m => Math.abs(m.time - fromTime) > 0.01 && Math.abs(m.time - toTime) < SWAP_THRESHOLD
+    );
+
+    if (colliding) {
+      const collidingTime = colliding.time;
+      const nextMarkers = sceneMarkersRef.current.map(m => {
+        if (Math.abs(m.time - toTime) < 0.01) return { ...m, time: toTime };
+        if (Math.abs(m.time - collidingTime) < 0.01) return { ...m, time: fromTime };
+        return m;
+      }).sort((a, b) => a.time - b.time);
+      sceneMarkersRef.current = nextMarkers;
+      setSceneMarkers(nextMarkers);
+      setCameraKeyframes(ckfs => {
+        const next = ckfs.map(k => {
+          if (Math.abs(k.time - fromTime) <= CHILD_TOLERANCE) return { ...k, time: toTime };
+          if (Math.abs(k.time - collidingTime) <= CHILD_TOLERANCE) return { ...k, time: fromTime };
+          return k;
+        }).sort((a, b) => a.time - b.time);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+      setPhysicsKeyframes(pkfs => {
+        const next: Record<string, PhysicsKeyframe[]> = { ...pkfs };
+        for (const tid of Object.keys(pkfs)) {
+          next[tid] = (pkfs[tid] ?? []).map(k => {
+            if (Math.abs(k.time - fromTime) <= CHILD_TOLERANCE) return { ...k, time: toTime };
+            if (Math.abs(k.time - collidingTime) <= CHILD_TOLERANCE) return { ...k, time: fromTime };
+            return k;
+          }).sort((a, b) => a.time - b.time);
+        }
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+      pushHistory(prev, { ...getTimelineState(), sceneMarkers: nextMarkers });
+    } else {
+      const delta = toTime - fromTime;
+      const nextMarkers = sceneMarkersRef.current.map(m =>
+        Math.abs(m.time - toTime) < 0.01 ? { ...m, time: toTime } : m
       ).sort((a, b) => a.time - b.time);
-      cameraKeyframesRef.current = next;
-      return next;
-    });
-    setPhysicsKeyframes(prev => {
-      const next: Record<string, PhysicsKeyframe[]> = { ...prev };
-      for (const tid of Object.keys(prev)) {
-        next[tid] = (prev[tid] ?? []).map(k =>
-          Math.abs(k.time - oldTime) < TOLERANCE
+      sceneMarkersRef.current = nextMarkers;
+      setSceneMarkers(nextMarkers);
+      setCameraKeyframes(ckfs => {
+        const next = ckfs.map(k =>
+          Math.abs(k.time - fromTime) < CHILD_TOLERANCE
             ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
             : k
         ).sort((a, b) => a.time - b.time);
-      }
-      physicsKeyframesRef.current = next;
-      return next;
-    });
-  }, []);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+      setPhysicsKeyframes(pkfs => {
+        const next: Record<string, PhysicsKeyframe[]> = { ...pkfs };
+        for (const tid of Object.keys(pkfs)) {
+          next[tid] = (pkfs[tid] ?? []).map(k =>
+            Math.abs(k.time - fromTime) < CHILD_TOLERANCE
+              ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
+              : k
+          ).sort((a, b) => a.time - b.time);
+        }
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+      pushHistory(prev, { ...getTimelineState(), sceneMarkers: nextMarkers });
+    }
+  }, [getTimelineState, pushHistory]);
 
   const handleDeleteSceneMarker = useCallback((time: number) => {
     const prev = getTimelineState();
@@ -495,7 +707,7 @@ export default function App() {
       const hasKf = track.some(k => Math.abs(k.time - currentTime) <= 0.1);
       const next = hasKf
         ? { ...prevKfs, [trackId]: track.filter(k => Math.abs(k.time - currentTime) > 0.1) }
-        : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, interpolation: 'auto' as const }].sort((a, b) => a.time - b.time) };
+        : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, mode: 'aligned' as const }].sort((a, b) => a.time - b.time) };
       physicsKeyframesRef.current = next;
       pushHistory(prev, { ...prev, physicsKeyframes: next });
       return next;
@@ -633,6 +845,9 @@ export default function App() {
         physicsKeyframes={physicsKeyframes}
         onMoveKeyframe={handleMoveKeyframe}
         onSetHandle={handleSetHandle}
+        onSetHandle2D={handleSetHandle2D}
+        onSetValue={handleSetValue}
+        onClearHandle={handleClearHandle}
         onSetInterpolation={handleSetInterpolation}
         onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd}
@@ -642,6 +857,7 @@ export default function App() {
         sceneMarkers={sceneMarkers}
         onAddSceneMarker={handleAddSceneMarker}
         onMoveSceneMarker={handleMoveSceneMarker}
+        onDropSceneMarker={handleDropSceneMarker}
         onDeleteSceneMarker={handleDeleteSceneMarker}
         onRenameSceneMarker={handleRenameSceneMarker}
       />

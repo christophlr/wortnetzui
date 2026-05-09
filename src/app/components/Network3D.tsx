@@ -3,12 +3,12 @@ import { Crosshair, Lock, Maximize2 } from 'lucide-react';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { solveBezierEasing, applyEasing, computeAutoWeights } from '../easing';
+import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
 import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, type GradientSettings, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 
-type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+type PhysicsKeyframe = { time: number; value: number; handleIn?: number; handleOut?: number; mode?: 'aligned' | 'broken' };
 
 interface Network3DProps {
   isPlaying: boolean;
@@ -29,7 +29,17 @@ interface Network3DProps {
   parseMode?: 'sentence' | 'word' | 'both';
   gradientSettings?: GradientSettings;
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
-  cameraKeyframes?: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number }>;
+  cameraKeyframes?: Array<{
+    time: number;
+    position: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+    handleInPos?: { x: number; y: number; z: number };
+    handleOutPos?: { x: number; y: number; z: number };
+    handleInTgt?: { x: number; y: number; z: number };
+    handleOutTgt?: { x: number; y: number; z: number };
+    mode?: 'aligned' | 'broken';
+    tension?: number;
+  }>;
   onCameraChange?: () => void;
   isDark?: boolean;
   onReady?: () => void;
@@ -137,7 +147,7 @@ const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
   'phys-dmp': 'damping',
 };
 
-/** Interpolate a physics param from pre-sorted keyframes (sorted once on change, not per frame). */
+/** Interpolate a physics param from pre-sorted keyframes using Cubic Hermite splines. */
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
   if (sorted.length === 0) return null;
   if (time <= sorted[0].time) return sorted[0].value;
@@ -146,19 +156,15 @@ function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): numbe
     const a = sorted[i], b = sorted[i + 1];
     if (time >= a.time && time <= b.time) {
       const segDur = b.time - a.time;
+      if (segDur === 0) return a.value;
       const tRaw = (time - a.time) / segDur;
-      const isAuto = a.interpolation === 'auto' || b.interpolation === 'auto';
-      let outW: number, inW: number;
-      if (isAuto) {
-        const prevDur = i > 0 ? a.time - sorted[i - 1].time : null;
-        const nextDur = i + 2 < sorted.length ? sorted[i + 2].time - b.time : null;
-        ({ outWeight: outW, inWeight: inW } = computeAutoWeights(segDur, prevDur, nextDur));
-      } else {
-        outW = a.outWeight ?? 0;
-        inW = b.inWeight ?? 0;
-      }
-      const easedT = solveBezierEasing(tRaw, outW, inW);
-      return a.value + (b.value - a.value) * easedT;
+      const prevTime = i > 0 ? sorted[i - 1].time : null;
+      const prevVal = i > 0 ? sorted[i - 1].value : null;
+      const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
+      const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
+      const m0 = a.handleOut ?? computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value);
+      const m1 = b.handleIn ?? computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal);
+      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
     }
   }
   return null;
@@ -639,7 +645,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   };
 
   const applyCameraKeyframes = (
-    keyframes: Array<{ time: number; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>,
+    keyframes: Array<{
+      time: number;
+      position: { x: number; y: number; z: number };
+      target: { x: number; y: number; z: number };
+      handleInPos?: { x: number; y: number; z: number };
+      handleOutPos?: { x: number; y: number; z: number };
+      handleInTgt?: { x: number; y: number; z: number };
+      handleOutTgt?: { x: number; y: number; z: number };
+      tension?: number;
+    }>,
     time: number
   ) => {
     if (!cameraRef.current || !controlsRef.current) return;
@@ -647,44 +662,53 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
     const sorted = [...keyframes].sort((a, b) => a.time - b.time);
 
-    let prev = sorted[0];
-    let next = sorted[sorted.length - 1];
-    let prevIdx = 0;
-
     if (sorted.length === 1 || time <= sorted[0].time) {
-      prev = next = sorted[0];
-    } else if (time >= sorted[sorted.length - 1].time) {
-      prev = next = sorted[sorted.length - 1];
-      prevIdx = sorted.length - 1;
-    } else {
-      for (let i = 0; i < sorted.length - 1; i++) {
-        if (time >= sorted[i].time && time <= sorted[i + 1].time) {
-          prev = sorted[i]; next = sorted[i + 1]; prevIdx = i;
-          break;
-        }
-      }
+      cameraRef.current.position.set(sorted[0].position.x, sorted[0].position.y, sorted[0].position.z);
+      controlsRef.current.target.set(sorted[0].target.x, sorted[0].target.y, sorted[0].target.z);
+      cameraRef.current.lookAt(controlsRef.current.target);
+      return;
+    }
+    if (time >= sorted[sorted.length - 1].time) {
+      const last = sorted[sorted.length - 1];
+      cameraRef.current.position.set(last.position.x, last.position.y, last.position.z);
+      controlsRef.current.target.set(last.target.x, last.target.y, last.target.z);
+      cameraRef.current.lookAt(controlsRef.current.target);
+      return;
     }
 
-    const segDuration = next.time - prev.time;
-    const rawT = segDuration > 0 ? Math.max(0, Math.min(1, (time - prev.time) / segDuration)) : 0;
-
-    const isAuto = prev.interpolation === 'auto' || next.interpolation === 'auto';
-    let outW = prev.outWeight ?? 0;
-    let inW  = next.inWeight  ?? 0;
-    if (isAuto) {
-      const prevPrevDur = prevIdx > 0 ? prev.time - sorted[prevIdx - 1].time : null;
-      const nextNextDur = prevIdx + 2 < sorted.length ? sorted[prevIdx + 2].time - next.time : null;
-      const auto = computeAutoWeights(segDuration, prevPrevDur, nextNextDur);
-      outW = auto.outWeight; inW = auto.inWeight;
+    let prevIdx = 0;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (time >= sorted[i].time && time <= sorted[i + 1].time) { prevIdx = i; break; }
     }
-    const smoothT = solveBezierEasing(rawT, outW, inW);
+    const prev = sorted[prevIdx];
+    const next = sorted[prevIdx + 1];
+    const pp = prevIdx > 0 ? sorted[prevIdx - 1] : null;
+    const nn = prevIdx + 2 < sorted.length ? sorted[prevIdx + 2] : null;
 
-    const camX = prev.position.x + (next.position.x - prev.position.x) * smoothT;
-    const camY = prev.position.y + (next.position.y - prev.position.y) * smoothT;
-    const camZ = prev.position.z + (next.position.z - prev.position.z) * smoothT;
-    const tgtX = prev.target.x + (next.target.x - prev.target.x) * smoothT;
-    const tgtY = prev.target.y + (next.target.y - prev.target.y) * smoothT;
-    const tgtZ = prev.target.z + (next.target.z - prev.target.z) * smoothT;
+    const segDur = next.time - prev.time;
+    if (segDur === 0) {
+      cameraRef.current.position.set(prev.position.x, prev.position.y, prev.position.z);
+      controlsRef.current.target.set(prev.target.x, prev.target.y, prev.target.z);
+      cameraRef.current.lookAt(controlsRef.current.target);
+      return;
+    }
+    const tRaw = Math.max(0, Math.min(1, (time - prev.time) / segDur));
+
+    const t0 = prev.tension ?? 1;
+    const t1 = next.tension ?? 1;
+    const hermite = (pPrev: number | null, tPrev: number | null, p0: number, p1: number, pNext: number | null, tNext: number | null, mOut: number | undefined, mIn: number | undefined): number => {
+      // Boundary fix: clamp to 0 at first/last keyframe to prevent overshoot
+      const m0 = (mOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, pPrev, prev.time, p0, next.time, p1))) * t0;
+      const m1 = (mIn  ?? (tNext === null ? 0 : computeCatmullRomTangent(prev.time, p0, next.time, p1, tNext, pNext))) * t1;
+      return evaluateHermite(tRaw, p0, m0, p1, m1, segDur);
+    };
+
+    const camX = hermite(pp?.position.x ?? null, pp?.time ?? null, prev.position.x, next.position.x, nn?.position.x ?? null, nn?.time ?? null, prev.handleOutPos?.x, next.handleInPos?.x);
+    const camY = hermite(pp?.position.y ?? null, pp?.time ?? null, prev.position.y, next.position.y, nn?.position.y ?? null, nn?.time ?? null, prev.handleOutPos?.y, next.handleInPos?.y);
+    const camZ = hermite(pp?.position.z ?? null, pp?.time ?? null, prev.position.z, next.position.z, nn?.position.z ?? null, nn?.time ?? null, prev.handleOutPos?.z, next.handleInPos?.z);
+    const tgtX = hermite(pp?.target.x ?? null, pp?.time ?? null, prev.target.x, next.target.x, nn?.target.x ?? null, nn?.time ?? null, prev.handleOutTgt?.x, next.handleInTgt?.x);
+    const tgtY = hermite(pp?.target.y ?? null, pp?.time ?? null, prev.target.y, next.target.y, nn?.target.y ?? null, nn?.time ?? null, prev.handleOutTgt?.y, next.handleInTgt?.y);
+    const tgtZ = hermite(pp?.target.z ?? null, pp?.time ?? null, prev.target.z, next.target.z, nn?.target.z ?? null, nn?.time ?? null, prev.handleOutTgt?.z, next.handleInTgt?.z);
 
     cameraRef.current.position.set(camX, camY, camZ);
     controlsRef.current.target.set(tgtX, tgtY, tgtZ);

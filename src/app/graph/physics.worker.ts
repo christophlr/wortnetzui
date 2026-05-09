@@ -63,29 +63,92 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
     }
   }
 
-  // Repulsion O(n²)
-  for (let i = 0; i < n; i++) {
-    const bi = i * 6;
-    for (let j = i + 1; j < n; j++) {
-      const bj = j * 6;
-      const dx = posVel[bi]     - posVel[bj];
-      const dy = posVel[bi + 1] - posVel[bj + 1];
-      const dz = posVel[bi + 2] - posVel[bj + 2];
-      const distSq = dx * dx + dy * dy + dz * dz + 1;
-      const dist   = Math.sqrt(distSq);
+  // Repulsion
+  if (n >= 2000) {
+    // Spatial hash grid (O(n)) for large graphs
+    const CELL_SIZE = 150;
+    const grid = new Map<string, number[]>();
 
-      const sentenceMod    = sharedMatrix[i * n + j] === 1 ? 0.6 : 1.5;
-      const diff           = Math.abs(wordCounts[i] - wordCounts[j]);
-      const differenceFactor = 1 + diff * 0.15;
+    for (let i = 0; i < n; i++) {
+      const b = i * 6;
+      const cx = Math.floor(posVel[b] / CELL_SIZE);
+      const cy = Math.floor(posVel[b + 1] / CELL_SIZE);
+      const cz = Math.floor(posVel[b + 2] / CELL_SIZE);
+      const key = `${cx},${cy},${cz}`;
+      let cell = grid.get(key);
+      if (!cell) { cell = []; grid.set(key, cell); }
+      cell.push(i);
+    }
 
-      const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 40);
-      const invDist = 1 / dist;
-      const fx = dx * invDist * force;
-      const fy = dy * invDist * force;
-      const fz = dz * invDist * force;
+    for (let i = 0; i < n; i++) {
+      const bi = i * 6;
+      const x = posVel[bi];
+      const y = posVel[bi + 1];
+      const z = posVel[bi + 2];
+      const cx = Math.floor(x / CELL_SIZE);
+      const cy = Math.floor(y / CELL_SIZE);
+      const cz = Math.floor(z / CELL_SIZE);
 
-      posVel[bi + 3] += fx;  posVel[bi + 4] += fy;  posVel[bi + 5] += fz;
-      posVel[bj + 3] -= fx;  posVel[bj + 4] -= fy;  posVel[bj + 5] -= fz;
+      let fx = 0, fy = 0, fz = 0;
+
+      for (let ox = -1; ox <= 1; ox++) {
+        for (let oy = -1; oy <= 1; oy++) {
+          for (let oz = -1; oz <= 1; oz++) {
+            const key = `${cx + ox},${cy + oy},${cz + oz}`;
+            const cell = grid.get(key);
+            if (!cell) continue;
+
+            for (let cIdx = 0; cIdx < cell.length; cIdx++) {
+              const j = cell[cIdx];
+              if (i === j) continue;
+              const bj = j * 6;
+              const dx = x - posVel[bj];
+              const dy = y - posVel[bj + 1];
+              const dz = z - posVel[bj + 2];
+              const distSq = dx * dx + dy * dy + dz * dz + 1;
+
+              // Sentence modifier is 1.5 because we don't have the matrix for large n
+              const diff = Math.abs(wordCounts[i] - wordCounts[j]);
+              const differenceFactor = 1 + diff * 0.15;
+              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, 40);
+              const invDist = 1 / Math.sqrt(distSq);
+              
+              fx += dx * invDist * force;
+              fy += dy * invDist * force;
+              fz += dz * invDist * force;
+            }
+          }
+        }
+      }
+      posVel[bi + 3] += fx;
+      posVel[bi + 4] += fy;
+      posVel[bi + 5] += fz;
+    }
+  } else {
+    // Exact Repulsion O(n²) for smaller graphs
+    for (let i = 0; i < n; i++) {
+      const bi = i * 6;
+      for (let j = i + 1; j < n; j++) {
+        const bj = j * 6;
+        const dx = posVel[bi]     - posVel[bj];
+        const dy = posVel[bi + 1] - posVel[bj + 1];
+        const dz = posVel[bi + 2] - posVel[bj + 2];
+        const distSq = dx * dx + dy * dy + dz * dz + 1;
+        const dist   = Math.sqrt(distSq);
+
+        const sentenceMod    = sharedMatrix.length > 0 && sharedMatrix[i * n + j] === 1 ? 0.6 : 1.5;
+        const diff           = Math.abs(wordCounts[i] - wordCounts[j]);
+        const differenceFactor = 1 + diff * 0.15;
+
+        const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 40);
+        const invDist = 1 / dist;
+        const fx = dx * invDist * force;
+        const fy = dy * invDist * force;
+        const fz = dz * invDist * force;
+
+        posVel[bi + 3] += fx;  posVel[bi + 4] += fy;  posVel[bi + 5] += fz;
+        posVel[bj + 3] -= fx;  posVel[bj + 4] -= fy;  posVel[bj + 5] -= fz;
+      }
     }
   }
 

@@ -12,6 +12,10 @@ export interface GraphNode {
   vz: number;
   mesh?: THREE.Mesh;
   textSprite?: THREE.Sprite;
+  textObj?: any; // troika-three-text Text
+  width?: number;
+  height?: number;
+  instanceId?: number;
 }
 
 export interface GraphEdge {

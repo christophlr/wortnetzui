@@ -270,6 +270,36 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ColorPill({
+  value, onChange, onReset,
+}: { value: string | 'auto'; onChange: (v: string) => void; onReset?: () => void }) {
+  const isAuto = value === 'auto';
+  return (
+    <div className="flex items-center gap-1">
+      <label
+        className={`relative h-6 w-16 rounded-full border text-[10px] transition-colors flex items-center justify-center cursor-pointer ${
+          isAuto
+            ? 'border-border bg-muted text-muted-foreground'
+            : 'border-border/60 hover:brightness-110'
+        }`}
+        style={!isAuto ? { backgroundColor: value } : undefined}
+        title={isAuto ? 'auto' : value}
+      >
+        {isAuto ? 'auto' : ''}
+        <input
+          type="color"
+          value={isAuto ? '#6b7280' : value}
+          onChange={e => onChange(e.target.value)}
+          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+        />
+      </label>
+      {!isAuto && onReset && (
+        <button onClick={onReset} className="text-[10px] text-muted-foreground hover:text-foreground px-0.5 transition-colors" title="Zurücksetzen">↺</button>
+      )}
+    </div>
+  );
+}
+
 /* ─── main ─── */
 
 interface InspectorProps {
@@ -522,54 +552,49 @@ export function Inspector({
         <Tabs.Content value="visual" className="flex-1 overflow-y-auto">
           <Accordion.Root type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
 
-            {/* VERLAUF */}
-            <AccSection value="gradient" label="Verlauf" color="purple">
-              {/* Mode toggle */}
-              <div className="flex rounded border border-border overflow-hidden mb-3">
-                <button
-                  onClick={() => setGradientMode('solid')}
-                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] ${gradientMode === 'solid' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
+            {/* FARBEN */}
+            <AccSection value="gradient" label="Farben" color="purple">
+              {/* Color row: inner swatch — gradient bar — outer swatch — toggle */}
+              <div className="flex items-center gap-2 mb-3">
+                <label
+                  className="relative w-10 h-10 rounded-xl border border-border/60 shrink-0 cursor-pointer hover:brightness-110 transition-all"
+                  style={{ backgroundColor: innerColor }}
+                  title="Innenfarbe"
                 >
-                  Einfarbig
-                </button>
-                <button
-                  onClick={() => setGradientMode('gradient')}
-                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] border-l border-border ${gradientMode === 'gradient' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
-                >
-                  Verlauf
-                </button>
-              </div>
-
-              {gradientMode === 'solid' ? (
-                <div className="flex items-center gap-2 h-[26px]">
-                  <span className="text-[11px] text-muted-foreground flex-1">Knotenfarbe</span>
                   <input
                     type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   />
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Innen</span>
-                    <input
-                      type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
-                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
-                    />
-                  </div>
-                  <div
-                    className="flex-1 h-6 rounded border border-border"
-                    style={{ background: `linear-gradient(to right, ${innerColor}, ${outerColor})` }}
+                </label>
+                <div
+                  className="flex-1 h-6 rounded-full border border-border transition-all"
+                  style={{
+                    background: gradientMode === 'gradient'
+                      ? `linear-gradient(to right, ${innerColor}, ${outerColor})`
+                      : innerColor,
+                  }}
+                />
+                <label
+                  className={`relative w-10 h-10 rounded-xl border shrink-0 transition-all ${gradientMode === 'gradient' ? 'border-border/60 cursor-pointer hover:brightness-110' : 'border-border/30 opacity-30 pointer-events-none'}`}
+                  style={{ backgroundColor: outerColor }}
+                  title="Außenfarbe"
+                >
+                  <input
+                    type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    tabIndex={gradientMode === 'gradient' ? 0 : -1}
                   />
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Außen</span>
-                    <input
-                      type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
-                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
-                    />
-                  </div>
+                </label>
+                <div className="flex flex-col items-center gap-0.5 ml-0.5">
+                  <span className="text-[9px] text-muted-foreground/60 leading-none">Verlauf</span>
+                  <button
+                    onClick={() => setGradientMode(gradientMode === 'gradient' ? 'solid' : 'gradient')}
+                    className={`w-9 h-5 rounded-full transition-colors relative shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${gradientMode === 'gradient' ? 'bg-purple-500/70' : 'bg-border'}`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${gradientMode === 'gradient' ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Preset chips */}
               <SubLabel>Schnellauswahl</SubLabel>
@@ -623,22 +648,13 @@ export function Inspector({
               <SubLabel>Farben</SubLabel>
               <div className="space-y-2 mb-3">
                 {([
-                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor, hint: 'auto = Verlaufsfarbe' },
-                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor, hint: 'auto = Hintergrund' },
-                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor, hint: 'auto = Verlaufsfarbe' },
-                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void; hint: string }[]).map(({ label, value, set, hint }) => (
+                  { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor },
+                  { label: 'Füllung', value: nodeFillColor, set: setNodeFillColor },
+                  { label: 'Text', value: nodeTextColor, set: setNodeTextColor },
+                ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void }[]).map(({ label, value, set }) => (
                   <div key={label} className="flex items-center gap-2 h-[26px]">
                     <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
-                    <input
-                      type="color"
-                      value={value === 'auto' ? '#6b7280' : value}
-                      onChange={e => set(e.target.value)}
-                      className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                      title={value === 'auto' ? hint : value}
-                    />
-                    {value !== 'auto' && (
-                      <button onClick={() => set('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
-                    )}
+                    <ColorPill value={value} onChange={set} onReset={() => set('auto')} />
                   </div>
                 ))}
               </div>
@@ -677,16 +693,7 @@ export function Inspector({
               <div className="space-y-3">
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
-                  <input
-                    type="color"
-                    value={edgeColor === 'auto' ? '#9aa0aa' : edgeColor}
-                    onChange={e => setEdgeColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                    title={edgeColor === 'auto' ? 'Auto (grau)' : edgeColor}
-                  />
-                  {edgeColor !== 'auto' && (
-                    <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1 transition-colors focus-visible:outline-none focus-visible:text-foreground" title="Zurücksetzen">↺</button>
-                  )}
+                  <ColorPill value={edgeColor} onChange={setEdgeColor} onReset={() => setEdgeColor('auto')} />
                 </div>
                 <SliderParam
                   kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
