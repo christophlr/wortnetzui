@@ -198,7 +198,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const graphNodeArrayRef = useRef<GraphNode[]>([]);
   const sharedPairMatrixRef = useRef<Uint8Array>(new Uint8Array(0));
   const spritesArrayRef = useRef<THREE.Object3D[]>([]);
-  const textureCacheRef = useRef<Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>>(new Map());
+  const textureCacheRef = useRef<Map<string, { normal: THREE.CanvasTexture; highlighted?: THREE.CanvasTexture; selected?: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>>(new Map());
   const physicsWorkerRef = useRef<Worker | null>(null);
   const workerBusyRef = useRef(false);
   const workerPosVelRef = useRef<Float64Array>(new Float64Array(0));
@@ -547,29 +547,44 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const buildTextureCache = (nodes: Map<string, GraphNode>, minW: number, maxW: number, gs: GradientSettings) => {
     textureCacheRef.current.forEach(entry => {
       entry.normal.dispose();
-      entry.highlighted.dispose();
-      entry.selected.dispose();
+      entry.highlighted?.dispose();
+      entry.selected?.dispose();
     });
-    const cache = new Map<string, { normal: THREE.CanvasTexture; highlighted: THREE.CanvasTexture; selected: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>();
+    const cache = new Map<string, { normal: THREE.CanvasTexture; highlighted?: THREE.CanvasTexture; selected?: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>();
     nodes.forEach(node => {
       const color = getColorFromWordCount(node.wordCount, minW, maxW, gs);
       const n = createCanvasTexture(node.label, color, false, false);
-      const h = createCanvasTexture(node.label, color, true, false);
-      const s = createCanvasTexture(node.label, color, false, true);
       cache.set(node.label, {
-        normal: n.texture, highlighted: h.texture, selected: s.texture,
+        normal: n.texture,
         baseScale: n.baseScale, aspectRatio: n.aspectRatio,
       });
     });
     textureCacheRef.current = cache;
   };
 
-  /** Swap a sprite's texture to the correct cached state (no canvas rebuild). */
+  /** Swap a sprite's texture to the correct cached state (generating on-demand if needed). */
   const swapSpriteTexture = (node: GraphNode, highlighted: boolean, selected: boolean) => {
     if (!node.textSprite) return;
     const cached = textureCacheRef.current.get(node.label);
     if (!cached) return;
-    const tex = selected ? cached.selected : highlighted ? cached.highlighted : cached.normal;
+    
+    let tex = cached.normal;
+    if (selected) {
+      if (!cached.selected) {
+        const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+        const s = createCanvasTexture(node.label, color, false, true);
+        cached.selected = s.texture;
+      }
+      tex = cached.selected;
+    } else if (highlighted) {
+      if (!cached.highlighted) {
+        const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+        const h = createCanvasTexture(node.label, color, true, false);
+        cached.highlighted = h.texture;
+      }
+      tex = cached.highlighted;
+    }
+    
     node.textSprite.material.map = tex;
     node.textSprite.material.needsUpdate = true;
   };
@@ -592,7 +607,24 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       if (!cached) return;
       const isHovered = hoveredNodeRef.current?.label === node.label;
       const isSelected = selectedNodeRef.current?.label === node.label;
-      const tex = isSelected ? cached.selected : isHovered ? cached.highlighted : cached.normal;
+      
+      let tex = cached.normal;
+      if (isSelected) {
+        if (!cached.selected) {
+          const color = getColorFromWordCount(node.wordCount, minW, maxW, gradientSettingsRef.current);
+          const s = createCanvasTexture(node.label, color, false, true);
+          cached.selected = s.texture;
+        }
+        tex = cached.selected;
+      } else if (isHovered) {
+        if (!cached.highlighted) {
+          const color = getColorFromWordCount(node.wordCount, minW, maxW, gradientSettingsRef.current);
+          const h = createCanvasTexture(node.label, color, true, false);
+          cached.highlighted = h.texture;
+        }
+        tex = cached.highlighted;
+      }
+      
       node.textSprite.material.map = tex;
       node.textSprite.material.needsUpdate = true;
       node.textSprite.userData.baseScale = cached.baseScale;
@@ -1503,7 +1535,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             width={90}
             height={90}
             draggable={false}
-            className="absolute top-3 right-3 z-10 rounded-full bg-background border border-border shadow-sm transition-all hover:shadow-md"
+            className="absolute top-3 right-3 z-10 rounded-full border border-border/25 transition-colors hover:border-border/50"
             style={{ cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
             onPointerDown={handleGizmoPointerDown}
             onPointerMove={handleGizmoPointerMove}
