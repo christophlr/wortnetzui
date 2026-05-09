@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
-import { Eye, Lock, ChevronRight, Diamond, Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet } from 'lucide-react';
+import { Eye, Lock, ChevronRight, Diamond, Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Bookmark } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Button } from './ui/button';
 import { TIMELINE_DURATION } from '../constants';
 import { segmentBezierPath, computeAutoWeights } from '../easing';
 
@@ -13,7 +14,7 @@ type SceneMarker = { time: number; label: string };
 interface TimelineProps {
   isPlaying: boolean;
   onPlayPause: () => void;
-  onStop: () => void;
+  onStop?: () => void;
   playheadPosition: number;
   onPlayheadChange: (pos: number) => void;
   selectedKeyframes: { track: string; time: number }[];
@@ -69,7 +70,7 @@ const TRACK_GROUPS = [
 /* ── Color maps ── */
 
 const COLOR = {
-  cyan:   { dot: 'bg-teal-500',   border: 'border-l-teal-500/60',   kf: 'text-teal-400',   kfFill: '#2dd4bf', trackBg: 'bg-teal-950/10',   graphStroke: '#0d9488' },
+  cyan:   { dot: 'bg-blue-500',   border: 'border-l-blue-500/60',   kf: 'text-blue-400',   kfFill: '#60a5fa', trackBg: 'bg-blue-950/10',   graphStroke: '#3b82f6' },
   orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316' },
 };
 
@@ -85,20 +86,16 @@ function TBtn({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`w-7 h-7 flex items-center justify-center rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
-        disabled
-          ? 'border-transparent opacity-30 cursor-not-allowed text-muted-foreground/40'
-          : active
-            ? 'border-border bg-accent text-accent-foreground shadow-sm'
-            : 'border-transparent bg-background text-foreground/60 hover:bg-accent hover:text-accent-foreground'
-      }`}
+      className={`size-7 border ${active ? 'border-border bg-accent text-accent-foreground shadow-sm' : 'border-transparent text-foreground/60'}`}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -415,7 +412,7 @@ function EasingTrackRow({
         <span className="text-[9px] text-muted-foreground/40 hidden sm:block">click curve</span>
       </div>
 
-      <div ref={trackRef} className="flex-1 relative bg-teal-950/5 overflow-visible">
+      <div ref={trackRef} className="flex-1 relative bg-blue-950/5 overflow-visible">
         {keyframes.length === 0 && (
           <div className="absolute inset-0 flex items-center px-3">
             <div className="w-full border-t border-dashed border-border/40" />
@@ -535,8 +532,8 @@ function EasingTrackRow({
                 >
                   <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                     dragging?.kfTime === kf.time && dragging.side === 'out'
-                      ? 'bg-teal-300 border-teal-200 scale-125'
-                      : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
+                      ? 'bg-blue-300 border-blue-200 scale-125'
+                      : 'bg-blue-600 border-blue-400 hover:bg-blue-400 hover:scale-125'
                   }`} />
                 </div>
               )}
@@ -551,8 +548,8 @@ function EasingTrackRow({
                 >
                   <div className={`w-3 h-3 rounded-full border-2 transition-colors ${
                     dragging?.kfTime === nextKf.time && dragging.side === 'in'
-                      ? 'bg-teal-300 border-teal-200 scale-125'
-                      : 'bg-teal-600 border-teal-400 hover:bg-teal-400 hover:scale-125'
+                      ? 'bg-blue-300 border-blue-200 scale-125'
+                      : 'bg-blue-600 border-blue-400 hover:bg-blue-400 hover:scale-125'
                   }`} />
                 </div>
               )}
@@ -567,7 +564,7 @@ function EasingTrackRow({
           return (
             <div
               key={`tick-${kf.time}`}
-              className="absolute inset-y-0 w-px bg-teal-500/30 pointer-events-none"
+              className="absolute inset-y-0 w-px bg-blue-500/30 pointer-events-none"
               style={{ left: `${pct}%` }}
             />
           );
@@ -804,7 +801,7 @@ function SceneMarkerLane({
         className="shrink-0 flex items-center pl-3 pr-2 border-r border-border bg-background"
         style={{ width: LABEL_W }}
       >
-        <span className="text-[9px] font-semibold text-purple-400/70 uppercase tracking-widest">Scene Markers</span>
+        <span className="flex items-center gap-1 text-[11px] text-purple-400"><Bookmark size={10} />Scene Markers</span>
       </div>
       <div
         className="flex-1 relative bg-purple-950/10 overflow-visible"
@@ -1310,24 +1307,25 @@ export function Timeline({
 
         {/* Left */}
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onCaptureKeyframe}
             title={hasKfAtPlayhead ? 'Update keyframe at playhead' : 'Capture new keyframe at playhead'}
-            className={`flex items-center gap-1.5 h-6 px-2.5 rounded border transition-all text-[10px] font-medium shadow-sm
-              hover:scale-[1.03] active:scale-[0.97]
+            className={`h-6 px-2.5 gap-1.5 text-[11px] font-medium rounded-md shadow-sm border-blue-500/40 bg-background text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 hover:border-blue-500/60
               ${hasKfAtPlayhead
-                ? 'bg-amber-600/80 hover:bg-amber-500 border-amber-500/60 text-white hover:shadow-[0_0_6px_rgba(251,191,36,0.35)]'
-                : 'bg-teal-600/80  hover:bg-teal-500  border-teal-500/60  text-white hover:shadow-[0_0_6px_rgba(45,212,191,0.35)]'
+                ? 'border-amber-500/40 text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 hover:border-amber-500/60'
+                : ''
               }`}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" className="size-2.5 shrink-0">
               <path d="M5 0 L10 5 L5 10 L0 5 Z" />
             </svg>
             {hasKfAtPlayhead ? 'Update' : 'Keyframe'}
             {selCount > 1 && (
-              <span className="ml-0.5 text-[9px] opacity-75 font-normal">({selCount})</span>
+              <span className="ml-0.5 text-[9px] opacity-75 font-normal tabular-nums">({selCount})</span>
             )}
-          </button>
+          </Button>
           <TBtn onClick={onUndo} title="Undo (⌘Z)" disabled={!canUndo}>
             <Undo2 size={11} />
           </TBtn>
@@ -1346,9 +1344,6 @@ export function Timeline({
             <TBtn onClick={() => stepFrame(-1)} title="Step back one frame">
               <ChevronLeft size={13} />
             </TBtn>
-            <TBtn onClick={onStop} title="Stop">
-              <Square size={9} fill="currentColor" />
-            </TBtn>
             <button
               onClick={onPlayPause}
               title={isPlaying ? 'Pause' : 'Play (Space)'}
@@ -1365,9 +1360,6 @@ export function Timeline({
             </button>
             <TBtn onClick={() => stepFrame(1)} title="Step forward one frame">
               <ChevronRight size={13} />
-            </TBtn>
-            <TBtn onClick={() => onPlayheadChange(duration)} title="Go to end">
-              <SkipForward size={11} />
             </TBtn>
           </div>
         </div>

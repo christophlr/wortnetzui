@@ -72,6 +72,7 @@ export default function App() {
   const [isNetworkReady, setIsNetworkReady] = useState(false);
   const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
   const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);
+  const [lastAppliedPreset, setLastAppliedPreset] = useState<'outline'|'filled'|null>(null);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
   // Undo/redo history — tracks the full timeline state
@@ -385,6 +386,39 @@ export default function App() {
     }
   }, [getTimelineState, pushHistory]);
 
+  // color helper to derive light fill
+  const hexToRgb = (hex: string) => {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const bigint = parseInt(full, 16);
+    return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+  };
+  const lightenHex = (hex: string, percent: number) => {
+    const { r, g, b } = hexToRgb(hex);
+    const p = Math.max(0, Math.min(100, percent)) / 100;
+    const nr = Math.round(r + (255 - r) * p);
+    const ng = Math.round(g + (255 - g) * p);
+    const nb = Math.round(b + (255 - b) * p);
+    const toHex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
+  };
+
+  const handleApplyNodeStylePreset = useCallback((preset: 'outline' | 'filled' | 'reset') => {
+    if (preset === 'reset') {
+      setNodeAppearance(defaultNodeAppearance);
+      setLastAppliedPreset(null);
+      return;
+    }
+    const inner = gradientSettings.innerColor ?? defaultGradientSettings.innerColor;
+    if (preset === 'outline') {
+      setNodeAppearance({ borderColor: inner, fillColor: lightenHex(inner, 0.8), textColor: inner });
+      setLastAppliedPreset('outline');
+    } else if (preset === 'filled') {
+      setNodeAppearance({ borderColor: '#FFFFFFCC', fillColor: inner, textColor: '#ffffff' });
+      setLastAppliedPreset('filled');
+    }
+  }, [gradientSettings]);
+
   /* ── Scene marker handlers ── */
 
   const handleAddSceneMarker = useCallback((time: number) => {
@@ -583,6 +617,7 @@ export default function App() {
           };
           input.click();
         }}
+         onApplyNodeStylePreset={handleApplyNodeStylePreset}
       />
       <div className="flex-1 flex overflow-hidden min-h-0">
         <Inspector
@@ -590,6 +625,7 @@ export default function App() {
           onParsingChange={setParseMode}
           onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
           onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
+          nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
           effectivePhysicsParams={effectivePhysicsParams}
           currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
           physicsKeyframes={physicsKeyframes}

@@ -1,10 +1,17 @@
-import * as Accordion from '@radix-ui/react-accordion';
-import * as RadioGroup from '@radix-ui/react-radio-group';
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { Accordion, AccordionItem, AccordionContent } from './ui/accordion';
 import * as Slider from '@radix-ui/react-slider';
-import * as Tabs from '@radix-ui/react-tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { ChevronRight, Diamond, Type, Layers, Zap } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { NodeShape } from '../networkTheme';
+import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
+import { Button } from './ui/button';
+import { Toggle } from './ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Switch } from './ui/switch';
 
 const GRADIENT_PRESETS = [
   { name: 'Cyan → Grün', inner: '#06b6d4', outer: '#10b981' },
@@ -16,22 +23,18 @@ const GRADIENT_PRESETS = [
 
 /* ─── helpers ─── */
 
-function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' | 'orange' | 'purple'; onClick: () => void }) {
-  const activeCls = {
-    teal:   'text-teal-400 bg-teal-500/15',
-    orange: 'text-orange-400 bg-orange-500/15',
-    purple: 'text-purple-400 bg-purple-500/15',
+function KfDiamond({ active, color, onClick }: { active: boolean; color: 'blue' | 'orange' | 'purple'; onClick: () => void }) {
+  const activeColor = {
+    blue:   'text-blue-400',
+    orange: 'text-orange-400',
+    purple: 'text-purple-400',
   }[color];
 
   return (
     <button
       onClick={onClick}
       title={active ? 'Keyframe entfernen' : 'Keyframe setzen'}
-      className={`w-5 h-5 flex items-center justify-center rounded shrink-0 transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
-        active
-          ? activeCls
-          : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent/60'
-      }`}
+      className={`size-5 rounded-full shrink-0 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${active ? activeColor : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/60'}`}
     >
       <Diamond size={11} fill={active ? 'currentColor' : 'none'} />
     </button>
@@ -40,18 +43,18 @@ function KfDiamond({ active, color, onClick }: { active: boolean; color: 'teal' 
 
 function NumInput({ defaultValue, mono = true }: { defaultValue: number | string; mono?: boolean }) {
   return (
-    <input
+    <Input
       type="number"
       defaultValue={defaultValue}
-      className={`w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 ${mono ? 'font-mono' : ''}`}
+      className={`w-16 h-6 px-1.5 text-[11px] text-right shrink-0 ${mono ? 'font-mono' : ''}`}
     />
   );
 }
 
 function ParamRow({
-  kfKey, label, value, color = 'teal', kfs, onToggle,
+  kfKey, label, value, color = 'blue', kfs, onToggle,
 }: {
-  kfKey: string; label: string; value: number; color?: 'teal' | 'orange' | 'purple';
+  kfKey: string; label: string; value: number; color?: 'blue' | 'orange' | 'purple';
   kfs: Record<string, boolean>; onToggle: (k: string) => void;
 }) {
   return (
@@ -83,7 +86,7 @@ function SliderParam({
   effectiveValue,
 }: {
   kfKey: string; label: string; value: number[]; onChange: (v: number[]) => void;
-  color: 'teal' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
+  color: 'blue' | 'orange'; kfs: Record<string, boolean>; onToggle: (k: string) => void;
   displayFn?: (v: number[]) => string;
   parseInput?: (s: string) => number;
   description?: string;
@@ -95,9 +98,9 @@ function SliderParam({
   const lastDragValueRef = useRef(value[0]);
   const lastDragTimeRef = useRef(Date.now());
   const [animatedValue, setAnimatedValue] = useState(value[0]);
-  const trackCls = color === 'teal' ? 'bg-teal-600/50' : 'bg-orange-600/50';
-  const thumbCls = color === 'teal' ? 'bg-teal-400' : 'bg-orange-400';
-  const focusBorderCls = color === 'teal' ? 'border-teal-500/60' : 'border-orange-500/60';
+  const trackCls = color === 'blue' ? 'bg-blue-600/50' : 'bg-orange-600/50';
+  const thumbCls = color === 'blue' ? 'bg-blue-400' : 'bg-orange-400';
+  const focusBorderCls = color === 'blue' ? 'border-blue-500/60' : 'border-orange-500/60';
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -224,41 +227,38 @@ function SliderParam({
 function AccSection({
   value, label, color, children,
 }: {
-  value: string; label: string; color?: 'teal' | 'orange' | 'purple'; children: React.ReactNode;
+  value: string; label: string; color?: 'blue' | 'orange' | 'purple'; children: React.ReactNode;
 }) {
   const borderCls = {
-    teal:   'border-l-teal-500/60',
+    blue:   'border-l-blue-500/60',
     orange: 'border-l-orange-500/60',
     purple: 'border-l-purple-500/60',
   };
   const dotCls = {
-    teal:   'bg-teal-500',
+    blue:   'bg-blue-500',
     orange: 'bg-orange-500',
     purple: 'bg-purple-500',
   };
 
   return (
-    <Accordion.Item value={value} className="border-b border-border/50">
-      <Accordion.Header asChild>
+    <AccordionItem value={value} className="border-border/50">
+      <AccordionPrimitive.Header asChild>
         <div>
-          <Accordion.Trigger
-            className={`w-full flex items-center gap-2.5 px-3 h-9 transition-[color,background-color,box-shadow] hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 group ${
+          <AccordionPrimitive.Trigger
+            className={`w-full flex items-center gap-2.5 px-3 h-7 transition-[color,background-color,box-shadow] hover:bg-accent/60 focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] group ${
               color ? `border-l-2 ${borderCls[color]}` : 'pl-3'
             }`}
           >
+            <ChevronRight size={11} className="text-foreground/70 transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0" />
             {color && <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls[color]}`} />}
-            {!color && <ChevronRight size={11} className="text-muted-foreground/40 transition-transform duration-150 group-data-[state=open]:rotate-90 shrink-0" />}
             <span className="text-[11px] font-medium text-foreground flex-1 text-left">{label}</span>
-            {color && <ChevronRight size={11} className="text-muted-foreground/60 transition-transform duration-150 group-data-[state=open]:rotate-90" />}
-          </Accordion.Trigger>
+          </AccordionPrimitive.Trigger>
         </div>
-      </Accordion.Header>
-      <Accordion.Content className="overflow-hidden data-[state=open]:animate-none">
-        <div className="px-3 pb-3 pt-1.5 bg-[#00000000]">
-          {children}
-        </div>
-      </Accordion.Content>
-    </Accordion.Item>
+      </AccordionPrimitive.Header>
+      <AccordionContent className="px-3 pb-3 pt-1.5">
+        {children}
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -268,6 +268,23 @@ function SubLabel({ children }: { children: React.ReactNode }) {
       {children}
     </span>
   );
+}
+
+/* Color helpers */
+function hexToRgb(hex: string) {
+  const h = hex.replace('#', '');
+  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+}
+
+function lightenHex(hex: string, percent: number) {
+  const { r, g, b } = hexToRgb(hex);
+  const p = Math.max(0, Math.min(100, percent)) / 100;
+  const nr = Math.round(r + (255 - r) * p);
+  const ng = Math.round(g + (255 - g) * p);
+  const nb = Math.round(b + (255 - b) * p);
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
 }
 
 /* ─── main ─── */
@@ -304,6 +321,8 @@ interface InspectorProps {
   onTogglePhysicsKeyframe?: (trackId: string, value: number) => void;
   width?: number;
   viewMode?: '2D' | '3D';
+  nodeAppearance?: NodeAppearanceSettings;
+  appliedNodePreset?: 'outline' | 'filled' | null;
 }
 
 const PHYSICS_DEFAULTS_3D = { repulsion: 150, springK: 6, damping: 88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 };
@@ -327,6 +346,8 @@ export function Inspector({
   onTogglePhysicsKeyframe,
   width = 268,
   viewMode = '3D',
+  nodeAppearance,
+  appliedNodePreset,
 }: InspectorProps = {}) {
   const [kfs, setKfs] = useState<Record<string, boolean>>({
     nodeBorderWidth: false, depthSizeStrength: false,
@@ -347,6 +368,8 @@ export function Inspector({
   const [gradientMode, setGradientMode] = useState<'solid' | 'gradient'>('gradient');
   const [innerColor, setInnerColor] = useState('#06b6d4');
   const [outerColor, setOuterColor] = useState('#10b981');
+  // Preset state for node appearance (outline / filled / custom)
+  const [colorPreset, setColorPreset] = useState<'outline' | 'filled' | 'custom' | null>(null);
   // Style settings
   const [nodeShapeVal, setNodeShapeVal] = useState<NodeShape>('rectangle');
   const [nodeBorderWidthVal, setNodeBorderWidthVal] = useState([2]);
@@ -360,6 +383,22 @@ export function Inspector({
   const [nodeFillColor, setNodeFillColor] = useState<string | 'auto'>('auto');
   const [nodeTextColor, setNodeTextColor] = useState<string | 'auto'>('auto');
   const [edgeColor, setEdgeColor] = useState<string | 'auto'>('auto');
+  // Sync external appearance/preset changes
+  useEffect(() => {
+    if (nodeAppearance) {
+      setNodeBorderColor(nodeAppearance.borderColor ?? 'auto');
+      setNodeFillColor(nodeAppearance.fillColor ?? 'auto');
+      setNodeTextColor(nodeAppearance.textColor ?? 'auto');
+      // mark as custom unless an applied preset is supplied
+      if (!appliedNodePreset) setColorPreset('custom');
+    }
+  }, [nodeAppearance]);
+
+  useEffect(() => {
+    if (appliedNodePreset === 'outline') setColorPreset('outline');
+    if (appliedNodePreset === 'filled') setColorPreset('filled');
+    if (appliedNodePreset === null) setColorPreset(null);
+  }, [appliedNodePreset]);
 
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
@@ -447,51 +486,45 @@ export function Inspector({
       {/* Panel Header */}
       
 
-      <Tabs.Root defaultValue="content" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs defaultValue="content" className="flex-1 flex flex-col overflow-hidden gap-0">
         {/* Tab Navigation */}
-        <Tabs.List className="flex border-b border-border shrink-0">
-          <Tabs.Trigger
-            value="content"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-purple-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
-          >
-            <Type size={10} />Inhalt
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="visual"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-teal-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
-          >
-            <Layers size={10} />Visuell
-          </Tabs.Trigger>
-
-          <Tabs.Trigger
-            value="physics"
-            className="flex-1 h-9 flex items-center justify-center gap-1 text-[10px] text-foreground hover:text-foreground data-[state=active]:text-foreground data-[state=active]:bg-accent transition-[color,background-color,box-shadow] border-b-2 border-transparent data-[state=active]:border-orange-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
-          >
-            <Zap size={10} />Physik
-          </Tabs.Trigger>
-        </Tabs.List>
+        <div className="px-2 pt-2 pb-1 shrink-0">
+          <TabsList className="w-fit h-6 rounded-md p-0.5">
+            <TabsTrigger value="content" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
+              <Type size={11} />Inhalt
+            </TabsTrigger>
+            <TabsTrigger value="visual" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
+              <Layers size={11} />Visuell
+            </TabsTrigger>
+            <TabsTrigger value="physics" className="flex-none gap-1 px-1.5 text-[11px] rounded-sm h-full">
+              <Zap size={11} />Physik
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* CONTENT TAB */}
-        <Tabs.Content value="content" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['text', 'parsing']}>
+        <TabsContent value="content" className="flex-1 overflow-y-auto mt-0">
+          <Accordion type="multiple" defaultValue={['text', 'parsing']}>
             {/* TEXT */}
             <AccSection value="text" label="Text">
-              <textarea
-                className="w-full h-[176px] bg-input border border-border hover:border-border focus:border-border rounded px-2.5 py-2 text-[11px] text-foreground resize-none focus:outline-none transition-colors leading-relaxed"
+              <Textarea
+                className="h-[176px] text-[11px] leading-relaxed"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
               />
-              <button
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 h-7 text-[11px]"
                 onClick={() => onTextChange?.(textInput)}
-                className="w-full mt-2 h-7 rounded-md border border-input bg-background text-[11px] font-medium text-foreground shadow-sm transition-[color,background-color,box-shadow] hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
               >
                 Anwenden
-              </button>
+              </Button>
             </AccSection>
 
             {/* PARSING */}
             <AccSection value="parsing" label="Parsing / Zerteilung" color="purple">
-              <RadioGroup.Root value={parsingMode} onValueChange={setParsingMode} className="flex flex-col gap-1">
+              <RadioGroup value={parsingMode} onValueChange={setParsingMode} className="flex flex-col gap-1">
                 {[
                   { value: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
                   { value: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
@@ -499,62 +532,63 @@ export function Inspector({
                 ].map(opt => (
                   <label key={opt.value} className="flex flex-col cursor-pointer group py-0.5">
                     <div className="flex items-center gap-2.5 h-6">
-                      <RadioGroup.Item
+                      <RadioGroupItem
                         value={opt.value}
-                        className="w-3.5 h-3.5 rounded-full border border-input bg-background shrink-0 flex items-center justify-center transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 data-[state=checked]:border-purple-500 data-[state=checked]:bg-purple-500/10"
-                      >
-                        <RadioGroup.Indicator>
-                          <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                        </RadioGroup.Indicator>
-                      </RadioGroup.Item>
+                        className="data-[state=checked]:border-purple-500 data-[state=checked]:bg-purple-500/10 [&_svg]:fill-purple-400 [&_svg]:stroke-none"
+                      />
                       <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">{opt.label}</span>
                     </div>
                     <span className="text-[9px] text-muted-foreground/60 pl-6">{opt.desc}</span>
                   </label>
                 ))}
-              </RadioGroup.Root>
+              </RadioGroup>
             </AccSection>
-          </Accordion.Root>
-        </Tabs.Content>
+          </Accordion>
+        </TabsContent>
 
         {/* VISUAL TAB */}
-        <Tabs.Content value="visual" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
+        <TabsContent value="visual" className="flex-1 overflow-y-auto mt-0">
+          <Accordion type="multiple" defaultValue={['gradient', 'nodes', 'edges']}>
 
             {/* VERLAUF */}
             <AccSection value="gradient" label="Verlauf" color="purple">
               {/* Mode toggle */}
-              <div className="flex rounded border border-border overflow-hidden mb-3">
-                <button
-                  onClick={() => setGradientMode('solid')}
-                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] ${gradientMode === 'solid' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
-                >
-                  Einfarbig
-                </button>
-                <button
-                  onClick={() => setGradientMode('gradient')}
-                  className={`flex-1 h-7 text-[11px] transition-[color,background-color,box-shadow] border-l border-border ${gradientMode === 'gradient' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground'}`}
-                >
-                  Verlauf
-                </button>
-              </div>
+              <ToggleGroup
+                type="single"
+                value={gradientMode}
+                onValueChange={(v) => v && setGradientMode(v as 'solid' | 'gradient')}
+                className="w-full h-6 gap-0 mb-3 border border-border rounded-md overflow-hidden bg-background"
+              >
+                <ToggleGroupItem value="solid" className="flex-1 h-6 text-[11px]">Einfarbig</ToggleGroupItem>
+                <ToggleGroupItem value="gradient" className="flex-1 h-6 text-[11px] border-l border-border">Verlauf</ToggleGroupItem>
+              </ToggleGroup>
 
               {gradientMode === 'solid' ? (
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Knotenfarbe</span>
-                  <input
-                    type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                  />
+                  <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
+                    <div className="absolute inset-1 rounded" style={{ background: innerColor }} />
+                    <input
+                      type="color"
+                      value={innerColor}
+                      onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Innen</span>
-                    <input
-                      type="color" value={innerColor} onChange={e => setInnerColor(e.target.value)}
-                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
-                    />
+                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
+                      <div className="absolute inset-1 rounded" style={{ background: innerColor }} />
+                      <input
+                        type="color"
+                        value={innerColor}
+                        onChange={e => { setInnerColor(e.target.value); setColorPreset('custom'); }}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
                   </div>
                   <div
                     className="flex-1 h-6 rounded border border-border"
@@ -562,10 +596,15 @@ export function Inspector({
                   />
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-[9px] text-muted-foreground/60 uppercase tracking-widest">Außen</span>
-                    <input
-                      type="color" value={outerColor} onChange={e => setOuterColor(e.target.value)}
-                      className="w-9 h-9 rounded cursor-pointer border border-border bg-input p-0.5"
-                    />
+                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
+                      <div className="absolute inset-1 rounded" style={{ background: outerColor }} />
+                      <input
+                        type="color"
+                        value={outerColor}
+                        onChange={e => { setOuterColor(e.target.value); setColorPreset('custom'); }}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -578,7 +617,7 @@ export function Inspector({
                     key={p.name}
                     onClick={() => { setGradientMode('gradient'); setInnerColor(p.inner); setOuterColor(p.outer); }}
                     title={p.name}
-                    className="w-8 h-8 rounded border border-border/60 hover:border-border transition-all hover:scale-110"
+                    className="w-6 h-6 rounded border border-border/60 hover:border-border transition-all hover:scale-110"
                     style={{ background: `linear-gradient(135deg, ${p.inner}, ${p.outer})` }}
                   />
                 ))}
@@ -586,40 +625,62 @@ export function Inspector({
             </AccSection>
 
             {/* KNOTEN */}
-            <AccSection value="nodes" label="Knoten" color="teal">
+            <AccSection value="nodes" label="Knoten" color="blue">
               {/* Shape selector */}
               <SubLabel>Form</SubLabel>
               <div className="flex gap-1 mb-3">
                 {(['rectangle', 'rounded-rectangle', 'ellipse'] as NodeShape[]).map(shape => (
-                  <button
+                  <Toggle
                     key={shape}
-                    onClick={() => setNodeShapeVal(shape)}
+                    pressed={nodeShapeVal === shape}
+                    onPressedChange={() => setNodeShapeVal(shape)}
                     title={shape}
-                    className={`flex-1 h-9 flex items-center justify-center rounded-md border transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${
-                      nodeShapeVal === shape
-                        ? 'bg-teal-600/15 border-teal-500/60 text-teal-300 shadow-sm'
-                        : 'bg-background border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
+                    variant="outline"
+                    className="flex-1 data-[state=on]:bg-blue-600/15 data-[state=on]:border-blue-500/60 data-[state=on]:text-blue-300"
                   >
                     <svg width="24" height="16" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                       {shape === 'rectangle' && <rect x="1" y="2" width="22" height="12" rx="0" />}
                       {shape === 'rounded-rectangle' && <rect x="1" y="2" width="22" height="12" rx="4" />}
                       {shape === 'ellipse' && <ellipse cx="12" cy="8" rx="11" ry="6" />}
                     </svg>
-                  </button>
+                  </Toggle>
                 ))}
               </div>
 
               <div className="space-y-3">
                 <SliderParam
                   kfKey="nodeBorderWidth" label="Rahmenbreite" value={nodeBorderWidthVal} onChange={setNodeBorderWidthVal}
-                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={0} max={8}
+                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={0} max={8}
                   displayFn={v => v[0] + 'px'}
                   description="Stärke der Knotenumrandung."
                 />
               </div>
 
               <SubLabel>Farben</SubLabel>
+
+              {/* Style presets: Outline / Filled */}
+              <ToggleGroup
+                type="single"
+                value={colorPreset === 'outline' || colorPreset === 'filled' ? colorPreset : ''}
+                onValueChange={(v) => {
+                  if (v === 'outline') {
+                    setNodeBorderColor(innerColor);
+                    setNodeFillColor(lightenHex(innerColor, 80));
+                    setNodeTextColor(innerColor);
+                    setColorPreset('outline');
+                  } else if (v === 'filled') {
+                    setNodeBorderColor('#FFFFFFCC');
+                    setNodeFillColor(innerColor);
+                    setNodeTextColor('#ffffff');
+                    setColorPreset('filled');
+                  }
+                }}
+                className="w-full h-6 gap-0 mb-2 border border-border rounded-md overflow-hidden bg-background"
+              >
+                <ToggleGroupItem value="outline" className="flex-1 h-6 text-[11px]">Outline</ToggleGroupItem>
+                <ToggleGroupItem value="filled" className="flex-1 h-6 text-[11px] border-l border-border">Filled</ToggleGroupItem>
+              </ToggleGroup>
+
               <div className="space-y-2 mb-3">
                 {([
                   { label: 'Rahmen', value: nodeBorderColor, set: setNodeBorderColor, hint: 'auto = Verlaufsfarbe' },
@@ -628,15 +689,18 @@ export function Inspector({
                 ] as { label: string; value: string | 'auto'; set: (v: string | 'auto') => void; hint: string }[]).map(({ label, value, set, hint }) => (
                   <div key={label} className="flex items-center gap-2 h-[26px]">
                     <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
-                    <input
-                      type="color"
-                      value={value === 'auto' ? '#6b7280' : value}
-                      onChange={e => set(e.target.value)}
-                      className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                      title={value === 'auto' ? hint : value}
-                    />
+                    <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
+                      <div className="absolute inset-1 rounded" style={{ background: value === 'auto' ? '#6b7280' : String(value) }} />
+                      <input
+                        type="color"
+                        value={value === 'auto' ? '#6b7280' : String(value)}
+                        onChange={e => { set(e.target.value); setColorPreset('custom'); }}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        title={value === 'auto' ? hint : String(value)}
+                      />
+                    </div>
                     {value !== 'auto' && (
-                      <button onClick={() => set('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
+                      <button onClick={() => { set('auto'); setColorPreset('custom'); }} className="text-[10px] text-muted-foreground hover:text-foreground px-1" title="Zurücksetzen">↺</button>
                     )}
                   </div>
                 ))}
@@ -645,18 +709,17 @@ export function Inspector({
               <SubLabel>Tiefengröße</SubLabel>
               <div className="flex items-center gap-2 h-[26px] mb-2">
                 <span className="text-[11px] text-muted-foreground flex-1">Nach Tiefe skalieren</span>
-                <button
-                  onClick={() => setDepthSizeEnabled(v => !v)}
-                  className={`w-9 h-5 rounded-full transition-[color,background-color,box-shadow] relative shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0 ${depthSizeEnabled ? 'bg-teal-500/70 shadow-sm' : 'bg-border'}`}
-                >
-                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow absolute top-[3px] transition-transform ${depthSizeEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
-                </button>
+                <Switch
+                  checked={depthSizeEnabled}
+                  onCheckedChange={setDepthSizeEnabled}
+                  className="data-[state=checked]:bg-blue-500/70"
+                />
               </div>
               {depthSizeEnabled && (
                 <div className="mb-3">
                   <SliderParam
                     kfKey="depthSizeStrength" label="Stärke" value={depthSizeStrengthVal} onChange={setDepthSizeStrengthVal}
-                    color="teal" kfs={effectiveKfs} onToggle={toggle} min={0} max={100}
+                    color="blue" kfs={effectiveKfs} onToggle={toggle} min={0} max={100}
                     displayFn={v => v[0] + '%'}
                     description="Größenvariation: Innere Knoten (1 Wort) werden größer, äußere kleiner."
                   />
@@ -665,48 +728,51 @@ export function Inspector({
 
               <SliderParam
                 kfKey="nodeScale" label="Node-Größe" value={nodeScale} onChange={setNodeScale}
-                color="teal" kfs={effectiveKfs} onToggle={toggle} min={50} max={150}
+                color="blue" kfs={effectiveKfs} onToggle={toggle} min={50} max={150}
                 displayFn={v => v[0] + '%'}
                 description="Einheitliche Skalierung aller Wortbezeichnungen."
               />
             </AccSection>
 
             {/* KANTEN */}
-            <AccSection value="edges" label="Kanten" color="teal">
+            <AccSection value="edges" label="Kanten" color="blue">
               <div className="space-y-3">
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Farbe</span>
-                  <input
-                    type="color"
-                    value={edgeColor === 'auto' ? '#9aa0aa' : edgeColor}
-                    onChange={e => setEdgeColor(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-border bg-input p-0.5"
-                    title={edgeColor === 'auto' ? 'Auto (grau)' : edgeColor}
-                  />
+                  <div className="w-6 h-6 rounded border border-border bg-input p-0.5 relative overflow-hidden focus-within:ring-2 focus-within:ring-ring/50 focus-within:ring-offset-0">
+                    <div className="absolute inset-1 rounded" style={{ background: edgeColor === 'auto' ? '#9aa0aa' : String(edgeColor) }} />
+                    <input
+                      type="color"
+                      value={edgeColor === 'auto' ? '#9aa0aa' : String(edgeColor)}
+                      onChange={e => { setEdgeColor(e.target.value); setColorPreset('custom'); }}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      title={edgeColor === 'auto' ? 'Auto (grau)' : String(edgeColor)}
+                    />
+                  </div>
                   {edgeColor !== 'auto' && (
                     <button onClick={() => setEdgeColor('auto')} className="text-[10px] text-muted-foreground hover:text-foreground px-1 transition-colors focus-visible:outline-none focus-visible:text-foreground" title="Zurücksetzen">↺</button>
                   )}
                 </div>
                 <SliderParam
                   kfKey="edgeOpacity" label="Deckkraft" value={edgeOpacity} onChange={setEdgeOpacity}
-                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={10} max={100}
+                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={10} max={100}
                   displayFn={v => v[0] + '%'}
                   description="Transparenz der Verbindungslinien."
                 />
                 <SliderParam
                   kfKey="edgeWidth" label="Stärke" value={edgeWidth} onChange={setEdgeWidth}
-                  color="teal" kfs={effectiveKfs} onToggle={toggle} min={1} max={5}
+                  color="blue" kfs={effectiveKfs} onToggle={toggle} min={1} max={5}
                   description="Pixelbreite der Verbindungslinien."
                 />
               </div>
             </AccSection>
 
-          </Accordion.Root>
-        </Tabs.Content>
+          </Accordion>
+        </TabsContent>
 
         {/* PHYSICS TAB */}
-        <Tabs.Content value="physics" className="flex-1 overflow-y-auto">
-          <Accordion.Root type="multiple" defaultValue={['physics-params']}>
+        <TabsContent value="physics" className="flex-1 overflow-y-auto mt-0">
+          <Accordion type="multiple" defaultValue={['physics-params']}>
             <AccSection value="physics-params" label="Parameter" color="orange">
               <div className="space-y-3">
                 <SliderParam
@@ -763,17 +829,20 @@ export function Inspector({
                 />
                 <div className="flex items-center gap-2 h-[26px]">
                   <span className="text-[11px] text-muted-foreground flex-1">Min Speed</span>
-                  <input
+                  <Input
                     type="number"
                     value={minSpeedVal}
                     onChange={(e) => setMinSpeedVal(parseFloat(e.target.value) || 0)}
                     step="0.1"
-                    className="w-16 h-6 px-1.5 bg-input border border-border hover:border-border focus:border-border rounded text-[11px] text-foreground text-right focus:outline-none transition-colors shrink-0 font-mono"
+                    className="w-16 h-6 px-1.5 text-[11px] text-right shrink-0 font-mono"
                   />
                   <KfDiamond active={effectiveKfs.minSpeed ?? false} color="orange" onClick={() => toggle('minSpeed')} />
                 </div>
                 <div className="pt-1 flex justify-end">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[11px]"
                     onClick={() => {
                       const d = viewMode === '2D' ? PHYSICS_DEFAULTS_2D : PHYSICS_DEFAULTS_3D;
                       setRepulsionVal([d.repulsion]);
@@ -784,16 +853,15 @@ export function Inspector({
                       setGravityVal([d.gravity]);
                       setTurbulenceVal([d.turbulence]);
                     }}
-                    className="px-2 h-6 text-[10px] font-medium text-muted-foreground hover:text-foreground bg-background hover:bg-accent border border-border rounded-md transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
                   >
                     Reset Defaults
-                  </button>
+                  </Button>
                 </div>
               </div>
             </AccSection>
-          </Accordion.Root>
-        </Tabs.Content>
-      </Tabs.Root>
+          </Accordion>
+        </TabsContent>
+      </Tabs>
 
       {/* Status bar */}
       

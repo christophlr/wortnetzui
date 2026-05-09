@@ -12,6 +12,23 @@ The version is **automatically derived from the git commit count** by `vite.conf
 
 ## UI conventions
 
+### Height and text scale — the h-6 baseline
+
+`h-6` (24px) is the standard height for all inline UI controls in this app. The Menubar and TopBar toggle groups establish this as the baseline. **Do not make controls taller than `h-6` unless the element is a primary / full-width action** (e.g. the "Anwenden" submit button in the Inspector, which is the main action of a panel section).
+
+This applies to:
+- Segmented toggle groups (`ToggleGroup` / `ToggleGroupItem`)
+- Inline buttons (icon buttons, label buttons like "Reset Defaults", "Exportieren")
+- Accordion section headers (`AccSection` trigger)
+- `Input` fields used inline in parameter rows
+
+The same principle applies to **text**: prefer `text-[11px]` or `text-xs` for panel labels, captions, and control text. `text-sm` (14px) is acceptable only for body/description text in larger content areas.
+
+Components that enforce this by default in this project:
+- `Menubar` — ships at `h-6` with `text-[11px]` triggers
+- `AccordionContent` — set to `text-xs`
+- `MenubarItem` / `MenubarRadioItem` / `MenubarLabel` — set to `text-xs` / `py-1`
+
 ### Sliders with a numeric value (`SliderParam`)
 
 Every `SliderParam` that shows a numeric value on the right **must** support click-to-type editing:

@@ -47,7 +47,7 @@ export function getNetworkThemeBackground(isDark?: boolean): NetworkThemeBackgro
     return { hex: '#1a1a1a', threeColor: 0x1a1a1a };
   }
 
-  return { hex: '#d5d5d5', threeColor: 0xd5d5d5 };
+  return { hex: '#c8c8c8', threeColor: 0xc8c8c8 };
 }
 
 export function getNetworkLabelStyle(isDark?: boolean): NetworkLabelStyle {
