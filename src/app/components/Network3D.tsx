@@ -1349,8 +1349,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     controlsRef.current.update();
   };
 
-  const handleGizmoDoubleClick = () => {
+  const handleGizmoDoubleClick = (e: React.MouseEvent) => {
     if (!cameraRef.current || !controlsRef.current) return;
+    
+    // If double clicking a specific axis ball, don't reset the whole camera.
+    // The single click will have already triggered the snap animation.
+    if (getGizmoAxisAtPoint(e.clientX, e.clientY)) {
+      return;
+    }
+
     zoomAnimRef.current = null;
     cameraFlyRef.current = {
       fromPos: cameraRef.current.position.clone(),
