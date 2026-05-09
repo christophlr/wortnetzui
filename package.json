@@ -1,13 +1,14 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.59",
+  "version": "0.60",
   "type": "module",
   "scripts": {
     "predev": "node ./scripts/sync-version.mjs",
     "prebuild": "node ./scripts/sync-version.mjs --build",
     "build": "vite build",
-    "dev": "vite --host"
+    "dev": "vite --host",
+    "dev:fixed": "bash ./scripts/dev-fixed.sh"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
