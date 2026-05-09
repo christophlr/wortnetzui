@@ -5,6 +5,8 @@ import { execSync } from 'node:child_process';
 const rootDir = process.cwd();
 const packageJsonFile = path.join(rootDir, 'package.json');
 const packageLockFile = path.join(rootDir, 'package-lock.json');
+const buildStateFile = path.join(rootDir, '.version-build-state.json');
+const shouldWriteBuildState = process.argv.includes('--build');
 
 function getVersionFromGitCount(fallbackVersion) {
   try {
@@ -18,16 +20,47 @@ function getVersionFromGitCount(fallbackVersion) {
   return fallbackVersion;
 }
 
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function getBuildNumber(version) {
+  if (!shouldWriteBuildState) {
+    const existingState = readJson(buildStateFile);
+    if (existingState?.version === version && Number.isInteger(existingState.buildCount) && existingState.buildCount > 0) {
+      return `${version}.${existingState.buildCount}`;
+    }
+    return `${version}.1`;
+  }
+
+  const existingState = readJson(buildStateFile);
+  const nextBuildCount = existingState?.version === version && Number.isInteger(existingState.buildCount) && existingState.buildCount > 0
+    ? existingState.buildCount + 1
+    : 1;
+  const nextState = { version, buildCount: nextBuildCount };
+  fs.writeFileSync(buildStateFile, `${JSON.stringify(nextState, null, 2)}\n`, 'utf8');
+  return `${version}.${nextBuildCount}`;
+}
+
 function writeJson(filePath, data) {
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }
 
 const packageJson = JSON.parse(fs.readFileSync(packageJsonFile, 'utf8'));
 const version = getVersionFromGitCount(packageJson.version ?? '0.0');
+const buildNumber = getBuildNumber(version);
 if (packageJson.version !== version) {
   packageJson.version = version;
   writeJson(packageJsonFile, packageJson);
   console.log(`Updated package.json version to ${version}`);
+}
+
+if (shouldWriteBuildState) {
+  console.log(`Updated build number to ${buildNumber}`);
 }
 
 if (fs.existsSync(packageLockFile)) {

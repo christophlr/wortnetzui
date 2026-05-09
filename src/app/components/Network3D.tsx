@@ -1,4 +1,5 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react';
+import { Crosshair, Lock, Maximize2 } from 'lucide-react';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -202,6 +203,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const lastAppliedTimeRef = useRef<number | null>(null);
   const hoveredNodeRef = useRef<GraphNode | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
+  const lockedNodeRef = useRef<GraphNode | null>(null);
   const flyToTargetRef = useRef<THREE.Vector3 | null>(null);
   const gizmoCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomSliderRef = useRef<HTMLInputElement>(null);
@@ -212,6 +214,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     startTime: number; duration: number;
   } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
+  const [cameraLocked, setCameraLocked] = useState(false);
+  const setCameraLockedRef = useRef(setCameraLocked);
+  const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gradientRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appearanceRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gradientSettingsRef = useRef(gradientSettings);
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(isDark);
@@ -429,12 +436,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         context.strokeStyle = effectiveBorderColor;
         context.lineWidth = bw;
         context.beginPath();
+        // Outside stroke: path is outset by bw/2 so the inner stroke edge touches the fill boundary
         if (nodeShape === 'ellipse') {
-          context.ellipse(cx, cy, logicalWidth / 2 - bw / 2, logicalHeight / 2 - bw / 2, 0, 0, Math.PI * 2);
+          context.ellipse(cx, cy, logicalWidth / 2 + bw / 2, logicalHeight / 2 + bw / 2, 0, 0, Math.PI * 2);
         } else if (nodeShape === 'rounded-rectangle') {
-          context.roundRect(OUTLINE_MARGIN + bw / 2, OUTLINE_MARGIN + bw / 2, logicalWidth - bw, logicalHeight - bw, 6);
+          context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 6);
         } else {
-          context.rect(OUTLINE_MARGIN + bw / 2, OUTLINE_MARGIN + bw / 2, logicalWidth - bw, logicalHeight - bw);
+          context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 3 + bw / 2);
         }
         context.stroke();
       }
@@ -479,7 +487,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
   const createSpriteFromTexture = (
     texture: THREE.CanvasTexture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
   ): THREE.Sprite => {
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.renderOrder = 1; // always draw sprites on top of edge lines
     sprite.userData.label = label;
@@ -671,6 +679,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     }
     controls.update();
     controlsRef.current = controls;
+    controls.addEventListener('start', () => {
+      lockedNodeRef.current = null;
+      setCameraLockedRef.current(false);
+    });
     let applyingKeyframe = false;
     const handleCameraChange = () => {
       if (!applyingKeyframe) {
@@ -932,7 +944,35 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       if (hit) setContextMenu({ x: e.clientX, y: e.clientY, node: hit });
     };
 
+    const handleDblClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(spritesArrayRef.current);
+      const hit = intersects.length > 0 ? graphNodesRef.current.get((intersects[0].object as THREE.Sprite).userData.label) ?? null : null;
+      if (!hit) return;
+      const nodePos = new THREE.Vector3(hit.x, hit.y, hit.z);
+      if (!is2D && cameraRef.current && controlsRef.current) {
+        const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+        cameraFlyRef.current = {
+          fromPos: cameraRef.current.position.clone(),
+          toPos: nodePos.clone().addScaledVector(dir, 150),
+          fromTarget: controlsRef.current.target.clone(),
+          toTarget: nodePos.clone(),
+          startTime: performance.now(),
+          duration: 700,
+        };
+      } else if (is2D && cameraRef.current) {
+        flyToTargetRef.current = nodePos.clone();
+        const cam = cameraRef.current as THREE.OrthographicCamera;
+        cam.zoom = Math.max(cam.zoom, 5);
+        cam.updateProjectionMatrix();
+      }
+    };
+
     renderer.domElement.addEventListener('click', handleClick);
+    renderer.domElement.addEventListener('dblclick', handleDblClick);
     renderer.domElement.addEventListener('contextmenu', handleContextMenu);
 
     // Animation loop
@@ -946,6 +986,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       const delta = (now - lastTime) / 16.67; // Normalize to ~60fps
       lastTime = now;
 
+
+      // Re-enable physics during playback if it was auto-stopped but keyframes are still driving values
+      if (isPlayingRef.current && !physicsEnabledRef.current) {
+        const hasKfs = Object.values(physicsKeyframesRef.current).some(kfs => kfs.length > 0);
+        if (hasKfs) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
+      }
 
       // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
       if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
@@ -1064,6 +1110,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
         }
       }
 
+      // Locked camera: translate camera + target together to follow the node
+      if (lockedNodeRef.current && controlsRef.current && !flyToTargetRef.current && !cameraFlyRef.current) {
+        const n = lockedNodeRef.current;
+        const newTarget = new THREE.Vector3(n.x, n.y, n.z);
+        const delta = newTarget.clone().sub(controlsRef.current.target);
+        camera.position.add(delta);
+        controlsRef.current.target.copy(newTarget);
+      }
+
       // Update controls (for damping) — fires 'change' synchronously if camera moved
       if (controlsRef.current) {
         controlsRef.current.update();
@@ -1103,6 +1158,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       renderer.domElement.removeEventListener('click', handleClick);
+      renderer.domElement.removeEventListener('dblclick', handleDblClick);
       renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
@@ -1133,11 +1189,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
-  // Update node colors when color settings change — rebuild texture cache, then swap textures
+  // Update node colors when color settings change — debounced so color picker stays smooth
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettings);
-    refreshAllSpriteTextures();
+    if (gradientRebuildTimerRef.current) clearTimeout(gradientRebuildTimerRef.current);
+    gradientRebuildTimerRef.current = setTimeout(() => {
+      if (!sceneRef.current) return;
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+      refreshAllSpriteTextures();
+      gradientRebuildTimerRef.current = null;
+    }, 80);
   }, [gradientSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild textures when render mode switches (edit vs render colors)
@@ -1166,11 +1227,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [styleSettings.nodeScale, styleSettings.depthSizeEnabled, styleSettings.depthSizeStrength]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures when node shape or border width changes
+  // Rebuild textures when node shape or border width changes — debounced for smooth slider
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-    refreshAllSpriteTextures();
+    if (textureRebuildTimerRef.current) clearTimeout(textureRebuildTimerRef.current);
+    textureRebuildTimerRef.current = setTimeout(() => {
+      if (!sceneRef.current) return;
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+      refreshAllSpriteTextures();
+      textureRebuildTimerRef.current = null;
+    }, 80);
   }, [styleSettings.nodeShape, styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update edge material when style settings change
@@ -1195,11 +1261,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     });
   }, [edgeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures when node appearance settings change
+  // Rebuild textures when node appearance settings change — debounced for color picker
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-    refreshAllSpriteTextures();
+    if (appearanceRebuildTimerRef.current) clearTimeout(appearanceRebuildTimerRef.current);
+    appearanceRebuildTimerRef.current = setTimeout(() => {
+      if (!sceneRef.current) return;
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+      refreshAllSpriteTextures();
+      appearanceRebuildTimerRef.current = null;
+    }, 80);
   }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update background color and rebuild textures when theme changes
@@ -1241,6 +1312,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
     };
   };
 
+  const unlockCamera = () => {
+    lockedNodeRef.current = null;
+    setCameraLocked(false);
+  };
+
   return (
     <>
       <div ref={containerRef} className="w-full h-full relative">
@@ -1250,11 +1326,32 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
             ref={gizmoCanvasRef}
             width={90}
             height={90}
+            draggable={false}
             className="absolute top-3 right-3 z-10"
-            style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer' }}
+            style={{ borderRadius: '50%', border: '1px solid rgba(120,120,140,0.25)', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            onMouseDown={e => {
+              e.preventDefault();
+            }}
             onDoubleClick={handleGizmoDoubleClick}
             title="Double-click to reset view"
           />
+        )}
+
+        {/* Locked camera indicator */}
+        {cameraLocked && (
+          <button
+            type="button"
+            onMouseDown={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              unlockCamera();
+            }}
+            className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-background/40 border-border/40 z-10 text-left transition-[color,background-color,border-color] hover:bg-background/55 hover:border-border/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            title="Unlock camera"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" />
+            <span className="text-[10px] text-foreground/40 font-medium tracking-wide">LOCKED</span>
+          </button>
         )}
 
         {/* Zoom slider — 3D only */}
@@ -1293,9 +1390,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
           <div
             className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden text-popover-foreground"
             style={{
-              left: Math.min(contextMenu.x, window.innerWidth - 196 - 8),
-              top: Math.min(contextMenu.y, window.innerHeight - 96 - 8),
-              width: 196
+              left: Math.min(contextMenu.x, window.innerWidth - 210 - 8),
+              top: Math.min(contextMenu.y, window.innerHeight - 112 - 8),
+              width: 210
             }}
             onMouseDown={e => e.stopPropagation()}
           >
@@ -1305,9 +1402,40 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                 flyToTargetRef.current = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
                 setContextMenu(null);
               }}
-              className="w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
+              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
             >
+              <Crosshair className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
               Center
+            </button>
+            <button
+              onMouseDown={e => {
+                e.stopPropagation();
+                const node = contextMenu.node;
+                const nodePos = new THREE.Vector3(node.x, node.y, node.z);
+                lockedNodeRef.current = node;
+                setCameraLocked(true);
+                if (viewMode !== '2D' && cameraRef.current && controlsRef.current) {
+                  const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+                  cameraFlyRef.current = {
+                    fromPos: cameraRef.current.position.clone(),
+                    toPos: nodePos.clone().addScaledVector(dir, 320),
+                    fromTarget: controlsRef.current.target.clone(),
+                    toTarget: nodePos.clone(),
+                    startTime: performance.now(),
+                    duration: 700,
+                  };
+                } else if (viewMode === '2D' && cameraRef.current) {
+                  flyToTargetRef.current = nodePos.clone();
+                  const cam = cameraRef.current as THREE.OrthographicCamera;
+                  cam.zoom = Math.max(cam.zoom, 3);
+                  cam.updateProjectionMatrix();
+                }
+                setContextMenu(null);
+              }}
+              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
+            >
+              <Lock className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
+              Lock camera
             </button>
             <button
               onMouseDown={e => {
@@ -1331,8 +1459,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>(function Ne
                 }
                 setContextMenu(null);
               }}
-              className="w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
+              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
             >
+              <Maximize2 className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
               Fill view
             </button>
           </div>

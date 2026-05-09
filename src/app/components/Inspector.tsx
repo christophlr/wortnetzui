@@ -149,7 +149,11 @@ function SliderParam({
     setDragVelocity(0);
   };
 
-  const displayStr = displayFn ? displayFn(value) : String(value[0]);
+  const displayedSliderValue =
+    !isDragging && effectiveValue !== undefined
+      ? [Math.round(animatedValue)]
+      : value;
+  const displayStr = displayFn ? displayFn(displayedSliderValue) : String(displayedSliderValue[0]);
 
   const startEdit = () => {
     setDraft(displayStr);
@@ -199,7 +203,7 @@ function SliderParam({
       </div>
       <Slider.Root
         className="relative flex items-center w-full h-4"
-        value={value} onValueChange={handleSliderChange} min={min} max={max} step={1}
+        value={displayedSliderValue} onValueChange={handleSliderChange} min={min} max={max} step={1}
       >
         <Slider.Track className="bg-border relative grow rounded-full h-[2px]">
           <Slider.Range className={`absolute rounded-full h-full ${trackCls}`} />
@@ -439,7 +443,7 @@ export function Inspector({
 
 
   return (
-    <div className="bg-background border-r border-border flex flex-col shrink-0 overflow-hidden" style={{ width }}>
+    <div className="select-none bg-background border-r border-border flex flex-col shrink-0 overflow-hidden" style={{ width }}>
       {/* Panel Header */}
       
 
@@ -711,7 +715,7 @@ export function Inspector({
                   min={10} max={500}
                   displayFn={v => (v[0] * 10).toFixed(0)}
                   parseInput={s => Math.round(parseFloat(s) / 10)}
-                  effectiveValue={effectivePhysicsParams?.repulsion}
+                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.repulsion / 10 : undefined}
                   description="Wie stark Knoten sich gegenseitig abstoßen. Höher = weiter auseinander."
                 />
                 <SliderParam
@@ -720,7 +724,7 @@ export function Inspector({
                   min={1} max={20}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
-                  effectiveValue={effectivePhysicsParams?.springK}
+                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.springK * 100 : undefined}
                   description="Stärke der Kantenverbindungen. Höher = engere Gruppierung verbundener Wörter."
                 />
                 <SliderParam
@@ -729,7 +733,7 @@ export function Inspector({
                   min={80} max={99}
                   displayFn={v => (v[0] / 100).toFixed(2)}
                   parseInput={s => Math.round(parseFloat(s) * 100)}
-                  effectiveValue={effectivePhysicsParams?.damping}
+                  effectiveValue={effectivePhysicsParams != null ? effectivePhysicsParams.damping * 100 : undefined}
                   description="Geschwindigkeitsabfall pro Frame (0–1). Niedriger = schnelleres Einpendeln; höher = flüssigere Bewegung."
                 />
                 <SliderParam

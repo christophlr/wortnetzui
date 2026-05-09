@@ -188,20 +188,22 @@ function GraphCurve({ kfs, color, viewWindow }: { kfs: number[]; color: string; 
 /* ── Context menu ── */
 
 function ContextMenu({
-  x, y, hasClipboard, hasKeyframe = true, onCopy, onCut, onPaste, onDelete, onClose,
+  x, y, mode, hasClipboard, hasItem, onCopy, onCut, onPaste, onDelete, onCreateSceneMarker, onClose,
 }: {
   x: number;
   y: number;
+  mode: 'keyframe' | 'scene-marker' | 'background';
   hasClipboard: boolean;
-  hasKeyframe?: boolean;
+  hasItem: boolean;
   onCopy: () => void;
   onCut: () => void;
   onPaste: () => void;
   onDelete: () => void;
+  onCreateSceneMarker: () => void;
   onClose: () => void;
 }) {
   const menuW = 196;
-  const menuH = 136;
+  const menuH = mode === 'background' ? 68 : 136;
   const left = Math.min(x, window.innerWidth - menuW - 8);
   const top = Math.min(y, window.innerHeight - menuH - 8);
 
@@ -234,12 +236,23 @@ function ContextMenu({
         className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden text-popover-foreground"
         style={{ left, top, width: menuW }}
         onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
-        <Item label="Copy" shortcut="⌘C" action={onCopy} disabled={!hasKeyframe} />
-        <Item label="Cut" shortcut="⌘X" action={onCut} disabled={!hasKeyframe} />
-        <Item label="Paste at Playhead" shortcut="⌘V" action={onPaste} disabled={!hasClipboard} />
-        <div className="border-t border-border/60 my-1 mx-2" />
-        <Item label="Delete" shortcut="⌫" action={onDelete} danger disabled={!hasKeyframe} />
+        {mode === 'background' ? (
+          <>
+            <Item label="Add Scene Marker" shortcut="" action={onCreateSceneMarker} />
+            <div className="border-t border-border/60 my-1 mx-2" />
+            <Item label="Paste at Playhead" shortcut="⌘V" action={onPaste} disabled={!hasClipboard} />
+          </>
+        ) : (
+          <>
+            <Item label="Copy" shortcut="⌘C" action={onCopy} disabled={!hasItem} />
+            <Item label="Cut" shortcut="⌘X" action={onCut} disabled={!hasItem} />
+            <Item label="Paste at Playhead" shortcut="⌘V" action={onPaste} disabled={!hasClipboard} />
+            <div className="border-t border-border/60 my-1 mx-2" />
+            <Item label="Delete" shortcut="⌫" action={onDelete} danger disabled={!hasItem} />
+          </>
+        )}
       </div>
     </>,
     document.body
@@ -661,7 +674,7 @@ function TrackRow({
           const leftPct = ((t - viewWindow.start) / visibleDuration) * 100;
           if (leftPct < -2 || leftPct > 102) return null;
           const selected = selectedKeyframes.some(s => s.track === track.id && Math.abs(s.time - t) < 0.01);
-          const onPlayhead = !selected && Math.abs(t - playheadPosition) < 0.1;
+          const onPlayhead = !selected && selectedKeyframes.length === 0 && Math.abs(t - playheadPosition) < 0.1;
           return (
             <button
               key={`${track.id}-${t}-${idx}`}
@@ -679,14 +692,23 @@ function TrackRow({
                 onKeyframeSelect(track.id, t, false);
                 onKeyframeContextMenu?.(track.id, t, e.clientX, e.clientY);
               }}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 flex items-center justify-center hover:scale-150 transition-transform z-10 cursor-grab active:cursor-grabbing"
               style={{ left: `${leftPct}%` }}
             >
+              {selected && (
+                <Diamond
+                  size={16}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="2"
+                />
+              )}
               <Diamond
                 size={10}
                 className={
                   selected
-                    ? `${c.kf} drop-shadow-[0_0_8px_currentColor]`
+                    ? c.kf
                     : onPlayhead
                       ? 'text-blue-400 drop-shadow-[0_0_8px_currentColor]'
                       : 'text-foreground hover:text-foreground drop-shadow-md'
@@ -707,23 +729,24 @@ function TrackRow({
 
 function SceneMarkerLane({
   markers, contentRef, viewWindow, duration, snap,
-  onAdd, onMove, onDelete, onRename, onDragStart, onDragEnd,
+  onAdd, onMove, onSceneMarkerContextMenu, onSelectSceneMarker,
+  onDragStart, onDragEnd, selectedMarkerTimes = [], activeMarkerTime,
 }: {
   markers: SceneMarker[];
   contentRef: React.RefObject<HTMLDivElement | null>;
   viewWindow: ViewWindow;
   duration: number;
   snap: boolean;
-  onAdd: (time: number) => void;
+  onAdd?: (time: number) => void;
   onMove: (oldTime: number, newTime: number) => void;
-  onDelete: (time: number) => void;
-  onRename: (time: number, label: string) => void;
+  onSceneMarkerContextMenu: (time: number, x: number, y: number) => void;
+  onSelectSceneMarker?: (time: number, additive: boolean) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  selectedMarkerTimes?: number[];
+  activeMarkerTime?: number | null;
 }) {
   const [draggingMarker, setDraggingMarker] = useState<{ time: number } | null>(null);
-  const [editingMarker, setEditingMarker] = useState<number | null>(null);
-  const [markerContextMenu, setMarkerContextMenu] = useState<{ time: number; x: number; y: number } | null>(null);
   const visibleDuration = viewWindow.end - viewWindow.start;
 
   const timeFromClientX = useCallback((clientX: number) => {
@@ -760,28 +783,27 @@ function SceneMarkerLane({
   }, [draggingMarker, timeFromClientX, onMove, onDragEnd]);
 
   return (
-    <div className="flex border-b border-purple-500/20 shrink-0" style={{ height: 28 }}>
-      {/* Label */}
+    <div className="flex border-b border-purple-500/20 shrink-0 sticky top-0 z-20 bg-background" style={{ height: 28 }}>
       <div
         className="shrink-0 flex items-center pl-3 pr-2 border-r border-border bg-background"
         style={{ width: LABEL_W }}
       >
         <span className="text-[9px] font-semibold text-purple-400/70 uppercase tracking-widest">Scene Markers</span>
       </div>
-      {/* Track area */}
       <div
-        className="flex-1 relative bg-purple-950/10 overflow-visible cursor-crosshair"
-        onClick={e => {
+        className="flex-1 relative bg-purple-950/10 overflow-visible"
+        onDoubleClick={e => {
           const target = e.target as Element;
           if (target.closest('[data-scene-marker]')) return;
           const time = timeFromClientX(e.clientX);
-          if (time !== null) onAdd(time);
+          if (time !== null) onAdd?.(time);
         }}
       >
         {markers.map(marker => {
           const pct = ((marker.time - viewWindow.start) / visibleDuration) * 100;
           if (pct < -3 || pct > 103) return null;
-          const isEditing = editingMarker === marker.time;
+          const isActive = activeMarkerTime === marker.time;
+          const isSelected = selectedMarkerTimes.includes(marker.time);
           return (
             <div
               key={`sm-${marker.time}`}
@@ -789,72 +811,37 @@ function SceneMarkerLane({
               className="absolute top-0 z-10 flex flex-col items-center"
               style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
             >
-              {/* Guide line spanning full height of tracks */}
               <div
                 className="absolute w-px bg-purple-400/20 pointer-events-none"
                 style={{ top: 0, height: '999px' }}
               />
               <button
                 data-scene-marker="true"
-                className="relative cursor-grab active:cursor-grabbing group focus-visible:outline-none"
+                className="relative cursor-grab active:cursor-grabbing group focus-visible:outline-none w-4 h-4 flex items-center justify-center"
                 onMouseDown={e => {
                   if (e.button !== 0) return;
                   e.stopPropagation();
+                  onSelectSceneMarker?.(marker.time, e.shiftKey || e.metaKey || e.ctrlKey);
                   onDragStart?.();
                   setDraggingMarker({ time: marker.time });
                 }}
                 onContextMenu={e => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setMarkerContextMenu({ time: marker.time, x: e.clientX, y: e.clientY });
+                  onSceneMarkerContextMenu(marker.time, e.clientX, e.clientY);
                 }}
-                onDoubleClick={e => { e.stopPropagation(); setEditingMarker(marker.time); }}
-                title={`${marker.label} — drag to move all keyframes at this time`}
+                title="Drag to move — right-click for options"
               >
-                <svg width="16" height="18" viewBox="0 0 16 18" className="drop-shadow-sm group-hover:scale-110 transition-transform">
+                <svg viewBox="0 0 16 18" className="w-4 h-4 drop-shadow-sm group-hover:scale-110 transition-transform">
+                  {(isSelected || isActive) && (
+                    <path d="M 1 1 L 15 1 L 15 11 L 8 18 L 1 11 Z" fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round" strokeOpacity="1" />
+                  )}
                   <path d="M 1 1 L 15 1 L 15 11 L 8 18 L 1 11 Z" fill="#a855f7" fillOpacity="0.8" stroke="#c084fc" strokeWidth="1" strokeLinejoin="round" />
                 </svg>
               </button>
-              {isEditing ? (
-                <input
-                  autoFocus
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[9px] bg-popover border border-border rounded px-1.5 py-0.5 text-popover-foreground w-24 z-50 outline-none shadow-md"
-                  defaultValue={marker.label}
-                  onBlur={e => { onRename(marker.time, e.target.value); setEditingMarker(null); }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { onRename(marker.time, e.currentTarget.value); setEditingMarker(null); }
-                    if (e.key === 'Escape') setEditingMarker(null);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
-              ) : (
-                <span className="text-[8px] text-purple-400/60 whitespace-nowrap leading-none mt-0.5 max-w-[60px] truncate select-none pointer-events-none">
-                  {marker.label}
-                </span>
-              )}
             </div>
           );
         })}
-        {markerContextMenu && createPortal(
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setMarkerContextMenu(null)} />
-            <div
-              className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-1 shadow-2xl min-w-[120px] text-popover-foreground"
-              style={{ left: markerContextMenu.x, top: markerContextMenu.y }}
-              onMouseDown={e => e.stopPropagation()}
-            >
-              <button
-                className="w-full text-left text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground px-3 py-1.5 rounded-lg transition-[color,background-color,box-shadow]"
-                onClick={() => { setEditingMarker(markerContextMenu.time); setMarkerContextMenu(null); }}
-              >Rename</button>
-              <button
-                className="w-full text-left text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-[color,background-color,box-shadow]"
-                onClick={() => { onDelete(markerContextMenu.time); setMarkerContextMenu(null); }}
-              >Delete</button>
-            </div>
-          </>,
-          document.body
-        )}
       </div>
     </div>
   );
@@ -863,13 +850,16 @@ function SceneMarkerLane({
 /* ── Track group ── */
 
 function TrackGroup({
-  group, expanded, onToggle, selectedKeyframes, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
+  group, expanded, onToggle, showEasing, onToggleEasing,
+  selectedKeyframes, onKeyframeSelect, cameraKeyframes, physicsKeyframes,
   onMoveKeyframe, onSetHandle, onSetInterpolation, onKeyframeContextMenu, onDragStart, onDragEnd,
   snap, contentRef, playheadPosition, duration, viewWindow,
 }: {
   group: typeof TRACK_GROUPS[number];
   expanded: boolean;
   onToggle: () => void;
+  showEasing: boolean;
+  onToggleEasing: () => void;
   selectedKeyframes: { track: string; time: number }[];
   onKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   cameraKeyframes: Array<{ time: number; position: any; target: any; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' }>;
@@ -902,6 +892,15 @@ function TrackGroup({
           />
           <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
           <span className="text-[11px] font-medium text-foreground flex-1 truncate">{group.name}</span>
+          <button
+            title={showEasing ? 'Hide easing' : 'Show easing'}
+            onClick={e => { e.stopPropagation(); onToggleEasing(); }}
+            className={`rounded p-0.5 transition-colors focus-visible:outline-none ${showEasing ? 'text-muted-foreground/60 hover:text-muted-foreground' : 'text-muted-foreground/25 hover:text-muted-foreground/60'}`}
+          >
+            <svg width="11" height="11" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
+            </svg>
+          </button>
           <button className="opacity-0 hover:opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline-none" onClick={e => e.stopPropagation()}>
             <Eye size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
           </button>
@@ -943,7 +942,7 @@ function TrackGroup({
               duration={duration}
               viewWindow={viewWindow}
             />
-            {onSetHandle && (
+            {onSetHandle && showEasing && (
               <EasingTrackRow
                 trackId={track.id}
                 keyframeData={easingData}
@@ -995,12 +994,14 @@ export function Timeline({
   onRenameSceneMarker,
 }: TimelineProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ camera: true, physics: true });
+  const [easingExpanded, setEasingExpanded] = useState<Record<string, boolean>>({});
+  const [selectedSceneMarkers, setSelectedSceneMarkers] = useState<number[]>([]);
   const [zoom, setZoom] = useState(1);
   const [panStart, setPanStart] = useState(0);
   const [snap, setSnap] = useState(true);
   const [duration, setDuration] = useState(TIMELINE_DURATION);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string; time: number } | null>(null);
-  const [clipboard, setClipboard] = useState<{ trackId: string; time: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; kind: 'keyframe' | 'scene-marker' | 'background'; trackId?: string; time: number } | null>(null);
+  const [clipboard, setClipboard] = useState<{ kind: 'keyframe'; trackId: string; time: number } | { kind: 'scene-marker'; label: string } | null>(null);
   const [dragSelect, setDragSelect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const dragSelectActiveRef = useRef(false);
 
@@ -1166,29 +1167,37 @@ export function Timeline({
         for (const sel of selectedKeyframes) {
           onDeleteKeyframe?.(sel.track, sel.time);
         }
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedSceneMarkers.length > 0) {
+        e.preventDefault();
+        for (const t of selectedSceneMarkers) onDeleteSceneMarker?.(t);
+        setSelectedSceneMarkers([]);
       } else if (isMod && e.key === 'c' && primarySel) {
         e.preventDefault();
-        setClipboard({ trackId: primarySel.track, time: primarySel.time });
+        setClipboard({ kind: 'keyframe', trackId: primarySel.track, time: primarySel.time });
       } else if (isMod && e.key === 'x' && primarySel) {
         e.preventDefault();
-        setClipboard({ trackId: primarySel.track, time: primarySel.time });
+        setClipboard({ kind: 'keyframe', trackId: primarySel.track, time: primarySel.time });
         for (const sel of selectedKeyframes) {
           onDeleteKeyframe?.(sel.track, sel.time);
         }
       } else if (isMod && e.key === 'v' && clipboard) {
         e.preventDefault();
-        onDuplicateKeyframe?.(clipboard.trackId, clipboard.time, playheadPosition);
+        if (clipboard.kind === 'keyframe') onDuplicateKeyframe?.(clipboard.trackId, clipboard.time, playheadPosition);
+        else if (clipboard.kind === 'scene-marker') onAddSceneMarker?.(playheadPosition);
       } else if (isMod && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
         onUndo?.();
       } else if ((isMod && e.key === 'y') || (isMod && e.shiftKey && e.key === 'z')) {
         e.preventDefault();
         onRedo?.();
+      } else if (e.key === 'Escape') {
+        setSelectedSceneMarkers([]);
+        onSelectKeyframes?.([]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedKeyframes, clipboard, playheadPosition, onDeleteKeyframe, onDuplicateKeyframe, onUndo, onRedo]);
+  }, [selectedKeyframes, selectedSceneMarkers, clipboard, playheadPosition, onDeleteKeyframe, onDeleteSceneMarker, onDuplicateKeyframe, onUndo, onRedo]);
 
   const stepFrame = (dir: number) =>
     onPlayheadChange(Math.max(0, Math.min(duration, playheadPosition + dir * (1 / 30))));
@@ -1198,26 +1207,51 @@ export function Timeline({
   const playheadLeft = `calc(${playheadRatio * 100}% + ${LABEL_W * (1 - playheadRatio)}px)`;
 
   const handleKeyframeContextMenu = useCallback((trackId: string, time: number, x: number, y: number) => {
-    setContextMenu({ x, y, trackId, time });
+    setContextMenu({ x, y, kind: 'keyframe', trackId, time });
   }, []);
 
-  const copyKeyframe = useCallback(() => {
-    if (contextMenu) setClipboard({ trackId: contextMenu.trackId, time: contextMenu.time });
-  }, [contextMenu]);
+  const handleSceneMarkerContextMenu = useCallback((time: number, x: number, y: number) => {
+    setSelectedSceneMarkers([time]);
+    setContextMenu({ x, y, kind: 'scene-marker', time });
+  }, []);
 
-  const cutKeyframe = useCallback(() => {
+  const copyAction = useCallback(() => {
     if (!contextMenu) return;
-    setClipboard({ trackId: contextMenu.trackId, time: contextMenu.time });
-    onDeleteKeyframe?.(contextMenu.trackId, contextMenu.time);
-  }, [contextMenu, onDeleteKeyframe]);
+    if (contextMenu.kind === 'keyframe' && contextMenu.trackId) {
+      setClipboard({ kind: 'keyframe', trackId: contextMenu.trackId, time: contextMenu.time });
+    } else if (contextMenu.kind === 'scene-marker') {
+      const marker = sceneMarkers.find(m => Math.abs(m.time - contextMenu.time) < 0.01);
+      setClipboard({ kind: 'scene-marker', label: marker?.label ?? '' });
+    }
+  }, [contextMenu, sceneMarkers]);
 
-  const pasteKeyframe = useCallback(() => {
-    if (clipboard) onDuplicateKeyframe?.(clipboard.trackId, clipboard.time, playheadPosition);
-  }, [clipboard, playheadPosition, onDuplicateKeyframe]);
+  const cutAction = useCallback(() => {
+    if (!contextMenu) return;
+    if (contextMenu.kind === 'keyframe' && contextMenu.trackId) {
+      setClipboard({ kind: 'keyframe', trackId: contextMenu.trackId, time: contextMenu.time });
+      onDeleteKeyframe?.(contextMenu.trackId, contextMenu.time);
+    } else if (contextMenu.kind === 'scene-marker') {
+      const marker = sceneMarkers.find(m => Math.abs(m.time - contextMenu.time) < 0.01);
+      setClipboard({ kind: 'scene-marker', label: marker?.label ?? '' });
+      onDeleteSceneMarker?.(contextMenu.time);
+    }
+  }, [contextMenu, sceneMarkers, onDeleteKeyframe, onDeleteSceneMarker]);
 
-  const deleteKeyframe = useCallback(() => {
-    if (contextMenu) onDeleteKeyframe?.(contextMenu.trackId, contextMenu.time);
-  }, [contextMenu, onDeleteKeyframe]);
+  const pasteAction = useCallback(() => {
+    if (!clipboard) return;
+    if (clipboard.kind === 'keyframe') onDuplicateKeyframe?.(clipboard.trackId, clipboard.time, playheadPosition);
+    else if (clipboard.kind === 'scene-marker') onAddSceneMarker?.(playheadPosition);
+  }, [clipboard, playheadPosition, onDuplicateKeyframe, onAddSceneMarker]);
+
+  const deleteAction = useCallback(() => {
+    if (!contextMenu) return;
+    if (contextMenu.kind === 'keyframe' && contextMenu.trackId) onDeleteKeyframe?.(contextMenu.trackId, contextMenu.time);
+    else if (contextMenu.kind === 'scene-marker') onDeleteSceneMarker?.(contextMenu.time);
+  }, [contextMenu, onDeleteKeyframe, onDeleteSceneMarker]);
+
+  const createSceneMarkerAction = useCallback(() => {
+    if (contextMenu) onAddSceneMarker?.(contextMenu.time);
+  }, [contextMenu, onAddSceneMarker]);
 
   const zoomIn = () => {
     setZoom(z => {
@@ -1312,7 +1346,7 @@ export function Timeline({
             >
               {isPlaying
                 ? <Pause size={13} fill="currentColor" />
-                : <Play size={13} fill="currentColor" className="ml-0.5" />
+                : <Play size={13} fill="currentColor" className="translate-x-[1px]" />
               }
             </button>
             <TBtn onClick={() => stepFrame(1)} title="Step forward one frame">
@@ -1389,20 +1423,18 @@ export function Timeline({
             if (!target.closest('[data-keyframe]') && !target.closest('[data-scene-marker]')) {
               dragSelectActiveRef.current = true;
               setDragSelect({ startX: e.clientX, startY: e.clientY, endX: e.clientX, endY: e.clientY });
+              setSelectedSceneMarkers([]);
+              onSelectKeyframes?.([]);
             }
             handleMouseDown(e);
           }}
           onContextMenu={e => {
             e.preventDefault();
-            const primarySel = selectedKeyframes[0];
-            setContextMenu({
-              x: e.clientX, y: e.clientY,
-              trackId: primarySel?.track ?? 'camera-keyframes',
-              time: primarySel?.time ?? playheadPosition,
-            });
+            const time = posFromEvent(e) ?? playheadPosition;
+            setContextMenu({ x: e.clientX, y: e.clientY, kind: 'background', time });
           }}
         >
-          {(onAddSceneMarker && onMoveSceneMarker && onDeleteSceneMarker && onRenameSceneMarker) && (
+          {(onMoveSceneMarker && onDeleteSceneMarker) && (
             <SceneMarkerLane
               markers={sceneMarkers}
               contentRef={contentRef}
@@ -1411,10 +1443,18 @@ export function Timeline({
               snap={snap}
               onAdd={onAddSceneMarker}
               onMove={onMoveSceneMarker}
-              onDelete={onDeleteSceneMarker}
-              onRename={onRenameSceneMarker}
+              onSceneMarkerContextMenu={handleSceneMarkerContextMenu}
+              onSelectSceneMarker={(time, additive) =>
+                setSelectedSceneMarkers(prev =>
+                  additive
+                    ? prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
+                    : [time]
+                )
+              }
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              selectedMarkerTimes={selectedSceneMarkers}
+              activeMarkerTime={contextMenu?.kind === 'scene-marker' ? contextMenu.time : null}
             />
           )}
           {TRACK_GROUPS.map(group => (
@@ -1423,6 +1463,8 @@ export function Timeline({
               group={group}
               expanded={expanded[group.id]}
               onToggle={() => setExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
+              showEasing={!!easingExpanded[group.id]}
+              onToggleEasing={() => setEasingExpanded(p => ({ ...p, [group.id]: !p[group.id] }))}
               selectedKeyframes={selectedKeyframes}
               onKeyframeSelect={onKeyframeSelect}
               cameraKeyframes={cameraKeyframes}
@@ -1449,7 +1491,7 @@ export function Timeline({
         {/* Full-height playhead overlay */}
         {playheadInView && (
           <div
-            className="absolute top-0 bottom-0 pointer-events-none z-20"
+            className="absolute top-0 bottom-0 pointer-events-none z-30"
             style={{ left: playheadLeft }}
           >
             <div className="absolute top-0 bottom-0 w-px bg-red-500/70" />
@@ -1473,19 +1515,22 @@ export function Timeline({
 
       {/* Context menu */}
       {contextMenu && (() => {
-        const hasKeyframe = selectedKeyframes.some(s =>
-          s.track === contextMenu.trackId && Math.abs(s.time - contextMenu.time) < 0.01
-        );
+        const hasItem = contextMenu.kind === 'scene-marker' ||
+          (contextMenu.kind === 'keyframe' && selectedKeyframes.some(s =>
+            s.track === contextMenu.trackId && Math.abs(s.time - contextMenu.time) < 0.01
+          ));
         return (
           <ContextMenu
             x={contextMenu.x}
             y={contextMenu.y}
+            mode={contextMenu.kind}
             hasClipboard={!!clipboard}
-            hasKeyframe={hasKeyframe}
-            onCopy={copyKeyframe}
-            onCut={cutKeyframe}
-            onPaste={pasteKeyframe}
-            onDelete={deleteKeyframe}
+            hasItem={hasItem}
+            onCopy={copyAction}
+            onCut={cutAction}
+            onPaste={pasteAction}
+            onDelete={deleteAction}
+            onCreateSceneMarker={createSceneMarkerAction}
             onClose={() => setContextMenu(null)}
           />
         );

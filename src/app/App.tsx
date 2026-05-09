@@ -14,8 +14,8 @@ export type SceneMarker = { time: number; label: string };
 type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]>; sceneMarkers: SceneMarker[] };
 
 const EMPTY_PHYSICS_KFS = { 'phys-rep': [] as PhysicsKeyframe[], 'phys-spk': [] as PhysicsKeyframe[], 'phys-dmp': [] as PhysicsKeyframe[] };
-const DEFAULT_INSPECTOR_WIDTH = 300;
-const DEFAULT_TIMELINE_HEIGHT = 280;
+const DEFAULT_INSPECTOR_WIDTH = 360;
+const DEFAULT_TIMELINE_HEIGHT = 320;
 const PHYS_TRACK_PARAM: Record<string, string> = { 'phys-rep': 'repulsion', 'phys-spk': 'springK', 'phys-dmp': 'damping' };
 
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
@@ -506,7 +506,7 @@ export default function App() {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = inspectorWidth;
-    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(180, Math.min(520, startWidth + ev.clientX - startX)));
+    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(DEFAULT_INSPECTOR_WIDTH, Math.min(520, startWidth + ev.clientX - startX)));
     const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -543,7 +543,7 @@ export default function App() {
   }, [inputText, viewMode, parseMode]);
 
   return (
-    <div className="size-full flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="app-shell size-full flex flex-col bg-background text-foreground overflow-hidden">
       <TopBar
         viewMode={viewMode} onViewModeChange={(mode) => {
           setViewMode(mode);

@@ -1,6 +1,22 @@
-/* Prevent text/element selection on click-drag across the UI */
-* { user-select: none; }
-input, textarea, [contenteditable] { user-select: text; }
+/*
+ * App selection policy:
+ * default to non-selectable UI chrome, and explicitly opt in only for editable text fields.
+ */
+.app-shell,
+.app-shell * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.app-shell input,
+.app-shell textarea,
+.app-shell [contenteditable="true"],
+.app-shell [data-allow-text-selection="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
 
 .zoom-slider {
   -webkit-appearance: none;
