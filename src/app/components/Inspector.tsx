@@ -6,7 +6,7 @@ import {
   ChevronRight, 
   Diamond, 
   Type, 
-  Layers, 
+  PaintRoller, 
   Zap, 
   RefreshCw,
   MoreHorizontal,
@@ -18,7 +18,12 @@ import {
   Video,
   Atom,
   Monitor,
-  Layout
+  Proportions,
+  Fullscreen,
+  MonitorPlay,
+  Tv,
+  Image,
+  FileText
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -144,10 +149,10 @@ export function Inspector({
             <PanelRight size={18} />
           </button>
           <SidebarTab id="content" icon={Type} label="Inhalt" />
-          <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
+          <SidebarTab id="visual" icon={PaintRoller} label="Visualisierung" />
           <SidebarTab id="physics" icon={Atom} label="Physik" />
           <SidebarTab id="camera" icon={Video} label="Kamera" />
-          <SidebarTab id="canvas" icon={Monitor} label="Canvas" />
+          <SidebarTab id="canvas" icon={Proportions} label="Canvas" />
         </div>
       </div>
     );
@@ -167,10 +172,10 @@ export function Inspector({
             <PanelRightClose size={18} />
           </button>
           <SidebarTab id="content" icon={Type} label="Inhalt" />
-          <SidebarTab id="visual" icon={Layers} label="Visualisierung" />
+          <SidebarTab id="visual" icon={PaintRoller} label="Visualisierung" />
           <SidebarTab id="physics" icon={Atom} label="Physik" />
           <SidebarTab id="camera" icon={Video} label="Kamera" />
-          <SidebarTab id="canvas" icon={Monitor} label="Canvas" />
+          <SidebarTab id="canvas" icon={Proportions} label="Canvas" />
         </div>
 
         {/* Content Area */}
@@ -518,7 +523,6 @@ export function Inspector({
               <div className="p-4 space-y-6">
                 <div>
                   <h3 className="text-[11px] font-semibold text-zinc-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Layout className="w-3.5 h-3.5 text-blue-500" />
                     Canvas Layout
                   </h3>
                   
@@ -531,12 +535,14 @@ export function Inspector({
                         className="grid grid-cols-2 gap-2"
                       >
                         {[
-                          { id: 'full', label: 'Full Screen' },
-                          { id: '16:9', label: '16:9 Cinema' },
-                          { id: '4:3', label: '4:3 Standard' },
-                          { id: '3:2', label: '3:2 Classic' },
-                          { id: 'din', label: 'DIN Landscape' },
-                        ].map((ratio) => (
+                          { id: 'full', label: 'Full Screen', icon: Fullscreen },
+                          { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
+                          { id: '4:3', label: '4:3 Standard', icon: Tv },
+                          { id: '3:2', label: '3:2 Classic', icon: Image },
+                          { id: 'din', label: 'DIN Landscape', icon: FileText },
+                        ].map((ratio) => {
+                          const IconComponent = ratio.icon;
+                          return (
                           <div key={ratio.id}>
                             <RadioGroupItem
                               value={ratio.id}
@@ -547,10 +553,14 @@ export function Inspector({
                               htmlFor={`ratio-${ratio.id}`}
                               className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50/50 cursor-pointer transition-all"
                             >
+                              <span className="mb-1 flex h-4 items-center justify-center">
+                                <IconComponent size={16} className="text-zinc-600" />
+                              </span>
                               <span className="text-[10px] font-medium">{ratio.label}</span>
                             </label>
                           </div>
-                        ))}
+                        );
+                        })}
                       </RadioGroup>
                     </div>
                   </div>

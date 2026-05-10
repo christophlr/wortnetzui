@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { MousePointer2, Hand, Paintbrush, Search } from 'lucide-react';
+import { MousePointer2, Hand, Paintbrush, View } from 'lucide-react';
 import { cn } from './ui/utils';
 
 export type ToolId = 'pointer' | 'pan' | 'paint' | 'zoom';
@@ -70,7 +70,7 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
         id="zoom" 
         activeTool={activeTool} 
         onToolChange={onToolChange} 
-        icon={Search} 
+        icon={View} 
         label="Zoom (Z)" 
       />
     </div>

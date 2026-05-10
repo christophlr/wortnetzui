@@ -1,6 +1,6 @@
 import {
   Settings, Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
-  Square, Cuboid, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw,
+  Square, Box, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw,
   PanelRight, PanelRightClose, Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
@@ -156,7 +156,7 @@ export function TopBar({
             <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
           <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-zinc-200 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
-            <Cuboid size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
+            <Box size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
         </ToggleGroup>
 

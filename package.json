@@ -1,7 +1,11 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.73",
+<<<<<<< HEAD
+  "version": "0.64",
+=======
+  "version": "0.75",
+>>>>>>> 14be248b06239d3cb71141d08898231ed0a70048
   "type": "module",
   "scripts": {
     "predev": "node ./scripts/sync-version.mjs",

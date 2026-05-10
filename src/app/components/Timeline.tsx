@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Eye, Lock, ChevronRight, Diamond, Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Bookmark } from 'lucide-react';
+import { View, Lock, ChevronRight, Diamond, Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Bookmark } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from './ui/button';
 import { TIMELINE_DURATION } from '../constants';
@@ -805,7 +805,7 @@ function TrackGroup({
           <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
           <span className="text-[11px] font-medium text-foreground flex-1 truncate">{group.name}</span>
           <button className="opacity-0 hover:opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline-none" onClick={e => e.stopPropagation()}>
-            <Eye size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
+            <View size={11} className="text-muted-foreground/60 hover:text-muted-foreground" />
           </button>
           <button className="rounded p-0.5 transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none" onClick={e => e.stopPropagation()}>
             <Lock size={11} className="text-muted-foreground/40 hover:text-muted-foreground/60" />
@@ -1227,9 +1227,7 @@ export function Timeline({
                 : ''
               }`}
           >
-            <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" className="size-2.5 shrink-0">
-              <path d="M5 0 L10 5 L5 10 L0 5 Z" />
-            </svg>
+            <Diamond size={10} strokeWidth={2} fill="currentColor" className="size-2.5 shrink-0" />
             {hasKfAtPlayhead ? 'Update' : 'Keyframe'}
             {selCount > 1 && (
               <span className="ml-0.5 text-[9px] opacity-75 font-normal tabular-nums">({selCount})</span>

@@ -38,6 +38,8 @@ interface PreviewProps {
   initProgress?: number;
   activeTool?: any;
   onToolChange?: (tool: any) => void;
+  overlayTopOffset?: number;
+  overlayBottomOffset?: number;
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -64,6 +66,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   initProgress,
   activeTool,
   onToolChange,
+  overlayTopOffset = 0,
+  overlayBottomOffset = 0,
 }: PreviewProps, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -160,7 +164,10 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             
             {/* Toolbar - Centered to Artboard */}
             {activeTool && onToolChange && (
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
+              <div
+                className="absolute left-4 z-50 flex items-center pointer-events-none"
+                style={{ top: overlayTopOffset, bottom: overlayBottomOffset }}
+              >
                 <Toolbar 
                   activeTool={activeTool} 
                   onToolChange={onToolChange} 

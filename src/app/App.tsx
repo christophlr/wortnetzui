@@ -114,6 +114,7 @@ export default function App() {
   const [initProgress, setInitProgress] = useState(0);
   const [canvasAspectRatio, setCanvasAspectRatio] = useState<string>('full');
   const [activeTool, setActiveTool] = useState<ToolId>('pointer');
+  const [overlayBandOffsets, setOverlayBandOffsets] = useState({ top: 0, bottom: 0 });
 
   useEffect(() => {
     if (!isNetworkReady) {
@@ -206,6 +207,29 @@ export default function App() {
 
   const animationRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(0);
+  const topBarContainerRef = useRef<HTMLDivElement | null>(null);
+  const timelineContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const top = topBarContainerRef.current?.getBoundingClientRect().height ?? 0;
+      const bottom = timelineContainerRef.current?.getBoundingClientRect().height ?? 0;
+      setOverlayBandOffsets(prev => (
+        prev.top === top && prev.bottom === bottom ? prev : { top, bottom }
+      ));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (topBarContainerRef.current) ro.observe(topBarContainerRef.current);
+    if (timelineContainerRef.current) ro.observe(timelineContainerRef.current);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [timelineHeight]);
 
   const handleSave = useCallback(() => {
     const state = { inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
@@ -925,11 +949,13 @@ export default function App() {
               canvasAspectRatio={canvasAspectRatio}
               initProgress={initProgress}
               activeTool={activeTool} onToolChange={setActiveTool}
+              overlayTopOffset={overlayBandOffsets.top}
+              overlayBottomOffset={overlayBandOffsets.bottom}
             />
           </div>
 
           {/* Floating TopBar - now constrained to viewport */}
-          <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
+          <div ref={topBarContainerRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
             <TopBar
               viewMode={viewMode} onViewModeChange={(mode) => {
                 setViewMode(mode);
@@ -958,7 +984,7 @@ export default function App() {
           />
 
           {/* Floating Timeline - stays absolute to viewport bottom */}
-          <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
+          <div ref={timelineContainerRef} className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
             <div 
               className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
               onMouseDown={startTimelineResize}
