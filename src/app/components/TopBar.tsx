@@ -123,7 +123,7 @@ export function TopBar({
                   <MenubarLabel>Modus</MenubarLabel>
                   <MenubarItem onSelect={() => onRenderModeChange?.(renderMode === 'edit' ? 'render' : 'edit')}>
                     <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-blue-600' : 'text-muted-foreground'} />
-                    Preview Modus
+                    Preview
                     <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
