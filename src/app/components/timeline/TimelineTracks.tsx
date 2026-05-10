@@ -1,0 +1,314 @@
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { ChevronRight, View, Lock, Bookmark, LineChart } from 'lucide-react';
+import { usePointerDrag } from './usePointerDrag';
+import { KeyframeIcon } from './KeyframeIcon';
+import {
+  LABEL_W, TRACK_H, MINI_CURVE_H,
+  COLOR, inferEasingType,
+  type ViewWindow, type PhysicsKeyframe, type SceneMarker,
+} from './types';
+import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+
+/* ── Scene Marker Lane ── */
+
+export function SceneMarkerLane({
+  markers, viewWindow, selectedKeyframes,
+  onAddMarker, onDropMarker, onDeleteMarker,
+  onSelect, onContextMenu, timeFromClientX, contentRef,
+}: {
+  markers: SceneMarker[];
+  viewWindow: ViewWindow;
+  selectedKeyframes?: { track: string; time: number }[];
+  onAddMarker?: (time: number) => void;
+  onDropMarker?: (fromTime: number, toTime: number) => void;
+  onDeleteMarker?: (time: number) => void;
+  onSelect?: (track: string, time: number, additive: boolean) => void;
+  onContextMenu?: (time: number, label: string) => void;
+  timeFromClientX: (clientX: number, el: HTMLElement | null) => number | null;
+  contentRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const visibleDuration = viewWindow.end - viewWindow.start;
+  const [draggingMarker, setDraggingMarker] = useState<{ origTime: number; currentTime: number } | null>(null);
+
+  const handleMarkerMouseDown = (e: React.MouseEvent, marker: SceneMarker) => {
+    e.stopPropagation();
+    onSelect?.('scene-markers', marker.time, e.shiftKey || e.metaKey);
+    // Start manual drag
+    const origTime = marker.time;
+    setDraggingMarker({ origTime, currentTime: origTime });
+
+    const onMove = (ev: MouseEvent) => {
+      const t = timeFromClientX(ev.clientX, contentRef.current);
+      if (t !== null) {
+        setDraggingMarker(prev => prev ? { ...prev, currentTime: t } : null);
+      }
+    };
+    const onUp = () => {
+      setDraggingMarker(prev => {
+        if (prev && Math.abs(prev.currentTime - origTime) > 0.001) {
+          onDropMarker?.(origTime, prev.currentTime);
+        }
+        return null;
+      });
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const t = timeFromClientX(e.clientX, contentRef.current);
+    if (t !== null) onAddMarker?.(t);
+  };
+
+  return (
+    <div className="flex sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: TRACK_H }}>
+      {/* Label */}
+      <div className="shrink-0 flex items-center gap-1.5 px-2 border-r border-border" style={{ width: LABEL_W }}>
+        <Bookmark className="w-3 h-3 text-purple-400" fill="currentColor" />
+        <span className="text-xs text-muted-foreground font-medium truncate">Scene Markers</span>
+      </div>
+      {/* Track area */}
+      <div className="flex-1 relative" onDoubleClick={handleDoubleClick}>
+        {markers.map(marker => {
+          const displayTime = draggingMarker?.origTime === marker.time
+            ? draggingMarker.currentTime
+            : marker.time;
+          const pct = ((displayTime - viewWindow.start) / visibleDuration) * 100;
+          if (pct < -5 || pct > 105) return null;
+          const isSelected = selectedKeyframes?.some(s => s.track === 'scene-markers' && Math.abs(s.time - marker.time) < 0.01);
+
+          return (
+            <button
+              key={marker.time}
+              className={`absolute top-1/2 flex items-center gap-0.5 group cursor-grab active:cursor-grabbing ${
+                isSelected ? 'z-10' : ''
+              }`}
+              style={{ left: `${pct}%`, transform: 'translate(-6px, -50%)' }}
+              onMouseDown={(e) => handleMarkerMouseDown(e, marker)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onContextMenu?.(marker.time, marker.label);
+              }}
+            >
+              {/* Pentagon marker shape */}
+              <svg width="12" height="14" viewBox="0 0 12 14" className="shrink-0">
+                <path
+                  d="M 1 1 L 11 1 L 11 9 L 6 13 L 1 9 Z"
+                  fill={isSelected ? '#a855f7' : '#7c3aed'}
+                  stroke={isSelected ? '#2563eb' : '#7c3aed'}
+                  strokeWidth={isSelected ? 2 : 1}
+                />
+              </svg>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Track Row (single keyframe lane) ── */
+
+export function TrackRow({
+  trackId, name, color, keyframeData, viewWindow,
+  selectedKeyframes, showMiniCurve,
+  onSelect, onMoveKeyframe, onContextMenu,
+  onDragStart, onDragEnd,
+  timeFromClientX, contentRef,
+}: {
+  trackId: string;
+  name: string;
+  color: 'cyan' | 'orange';
+  keyframeData: Array<{ time: number; value?: number; handleIn?: number; handleOut?: number; handleInTime?: number; handleOutTime?: number; mode?: 'aligned' | 'broken' }>;
+  viewWindow: ViewWindow;
+  selectedKeyframes?: { track: string; time: number }[];
+  showMiniCurve?: boolean;
+  onSelect?: (track: string, time: number, additive: boolean) => void;
+  onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
+  onContextMenu?: (trackId: string, time: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  timeFromClientX: (clientX: number, el: HTMLElement | null) => number | null;
+  contentRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const visibleDuration = viewWindow.end - viewWindow.start;
+  const colorMap = COLOR[color];
+  const keyframes = useMemo(() => [...keyframeData].sort((a, b) => a.time - b.time), [keyframeData]);
+
+  // Mini-curve data for dopesheet mode (physics tracks only)
+  const miniCurvePath = useMemo(() => {
+    if (!showMiniCurve || keyframes.length < 2 || keyframes[0].value === undefined) return '';
+    const minVal = Math.min(...keyframes.map(k => k.value!));
+    const maxVal = Math.max(...keyframes.map(k => k.value!));
+    const range = maxVal === minVal ? 1 : maxVal - minVal;
+    const getNormY = (v: number) => MINI_CURVE_H - ((v - minVal) / range) * MINI_CURVE_H * 0.8 - MINI_CURVE_H * 0.1;
+
+    let d = '';
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      const a = keyframes[i];
+      const b = keyframes[i + 1];
+      const leftPct = ((a.time - viewWindow.start) / visibleDuration) * 100;
+      const rightPct = ((b.time - viewWindow.start) / visibleDuration) * 100;
+      if (rightPct <= 0 || leftPct >= 100) continue;
+
+      const segDur = b.time - a.time;
+      const tPrev = i > 0 ? keyframes[i - 1].time : null;
+      const vPrev = i > 0 ? keyframes[i - 1].value! : null;
+      const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
+      const vNext = i + 2 < keyframes.length ? keyframes[i + 2].value! : null;
+
+      const m0 = a.handleOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, a.value!, b.time, b.value!));
+      const m1 = b.handleIn ?? (tNext === null ? 0 : computeCatmullRomTangent(a.time, a.value!, b.time, b.value!, tNext, vNext));
+
+      const pts: string[] = [];
+      const steps = 20;
+      for (let j = 0; j <= steps; j++) {
+        const tRaw = j / steps;
+        const val = evaluateHermite(tRaw, a.value!, m0, b.value!, m1, segDur);
+        const tWorld = a.time + tRaw * segDur;
+        const xPct = ((tWorld - viewWindow.start) / visibleDuration) * 100;
+        pts.push(`${xPct},${getNormY(val)}`);
+      }
+      if (d === '') d += `M ${pts[0]} `;
+      for (let j = 1; j < pts.length; j++) d += `L ${pts[j]} `;
+    }
+    return d;
+  }, [keyframes, viewWindow, visibleDuration, showMiniCurve]);
+
+  // Drag state for keyframe movement
+  const handleKfMouseDown = (e: React.MouseEvent, kfTime: number) => {
+    e.stopPropagation();
+    if (e.button === 2) return; // right-click handled by context menu
+    onSelect?.(trackId, kfTime, e.shiftKey || e.metaKey);
+    onDragStart?.();
+
+    let currentTime = kfTime;
+
+    const onMove = (ev: MouseEvent) => {
+      const t = timeFromClientX(ev.clientX, contentRef.current);
+      if (t !== null && Math.abs(t - currentTime) > 0.001) {
+        onMoveKeyframe?.(trackId, currentTime, t);
+        currentTime = t;
+      }
+    };
+    const onUp = () => {
+      onDragEnd?.();
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  return (
+    <div className={`flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
+      {/* Label */}
+      <div className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background" style={{ width: LABEL_W }}>
+        <span className="text-[11px] text-muted-foreground truncate">{name}</span>
+      </div>
+      {/* Track area */}
+      <div className={`flex-1 relative ${colorMap.trackBg}`}>
+        {/* Mini-curve (Ableton-style faint curve in dopesheet mode) */}
+        {showMiniCurve && miniCurvePath && (
+          <svg
+            className="absolute inset-0 w-full pointer-events-none"
+            style={{ height: MINI_CURVE_H, top: (TRACK_H - MINI_CURVE_H) / 2 }}
+            preserveAspectRatio="none"
+          >
+            <path d={miniCurvePath} fill="none" stroke={colorMap.miniCurve} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+          </svg>
+        )}
+
+        {/* Keyframe diamonds */}
+        {keyframes.map((kf, i) => {
+          const pct = ((kf.time - viewWindow.start) / visibleDuration) * 100;
+          if (pct < -3 || pct > 103) return null;
+          const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
+          const prevKf = i > 0 ? keyframes[i - 1] : null;
+          const nextKf = i + 1 < keyframes.length ? keyframes[i + 1] : null;
+          const easingType = inferEasingType(kf, prevKf, nextKf, kf.value);
+
+          return (
+            <button
+              key={kf.time}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-10 hover:scale-125 transition-transform"
+              style={{
+                left: `${pct}%`,
+                filter: isSelected ? 'drop-shadow(0 0 6px rgba(37, 99, 235, 0.6))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+              }}
+              onMouseDown={(e) => handleKfMouseDown(e, kf.time)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onContextMenu?.(trackId, kf.time);
+              }}
+            >
+              <KeyframeIcon
+                type={easingType}
+                size={10}
+                fill={isSelected ? '#3b82f6' : colorMap.kfFill}
+                stroke={isSelected ? '#2563eb' : colorMap.kfFill}
+                selected={isSelected}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Track Group (collapsible header + children) ── */
+
+export function TrackGroup({
+  id, name, color, children,
+  defaultExpanded = true,
+  isGraphEditorVisible,
+  onToggleGraphEditor,
+}: {
+  id: string;
+  name: string;
+  color: 'cyan' | 'orange';
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+  isGraphEditorVisible?: boolean;
+  onToggleGraphEditor?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const colorMap = COLOR[color];
+
+  return (
+    <div>
+      {/* Group header */}
+      <div
+        className={`group flex items-center border-b border-border bg-background cursor-pointer select-none ${colorMap.border} border-l-2`}
+        style={{ height: TRACK_H }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="shrink-0 flex items-center gap-1.5 px-2" style={{ width: LABEL_W }}>
+          <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          <div className={`w-2 h-2 rounded-full ${colorMap.dot}`} />
+          <span className="text-xs font-medium text-foreground flex-1 truncate">{name}</span>
+          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Lock className="w-3 h-3 text-muted-foreground opacity-50" />
+            {onToggleGraphEditor && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
+                className={`flex items-center justify-center rounded-sm transition-colors ${isGraphEditorVisible ? 'text-blue-400 bg-blue-500/10' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Toggle Graph Editor"
+              >
+                <LineChart className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex-1 border-r-0" />
+      </div>
+      {/* Children (track rows) */}
+      {expanded && children}
+    </div>
+  );
+}

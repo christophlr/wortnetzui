@@ -23,7 +23,8 @@ import {
   MonitorPlay,
   Tv,
   Image,
-  FileText
+  FileText,
+  Move
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -59,6 +60,7 @@ interface InspectorProps {
   onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
   onGradientChange: (gs: any) => void;
   onStyleChange: (s: any) => void;
+  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   onNodeAppearanceChange: (na: NodeAppearanceSettings) => void;
   onEdgeAppearanceChange: (ea: any) => void;
   nodeAppearance: NodeAppearanceSettings;
@@ -80,6 +82,8 @@ interface InspectorProps {
   onResetView: () => void;
   canvasAspectRatio?: string;
   onCanvasAspectRatioChange?: (v: string) => void;
+  onZoomChange: (v: number) => void;
+  zoomValue: number;
 }
 
 export function Inspector({
@@ -88,14 +92,17 @@ export function Inspector({
   nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
   width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
-  onPanView, onRotateView, onSetRotation, onResetView
+  onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
+  onZoomChange, zoomValue
 }: InspectorProps) {
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
-  const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
   const [puckPos, setPuckPos] = useState({ x: 0, y: 0 });
   const [isDraggingPuck, setIsDraggingPuck] = useState(false);
-  const lastPanRef = useRef({ x: 0, y: 0 });
+  const [panPuckPos, setPanPuckPos] = useState({ x: 0, y: 0 });
+  const [isDraggingPanPuck, setIsDraggingPanPuck] = useState(false);
+  const [zoomPuckPos, setZoomPuckPos] = useState({ x: 0, y: 0 });
+  const [isDraggingZoomPuck, setIsDraggingZoomPuck] = useState(false);
 
   // Sync local text with default input text on load
   useEffect(() => {
@@ -107,7 +114,7 @@ export function Inspector({
   // Sync physics keyframe states
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
-    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-min', 'phys-lnk', 'phys-grv', 'phys-trb'];
+    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-min', 'phys-lnk', 'phys-grv', 'phys-trb', 'phys-vto', 'phys-pls'];
     tracks.forEach(trackId => {
       result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
     });
@@ -139,8 +146,8 @@ export function Inspector({
 
   if (!isSidebarOpen) {
     return (
-      <div className="flex h-full w-12 bg-zinc-50 border border-zinc-200 shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
-        <div className="w-full flex flex-col items-center py-4 gap-2 bg-zinc-100/50">
+      <div className="flex h-full w-12 bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
+        <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
           <button 
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
@@ -160,10 +167,10 @@ export function Inspector({
 
   return (
     <SidebarProvider className="h-full w-full">
-      <div className="flex h-full w-full bg-zinc-50 border border-zinc-200 shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
+      <div className="flex h-full w-full bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
         
         {/* VS Code Style Activity Bar (Icons) */}
-        <div className="w-11 border-r border-zinc-200/60 bg-zinc-100/50 flex flex-col items-center py-4 gap-2">
+        <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
           <button 
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
@@ -180,7 +187,7 @@ export function Inspector({
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <SidebarHeader className="p-4 pb-2 border-b border-zinc-200/50 flex flex-row items-center justify-between">
+          <SidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
             <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
               {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : activeTab === 'camera' ? 'Kamera Steuerung' : 'Canvas Layout'}
             </h2>
@@ -195,7 +202,7 @@ export function Inspector({
             {activeTab === 'content' && (
               <div>
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Input Text</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Eingabetext</SidebarGroupLabel>
                   <SidebarGroupContent className="space-y-4 pt-1">
                     <Textarea 
                       className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans" 
@@ -216,7 +223,7 @@ export function Inspector({
                 <Separator className="bg-zinc-200/60 mx-4" />
 
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Parsing / Zerteilung</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Analyse / Zerteilung</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-2">
                     <RadioGroup defaultValue="word" onValueChange={(v) => onParsingChange(v as any)} className="gap-4">
                       {[
@@ -258,40 +265,109 @@ export function Inspector({
                 <Separator className="bg-zinc-200/60 mx-4" />
 
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Node Appearance</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Element-Darstellung</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-5 px-1">
+
+                    {/* Node Shape */}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-medium text-zinc-600">Form</span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { value: 'rectangle' as NodeShape, label: 'Rect' },
+                          { value: 'rounded-rectangle' as NodeShape, label: 'Rund' },
+                          { value: 'ellipse' as NodeShape, label: 'Ellipse' },
+                        ].map(shape => (
+                          <button
+                            key={shape.value}
+                            onClick={() => onStyleChange({ nodeShape: shape.value })}
+                            className={cn(
+                              "h-7 text-[10px] rounded-md border transition-colors",
+                              (styleSettings.nodeShape ?? 'rectangle') === shape.value
+                                ? "border-blue-500 bg-blue-50/50 text-blue-700 font-medium"
+                                : "border-zinc-200 bg-zinc-50/50 text-zinc-500 hover:bg-zinc-100"
+                            )}
+                          >
+                            {shape.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Node Scale */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Skalierung</span>
-                        <span className="text-[10px] font-mono text-zinc-400">1.0x</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{((styleSettings.nodeScale ?? 1)).toFixed(1)}x</span>
                       </div>
                       <Slider 
-                        value={[nodeAppearance.nodeScale ?? 100]} 
+                        value={[styleSettings.nodeScale * 100 ?? 100]} 
                         max={250} 
                         step={5} 
-                        onValueChange={([val]) => onNodeAppearanceChange({ ...nodeAppearance, nodeScale: val })}
+                        onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
                       />
                     </div>
 
+                    {/* Border Width */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Randbreite</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{(styleSettings.nodeBorderWidth ?? 2)}px</span>
+                      </div>
+                      <Slider 
+                        value={[styleSettings.nodeBorderWidth ?? 2]} 
+                        min={0}
+                        max={8} 
+                        step={0.5} 
+                        onValueChange={([val]) => onStyleChange({ nodeBorderWidth: val })}
+                      />
+                    </div>
+
+                    {/* Edge Opacity */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-medium text-zinc-600">Kanten Deckkraft</span>
-                        <span className="text-[10px] font-mono text-zinc-400">35%</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{Math.round(styleSettings.edgeOpacity * 100)}%</span>
                       </div>
                       <Slider 
-                        value={[(styleSettings as any)?.edgeOpacity * 100 || 35]} 
+                        value={[styleSettings.edgeOpacity * 100]} 
                         max={100} 
                         step={1} 
                         onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
                       />
                     </div>
+
+                    {/* Depth Size */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-600">Tiefenskalierung</span>
+                        <Switch
+                          checked={styleSettings.depthSizeEnabled ?? false}
+                          onCheckedChange={(v) => onStyleChange({ depthSizeEnabled: v })}
+                        />
+                      </div>
+                      {styleSettings.depthSizeEnabled && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-zinc-500">Stärke</span>
+                            <span className="text-[10px] font-mono text-zinc-400">{styleSettings.depthSizeStrength ?? 50}%</span>
+                          </div>
+                          <Slider 
+                            value={[styleSettings.depthSizeStrength ?? 50]} 
+                            max={100} 
+                            step={1} 
+                            onValueChange={([val]) => onStyleChange({ depthSizeStrength: val })}
+                          />
+                        </>
+                      )}
+                    </div>
+
                   </SidebarGroupContent>
                 </SidebarGroup>
 
                 <Separator className="bg-zinc-200/60 mx-4" />
 
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Gradients</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Farbverläufe</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-2 grid grid-cols-2 gap-2">
                     {GRADIENT_PRESETS.map((p) => (
                       <button
@@ -312,21 +388,25 @@ export function Inspector({
             {activeTab === 'physics' && (
               <div>
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Engine Control</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Physik-Steuerung</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-8 px-1">
                     {[
-                      { id: 'phys-rep', label: 'Repulsion (Abstoßung)', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000, step: 10, key: 'repulsion' },
-                      { id: 'phys-spk', label: 'Federkonstante', value: effectivePhysicsParams?.springK ?? 0.06, max: 0.5, step: 0.005, key: 'springK' },
-                      { id: 'phys-dmp', label: 'Dämpfung', value: effectivePhysicsParams?.damping ?? 0.88, max: 1, step: 0.01, key: 'damping' },
-                      { id: 'phys-min', label: 'Min. Geschwindigkeit', value: effectivePhysicsParams?.minSpeed ?? 0.5, max: 2, step: 0.05, key: 'minSpeed' },
-                      { id: 'phys-lnk', label: 'Kantenlänge', value: effectivePhysicsParams?.linkDistance ?? 80, max: 500, step: 1, key: 'linkDistance' },
-                      { id: 'phys-grv', label: 'Schwerkraft', value: effectivePhysicsParams?.gravity ?? 0, min: -5, max: 10, step: 0.1, key: 'gravity' },
-                      { id: 'phys-trb', label: 'Turbulenz', value: effectivePhysicsParams?.turbulence ?? 0, max: 10, step: 0.1, key: 'turbulence' },
+                      { id: 'phys-rep', label: 'Streuung (Abstoßung)', desc: 'Wie stark Elemente sich gegenseitig verdrängen.', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000, step: 10, key: 'repulsion' },
+                      { id: 'phys-spk', label: 'Spannung (Tension)', desc: 'Wie straff Verbindungen die Elemente zusammenziehen. Höher = snappier.', value: effectivePhysicsParams?.springK ?? 0.2, max: 0.8, step: 0.01, key: 'springK' },
+                      { id: 'phys-dmp', label: 'Reibung (Friction)', desc: 'Wie schnell Bewegungen abbremsen. Niedriger = bouncier.', value: effectivePhysicsParams?.damping ?? 0.85, max: 1, step: 0.01, key: 'damping' },
+                      { id: 'phys-lnk', label: 'Abstand (Distance)', desc: 'Die gewünschte Grundlänge aller Verbindungen.', value: effectivePhysicsParams?.linkDistance ?? 80, max: 500, step: 1, key: 'linkDistance' },
+                      { id: 'phys-grv', label: 'Schwerkraft (Gravity)', desc: 'Zieht alle Elemente zur Mitte des Canvas.', value: effectivePhysicsParams?.gravity ?? 0, min: -5, max: 10, step: 0.1, key: 'gravity' },
+                      { id: 'phys-trb', label: 'Bewegung (Wobble)', desc: 'Erzeugt eine stetige, organische Unruhe.', value: effectivePhysicsParams?.turbulence ?? 0, max: 10, step: 0.1, key: 'turbulence' },
+                      { id: 'phys-vto', label: 'Vertikale Ordnung', desc: 'Sortiert Knoten nach Textlänge (kurz oben, lang unten).', value: effectivePhysicsParams?.verticalOrder ?? 0, max: 10, step: 0.1, key: 'verticalOrder' },
+                      { id: 'phys-pls', label: 'Lebendigkeit (Pulse)', desc: 'Organisches Atmen der Knotenabstände.', value: effectivePhysicsParams?.pulse ?? 0, max: 1, step: 0.01, key: 'pulse' },
                     ].map((p) => (
                       <div key={p.id} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-medium text-zinc-600">{p.label}</span>
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-zinc-700">{p.label}</span>
+                            <span className="text-[9px] text-zinc-400 mt-0.5 leading-tight pr-2">{p.desc}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-mono text-zinc-400">{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}</span>
                             <button 
                               onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
@@ -354,12 +434,16 @@ export function Inspector({
             {activeTab === 'camera' && (
               <div>
                 <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">View Positioning</SidebarGroupLabel>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Ansicht-Positionierung</SidebarGroupLabel>
                   <SidebarGroupContent className="pt-3 space-y-6 px-1">
                     
                     <div className="flex flex-col items-center gap-3">
                       <div 
-                        className="relative size-40 bg-zinc-200/50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
+                        className="relative w-full h-40 bg-zinc-50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
+                        onDoubleClick={() => {
+                          onResetView();
+                          setPuckPos({ x: 0, y: 0 });
+                        }}
                         onMouseDown={(e) => {
                           setIsDraggingPuck(true);
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -374,13 +458,13 @@ export function Inspector({
                             const relX = ev.clientX - centerX;
                             const relY = ev.clientY - centerY;
                             
-                            const limit = 60;
-                            const dist = Math.sqrt(relX * relX + relY * relY);
-                            if (dist > limit) {
-                              setPuckPos({ x: (relX / dist) * limit, y: (relY / dist) * limit });
-                            } else {
-                              setPuckPos({ x: relX, y: relY });
-                            }
+                            const limitX = rect.width / 2 - 24;
+                            const limitY = rect.height / 2 - 24;
+                            
+                            setPuckPos({ 
+                              x: Math.max(-limitX, Math.min(limitX, relX)), 
+                              y: Math.max(-limitY, Math.min(limitY, relY)) 
+                            });
                           };
                           const onUp = () => {
                             setIsDraggingPuck(false);
@@ -394,11 +478,17 @@ export function Inspector({
                           window.addEventListener('mouseup', onUp);
                         }}
                       >
+                        <div className="absolute inset-0 grid grid-cols-12 grid-rows-6 pointer-events-none opacity-[0.05]">
+                          {Array.from({ length: 72 }).map((_, i) => (
+                            <div key={i} className="border-[0.5px] border-zinc-900" />
+                          ))}
+                        </div>
+
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-full h-[1.5px] bg-zinc-300" />
-                          <div className="h-full w-[1.5px] bg-zinc-300" />
-                          <div className="absolute w-full h-[1px] bg-zinc-300/30 rotate-45" />
-                          <div className="absolute w-full h-[1px] bg-zinc-300/30 -rotate-45" />
+                          <div className="w-full h-[1px] bg-zinc-300" />
+                          <div className="h-full w-[1px] bg-zinc-300" />
+                          <div className="absolute w-full h-[1px] bg-zinc-300/20 rotate-[31deg]" />
+                          <div className="absolute w-full h-[1px] bg-zinc-300/20 -rotate-[31deg]" />
                         </div>
 
                         <div className="absolute inset-0 p-4 flex flex-col justify-between items-center pointer-events-none">
@@ -457,50 +547,144 @@ export function Inspector({
                     </div>
 
                     <Separator className="bg-zinc-200/40" />
+
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Horizontaler Pan</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{localPan.x}</span>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-medium text-zinc-600">Ansicht verschieben (Pan)</span>
                       </div>
-                      <Slider 
-                        value={[localPan.x]} 
-                        min={-100} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => {
-                          const delta = val - lastPanRef.current.x;
-                          onPanView(delta * 40, 0);
-                          lastPanRef.current.x = val;
-                          setLocalPan(prev => ({ ...prev, x: val }));
-                        }}
-                        onPointerUp={() => {
-                          setLocalPan(prev => ({ ...prev, x: 0 }));
-                          lastPanRef.current.x = 0;
-                        }}
-                      />
+                      
+                      <div className="flex flex-col items-center gap-2">
+                        <div 
+                          className="relative w-full h-32 bg-zinc-50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
+                          onDoubleClick={() => {
+                            onResetView();
+                            setPanPuckPos({ x: 0, y: 0 });
+                          }}
+                          onMouseDown={(e) => {
+                            setIsDraggingPanPuck(true);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const centerX = rect.left + rect.width / 2;
+                            const centerY = rect.top + rect.height / 2;
+
+                            const onMove = (ev: MouseEvent) => {
+                              const scale = 5;
+                              onPanView(ev.movementX * scale, -ev.movementY * scale);
+
+                              const relX = ev.clientX - centerX;
+                              const relY = ev.clientY - centerY;
+                              
+                              const limitX = rect.width / 2 - 16;
+                              const limitY = rect.height / 2 - 16;
+                              
+                              setPanPuckPos({ 
+                                x: Math.max(-limitX, Math.min(limitX, relX)), 
+                                y: Math.max(-limitY, Math.min(limitY, relY)) 
+                              });
+                            };
+                            const onUp = () => {
+                              setIsDraggingPanPuck(false);
+                              setPanPuckPos({ x: 0, y: 0 });
+                              document.body.style.cursor = 'default';
+                              window.removeEventListener('mousemove', onMove);
+                              window.removeEventListener('mouseup', onUp);
+                            };
+                            document.body.style.cursor = 'grabbing';
+                            window.addEventListener('mousemove', onMove);
+                            window.addEventListener('mouseup', onUp);
+                          }}
+                        >
+                          {/* Grid Background */}
+                          <div className="absolute inset-0 grid grid-cols-8 grid-rows-3 pointer-events-none opacity-[0.05]">
+                            {Array.from({ length: 24 }).map((_, i) => (
+                              <div key={i} className="border-[0.5px] border-zinc-900" />
+                            ))}
+                          </div>
+                          
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-full h-[1px] bg-zinc-300" />
+                            <div className="h-full w-[1px] bg-zinc-300" />
+                          </div>
+
+                          <div 
+                            className={cn(
+                              "size-8 rounded-lg bg-white border border-zinc-300 shadow-sm flex items-center justify-center text-zinc-400 z-10 transition-colors",
+                              isDraggingPanPuck ? "border-blue-500 text-blue-500 shadow-md" : "group-hover:border-zinc-400",
+                              !isDraggingPanPuck && "transition-transform duration-300 ease-out"
+                            )}
+                            style={{ 
+                              transform: `translate(${panPuckPos.x}px, ${panPuckPos.y}px)` 
+                            }}
+                          >
+                            <Move size={14} />
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-zinc-400 italic">Ziehen zum Verschieben</span>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Vertikaler Pan</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{localPan.y}</span>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-medium text-zinc-600">Zoom</span>
+                        <span className="text-[10px] font-mono text-zinc-400">{zoomValue.toFixed(1)}%</span>
                       </div>
-                      <Slider 
-                        value={[localPan.y]} 
-                        min={-100} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => {
-                          const delta = val - lastPanRef.current.y;
-                          onPanView(0, delta * 40);
-                          lastPanRef.current.y = val;
-                          setLocalPan(prev => ({ ...prev, y: val }));
-                        }}
-                        onPointerUp={() => {
-                          setLocalPan(prev => ({ ...prev, y: 0 }));
-                          lastPanRef.current.y = 0;
-                        }}
-                      />
+                      
+                      <div className="relative h-6 flex items-center px-1 group">
+                        {/* Slider Track */}
+                        <div className="absolute inset-x-1 h-1.5 bg-zinc-200 rounded-full" />
+                        {/* Center Tick */}
+                        <div className="absolute left-1/2 -translate-x-1/2 w-0.5 h-3 bg-zinc-300 z-0" />
+                        
+                        {/* Draggable Handle */}
+                        <div 
+                          className={cn(
+                            "absolute size-4 rounded-full bg-white border border-zinc-300 shadow-sm z-10 cursor-grab active:cursor-grabbing hover:border-zinc-400 transition-colors flex items-center justify-center",
+                            isDraggingZoomPuck && "border-blue-500 shadow-md",
+                            !isDraggingZoomPuck && "transition-all duration-300 ease-out"
+                          )}
+                          style={{ 
+                            left: `calc(50% + ${zoomPuckPos.x}px)`,
+                            transform: 'translateX(-50%)'
+                          }}
+                          onMouseDown={(e) => {
+                            setIsDraggingZoomPuck(true);
+                            const startX = e.clientX;
+                            const startPuckX = zoomPuckPos.x;
+
+                            const onMove = (ev: MouseEvent) => {
+                              const dx = ev.clientX - startX;
+                              const newPuckX = startPuckX + dx;
+                              
+                              // Clamp handle movement to track
+                              const limit = 100; // Track half-width approx
+                              const clampedX = Math.max(-limit, Math.min(limit, newPuckX));
+                              setZoomPuckPos({ x: clampedX, y: 0 });
+
+                              // Relative zoom: displacement from center = speed/delta
+                              // We use a non-linear feel: further from center = faster zoom
+                              const scale = 0.05;
+                              const delta = clampedX * scale;
+                              onZoomChange(Math.max(0, Math.min(100, zoomValue + delta)));
+                            };
+                            const onUp = () => {
+                              setIsDraggingZoomPuck(false);
+                              setZoomPuckPos({ x: 0, y: 0 });
+                              document.body.style.cursor = 'default';
+                              window.removeEventListener('mousemove', onMove);
+                              window.removeEventListener('mouseup', onUp);
+                            };
+                            document.body.style.cursor = 'grabbing';
+                            window.addEventListener('mousemove', onMove);
+                            window.addEventListener('mouseup', onUp);
+                          }}
+                        >
+                          <div className="size-1 rounded-full bg-zinc-300" />
+                        </div>
+                      </div>
+                      <div className="flex justify-between px-1">
+                        <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">-</span>
+                        <span className="text-[9px] text-zinc-400 italic">Schieben zum Zoomen (Relativ)</span>
+                        <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">+</span>
+                      </div>
                     </div>
 
                     <Button 
@@ -508,8 +692,8 @@ export function Inspector({
                       className="w-full h-8 text-[11px] bg-white border-zinc-200 mt-4"
                       onClick={() => {
                         onResetView();
-                        setLocalPan({ x: 0, y: 0 });
-                        lastPanRef.current = { x: 0, y: 0 };
+                        setPanPuckPos({ x: 0, y: 0 });
+                        onZoomChange(50); // Default zoom on reset
                       }}
                     >
                       Kamera zurücksetzen
@@ -528,14 +712,14 @@ export function Inspector({
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="text-[11px] font-medium text-zinc-500 mb-3 block">Aspect Ratio</label>
+                      <label className="text-[11px] font-medium text-zinc-500 mb-3 block">Seitenverhältnis</label>
                       <RadioGroup 
                         value={canvasAspectRatio} 
                         onValueChange={onCanvasAspectRatioChange}
                         className="grid grid-cols-2 gap-2"
                       >
                         {[
-                          { id: 'full', label: 'Full Screen', icon: Fullscreen },
+                          { id: 'full', label: 'Vollbild', icon: Fullscreen },
                           { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
                           { id: '4:3', label: '4:3 Standard', icon: Tv },
                           { id: '3:2', label: '3:2 Classic', icon: Image },
@@ -568,7 +752,7 @@ export function Inspector({
 
                 <div className="pt-4 border-t border-zinc-100">
                   <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                    Note: Aspect ratio settings apply a letterbox effect to the viewport for controlled composition and framing.
+                    Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport an, um Komposition und Bildausschnitt zu steuern.
                   </p>
                 </div>
               </div>
@@ -578,7 +762,7 @@ export function Inspector({
           </SidebarContent>
 
           <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
-            <p className="text-[9px] text-zinc-400 font-medium tracking-wide uppercase">Workspace Properties</p>
+            <p className="text-[9px] text-zinc-400 font-medium tracking-wide uppercase">Workspace Eigenschaften</p>
             <p className="text-[9px] text-zinc-400 font-mono">v0.8.2</p>
           </div>
         </div>

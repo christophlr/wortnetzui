@@ -32,14 +32,18 @@ export interface PhysicsParams {
   linkDistance: number;
   gravity: number;
   turbulence: number;
+  verticalOrder: number;
+  pulse: number;
 }
 
 export const DEFAULT_PHYSICS: PhysicsParams = {
   repulsion: 1500,
-  springK: 0.06,
-  damping: 0.88,
+  springK: 0.2,
+  damping: 0.85,
   minSpeed: 0.5,
   linkDistance: 80,
   gravity: 0,
   turbulence: 0,
+  verticalOrder: 0,
+  pulse: 0,
 };

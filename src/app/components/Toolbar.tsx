@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { MousePointer2, Hand, Paintbrush, View } from 'lucide-react';
+import { MousePointer2, Hand, Paintbrush, View, Scale3D } from 'lucide-react';
 import { cn } from './ui/utils';
 
-export type ToolId = 'pointer' | 'pan' | 'paint' | 'zoom';
+export type ToolId = 'pointer' | 'pan' | 'paint' | 'zoom' | 'scale';
 
 interface ToolbarProps {
   activeTool: ToolId;
@@ -72,6 +72,13 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
         onToolChange={onToolChange} 
         icon={View} 
         label="Zoom (Z)" 
+      />
+      <ToolButton 
+        id="scale" 
+        activeTool={activeTool} 
+        onToolChange={onToolChange} 
+        icon={Scale3D} 
+        label="Scale (S)" 
       />
     </div>
   );

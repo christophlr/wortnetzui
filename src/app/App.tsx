@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { TopBar } from './components/TopBar';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
-import { Timeline } from './components/Timeline';
+import { Timeline } from './components/timeline/Timeline';
 import { Progress } from './components/ui/progress';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
@@ -45,7 +45,9 @@ const EMPTY_PHYSICS_KFS = {
   'phys-min': [] as PhysicsKeyframe[],
   'phys-lnk': [] as PhysicsKeyframe[],
   'phys-grv': [] as PhysicsKeyframe[],
-  'phys-trb': [] as PhysicsKeyframe[]
+  'phys-trb': [] as PhysicsKeyframe[],
+  'phys-vto': [] as PhysicsKeyframe[],
+  'phys-pls': [] as PhysicsKeyframe[]
 };
 const DEFAULT_INSPECTOR_WIDTH = 360;
 const DEFAULT_TIMELINE_HEIGHT = 320;
@@ -56,7 +58,9 @@ const PHYS_TRACK_PARAM: Record<string, string> = {
   'phys-min': 'minSpeed',
   'phys-lnk': 'linkDistance',
   'phys-grv': 'gravity',
-  'phys-trb': 'turbulence'
+  'phys-trb': 'turbulence',
+  'phys-vto': 'verticalOrder',
+  'phys-pls': 'pulse'
 };
 
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
@@ -93,7 +97,7 @@ export default function App() {
   const [timecode, setTimecode] = useState('00:00:00:00');
   const [selectedKeyframes, setSelectedKeyframes] = useState<{ track: string; time: number }[]>([]);
   const [sceneMarkers, setSceneMarkers] = useState<SceneMarker[]>([]);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [themeMode, setThemeMode] = useState<'light' | 'hybrid' | 'dark'>('light');
   const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes far away up the hill. It was 3am that day cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write I write like a ritual over and over. The more exist the more I go I fly they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('sentence');
   const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
@@ -104,7 +108,7 @@ export default function App() {
     depthSizeEnabled: false,
     depthSizeStrength: 50,
   });
-  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0 });
+  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
@@ -115,6 +119,7 @@ export default function App() {
   const [canvasAspectRatio, setCanvasAspectRatio] = useState<string>('full');
   const [activeTool, setActiveTool] = useState<ToolId>('pointer');
   const [overlayBandOffsets, setOverlayBandOffsets] = useState({ top: 0, bottom: 0 });
+  const [zoomValue, setZoomValue] = useState(50);
 
   useEffect(() => {
     if (!isNetworkReady) {
@@ -252,7 +257,7 @@ export default function App() {
             if (s.parseMode) setParseMode(s.parseMode);
             if (s.gradientSettings) setGradientSettings(s.gradientSettings);
             if (s.styleSettings) setStyleSettings(s.styleSettings);
-            if (s.physicsParams) setPhysicsParams(s.physicsParams);
+            if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
             if (s.viewMode) setViewMode(s.viewMode);
             if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
             if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
@@ -264,6 +269,22 @@ export default function App() {
     };
     input.click();
   }, []);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark', 'theme-hybrid');
+    
+    if (themeMode === 'dark') {
+      root.classList.add('dark');
+    } else if (themeMode === 'hybrid') {
+      root.classList.add('theme-hybrid');
+    } else {
+      root.classList.add('light');
+    }
+  }, [themeMode]);
+
+  const uiIsDark = themeMode === 'dark';
+  const previewIsDark = themeMode === 'dark' || themeMode === 'hybrid';
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -289,12 +310,9 @@ export default function App() {
           case 'Abspielen/Pause': setIsPlaying(p => !p); break;
           case 'Sidebar umschalten': setIsSidebarOpen(p => !p); break;
           default: 
-            // If it's a custom command added by the user, we'd need a more generic way to handle it.
-            // For now, we support the core ones.
             console.log('Action not implemented:', match.command);
         }
       } else if (isMod && e.key === 'y') {
-        // Fallback for Ctrl+Y redo
         e.preventDefault();
         handleRedo();
       }
@@ -401,6 +419,7 @@ export default function App() {
       sceneMarkersRef.current = nextMarkers;
       setSceneMarkers(nextMarkers);
     }
+    setSelectedKeyframes([]);
     pushHistory(prev, { cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
 
@@ -420,6 +439,10 @@ export default function App() {
       cameraKeyframesRef.current = next;
       return next;
     });
+    
+    // Sync zoom value
+    const zoom = network3DRef.current?.getZoom();
+    if (zoom !== undefined) setZoomValue(zoom);
   }, [viewMode]);
 
   const handleMoveKeyframe = useCallback((trackId: string, oldTime: number, newTime: number) => {
@@ -840,25 +863,37 @@ export default function App() {
     setSelectedKeyframes(kfs);
   }, []);
 
-  const handlePhysicsChange = useCallback((params: typeof physicsParams) => {
-    setPhysicsParams(params);
-    // When a keyframe exists at the current time, update its value so the
-    // slider change takes effect (keyframe interpolation overrides physicsParams).
+  const handlePhysicsChange = useCallback((params: Partial<typeof physicsParams>) => {
+    setPhysicsParams(prev => ({ ...prev, ...params }));
+    
+    // When a track has keyframes, slider changes should update the keyframe at the current time
+    // or auto-create a new one. Otherwise the slider rubber-bands to the interpolated value.
     const currentTime = playheadRef.current;
     setPhysicsKeyframes(prevKfs => {
       let changed = false;
       const nextKfs = { ...prevKfs };
+      
       for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
+        const newVal = (params as Record<string, number>)[paramName];
+        if (newVal === undefined) continue;
+
         const track = prevKfs[trackId] ?? [];
+        if (track.length === 0) continue; // No keyframes on this track, base value is used
+        
         const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
         if (kfIdx >= 0) {
-          const newVal = (params as Record<string, number>)[paramName];
           if (newVal !== track[kfIdx].value) {
             nextKfs[trackId] = track.map((k, i) => i === kfIdx ? { ...k, value: newVal } : k);
             changed = true;
           }
+        } else {
+          // Auto-key
+          const nextTrack = [...track, { time: currentTime, value: newVal, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
+          nextKfs[trackId] = nextTrack;
+          changed = true;
         }
       }
+      
       if (!changed) return prevKfs;
       physicsKeyframesRef.current = nextKfs;
       return nextKfs;
@@ -900,20 +935,6 @@ export default function App() {
     window.addEventListener('mouseup', onUp);
   }, [timelineHeight]);
 
-  const [sysDark, setSysDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const isDark = theme === 'dark' || (theme === 'system' && sysDark);
-
-  useLayoutEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
-  }, [isDark]);
-
-  useEffect(() => {
-    if (theme !== 'system') return;
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setSysDark(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, [theme]);
 
   // Mark network as not ready whenever a heavy rebuild is triggered
   useEffect(() => {
@@ -926,7 +947,8 @@ export default function App() {
       style={{ 
         cursor: activeTool === 'pan' ? 'grab' : 
                 activeTool === 'paint' ? 'crosshair' : 
-                activeTool === 'zoom' ? 'zoom-in' : 'default' 
+                activeTool === 'zoom' ? 'zoom-in' : 
+                activeTool === 'scale' ? 'nwse-resize' : 'default' 
       }}
     >
       {/* Main Workspace Area */}
@@ -942,16 +964,26 @@ export default function App() {
               gradientSettings={gradientSettings} styleSettings={styleSettings}
               cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
               physicsKeyframes={physicsKeyframes}
-              theme={theme} isDark={isDark}
+              isDark={previewIsDark}
               isNetworkReady={isNetworkReady} onNetworkReady={() => setIsNetworkReady(true)}
               renderMode={renderMode}
               nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
               canvasAspectRatio={canvasAspectRatio}
               initProgress={initProgress}
-              activeTool={activeTool} onToolChange={setActiveTool}
-              overlayTopOffset={overlayBandOffsets.top}
-              overlayBottomOffset={overlayBandOffsets.bottom}
             />
+          </div>
+
+          {/* Toolbar - Floating Left */}
+          <div 
+            className="absolute left-6 z-50 flex items-center pointer-events-none"
+            style={{ 
+              top: overlayBandOffsets.top + 12, 
+              bottom: overlayBandOffsets.bottom + 12 
+            }}
+          >
+            <div className="pointer-events-auto">
+              <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+            </div>
           </div>
 
           {/* Floating TopBar - now constrained to viewport */}
@@ -961,7 +993,7 @@ export default function App() {
                 setViewMode(mode);
                 setPhysicsParams(p => ({ ...p, gravity: mode === '2D' ? 3 : 0 }));
               }}
-              theme={theme} onThemeChange={setTheme}
+              themeMode={themeMode} onThemeModeChange={setThemeMode}
               renderMode={renderMode} onRenderModeChange={setRenderMode}
               onSaveState={handleSave}
               onLoadState={handleLoad}
@@ -1041,7 +1073,9 @@ export default function App() {
             onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
             inputText={inputText}
             onParsingChange={setParseMode}
-            onGradientChange={setGradientSettings} onStyleChange={setStyleSettings}
+            onGradientChange={setGradientSettings}
+            onStyleChange={(partial) => setStyleSettings(prev => ({ ...prev, ...partial }))}
+            styleSettings={styleSettings}
             onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
             nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
             effectivePhysicsParams={effectivePhysicsParams}
@@ -1061,6 +1095,11 @@ export default function App() {
             onRotateView={(dt, dp) => network3DRef.current?.rotateView(dt, dp)}
             onSetRotation={(t, p) => network3DRef.current?.setRotation(t, p)}
             onResetView={() => network3DRef.current?.resetView()}
+            onZoomChange={(val) => {
+              setZoomValue(val);
+              network3DRef.current?.setZoom(val);
+            }}
+            zoomValue={zoomValue}
           />
         </div>
       </div>

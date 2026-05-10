@@ -10,6 +10,8 @@ interface PhysicsParams {
   linkDistance: number;
   gravity: number;
   turbulence: number;
+  verticalOrder: number;
+  pulse: number;
 }
 
 interface InitMessage {
@@ -40,7 +42,7 @@ let sharedMatrix: Uint8Array;
 let nodeCount = 0;
 
 function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): number {
-  const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence } = params;
+  const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence, verticalOrder } = params;
   const n = nodeCount;
 
   // Damping, gravity, turbulence
@@ -60,6 +62,14 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
       posVel[b + 3] += (Math.random() - 0.5) * turbulence * 0.5;
       posVel[b + 4] += (Math.random() - 0.5) * turbulence * 0.5;
       posVel[b + 5] += (Math.random() - 0.5) * turbulence * 0.5;
+    }
+
+    if (verticalOrder !== 0) {
+      // Shorter words (e.g. 1) float higher (+y), longer words sink lower (-y).
+      // We apply a gentle spring force pulling them toward a stratified Y level.
+      const targetY = (3 - wordCounts[i]) * 15 * verticalOrder;
+      const distY = targetY - posVel[b + 1];
+      posVel[b + 4] += distY * 0.001 * verticalOrder;
     }
   }
 
@@ -110,7 +120,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
               // Sentence modifier is 1.5 because we don't have the matrix for large n
               const diff = Math.abs(wordCounts[i] - wordCounts[j]);
               const differenceFactor = 1 + diff * 0.15;
-              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, 40);
+              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, 120);
               const invDist = 1 / Math.sqrt(distSq);
               
               fx += dx * invDist * force;
@@ -140,7 +150,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
         const diff           = Math.abs(wordCounts[i] - wordCounts[j]);
         const differenceFactor = 1 + diff * 0.15;
 
-        const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 40);
+        const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 120);
         const invDist = 1 / dist;
         const fx = dx * invDist * force;
         const fy = dy * invDist * force;
@@ -173,7 +183,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   }
 
   // Integrate positions + track movement
-  const maxSpeed = 20;
+  const maxSpeed = 45;
   let totalMovement = 0;
 
   for (let i = 0; i < n; i++) {

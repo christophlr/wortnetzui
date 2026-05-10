@@ -2,7 +2,6 @@ import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef, useState, useEffect, useRef } from 'react';
 import { VERSION, BUILD_DATE, BUILD_NUMBER, LAST_COMMIT_HASH, LAST_COMMIT_DATE } from '../../version';
 import { Progress } from './ui/progress';
-import { Toolbar } from './Toolbar';
 
 type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
 
@@ -11,7 +10,6 @@ interface PreviewProps {
   physicsEnabled: boolean;
   isPlaying: boolean;
   playheadPosition: number;
-  theme?: 'light' | 'dark' | 'system';
   physicsParams?: {
     repulsion: number;
     springK: number;
@@ -36,10 +34,6 @@ interface PreviewProps {
   edgeAppearance?: { color: 'auto' | string };
   canvasAspectRatio?: string;
   initProgress?: number;
-  activeTool?: any;
-  onToolChange?: (tool: any) => void;
-  overlayTopOffset?: number;
-  overlayBottomOffset?: number;
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -55,7 +49,6 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   styleSettings,
   cameraKeyframes,
   onCameraChange,
-  theme,
   isDark,
   isNetworkReady,
   onNetworkReady,
@@ -64,10 +57,6 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   edgeAppearance,
   canvasAspectRatio = 'full',
   initProgress,
-  activeTool,
-  onToolChange,
-  overlayTopOffset = 0,
-  overlayBottomOffset = 0,
 }: PreviewProps, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -109,24 +98,25 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   }, [rect]);
 
   return (
-    <div ref={previewRef} className="w-full h-full relative overflow-hidden bg-zinc-100 dark:bg-[#0c0c0e]">
-      {/* Pasteboard Backdrop (Grid) */}
+    <div ref={previewRef} className="w-full h-full relative overflow-hidden bg-[var(--shell-background)] transition-colors duration-500">
+      {/* Pasteboard Backdrop (Grid) - Visible only in edit mode (preview not enabled) */}
       <div 
-        className="absolute inset-0 z-0 pointer-events-none opacity-[0.05] dark:opacity-[0.1]"
+        className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-500 ${renderMode === 'edit' ? 'opacity-100' : 'opacity-0'}`}
         style={{
           backgroundImage: `
-            linear-gradient(to right, currentColor 1px, transparent 1px),
-            linear-gradient(to bottom, currentColor 1px, transparent 1px)
-          `,
+          linear-gradient(to right, ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} 1px, transparent 1px),
+          linear-gradient(to bottom, ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} 1px, transparent 1px)
+        `,
           backgroundSize: '40px 40px',
-          color: isDark ? '#ffffff' : '#000000'
         }}
       />
 
       <div className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-500 ${canvasAspectRatio === 'full' ? 'p-0' : 'p-8 sm:p-12 lg:p-16'}`}>
         {mounted && (
           <div 
-            className="relative transition-all duration-500 ease-in-out shadow-[0_30px_90px_rgba(0,0,0,0.4)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6)] overflow-hidden border border-zinc-300 dark:border-white/10 rounded-[2px]"
+            className={`relative transition-all duration-500 ease-in-out overflow-hidden border border-zinc-300 dark:border-white/10 rounded-[2px] ${
+              document.documentElement.classList.contains('theme-hybrid') ? 'preview-portal shadow-2xl' : 'shadow-[0_30px_90px_rgba(0,0,0,0.4)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6)]'
+            }`}
             style={{
               width: canvasAspectRatio === 'full' ? '100%' : 'auto',
               height: canvasAspectRatio === 'full' ? '100%' : 'auto',
@@ -134,46 +124,30 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
                           canvasAspectRatio === '16:9' ? '16/9' :
                           canvasAspectRatio === '4:3' ? '4:3' :
                           canvasAspectRatio === '3:2' ? '3/2' : 'auto',
-              maxHeight: '100%',
-              maxWidth: '100%',
-              background: isDark 
-                ? 'radial-gradient(circle at 50% 50%, #003d7a 0%, #000a14 100%)' 
-                : 'radial-gradient(circle at 50% 50%, #f0f7ff 0%, #cce5ff 100%)'
+              background: 'var(--preview-background)'
             }}
           >
-            <Network3D
-              ref={ref}
-              viewMode={viewMode}
-              isPlaying={isPlaying}
-              playheadPosition={playheadPosition}
-              physicsParams={physicsParams}
-              physicsKeyframes={physicsKeyframes}
-              inputText={inputText}
-              parseMode={parseMode}
-              gradientSettings={gradientSettings}
-              styleSettings={styleSettings}
-              cameraKeyframes={cameraKeyframes}
-              onCameraChange={onCameraChange}
-              theme={theme}
-              isDark={isDark}
-              onReady={onNetworkReady}
-              renderMode={renderMode}
-              nodeAppearance={nodeAppearance}
-              edgeAppearance={edgeAppearance}
-            />
-            
-            {/* Toolbar - Centered to Artboard */}
-            {activeTool && onToolChange && (
-              <div
-                className="absolute left-4 z-50 flex items-center pointer-events-none"
-                style={{ top: overlayTopOffset, bottom: overlayBottomOffset }}
-              >
-                <Toolbar 
-                  activeTool={activeTool} 
-                  onToolChange={onToolChange} 
-                />
-              </div>
-            )}
+            <div className={`w-full h-full transition-opacity duration-1000 ${isNetworkReady ? 'opacity-100' : 'opacity-0'}`}>
+              <Network3D
+                ref={ref}
+                viewMode={viewMode}
+                isPlaying={isPlaying}
+                playheadPosition={playheadPosition}
+                physicsParams={physicsParams}
+                physicsKeyframes={physicsKeyframes}
+                inputText={inputText}
+                parseMode={parseMode}
+                gradientSettings={gradientSettings}
+                styleSettings={styleSettings}
+                cameraKeyframes={cameraKeyframes}
+                onCameraChange={onCameraChange}
+                isDark={isDark}
+                onReady={onNetworkReady}
+                renderMode={renderMode}
+                nodeAppearance={nodeAppearance}
+                edgeAppearance={edgeAppearance}
+              />
+            </div>
             
             {/* Artboard edge indicator - subtle internal border */}
             <div className="absolute inset-0 border border-white/5 pointer-events-none z-10" />
@@ -183,8 +157,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-mono text-muted-foreground/80">v{BUILD_NUMBER}</span>
                 <span className="text-[10px] font-mono text-muted-foreground/60">
-                  {new Date(LAST_COMMIT_DATE).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}{' '}
-                  {new Date(LAST_COMMIT_DATE).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(LAST_COMMIT_DATE).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}{' '}
+                  {new Date(LAST_COMMIT_DATE).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             </div>
@@ -198,22 +172,23 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
               </div>
             </div>
 
-            {/* Initializing Loading Indicator - Centered to artboard */}
-            {!isNetworkReady && (
-              <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-sm animate-in fade-in duration-700">
-                <div className="w-64 flex flex-col items-center gap-4">
-                  <div className="w-full space-y-3">
-                    <div className="flex justify-center items-center">
-                      <span className="text-[13px] font-medium text-zinc-700 tracking-tight">Initialisierung</span>
-                    </div>
-                    <Progress value={initProgress} className="h-1 bg-zinc-200/80 overflow-hidden" />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      {/* Initializing Loading Indicator - Centered to preview */}
+      {!isNetworkReady && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/40 dark:bg-black/40 animate-in fade-in duration-700">
+          <div className="w-64 flex flex-col items-center gap-4">
+            <div className="w-full space-y-3">
+              <div className="flex justify-center items-center">
+                <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 tracking-tight">Initialisierung</span>
+              </div>
+              <Progress value={initProgress} className="h-1 bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

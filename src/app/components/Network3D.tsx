@@ -1,12 +1,18 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import { Crosshair, Lock, Maximize2 } from 'lucide-react';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, type GradientSettings, type NodeShape } from '../networkTheme';
+import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from './ui/context-menu';
 
 type PhysicsKeyframe = { time: number; value: number; handleIn?: number; handleOut?: number; mode?: 'aligned' | 'broken' };
 
@@ -14,7 +20,6 @@ interface Network3DProps {
   isPlaying: boolean;
   playheadPosition: number;
   inputText?: string;
-  theme?: 'light' | 'dark' | 'system';
   viewMode?: '2D' | '3D';
   physicsParams?: {
     repulsion: number;
@@ -57,8 +62,8 @@ const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintilla
 
 
 /* ── THEME-AWARE BACKGROUND COLORS ── */
-const getThemeBackgroundColors = (): { hex: string; threeColor: number } => {
-  return getNetworkThemeBackground();
+const getThemeBackgroundColors = (isDark?: boolean): { hex: string; threeColor: number } => {
+  return getNetworkThemeBackground(isDark);
 };
 
 /* ── ZOOM SLIDER HELPERS ── */
@@ -146,6 +151,12 @@ const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
   'phys-rep': 'repulsion',
   'phys-spk': 'springK',
   'phys-dmp': 'damping',
+  'phys-min': 'minSpeed',
+  'phys-lnk': 'linkDistance',
+  'phys-grv': 'gravity',
+  'phys-trb': 'turbulence',
+  'phys-vto': 'verticalOrder',
+  'phys-pls': 'pulse',
 };
 
 /** Interpolate a physics param from pre-sorted keyframes using Cubic Hermite splines. */
@@ -179,6 +190,8 @@ export interface Network3DHandle {
   setRotation: (theta: number, phi: number) => void;
   resetView: () => void;
   fitToView: (instant?: boolean) => void;
+  setZoom: (val: number) => void;
+  getZoom: () => number;
 }
 
 export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref) => {
@@ -186,7 +199,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     isPlaying,
     playheadPosition,
     inputText = DEFAULT_TEXT,
-    theme = 'system',
     viewMode = '3D',
     parseMode = 'sentence',
     physicsParams = DEFAULT_PHYSICS,
@@ -203,20 +215,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     timelineHeight = 0,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene>();
-  const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>();
-  const rendererRef = useRef<THREE.WebGLRenderer>();
-  const controlsRef = useRef<OrbitControls>();
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const graphNodesRef = useRef<Map<string, GraphNode>>(new Map());
   const graphEdgesRef = useRef<GraphEdge[]>([]);
   const graphNodeArrayRef = useRef<GraphNode[]>([]);
   const sharedPairMatrixRef = useRef<Uint8Array>(new Uint8Array(0));
   const spritesArrayRef = useRef<THREE.Object3D[]>([]);
-  const textureCacheRef = useRef<Map<string, { normal: THREE.CanvasTexture; highlighted?: THREE.CanvasTexture; selected?: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>>(new Map());
+  const edgeLinesRef = useRef<THREE.LineSegments | null>(null);
+  const textureCacheRef = useRef<Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>>(new Map());
   const physicsWorkerRef = useRef<Worker | null>(null);
   const workerBusyRef = useRef(false);
   const workerPosVelRef = useRef<Float64Array>(new Float64Array(0));
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   const minWordsRef = useRef(Infinity);
   const maxWordsRef = useRef(-Infinity);
   const physicsEnabledRef = useRef(true);
@@ -228,10 +241,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const effectivePhysicsRef = useRef(physicsParams);
   const physicsBlendActiveRef = useRef(false);
   const physicsBlendStartRef = useRef<number>(0);
-  const physicsBlendDurationRef = useRef<number>(60);
+  const physicsBlendDurationRef = useRef<number>(30); // Reduced from 60ms for snappier response
   const physicsBlendFromRef = useRef(physicsParams);
   const physicsBlendToRef = useRef(physicsParams);
   const physicsBlendScratchRef = useRef({ ...DEFAULT_PHYSICS });
+  const lastParamsTimeRef = useRef<number>(performance.now());
+  const lastParamsValuesRef = useRef(physicsParams);
+  const physicsVelocityRef = useRef<number>(0);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const hoveredNodeRef = useRef<GraphNode | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
@@ -257,7 +273,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const gizmoActiveRef = useRef<string | null>(null);
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: GraphNode } | null>(null);
+  const [contextMenuNode, setContextMenuNode] = useState<GraphNode | null>(null);
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -416,6 +432,27 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     },
     fitToView: (instant = false) => {
       fitToView(instant);
+    },
+    setZoom: (val: number) => {
+      if (!cameraRef.current || !controlsRef.current) return;
+      if (viewMode === '3D') {
+        const newDist = sliderValToDist(val);
+        const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+        cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
+      } else {
+        const cam = cameraRef.current as THREE.OrthographicCamera;
+        cam.zoom = val / 10; // Simple mapping for 2D
+        cam.updateProjectionMatrix();
+      }
+      controlsRef.current.update();
+    },
+    getZoom: () => {
+      if (!cameraRef.current || !controlsRef.current) return 50;
+      if (viewMode === '3D') {
+        return distToSliderVal(cameraRef.current.position.distanceTo(controlsRef.current.target));
+      } else {
+        return (cameraRef.current as THREE.OrthographicCamera).zoom * 10;
+      }
     }
   }));
 
@@ -524,14 +561,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (node.textSprite) node.textSprite.position.set(node.x, node.y, node.z);
     }
 
-    for (let i = 0; i < edges.length; i++) {
-      const edge = edges[i];
-      if (edge.line) {
-        const pos = edge.line.geometry.attributes.position;
-        pos.setXYZ(0, edge.a.x, edge.a.y, edge.a.z);
-        pos.setXYZ(1, edge.b.x, edge.b.y, edge.b.z);
-        pos.needsUpdate = true;
+    // Update merged edge positions buffer (single LineSegments object)
+    const edgeLines = edgeLinesRef.current;
+    if (edgeLines) {
+      const pos = edgeLines.geometry.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i];
+        const idx = i * 2;
+        pos.setXYZ(idx, edge.a.x, edge.a.y, edge.a.z);
+        pos.setXYZ(idx + 1, edge.b.x, edge.b.y, edge.b.z);
       }
+      pos.needsUpdate = true;
     }
   };
 
@@ -542,9 +582,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const OUTLINE_GAP = 2;
   const OUTLINE_MARGIN = OUTLINE_STROKE + OUTLINE_GAP;
 
+  // Use standard DOM canvas elements instead of OffscreenCanvas to bypass WebKit's strict hard limits on OffscreenCanvas contexts,
+  // and avoid DataTexture/getImageData to prevent synchronous main-thread pipeline stalls during initialization.
   const createCanvasTexture = (
     text: string, color: string, highlighted: boolean, selected: boolean, darkOverride?: boolean
-  ): { texture: THREE.CanvasTexture; baseScale: number; aspectRatio: number } => {
+  ): { texture: THREE.Texture; baseScale: number; aspectRatio: number } => {
     const dark = darkOverride !== undefined ? darkOverride : isDarkRef.current;
     const na = nodeAppearanceRef.current;
     const isEditMode = renderModeRef.current === 'edit';
@@ -552,8 +594,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
     const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
     const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
+    
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d')!;
+    const context = canvas.getContext('2d') as CanvasRenderingContext2D;
 
     const words = text.split(' ');
     const fontSize = 28;
@@ -648,7 +691,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       context.fillText(word, OUTLINE_MARGIN + logicalWidth / 2, y);
     });
 
+    // Use CanvasTexture, which asynchronously uploads the DOM canvas to the GPU during rendering.
+    // This is much faster than DataTexture + getImageData, avoiding synchronous CPU/GPU stalls.
     const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
     texture.needsUpdate = true;
 
     const wordCount = words.length;
@@ -661,9 +709,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   /** Create a sprite from a pre-built texture. */
   const createSpriteFromTexture = (
-    texture: THREE.CanvasTexture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
+    texture: THREE.Texture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
   ): THREE.Sprite => {
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true, 
+      depthTest: true,
+      depthWrite: true,
+      alphaTest: 0.1
+    });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.renderOrder = 1; // always draw sprites on top of edge lines
     sprite.userData.label = label;
@@ -687,8 +741,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   const getColorFromWordCount = (wordCount: number, min: number, max: number, gs: GradientSettings): string => {
     const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
-    if (gs.mode === 'solid') return gs.innerColor;
-    return hexLerp(gs.innerColor, gs.outerColor, t);
+    const inner = getVividColor(gs.innerColor, !!isDark);
+    const outer = getVividColor(gs.outerColor, !!isDark);
+    if (gs.mode === 'solid') return inner;
+    return hexLerp(inner, outer, t);
   };
 
   /** Build (or rebuild) the 3-state texture cache for all nodes. */
@@ -698,7 +754,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       entry.highlighted?.dispose();
       entry.selected?.dispose();
     });
-    const cache = new Map<string, { normal: THREE.CanvasTexture; highlighted?: THREE.CanvasTexture; selected?: THREE.CanvasTexture; baseScale: number; aspectRatio: number }>();
+    const cache = new Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>();
     nodes.forEach(node => {
       const color = getColorFromWordCount(node.wordCount, minW, maxW, gs);
       const n = createCanvasTexture(node.label, color, false, false);
@@ -868,7 +924,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     // Setup scene
     const scene = new THREE.Scene();
-    // scene.background = new THREE.Color(bgColors.threeColor); // Removed for transparency
+    if (renderMode !== 'edit') {
+      const bgColors = getNetworkThemeBackground(isDarkRef.current);
+      scene.background = new THREE.Color(bgColors.threeColor);
+    } else {
+      scene.background = null;
+    }
     sceneRef.current = scene;
 
     const is2D = viewMode === '2D';
@@ -890,11 +951,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     // Setup renderer
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
-      alpha: true 
+      alpha: true
     });
-    renderer.setClearColor(0x000000, 0); // Transparent background
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(cw || 1000, ch || 800);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.domElement.style.opacity = '0'; // Prevent Safari WebGL compositing flash before CSS mask
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -1016,6 +1078,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         workerPosVelRef.current = posVel;
         syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
         fitToView(true);
+        if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
         requestAnimationFrame(() => onReadyRef.current?.());
         return;
       }
@@ -1062,7 +1125,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       // Auto-stop heuristic
       const curParams = effectivePhysicsRef.current;
-      if (curParams.turbulence > 0 || maxOverlap > 1) {
+      if (curParams.turbulence > 0 || maxOverlap > 1 || curParams.pulse > 0) {
         stillFramesRef.current = 0;
       } else if (avgMovement < 0.5) {
         stillFramesRef.current++;
@@ -1074,8 +1137,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       workerBusyRef.current = false;
     };
 
-    // Create edges (adjustable lines)
-    const edgeColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
+    // Create edges — single merged LineSegments (1 draw call for all edges)
+    const edgeColor = edgeAppearance.color !== 'auto' 
+      ? new THREE.Color(edgeAppearance.color) 
+      : new THREE.Color(isDark ? 0xe4e4e7 : 0x94a3b8); // Zinc-200 on dark, Zinc-400 on light
     const edgeMaterial = new THREE.LineBasicMaterial({
       color: edgeColor,
       opacity: styleSettings.edgeOpacity,
@@ -1083,16 +1148,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       linewidth: styleSettings.edgeWidth
     });
 
-    edges.forEach(edge => {
-      const points = [
-        new THREE.Vector3(edge.a.x, edge.a.y, edge.a.z),
-        new THREE.Vector3(edge.b.x, edge.b.y, edge.b.z)
-      ];
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, edgeMaterial);
-      scene.add(line);
-      edge.line = line;
-    });
+    const edgePositions = new Float32Array(edges.length * 2 * 3);
+    for (let i = 0; i < edges.length; i++) {
+      const edge = edges[i];
+      const idx = i * 6;
+      edgePositions[idx]     = edge.a.x; edgePositions[idx + 1] = edge.a.y; edgePositions[idx + 2] = edge.a.z;
+      edgePositions[idx + 3] = edge.b.x; edgePositions[idx + 4] = edge.b.y; edgePositions[idx + 5] = edge.b.z;
+    }
+    const edgeGeometry = new THREE.BufferGeometry();
+    edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+    const edgeLineSegments = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+    scene.add(edgeLineSegments);
+    edgeLinesRef.current = edgeLineSegments;
 
     // Build 3-state texture cache for all nodes (normal, highlighted, selected)
     buildTextureCache(nodes, minWords, maxWords, gradientSettings);
@@ -1113,11 +1180,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       .map(n => n.textSprite)
       .filter(Boolean) as THREE.Object3D[];
 
-    // Hover detection via raycasting
+    // Hover detection via raycasting (throttled to ~30fps)
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    let lastRaycastTime = 0;
+
 
     const handleHoverMove = (e: MouseEvent) => {
+      const now = performance.now();
+      if (now - lastRaycastTime < 33) return; // ~30fps throttle
+      lastRaycastTime = now;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1169,17 +1242,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       swapSpriteTexture(hit, hit.label === hoveredNodeRef.current?.label, selecting);
     };
 
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(spritesArrayRef.current);
-      const hit = intersects.length > 0 ? graphNodesRef.current.get((intersects[0].object as THREE.Sprite).userData.label) ?? null : null;
-      if (hit) setContextMenu({ x: e.clientX, y: e.clientY, node: hit });
-    };
-
     const handleDblClick = (e: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1209,7 +1271,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     renderer.domElement.addEventListener('click', handleClick);
     renderer.domElement.addEventListener('dblclick', handleDblClick);
-    renderer.domElement.addEventListener('contextmenu', handleContextMenu);
 
     // Animation loop
     let frameCount = 0;
@@ -1236,7 +1297,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         if (physicsBlendActiveRef.current) {
           const elapsed = performance.now() - physicsBlendStartRef.current;
           const tRaw = Math.max(0, Math.min(1, elapsed / physicsBlendDurationRef.current));
-          const t = applyEasing(tRaw, 'easeInOut');
+          const t = applyEasing(tRaw, 'easeOut'); // 'easeOut' is instantly responsive, unlike 'easeInOut'
           const from = physicsBlendFromRef.current;
           const to = physicsBlendToRef.current;
 
@@ -1248,6 +1309,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           physicsBlendScratchRef.current.linkDistance= from.linkDistance+ (to.linkDistance- from.linkDistance)* t;
           physicsBlendScratchRef.current.gravity     = from.gravity     + (to.gravity     - from.gravity)     * t;
           physicsBlendScratchRef.current.turbulence  = from.turbulence  + (to.turbulence  - from.turbulence)  * t;
+          physicsBlendScratchRef.current.verticalOrder = from.verticalOrder + (to.verticalOrder - from.verticalOrder) * t;
+          physicsBlendScratchRef.current.pulse       = from.pulse       + (to.pulse       - from.pulse)       * t;
           paramsForFrame = physicsBlendScratchRef.current;
 
           if (tRaw >= 1) {
@@ -1273,6 +1336,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
                 scratch.linkDistance = paramsForFrame.linkDistance;
                 scratch.gravity      = paramsForFrame.gravity;
                 scratch.turbulence   = paramsForFrame.turbulence;
+                scratch.verticalOrder = paramsForFrame.verticalOrder;
+                scratch.pulse        = paramsForFrame.pulse;
                 overridden = true;
               }
               (scratch as Record<string, number>)[param] = val;
@@ -1284,7 +1349,52 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           }
         }
 
+        // Track per-frame velocity of parameter changes to create a "jolt" effect
+        const now = performance.now();
+        const dt = Math.max(1, now - lastParamsTimeRef.current);
+        const prev = lastParamsValuesRef.current;
+        
+        // Sum up the magnitude of changes across all parameters
+        const dRep = Math.abs(paramsForFrame.repulsion - prev.repulsion) / 1000;
+        const dSpr = Math.abs(paramsForFrame.springK - prev.springK) * 20;
+        const dDmp = Math.abs(paramsForFrame.damping - prev.damping) * 20;
+        const dSpd = Math.abs(paramsForFrame.minSpeed - prev.minSpeed);
+        const dLnk = Math.abs(paramsForFrame.linkDistance - prev.linkDistance) / 100;
+        const dGrv = Math.abs(paramsForFrame.gravity - prev.gravity) / 5;
+        const dTrb = Math.abs((paramsForFrame.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
+        const dVto = Math.abs((paramsForFrame.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
+        const dPls = Math.abs((paramsForFrame.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
+        
+        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dt;
+        physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
+        
+        lastParamsTimeRef.current = now;
+        lastParamsValuesRef.current = { ...paramsForFrame };
+
         effectivePhysicsRef.current = paramsForFrame;
+
+        let sentParams = paramsForFrame;
+        if ((physicsVelocityRef.current || 0) > 0.01 || (paramsForFrame.pulse ?? 0) > 0) {
+          sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
+          
+          if (sentParams.pulse > 0) {
+             const pulseTime = performance.now() * 0.002;
+             const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
+             const pulseFactor = Math.sin(pulseTime) * sentParams.pulse * 0.15 * joltSuppression;
+             sentParams.repulsion = sentParams.repulsion * (1 + pulseFactor);
+             sentParams.linkDistance = sentParams.linkDistance * (1 + pulseFactor * 0.2);
+          }
+
+          if ((physicsVelocityRef.current || 0) > 0.01) {
+            const jolt = physicsVelocityRef.current || 0;
+            // Temporarily reduce friction, but keep a safe limit (0.92) to prevent numerical explosion
+            const targetDamping = Math.max(sentParams.damping, 0.92);
+            sentParams.damping = sentParams.damping + (targetDamping - sentParams.damping) * Math.min(1, jolt * 1.5);
+            physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80; // Fast decay back to normal
+          }
+        } else {
+          sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
+        }
 
         // Pack current positions + velocities into the reusable buffer and transfer to worker
         const pv = workerPosVelRef.current;
@@ -1296,7 +1406,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
         workerBusyRef.current = true;
         physicsWorkerRef.current!.postMessage(
-          { type: 'step', posVel: pv, params: paramsForFrame, is2D },
+          { type: 'step', posVel: pv, params: sentParams, is2D },
           [pv.buffer]
         );
       }
@@ -1363,15 +1473,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       renderer.render(scene, camera);
 
+      /* Gizmo deactivated per user request
       if (!is2D && gizmoCanvasRef.current) {
         drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current, gizmoHoverRef.current, gizmoActiveRef.current);
       }
+      */
     };
     animate();
     // 2D: reveal immediately after the first frame.
     // 3D: onReady is called once the worker settle completes (see onmessage 'settled' handler).
     if (is2D) {
       fitToView(true);
+      if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
       requestAnimationFrame(() => onReadyRef.current?.());
     }
 
@@ -1397,7 +1510,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       renderer.domElement.removeEventListener('click', handleClick);
       renderer.domElement.removeEventListener('dblclick', handleDblClick);
-      renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -1412,9 +1524,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           node.textSprite.material.dispose();
         }
       });
-      graphEdgesRef.current.forEach(edge => {
-        if (edge.line) edge.line.geometry.dispose();
-      });
+      if (edgeLinesRef.current) {
+        edgeLinesRef.current.geometry.dispose();
+        (edgeLinesRef.current.material as THREE.Material).dispose();
+        edgeLinesRef.current = null;
+      }
       if (rendererRef.current && containerRef.current) {
         if (rendererRef.current.domElement.parentNode === containerRef.current) {
           containerRef.current.removeChild(rendererRef.current.domElement);
@@ -1489,24 +1603,20 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   // Update edge material when style settings change
   useEffect(() => {
-    graphEdgesRef.current.forEach(edge => {
-      if (edge.line) {
-        (edge.line.material as THREE.LineBasicMaterial).opacity = styleSettings.edgeOpacity;
-        (edge.line.material as THREE.LineBasicMaterial).linewidth = styleSettings.edgeWidth;
-        (edge.line.material as THREE.LineBasicMaterial).needsUpdate = true;
-      }
-    });
+    if (!edgeLinesRef.current) return;
+    const mat = edgeLinesRef.current.material as THREE.LineBasicMaterial;
+    mat.opacity = styleSettings.edgeOpacity;
+    mat.linewidth = styleSettings.edgeWidth;
+    mat.needsUpdate = true;
   }, [styleSettings.edgeOpacity, styleSettings.edgeWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update edge color when edge appearance changes
   useEffect(() => {
+    if (!edgeLinesRef.current) return;
     const newColor = edgeAppearance.color !== 'auto' ? new THREE.Color(edgeAppearance.color) : new THREE.Color(0x9aa0aa);
-    graphEdgesRef.current.forEach(edge => {
-      if (edge.line) {
-        (edge.line.material as THREE.LineBasicMaterial).color = newColor;
-        (edge.line.material as THREE.LineBasicMaterial).needsUpdate = true;
-      }
-    });
+    const mat = edgeLinesRef.current.material as THREE.LineBasicMaterial;
+    mat.color = newColor;
+    mat.needsUpdate = true;
   }, [edgeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild textures when node appearance settings change — debounced for color picker
@@ -1524,55 +1634,53 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Update background color and rebuild textures when theme changes
   useEffect(() => {
     if (!sceneRef.current) return;
-    // const bgColors = getNetworkThemeBackground(isDarkRef.current);
-    // sceneRef.current.background = new THREE.Color(bgColors.threeColor);
+    if (renderMode !== 'edit') {
+      const bgColors = getNetworkThemeBackground(isDarkRef.current);
+      sceneRef.current.background = new THREE.Color(bgColors.threeColor);
+    } else {
+      sceneRef.current.background = null;
+    }
 
     if (graphNodesRef.current.size === 0) return;
     buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
     refreshAllSpriteTextures();
-  }, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleZoomBy = (factor: number) => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    const from = cameraRef.current.position.distanceTo(controlsRef.current.target);
-    const to = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, from * factor));
-    zoomAnimRef.current = { from, to, startTime: performance.now(), duration: 220 };
-  };
+  const handleViewportContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!rendererRef.current || !cameraRef.current || !containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
+    const intersects = raycaster.intersectObjects(spritesArrayRef.current);
+    
+    if (intersects.length > 0) {
+      const sprite = intersects[0].object;
+      const node = graphNodesRef.current.get(sprite.userData.label);
+      if (node) {
+        setContextMenuNode(node);
+        return;
+      }
+    }
+    
+    // If no node clicked, don't open menu
+    setContextMenuNode(null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleZoomSlider = (s: number) => {
+  /* Internal zoom slider deactivated in favor of Inspector control
+  const handleZoomSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!cameraRef.current || !controlsRef.current) return;
-    const newDist = sliderValToDist(s);
+    const newDist = sliderValToDist(parseFloat(e.target.value));
     const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
     cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
     controlsRef.current.update();
   };
+  */
 
-  const handlePanSlider = (val: number) => {
-    const delta = val - lastPanXRef.current;
-    panView(delta * 40, 0);
-    lastPanXRef.current = val;
-    setPanX(val);
-  };
-
-  const handleGizmoDoubleClick = (e: React.MouseEvent) => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    
-    // If double clicking a specific axis ball, don't reset the whole camera.
-    // The single click will have already triggered the snap animation.
-    if (getGizmoAxisAtPoint(e.clientX, e.clientY)) {
-      return;
-    }
-
-    zoomAnimRef.current = null;
-    fitToView(false);
-  };
-
-  const unlockCamera = () => {
-    lockedNodeRef.current = null;
-    setCameraLocked(false);
-  };
-
-  const getGizmoAxisAtPoint = (clientX: number, clientY: number) => {
+  const getGizmoAxisAtPoint = (clientX: number, clientY: number): { dir: THREE.Vector3; label: string } | null => {
     if (!cameraRef.current || !gizmoCanvasRef.current) return null;
     const canvas = gizmoCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -1590,7 +1698,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       { dir: new THREE.Vector3(0, 0, 1), label: 'Z' },
     ];
 
-    let closestHit = null;
+    let closestHit: { dir: THREE.Vector3; label: string } | null = null;
     let maxZ = -Infinity;
 
     axes.forEach(({ dir, label }) => {
@@ -1608,9 +1716,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     return closestHit;
   };
 
-  const handleGizmoPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  /* Gizmo event handlers deactivated
+  const handleGizmoMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     gizmoDragRef.current = {
       isDragging: true,
       startX: e.clientX,
@@ -1623,15 +1730,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     gizmoActiveRef.current = hit ? hit.label : 'center';
   };
 
-  const handleGizmoPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handleGizmoMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const drag = gizmoDragRef.current;
-    
     if (!drag.isDragging) {
       const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
       gizmoHoverRef.current = hit ? hit.label : null;
       return;
     }
-    
     if (!cameraRef.current || !controlsRef.current) return;
     
     const dx = e.clientX - drag.lastX;
@@ -1644,41 +1749,30 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (drag.hasMoved) {
       const cam = cameraRef.current;
       const target = controlsRef.current.target;
-      
       const angleX = -dx * 0.01;
       const angleY = -dy * 0.01;
-
       const offset = cam.position.clone().sub(target);
       offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleX);
-      
       const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
       offset.applyAxisAngle(right, angleY);
-
       cam.position.copy(target).add(offset);
       cam.lookAt(target);
       controlsRef.current.update();
     }
-    
     drag.lastX = e.clientX;
     drag.lastY = e.clientY;
   };
 
-  const handleGizmoPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const handleGizmoMouseUp = () => {
     const drag = gizmoDragRef.current;
-    
     gizmoActiveRef.current = null;
-    
     if (!drag.isDragging) return;
-    
     drag.isDragging = false;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-
     if (!drag.hasMoved) {
-      const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
+      const hit = getGizmoAxisAtPoint(drag.startX, drag.startY);
       if (hit && cameraRef.current && controlsRef.current) {
         const dist = cameraRef.current.position.distanceTo(controlsRef.current.target);
         const newOffset = hit.dir.clone().multiplyScalar(dist);
-        
         cameraFlyRef.current = {
           fromPos: cameraRef.current.position.clone(),
           toPos: controlsRef.current.target.clone().add(newOffset),
@@ -1690,170 +1784,137 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
     }
   };
+  */
 
   return (
-    <>
-      <div ref={containerRef} className="w-full h-full relative">
-        {/* Orientation gizmo — 3D only — HIDDEN FOR NOW */}
-        {false && viewMode !== '2D' && (
-          <canvas
-            ref={gizmoCanvasRef}
-            width={72}
-            height={72}
-            draggable={false}
-            className="absolute left-1/2 -translate-x-1/2 z-10 rounded-full bg-zinc-50 border border-zinc-200 transition-colors hover:border-zinc-300 shadow-sm"
-            style={{ bottom: 12, cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
-            onPointerDown={handleGizmoPointerDown}
-            onPointerMove={handleGizmoPointerMove}
-            onPointerUp={handleGizmoPointerUp}
-            onPointerCancel={handleGizmoPointerUp}
-            onPointerLeave={() => { gizmoHoverRef.current = null; }}
-            onDoubleClick={handleGizmoDoubleClick}
-            title="Drag to rotate, click axis to snap, double-click to reset"
-          />
-        )}
+    <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuNode(null); }}>
+      <div 
+        ref={containerRef} 
+        className="w-full h-full relative outline-none select-none bg-transparent"
+        style={{ touchAction: 'none' }}
+      >
+        <ContextMenuTrigger 
+          className="w-full h-full"
+          onContextMenu={handleViewportContextMenu}
+        >
+          {/* Three.js Canvas will be here */}
+        </ContextMenuTrigger>
 
-        {/* Live indicator */}
-        {isPlaying && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-destructive/10 dark:bg-destructive/20 border-destructive/20 dark:border-destructive/30 pointer-events-none z-10">
-            <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-            <span className="text-[10px] text-destructive font-medium tracking-wide">LIVE</span>
+        {/* Floating UI Overlays */}
+        <div className="absolute bottom-16 left-4 z-20 flex flex-col gap-2">
+          {/* Pan control */}
+          <div className="bg-background/80 backdrop-blur-md border border-border p-1.5 rounded-lg shadow-xl flex items-center gap-2">
+             <button 
+               className="p-1.5 hover:bg-accent rounded-md transition-colors"
+               onMouseDown={() => fitToView(false)}
+               title="Fit to view"
+             >
+               <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />
+             </button>
+             <div className="w-px h-4 bg-border mx-0.5" />
+             <div className="flex flex-col gap-0.5">
+               <div className="flex gap-0.5">
+                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(0, 30)}>↑</button>
+               </div>
+               <div className="flex gap-0.5">
+                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(-30, 0)}>←</button>
+                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(0, -30)}>↓</button>
+                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(30, 0)}>→</button>
+               </div>
+             </div>
           </div>
-        )}
+        </div>
 
-        {/* Locked camera indicator */}
+        {/* Orientation Gizmo (Bottom Right) - Deactivated */}
+        {/*
+        <div className="absolute right-4 bottom-4 z-20 flex flex-col items-center gap-3">
+          <div className="bg-background/80 backdrop-blur-md border border-border p-2 rounded-full shadow-xl h-32 flex flex-col items-center group">
+            <div className="text-[9px] font-bold text-muted-foreground mb-1 opacity-0 group-hover:opacity-100 transition-opacity">Z</div>
+            <input 
+              ref={zoomSliderRef}
+              type="range" 
+              className="appearance-none bg-muted-foreground/20 w-1 h-24 rounded-full accent-blue-500 orientation-vertical"
+              style={{ WebkitAppearance: 'slider-vertical' } as any}
+              onChange={handleZoomSlider}
+              min="0" max="100" step="0.1"
+            />
+          </div>
+          
+          <div className="relative w-24 h-24 bg-background/40 backdrop-blur-[2px] rounded-full border border-border/40 shadow-inner">
+            <canvas 
+              ref={gizmoCanvasRef} 
+              width={96} height={96} 
+              className="cursor-pointer"
+              onMouseDown={handleGizmoMouseDown}
+              onMouseMove={handleGizmoMouseMove}
+              onMouseUp={handleGizmoMouseUp}
+              onMouseLeave={handleGizmoMouseUp}
+            />
+          </div>
+        </div>
+        */}
+
+        {/* Camera Locked Indicator */}
         {cameraLocked && (
-          <button
-            type="button"
-            onMouseDown={e => {
-              e.preventDefault();
-              e.stopPropagation();
-              unlockCamera();
-            }}
-            className={`absolute ${isPlaying ? 'top-11' : 'top-3'} left-3 flex items-center gap-1.5 px-2 py-1 rounded-md border bg-background border-border shadow-sm z-10 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50`}
-            title="Unlock camera"
-          >
-            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" />
-            <span className="text-[10px] text-foreground/40 font-medium tracking-wide">LOCKED</span>
-          </button>
-        )}
-
-        {/* Zoom slider — 3D only — HIDDEN FOR NOW */}
-        {false && viewMode !== '2D' && (
-          <div className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 select-none p-1 rounded-full bg-zinc-50 border border-zinc-200 shadow-sm"
-               style={{ bottom: 92 }}>
-            <button
-              onMouseDown={() => handleZoomBy(1.33)}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-zinc-500 font-medium text-sm leading-none transition-colors hover:bg-zinc-100 focus-visible:outline-none"
-              title="Zoom out"
-            >−</button>
-            <div style={{ width: 64, height: 20, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <input
-                ref={zoomSliderRef}
-                type="range"
-                min={0}
-                max={100}
-                step={0.5}
-                defaultValue={distToSliderVal(1962)}
-                onChange={(e) => handleZoomSlider(parseFloat(e.target.value))}
-                className="zoom-slider-horizontal"
-                style={{ width: '100%', cursor: 'pointer' }}
-              />
-            </div>
-            <button
-              onMouseDown={() => handleZoomBy(0.75)}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-zinc-500 font-medium text-sm leading-none transition-colors hover:bg-zinc-100 focus-visible:outline-none"
-              title="Zoom in"
-            >+</button>
+          <div className="absolute top-4 right-4 z-20 bg-blue-500/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
+            <Lock className="w-3 h-3" />
+            CAMERA LOCKED
+            <button 
+              className="ml-1 hover:bg-white/20 rounded px-1 transition-colors"
+              onClick={() => {
+                setCameraLocked(false);
+                lockedNodeRef.current = null;
+              }}
+            >
+              UNLOCK
+            </button>
           </div>
         )}
 
       </div>
 
-      {contextMenu && createPortal(
-        <>
-          <div className="fixed inset-0 z-40" onMouseDown={() => setContextMenu(null)} />
-          <div
-            className="fixed z-50 bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-2xl py-1 overflow-hidden text-popover-foreground"
-            style={{
-              left: Math.min(contextMenu.x, window.innerWidth - 210 - 8),
-              top: Math.min(contextMenu.y, window.innerHeight - 112 - 8),
-              width: 210
+      {/* Context Menu (Shadcn/Radix) */}
+      {contextMenuNode && (
+        <ContextMenuContent className="w-52">
+          <ContextMenuItem
+            onClick={() => {
+              flyToTargetRef.current = new THREE.Vector3(contextMenuNode.x, contextMenuNode.y, contextMenuNode.z);
+              setContextMenuNode(null);
             }}
-            onMouseDown={e => e.stopPropagation()}
           >
-            <button
-              onMouseDown={e => {
-                e.stopPropagation();
-                flyToTargetRef.current = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
-                setContextMenu(null);
-              }}
-              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
-            >
-              <Crosshair className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
-              Center
-            </button>
-            <button
-              onMouseDown={e => {
-                e.stopPropagation();
-                const node = contextMenu.node;
-                const nodePos = new THREE.Vector3(node.x, node.y, node.z);
-                lockedNodeRef.current = node;
-                setCameraLocked(true);
-                if (viewMode !== '2D' && cameraRef.current && controlsRef.current) {
-                  const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
-                  cameraFlyRef.current = {
-                    fromPos: cameraRef.current.position.clone(),
-                    toPos: nodePos.clone().addScaledVector(dir, 320),
-                    fromTarget: controlsRef.current.target.clone(),
-                    toTarget: nodePos.clone(),
-                    startTime: performance.now(),
-                    duration: 700,
-                  };
-                } else if (viewMode === '2D' && cameraRef.current) {
-                  flyToTargetRef.current = nodePos.clone();
-                  const cam = cameraRef.current as THREE.OrthographicCamera;
-                  cam.zoom = Math.max(cam.zoom, 3);
-                  cam.updateProjectionMatrix();
-                }
-                setContextMenu(null);
-              }}
-              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
-            >
-              <Lock className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
-              Lock camera
-            </button>
-            <button
-              onMouseDown={e => {
-                e.stopPropagation();
-                const nodePos = new THREE.Vector3(contextMenu.node.x, contextMenu.node.y, contextMenu.node.z);
-                if (viewMode !== '2D' && cameraRef.current && controlsRef.current) {
-                  const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
-                  cameraFlyRef.current = {
-                    fromPos: cameraRef.current.position.clone(),
-                    toPos: nodePos.clone().addScaledVector(dir, 320),
-                    fromTarget: controlsRef.current.target.clone(),
-                    toTarget: nodePos.clone(),
-                    startTime: performance.now(),
-                    duration: 700,
-                  };
-                } else if (viewMode === '2D' && cameraRef.current) {
-                  flyToTargetRef.current = nodePos.clone();
-                  const cam = cameraRef.current as THREE.OrthographicCamera;
-                  cam.zoom = Math.max(cam.zoom, 3);
-                  cam.updateProjectionMatrix();
-                }
-                setContextMenu(null);
-              }}
-              className="flex items-center w-full px-3 py-[5px] text-[11px] rounded transition-[color,background-color,box-shadow] text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
-            >
-              <Maximize2 className="w-3.5 h-3.5 mr-2 shrink-0 text-muted-foreground" />
-              Fill view
-            </button>
-          </div>
-        </>
-      , document.body)}
-    </>
+            <Crosshair className="w-3.5 h-3.5 mr-2" />
+            Center View
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              const nodePos = new THREE.Vector3(contextMenuNode.x, contextMenuNode.y, contextMenuNode.z);
+              lockedNodeRef.current = contextMenuNode;
+              setCameraLocked(true);
+              if (viewMode !== '2D' && cameraRef.current && controlsRef.current) {
+                const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
+                cameraFlyRef.current = {
+                  fromPos: cameraRef.current.position.clone(),
+                  toPos: nodePos.clone().addScaledVector(dir, 320),
+                  fromTarget: controlsRef.current.target.clone(),
+                  toTarget: nodePos.clone(),
+                  startTime: performance.now(),
+                  duration: 700,
+                };
+              } else if (viewMode === '2D' && cameraRef.current) {
+                flyToTargetRef.current = nodePos.clone();
+                const cam = cameraRef.current as THREE.OrthographicCamera;
+                cam.zoom = Math.max(cam.zoom, 3);
+                cam.updateProjectionMatrix();
+              }
+              setContextMenuNode(null);
+            }}
+          >
+            <Lock className="w-3.5 h-3.5 mr-2" />
+            Lock Camera to Node
+          </ContextMenuItem>
+        </ContextMenuContent>
+      )}
+    </ContextMenu>
   );
 });
 

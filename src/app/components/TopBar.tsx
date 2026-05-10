@@ -12,8 +12,8 @@ interface TopBarProps {
   onViewModeChange: (mode: '2D' | '3D') => void;
   onSaveState?: () => void;
   onLoadState?: () => void;
-  theme?: 'light' | 'dark' | 'system';
-  onThemeChange?: (theme: 'light' | 'dark' | 'system') => void;
+  themeMode?: 'light' | 'hybrid' | 'dark';
+  onThemeModeChange?: (mode: 'light' | 'hybrid' | 'dark') => void;
   renderMode?: 'edit' | 'render';
   onRenderModeChange?: (mode: 'edit' | 'render') => void;
   onApplyNodeStylePreset?: (preset: 'outline' | 'filled' | 'reset') => void;
@@ -48,7 +48,7 @@ function NetworkLogo() {
 
 export function TopBar({
   viewMode, onViewModeChange,
-  onSaveState, onLoadState, theme = 'system', onThemeChange,
+  onSaveState, onLoadState, themeMode = 'light', onThemeModeChange,
   renderMode = 'edit', onRenderModeChange,
   onApplyNodeStylePreset,
   onUndo, onRedo, canUndo = false, canRedo = false,
@@ -60,7 +60,7 @@ export function TopBar({
   return (
     <div className="flex items-start justify-between w-full pointer-events-none select-none">
       {/* Left Pill: Logo & Menubar */}
-      <div className="flex items-center gap-2 px-3 h-11 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl pointer-events-auto">
+      <div className="flex items-center gap-2 px-3 h-11 bg-sidebar border border-sidebar-border shadow-sm rounded-xl pointer-events-auto">
 
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
@@ -130,10 +130,10 @@ export function TopBar({
                 <MenubarSeparator />
                 <MenubarGroup>
                   <MenubarLabel>Design</MenubarLabel>
-                  <MenubarRadioGroup value={theme ?? 'system'} onValueChange={(v) => onThemeChange?.(v as 'light' | 'dark' | 'system')}>
-                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} fill={theme === 'light' ? 'currentColor' : 'none'} fillOpacity={0.12} />Hell</MenubarRadioItem>
-                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} fill={theme === 'dark' ? 'currentColor' : 'none'} fillOpacity={0.12} />Dunkel</MenubarRadioItem>
-                    <MenubarRadioItem value="system"><Monitor size={12} strokeWidth={2} fill={theme === 'system' ? 'currentColor' : 'none'} fillOpacity={0.12} />System</MenubarRadioItem>
+                  <MenubarRadioGroup value={themeMode} onValueChange={(v) => onThemeModeChange?.(v as 'light' | 'hybrid' | 'dark')}>
+                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />Hell</MenubarRadioItem>
+                    <MenubarRadioItem value="hybrid"><MonitorPlay size={12} strokeWidth={2} />Kontrastreiche Vorschau</MenubarRadioItem>
+                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />Dunkel</MenubarRadioItem>
                   </MenubarRadioGroup>
                 </MenubarGroup>
               </MenubarContent>
@@ -145,7 +145,7 @@ export function TopBar({
       </div>
 
       {/* Right Pill: Toggles & Actions */}
-      <div className="flex items-center gap-3 px-3 h-11 bg-zinc-50 border border-zinc-200 shadow-sm rounded-xl pointer-events-auto">
+      <div className="flex items-center gap-3 px-3 h-11 bg-sidebar border border-sidebar-border shadow-sm rounded-xl pointer-events-auto">
         <ToggleGroup
           type="single"
           value={viewMode}
@@ -177,7 +177,7 @@ export function TopBar({
             strokeWidth={2.5} 
             className={`mr-1.5 transition-transform duration-300 ${renderMode === 'render' ? 'scale-110' : 'opacity-70'}`}
           />
-          Preview
+          Vorschau
         </Button>
 
 
@@ -189,7 +189,7 @@ export function TopBar({
           onClick={() => onExport?.()}
         >
           <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
-          Export
+          Exportieren
         </Button>
       </div>
     </div>

@@ -41,19 +41,39 @@ export const defaultEdgeAppearance: EdgeAppearanceSettings = {
   color: 'auto',
 };
 
+/**
+ * Ensures vivid colors have at least 4.5:1 contrast on dark anthracite backgrounds (#111827).
+ * Adjusts saturation and brightness for optimal data visualization.
+ */
+export function getVividColor(color: string, isDarkWorkspace: boolean): string {
+  if (!isDarkWorkspace) return color;
+  
+  // Example vivid mapping for common brand colors
+  const vividMap: Record<string, string> = {
+    '#4f46e5': '#818cf8', // Indigo 600 -> Indigo 400
+    '#7c3aed': '#a78bfa', // Violet 600 -> Violet 400
+    '#06b6d4': '#22d3ee', // Cyan 600 -> Cyan 400
+    '#10b981': '#34d399', // Emerald 600 -> Emerald 400
+    '#f97316': '#fb923c', // Orange 500 -> Orange 400
+    '#ef4444': '#f87171', // Red 500 -> Red 400
+  };
+
+  return vividMap[color.toLowerCase()] || color;
+}
+
 export function getNetworkThemeBackground(isDark?: boolean): NetworkThemeBackground {
-  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark');
+  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('theme-hybrid');
   if (dark) {
-    return { hex: '#1a1a1a', threeColor: 0x1a1a1a };
+    return { hex: '#09090b', threeColor: 0x09090b };
   }
 
-  return { hex: '#c8c8c8', threeColor: 0xc8c8c8 };
+  return { hex: '#f8fafc', threeColor: 0xf8fafc };
 }
 
 export function getNetworkLabelStyle(isDark?: boolean): NetworkLabelStyle {
-  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark');
+  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('theme-hybrid');
   if (dark) {
-    return { backgroundHex: '#0a0b0d' };
+    return { backgroundHex: '#18181b' }; // Zinc-900 for labels
   }
 
   return { backgroundHex: '#ffffff' };

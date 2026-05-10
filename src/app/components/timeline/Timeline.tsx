@@ -1,0 +1,502 @@
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2 } from 'lucide-react';
+import { Button } from '../ui/button';
+import { TIMELINE_DURATION } from '../../constants';
+import { useTimelineView } from './useTimelineView';
+import { TimelineRuler } from './TimelineRuler';
+import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
+import { GraphEditor } from './GraphEditor';
+import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
+import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
+import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
+
+/* ── Small helper components ── */
+
+function TBtn({ children, onClick, disabled, active, title }: {
+  children: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean; title?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={`h-6 w-6 p-0 shrink-0 ${active ? 'text-blue-400' : ''} ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function TCDisplay({ value }: { value: string }) {
+  return (
+    <span className="font-mono text-xs tabular-nums text-foreground select-none whitespace-nowrap">
+      {value}
+    </span>
+  );
+}
+
+/* ── Main Timeline Component ── */
+
+export function Timeline(props: TimelineProps) {
+  const {
+    isPlaying, onPlayPause, onStop,
+    playheadPosition, onPlayheadChange,
+    selectedKeyframes, onKeyframeSelect, onSelectKeyframes,
+    cameraKeyframes = [], physicsKeyframes = {},
+    onCaptureKeyframe, onMoveKeyframe,
+    onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
+    onDeleteKeyframe, onDuplicateKeyframe,
+    onDragStart, onDragEnd,
+    timecode = '00:00:00:00',
+    onUndo, onRedo, canUndo, canRedo,
+    height = 260,
+    sceneMarkers = [],
+    onAddSceneMarker, onDropSceneMarker, onDeleteSceneMarker,
+  } = props;
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const view = useTimelineView(TIMELINE_DURATION);
+  const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration } = view;
+
+  // Graph editor toggle
+  const [expandedGraphTracks, setExpandedGraphTracks] = useState<Set<string>>(new Set());
+
+  // Context menu target state (synced with Radix open state)
+  const [contextMenuTarget, setContextMenuTarget] = useState<ContextMenuTarget | null>(null);
+
+  // Clipboard
+  const [clipboard, setClipboard] = useState<{ track: string; kfData: any } | null>(null);
+
+  // Drag-select (marquee)
+  const [dragSelect, setDragSelect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+
+
+  const onDeleteSelected = useCallback(() => {
+    selectedKeyframes.forEach(s => {
+      if (s.track === 'scene-markers') onDeleteSceneMarker?.(s.time);
+      else onDeleteKeyframe?.(s.track, s.time);
+    });
+    onSelectKeyframes?.([]);
+  }, [selectedKeyframes, onDeleteKeyframe, onDeleteSceneMarker, onSelectKeyframes]);
+
+  // Clipboard operations
+  const handleCopy = useCallback(() => {
+    if (selectedKeyframes.length === 0) return;
+    const sel = selectedKeyframes[0];
+    if (sel.track === 'camera-keyframes') {
+      const kf = cameraKeyframes.find(k => Math.abs(k.time - sel.time) < 0.01);
+      if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
+    } else {
+      const arr = physicsKeyframes[sel.track] ?? [];
+      const kf = arr.find(k => Math.abs(k.time - sel.time) < 0.01);
+      if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
+    }
+  }, [selectedKeyframes, cameraKeyframes, physicsKeyframes]);
+
+  const handleCut = useCallback(() => {
+    handleCopy();
+    onDeleteSelected();
+  }, [handleCopy, onDeleteSelected]);
+
+  const handlePaste = useCallback(() => {
+    if (!clipboard) return;
+    onDuplicateKeyframe?.(clipboard.track, clipboard.kfData.time, playheadPosition);
+  }, [clipboard, playheadPosition, onDuplicateKeyframe]);
+
+  // Context menu handlers
+  const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
+    let easingType: any = 'auto';
+    if (trackId === 'camera-keyframes') {
+      const kf = cameraKeyframes.find(k => Math.abs(k.time - kfTime) < 0.01);
+      if (kf) easingType = inferEasingType(kf as any);
+    } else {
+      const arr = physicsKeyframes[trackId] ?? [];
+      const kf = arr.find(k => Math.abs(k.time - kfTime) < 0.01);
+      if (kf) easingType = inferEasingType(kf);
+    }
+    setContextMenuTarget({ mode: 'keyframe', track: trackId, time: kfTime, easingType });
+  }, [cameraKeyframes, physicsKeyframes]);
+
+  const handleMarkerContextMenu = useCallback((time: number, label: string) => {
+    setContextMenuTarget({ mode: 'scene-marker', time, label });
+  }, []);
+
+  const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
+    const t = timeFromClientX(e.clientX, contentRef.current);
+    if (t !== null) {
+      setContextMenuTarget({ mode: 'background', time: t });
+    }
+  }, [timeFromClientX]);
+
+  const handleSetEasing = useCallback((type: EasingType) => {
+    if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
+    const { track, time } = contextMenuTarget;
+
+    if (type === 'auto' || type === 'linear' || type === 'hold') {
+      onClearHandle?.(track, time);
+      return;
+    }
+
+    const weight = 0.33;
+    if (type === 'easyEase') {
+      onSetHandle?.(track, time, 'in', weight);
+      onSetHandle?.(track, time, 'out', weight);
+    } else if (type === 'easeIn') {
+      onSetHandle?.(track, time, 'in', weight);
+      onClearHandle?.(track, time); // Clear out to ensure only in is eased
+    } else if (type === 'easeOut') {
+      onSetHandle?.(track, time, 'out', weight);
+      onClearHandle?.(track, time); // Clear in to ensure only out is eased
+    }
+  }, [contextMenuTarget, onSetHandle, onClearHandle]);
+
+  // Playhead scrub
+  const handleRulerMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const updatePlayhead = (clientX: number) => {
+      const t = timeFromClientX(clientX, contentRef.current);
+      if (t !== null) onPlayheadChange(t);
+    };
+
+    updatePlayhead(e.clientX);
+    const onMove = (ev: MouseEvent) => updatePlayhead(ev.clientX);
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timeFromClientX, onPlayheadChange, onSelectKeyframes]);
+
+  // Drag-select
+  const handleTrackAreaMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button')) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    setDragSelect({ startX, startY, endX: startX, endY: startY });
+
+    const updatePlayhead = (clientX: number) => {
+      const t = timeFromClientX(clientX, contentRef.current);
+      if (t !== null) onPlayheadChange(t);
+    };
+    updatePlayhead(startX);
+
+    const onMove = (ev: MouseEvent) => {
+      updatePlayhead(ev.clientX);
+      setDragSelect(prev => prev ? { ...prev, endX: ev.clientX, endY: ev.clientY } : null);
+    };
+    const onUp = (ev: MouseEvent) => {
+      if (contentRef.current) {
+        const t1 = timeFromClientX(Math.min(startX, ev.clientX), contentRef.current) ?? 0;
+        const t2 = timeFromClientX(Math.max(startX, ev.clientX), contentRef.current) ?? TIMELINE_DURATION;
+
+        const sel: { track: string; time: number }[] = [];
+        cameraKeyframes.forEach(k => {
+          if (k.time >= t1 && k.time <= t2) sel.push({ track: 'camera-keyframes', time: k.time });
+        });
+        Object.entries(physicsKeyframes).forEach(([tid, kfs]) => {
+          (kfs ?? []).forEach(k => {
+            if (k.time >= t1 && k.time <= t2) sel.push({ track: tid, time: k.time });
+          });
+        });
+        sceneMarkers.forEach(m => {
+          if (m.time >= t1 && m.time <= t2) sel.push({ track: 'scene-markers', time: m.time });
+        });
+        onSelectKeyframes?.(sel);
+      }
+      setDragSelect(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [timeFromClientX, cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes]);
+
+  // Auto-extend duration check
+  useEffect(() => {
+    const allTimes = [
+      ...cameraKeyframes.map(k => k.time),
+      ...Object.values(physicsKeyframes).flatMap(arr => (arr ?? []).map(k => k.time)),
+      ...sceneMarkers.map(m => m.time),
+    ];
+    if (allTimes.length > 0) autoExtendDuration(Math.max(...allTimes));
+  }, [cameraKeyframes, physicsKeyframes, sceneMarkers, autoExtendDuration]);
+
+  // Wheel handler
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => handleWheel(e, el);
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [handleWheel]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        onDeleteSelected();
+        e.preventDefault();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { onUndo?.(); e.preventDefault(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' || e.key === 'y')) { onRedo?.(); e.preventDefault(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') { handleCopy(); e.preventDefault(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') { handleCut(); e.preventDefault(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
+      if (e.key === 'Escape') { onSelectKeyframes?.([]); e.preventDefault(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedKeyframes, onDeleteKeyframe, onDeleteSceneMarker, onSelectKeyframes, onUndo, onRedo, onDeleteSelected, handleCopy, handleCut, handlePaste]);
+
+  // Playhead position as CSS
+  const visibleDuration = viewWindow.end - viewWindow.start;
+  const playheadRatio = (playheadPosition - viewWindow.start) / visibleDuration;
+  const playheadVisible = playheadRatio >= -0.01 && playheadRatio <= 1.01;
+
+  // Check if keyframe exists at playhead
+  const hasKfAtPlayhead = cameraKeyframes.some(k => Math.abs(k.time - playheadPosition) <= 0.1);
+
+  return (
+    <div className="flex flex-col bg-background border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto" style={{ height }}>
+      <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuTarget(null); }}>
+        <ContextMenuTrigger asChild>
+          <div className="flex-1 flex flex-col min-h-0 relative">
+            {/* Toolbar */}
+            <div className="flex items-center px-4 border-b border-border bg-background shrink-0 select-none" style={{ height: 40 }}>
+              {/* Left: Search/Filter */}
+              <div className="w-48 flex items-center shrink-0">
+                <span className="text-sm font-semibold text-foreground">Timeline</span>
+              </div>
+
+              {/* Right: Graph Editor + Zoom + Snap */}
+              <TBtn onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title="Delete Selected">
+                <Trash2 className="w-3 h-3" />
+              </TBtn>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <TBtn onClick={onUndo} disabled={!canUndo} title="Undo"><Undo2 className="w-3 h-3" /></TBtn>
+              <TBtn onClick={onRedo} disabled={!canRedo} title="Redo"><Redo2 className="w-3 h-3" /></TBtn>
+
+              {/* Center: Timecode + Transport */}
+              <div className="flex-1 flex items-center justify-center gap-2">
+                <TBtn onClick={onStop} title="Stop"><SkipBack className="w-3 h-3" /></TBtn>
+                <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
+                  <ChevronLeft className="w-3 h-3" />
+                </TBtn>
+                <TCDisplay value={timecode} />
+                <TBtn onClick={onPlayPause} title={isPlaying ? 'Pause' : 'Play'}>
+                  {isPlaying ? <Pause className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
+                </TBtn>
+                <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title="Next Frame">
+                  <ChevronLeft className="w-3 h-3 rotate-180" />
+                </TBtn>
+              </div>
+
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <TBtn onClick={zoomOut} title="Zoom Out"><ZoomOut className="w-3 h-3" /></TBtn>
+              <button
+                className="text-[9px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors"
+                onClick={zoomReset}
+                title="Reset zoom"
+              >
+                {zoom.toFixed(zoom >= 10 ? 0 : 1)}×
+              </button>
+              <TBtn onClick={zoomIn} title="Zoom In"><ZoomIn className="w-3 h-3" /></TBtn>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <TBtn onClick={() => setSnap(!snap)} active={snap} title="Snap to Frame">
+                <Magnet className="w-3 h-3" />
+              </TBtn>
+            </div>
+
+            {/* Scrollable Tracks Area */}
+            <div 
+              ref={contentRef} 
+              className="flex-1 overflow-y-auto overflow-x-hidden relative select-none"
+              onMouseDown={handleTrackAreaMouseDown}
+              onContextMenu={handleBackgroundContextMenu}
+            >
+              {/* Ruler */}
+              <div className="flex border-b border-border shrink-0 cursor-pointer" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
+                <div className="shrink-0 border-r border-border bg-background" style={{ width: LABEL_W }} />
+                <div className="flex-1 relative">
+                  <TimelineRuler zoom={zoom} duration={view.duration} viewWindow={viewWindow} />
+                </div>
+              </div>
+
+              {/* Scene Markers */}
+              <SceneMarkerLane
+                markers={sceneMarkers}
+                viewWindow={viewWindow}
+                selectedKeyframes={selectedKeyframes}
+                onAddMarker={onAddSceneMarker}
+                onDropMarker={onDropSceneMarker}
+                onDeleteMarker={onDeleteSceneMarker}
+                onSelect={onKeyframeSelect}
+                onContextMenu={handleMarkerContextMenu}
+                timeFromClientX={timeFromClientX}
+                contentRef={contentRef}
+              />
+
+            {/* Camera track group */}
+            <TrackGroup 
+              id="camera" name="Camera" color="cyan"
+              isGraphEditorVisible={expandedGraphTracks.has('camera')}
+              onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('camera')) n.delete('camera'); else n.add('camera'); return n; })}
+            >
+              <TrackRow
+                trackId="camera-keyframes"
+                name="Keyframes"
+                color="cyan"
+                keyframeData={cameraKeyframes.map(k => ({
+                  time: k.time,
+                  handleIn: k.tensionHandleIn,
+                  handleOut: k.tensionHandleOut,
+                  handleInTime: k.tensionHandleInTime,
+                  handleOutTime: k.tensionHandleOutTime,
+                  mode: k.mode,
+                }))}
+                viewWindow={viewWindow}
+                selectedKeyframes={selectedKeyframes}
+                onSelect={onKeyframeSelect}
+                onMoveKeyframe={onMoveKeyframe}
+                onContextMenu={handleKeyframeContextMenu}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                timeFromClientX={timeFromClientX}
+                contentRef={contentRef}
+              />
+              {/* Camera graph editor (tension curve) */}
+              {expandedGraphTracks.has('camera') && (
+                <GraphEditor
+                  trackId="camera-keyframes"
+                  color="cyan"
+                  keyframeData={cameraKeyframes.map(k => ({
+                    time: k.time,
+                    tension: k.tension,
+                    handleIn: k.tensionHandleIn,
+                    handleOut: k.tensionHandleOut,
+                    handleInTime: k.tensionHandleInTime,
+                    handleOutTime: k.tensionHandleOutTime,
+                    mode: k.mode,
+                  }))}
+                  viewWindow={viewWindow}
+                  onSetHandle={onSetHandle}
+                  onSetHandle2D={onSetHandle2D}
+                  onClearHandle={onClearHandle}
+                  onSetInterpolation={onSetInterpolation}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  onContextMenu={handleKeyframeContextMenu}
+                  selectedKeyframes={selectedKeyframes}
+                />
+              )}
+            </TrackGroup>
+
+            {/* Physics track group */}
+            <TrackGroup 
+              id="physics" name="Physics" color="orange"
+              isGraphEditorVisible={expandedGraphTracks.has('physics')}
+              onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('physics')) n.delete('physics'); else n.add('physics'); return n; })}
+            >
+              {TRACK_GROUPS[1].tracks.map(track => {
+                const kfArr = physicsKeyframes[track.id] ?? [];
+                return (
+                  <div key={track.id}>
+                    <TrackRow
+                      trackId={track.id}
+                      name={track.name}
+                      color="orange"
+                      keyframeData={kfArr}
+                      viewWindow={viewWindow}
+                      selectedKeyframes={selectedKeyframes}
+                      showMiniCurve={!expandedGraphTracks.has('physics')}
+                      onSelect={onKeyframeSelect}
+                      onMoveKeyframe={onMoveKeyframe}
+                      onContextMenu={handleKeyframeContextMenu}
+                      onDragStart={onDragStart}
+                      onDragEnd={onDragEnd}
+                      timeFromClientX={timeFromClientX}
+                      contentRef={contentRef}
+                    />
+                    {/* Per-track graph editor */}
+                    {expandedGraphTracks.has('physics') && (
+                      <GraphEditor
+                        trackId={track.id}
+                        color="orange"
+                        keyframeData={kfArr}
+                        viewWindow={viewWindow}
+                        onSetHandle={onSetHandle}
+                        onSetHandle2D={onSetHandle2D}
+                        onSetValue={onSetValue}
+                        onClearHandle={onClearHandle}
+                        onSetInterpolation={onSetInterpolation}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onContextMenu={handleKeyframeContextMenu}
+                        selectedKeyframes={selectedKeyframes}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </TrackGroup>
+
+            {/* Playhead */}
+            {playheadVisible && (
+              <div
+                className="absolute top-0 bottom-0 w-px bg-red-500 z-30 pointer-events-none"
+                style={{
+                  left: `calc(${playheadRatio * 100}% + ${LABEL_W * (1 - playheadRatio)}px)`,
+                }}
+              >
+                {/* Playhead triangle */}
+                <div className="absolute -top-0 left-1/2 -translate-x-1/2">
+                  <svg width="10" height="8" viewBox="0 0 10 8">
+                    <polygon points="0,0 10,0 5,8" fill="#ef4444" />
+                  </svg>
+                </div>
+              </div>
+            )}
+
+            {/* Drag-select marquee */}
+            {dragSelect && createPortal(
+              <div
+                className="fixed border border-blue-500/60 bg-blue-500/10 pointer-events-none z-[9998]"
+                style={{
+                  left: Math.min(dragSelect.startX, dragSelect.endX),
+                  top: Math.min(dragSelect.startY, dragSelect.endY),
+                  width: Math.abs(dragSelect.endX - dragSelect.startX),
+                  height: Math.abs(dragSelect.endY - dragSelect.startY),
+                }}
+              />,
+              document.body
+            )}
+          </div>
+        </div>
+      </ContextMenuTrigger>
+
+        {/* The Actual Menu Content (portal rendered by Radix) */}
+        {contextMenuTarget && (
+          <TimelineContextMenuContent
+            target={contextMenuTarget}
+            onClose={() => setContextMenuTarget(null)}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={clipboard ? handlePaste : undefined}
+            onDelete={onDeleteSelected}
+            onAddSceneMarker={onAddSceneMarker}
+            onSetEasing={handleSetEasing}
+          />
+        )}
+      </ContextMenu>
+    </div>
+  );
+}

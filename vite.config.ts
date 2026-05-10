@@ -54,6 +54,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -69,6 +70,18 @@ export default defineConfig({
 
           if (id.includes('lucide-react')) {
             return 'vendor-icons';
+          }
+
+          if (id.includes('@mui')) {
+            return 'vendor-mui';
+          }
+
+          if (id.includes('recharts')) {
+            return 'vendor-recharts';
+          }
+
+          if (id.includes('motion')) {
+            return 'vendor-motion';
           }
 
           return 'vendor';

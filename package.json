@@ -1,7 +1,7 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.76",
+  "version": "0.77",
   "type": "module",
   "scripts": {
     "predev": "node ./scripts/sync-version.mjs",
@@ -71,8 +71,10 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
+    "typescript": "^6.0.3",
     "vite": "6.3.5"
   },
   "peerDependencies": {
