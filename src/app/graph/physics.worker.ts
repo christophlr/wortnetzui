@@ -42,8 +42,22 @@ let sharedMatrix: Uint8Array;
 let nodeCount = 0;
 
 function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): number {
-  const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence, verticalOrder } = params;
   const n = nodeCount;
+  
+  // Sanitize parameters to prevent numerical instability
+  const repulsion = Math.max(0, Math.min(params.repulsion, 5000));
+  const springK = Math.max(0, Math.min(params.springK, 0.8));
+  // Ensure damping doesn't go too low (prevents runaway velocities)
+  const damping = Math.max(0.5, Math.min(params.damping, 0.99));
+  const minSpeed = Math.max(0.01, Math.min(params.minSpeed, 5));
+  const linkDistance = Math.max(10, Math.min(params.linkDistance, 500));
+  const gravity = Math.max(-5, Math.min(params.gravity, 10));
+  const turbulence = Math.max(0, Math.min(params.turbulence, 10));
+  const verticalOrder = params.verticalOrder ?? 0;
+  
+  // Adaptive force cap based on repulsion strength to prevent explosion/freeze cycles
+  const forceCapBase = 40;
+  const forceCap = forceCapBase + (repulsion / 5000) * 80; // Scale: 40-120
 
   // Damping, gravity, turbulence
   for (let i = 0; i < n; i++) {
@@ -120,7 +134,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
               // Sentence modifier is 1.5 because we don't have the matrix for large n
               const diff = Math.abs(wordCounts[i] - wordCounts[j]);
               const differenceFactor = 1 + diff * 0.15;
-              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, 120);
+              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, forceCap);
               const invDist = 1 / Math.sqrt(distSq);
               
               fx += dx * invDist * force;
@@ -150,7 +164,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
         const diff           = Math.abs(wordCounts[i] - wordCounts[j]);
         const differenceFactor = 1 + diff * 0.15;
 
-        const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 120);
+        const force  = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, forceCap);
         const invDist = 1 / dist;
         const fx = dx * invDist * force;
         const fy = dy * invDist * force;
@@ -184,6 +198,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
 
   // Integrate positions + track movement
   const maxSpeed = 45;
+  const positionBound = 5000; // Prevent nodes from flying to infinity
   let totalMovement = 0;
 
   for (let i = 0; i < n; i++) {
@@ -191,6 +206,19 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
     let vx = posVel[b + 3];
     let vy = posVel[b + 4];
     let vz = posVel[b + 5];
+    
+    // NaN/Infinity recovery: reset to small random position if corrupted
+    if (!Number.isFinite(vx) || !Number.isFinite(vy) || !Number.isFinite(vz) ||
+        !Number.isFinite(posVel[b]) || !Number.isFinite(posVel[b + 1]) || !Number.isFinite(posVel[b + 2])) {
+      posVel[b] = (Math.random() - 0.5) * 100;
+      posVel[b + 1] = (Math.random() - 0.5) * 100;
+      posVel[b + 2] = (Math.random() - 0.5) * 100;
+      posVel[b + 3] = 0;
+      posVel[b + 4] = 0;
+      posVel[b + 5] = 0;
+      continue;
+    }
+    
     const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
 
     if (speed > maxSpeed) {
@@ -201,11 +229,24 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
       posVel[b + 5] = vz;
     }
 
+    // Always update position (remove minSpeed freeze behavior that causes stuck nodes)
+    // Instead, use minSpeed as a threshold for counting "settled" movement
+    posVel[b]     += vx;
+    posVel[b + 1] += vy;
+    posVel[b + 2] += vz;
+    
     if (speed > minSpeed) {
-      posVel[b]     += vx;
-      posVel[b + 1] += vy;
-      posVel[b + 2] += vz;
       totalMovement += speed;
+    }
+    
+    // Position bounds: soft clamp with velocity dampening at edges
+    for (let axis = 0; axis < 3; axis++) {
+      const pos = posVel[b + axis];
+      if (Math.abs(pos) > positionBound) {
+        // Clamp position and reverse/dampen velocity
+        posVel[b + axis] = Math.sign(pos) * positionBound;
+        posVel[b + 3 + axis] *= -0.3; // Bounce back gently
+      }
     }
 
     // Enforce 2D plane in worker so caller doesn't need to iterate again

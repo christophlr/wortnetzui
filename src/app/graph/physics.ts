@@ -42,7 +42,18 @@ export function applyPhysics(
   sharedMatrix?: Uint8Array
 ): number {
   const nodeArray = nodeArr ?? Array.from(nodes.values());
-  const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence } = params;
+  
+  // Sanitize parameters to prevent numerical instability
+  const repulsion = Math.max(0, Math.min(params.repulsion, 5000));
+  const springK = Math.max(0, Math.min(params.springK, 0.8));
+  const damping = Math.max(0.5, Math.min(params.damping, 0.99));
+  const minSpeed = Math.max(0.01, Math.min(params.minSpeed, 5));
+  const linkDistance = Math.max(10, Math.min(params.linkDistance, 500));
+  const gravity = Math.max(-5, Math.min(params.gravity, 10));
+  const turbulence = Math.max(0, Math.min(params.turbulence, 10));
+  
+  // Adaptive force cap
+  const forceCap = 40 + (repulsion / 5000) * 80;
 
   // Reset forces
   nodeArray.forEach(node => {
@@ -108,7 +119,7 @@ export function applyPhysics(
 
               const diff = Math.abs(a.wordCount - b.wordCount);
               const differenceFactor = 1 + diff * 0.15;
-              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, 40);
+              const force = Math.min((repulsion * 1.5 * differenceFactor) / distSq, forceCap);
               const invDist = 1 / Math.sqrt(distSq);
 
               fx += dx * invDist * force;
@@ -153,7 +164,7 @@ export function applyPhysics(
         const differenceFactor = 1 + diff * 0.15;
 
         // Calculate force — fused magnitude + direction to save a division per pair
-        const force = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, 40);
+        const force = Math.min((repulsion * sentenceMod * differenceFactor) / distSq, forceCap);
         const invDist = 1 / dist;
         const fx = dx * invDist * force;
         const fy = dy * invDist * force;
@@ -194,9 +205,22 @@ export function applyPhysics(
 
   // Apply velocity with speed limit and track total movement
   const maxSpeed = 20;
+  const positionBound = 5000;
   let totalMovement = 0;
 
   nodeArray.forEach(node => {
+    // NaN/Infinity recovery: reset to small random position if corrupted
+    if (!Number.isFinite(node.vx) || !Number.isFinite(node.vy) || !Number.isFinite(node.vz) ||
+        !Number.isFinite(node.x) || !Number.isFinite(node.y) || !Number.isFinite(node.z)) {
+      node.x = (Math.random() - 0.5) * 100;
+      node.y = (Math.random() - 0.5) * 100;
+      node.z = (Math.random() - 0.5) * 100;
+      node.vx = 0;
+      node.vy = 0;
+      node.vz = 0;
+      return;
+    }
+    
     const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy + node.vz * node.vz);
 
     if (speed > maxSpeed) {
@@ -205,12 +229,27 @@ export function applyPhysics(
       node.vz = (node.vz / speed) * maxSpeed;
     }
 
-    // Apply minimum speed threshold
+    // Always update position (prevents stuck nodes from minSpeed freeze)
+    node.x += node.vx;
+    node.y += node.vy;
+    node.z += node.vz;
+    
     if (speed > minSpeed) {
-      node.x += node.vx;
-      node.y += node.vy;
-      node.z += node.vz;
       totalMovement += speed;
+    }
+    
+    // Position bounds: soft clamp with velocity dampening at edges
+    if (Math.abs(node.x) > positionBound) {
+      node.x = Math.sign(node.x) * positionBound;
+      node.vx *= -0.3;
+    }
+    if (Math.abs(node.y) > positionBound) {
+      node.y = Math.sign(node.y) * positionBound;
+      node.vy *= -0.3;
+    }
+    if (Math.abs(node.z) > positionBound) {
+      node.z = Math.sign(node.z) * positionBound;
+      node.vz *= -0.3;
     }
   });
 
