@@ -1086,15 +1086,31 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     // Setup renderer
     const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      alpha: true
+      antialias: window.devicePixelRatio < 2, // Skip MSAA on hi-DPI — native resolution is sharp enough
+      alpha: true,
+      powerPreference: 'high-performance', // Prevent OS/browser from reclaiming this context
     });
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(cw || 1000, ch || 800);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x to reduce GPU pressure
     renderer.domElement.style.opacity = '0'; // Prevent Safari WebGL compositing flash before CSS mask
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // WebGL context loss/restore — prevents the component from crashing on GPU preemption
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault(); // Required to allow context restoration
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    });
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      // Re-trigger the main setup effect by forcing a re-init via isCancelled guard
+      // Three.js re-initialises its internal GL state automatically on context restore;
+      // we just need to restart the render loop.
+      if (animationFrameRef.current === null && !isCancelled) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    });
 
 
     // OrbitControls — pan+zoom only in 2D, full orbit in 3D
