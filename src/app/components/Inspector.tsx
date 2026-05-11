@@ -66,7 +66,6 @@ import {
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { cn } from './ui/utils';
 import { useWortnetz } from '../context/WortnetzContext';
-import { useHistory } from '../hooks/useHistory';
 
 function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -140,10 +139,10 @@ export function Inspector() {
     selectedNode,
     physicsKeyframesRef,
     isRecordingRef,
-    playheadRef
+    playheadRef,
+    pushHistory,
+    getTimelineState
   } = useWortnetz();
-
-  const { pushHistory, getTimelineState } = useHistory();
 
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');

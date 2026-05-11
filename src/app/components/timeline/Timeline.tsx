@@ -10,7 +10,6 @@ import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
 import { inferEasingType, LABEL_W, TRACK_GROUPS, type EasingType } from './types';
 import { useWortnetz } from '../../context/WortnetzContext';
-import { useHistory } from '../../hooks/useHistory';
 
 function TBtn({ children, onClick, disabled, active, title }: {
   children: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean; title?: string;
@@ -42,7 +41,7 @@ export function Timeline() {
     isPlaying, setIsPlaying,
     playheadPosition, setPlayheadPosition,
     selectedKeyframes, setSelectedKeyframes,
-    cameraKeyframes,
+    cameraKeyframes, setCameraKeyframes,
     physicsKeyframes, setPhysicsKeyframes,
     handleCaptureKeyframe, handleMoveKeyframe, handleDeleteKeyframe,
     timecode,
@@ -54,10 +53,10 @@ export function Timeline() {
     physicsKeyframesRef,
     sceneMarkersRef,
     pushHistory,
-    getTimelineState
+    getTimelineState,
+    undo, redo, canUndo, canRedo
   } = useWortnetz();
 
-  const { undo, redo, canUndo, canRedo } = useHistory();
 
   const contentRef = useRef<HTMLDivElement>(null);
   const view = useTimelineView(TIMELINE_DURATION);
@@ -227,7 +226,7 @@ export function Timeline() {
   }, [cameraKeyframes, physicsKeyframes, sceneMarkers, playheadPosition]);
 
   return (
-    <div className="flex flex-col bg-background border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto" style={{ height: timelineHeight }}>
+    <div className="flex flex-col bg-background/80 backdrop-blur-md border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto" style={{ height: timelineHeight }}>
       <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuTarget(null); }}>
         <ContextMenuTrigger asChild>
           <div className="flex-1 flex flex-col min-h-0 relative">
@@ -245,7 +244,7 @@ export function Timeline() {
               <TBtn onClick={redo} disabled={!canRedo} title="Redo"><Redo2 className="w-3 h-3" /></TBtn>
 
               <div className="flex-1 flex items-center justify-center gap-2">
-                <TBtn onClick={() => setIsPlaying(false)} title="Stop"><SkipBack className="w-3 h-3" /></TBtn>
+                <TBtn onClick={() => { setIsPlaying(false); setPlayheadPosition(0); }} title="Stop"><SkipBack className="w-3 h-3" /></TBtn>
                 <TBtn onClick={() => setPlayheadPosition(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
                   <ChevronLeft className="w-3 h-3" />
                 </TBtn>

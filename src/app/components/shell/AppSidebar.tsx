@@ -20,7 +20,7 @@ export function AppSidebar({ children }: { children: ReactNode }) {
 
   return (
     <div 
-      className="relative h-full flex flex-row border-l border-zinc-200 bg-zinc-50 z-40 transition-all duration-300 ease-in-out"
+      className="relative h-full flex flex-row border-l border-border bg-sidebar/80 backdrop-blur-md z-40 transition-all duration-300 ease-in-out"
       style={{ width: isSidebarOpen ? inspectorWidth : 48 }}
     >
       {/* Resize handle (left edge of sidebar) */}

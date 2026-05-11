@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useCallback, ReactNode, useMemo, useEffect } from 'react';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
-import { TIMELINE_DURATION } from '../constants';
+import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import { evaluateHermite, computeCatmullRomTangent } from '../easing';
 import type { Network3DHandle } from '../components/Network3D';
 
@@ -179,6 +179,10 @@ export interface WortnetzContextType {
   handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
   pushHistory: (next: TimelineState) => void;
   getTimelineState: () => TimelineState;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 const WortnetzContext = createContext<WortnetzContextType | undefined>(undefined);
@@ -191,7 +195,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [selectedKeyframes, setSelectedKeyframes] = useState<{ track: string; time: number }[]>([]);
   const [sceneMarkers, setSceneMarkers] = useState<SceneMarker[]>([]);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
-  const [inputText, setInputText] = useState(`Blue watched as a word or phrase materialised in scintillating sparks...`);
+  const [inputText, setInputText] = useState(DEFAULT_TEXT);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('sentence');
   const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
   const [styleSettings, setStyleSettings] = useState({
@@ -231,11 +235,32 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const pushHistory = useCallback((next: TimelineState) => {
     setKeyframeHistory(h => {
-      const newHistory = [...h.slice(0, historyIndex + 1), next].slice(-50);
-      return newHistory;
+      const nextH = [...h.slice(0, historyIndex + 1), next].slice(-50);
+      return nextH;
     });
     setHistoryIndex(i => Math.min(i + 1, 49));
   }, [historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+    const entry = keyframeHistory[historyIndex - 1];
+    setCameraKeyframes(entry.cameraKeyframes ?? []);
+    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
+    setSceneMarkers(entry.sceneMarkers ?? []);
+    setHistoryIndex(i => i - 1);
+  }, [historyIndex, keyframeHistory]);
+
+  const redo = useCallback(() => {
+    if (historyIndex >= keyframeHistory.length - 1) return;
+    const entry = keyframeHistory[historyIndex + 1];
+    setCameraKeyframes(entry.cameraKeyframes ?? []);
+    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
+    setSceneMarkers(entry.sceneMarkers ?? []);
+    setHistoryIndex(i => i + 1);
+  }, [historyIndex, keyframeHistory]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < keyframeHistory.length - 1;
 
   const getTimelineState = useCallback(() => ({
     cameraKeyframes: cameraKeyframesRef.current,
@@ -517,7 +542,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       handleCaptureKeyframe, handleMoveKeyframe, handleDeleteKeyframe,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
-      pushHistory, getTimelineState
+      pushHistory, getTimelineState, undo, redo, canUndo, canRedo
     }}>
       {children}
     </WortnetzContext.Provider>

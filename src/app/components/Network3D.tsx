@@ -13,6 +13,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
 } from './ui/context-menu';
+import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 
 type PhysicsKeyframe = { time: number; value: number; handleIn?: number; handleOut?: number; mode?: 'aligned' | 'broken' };
 
@@ -68,7 +69,6 @@ interface Network3DProps {
 
 
 
-const DEFAULT_TEXT = `Blue watched as a word or phrase materialised in scintillating sparks. A poetry of fire which casts everything into darkness with the brightness of its reflections. The lemon goblin stares from the unwanted canvasses thrown in a corner. The blue island goes and goes, far away up the hill. It was 3am that day, cold and blue and full of hope. I write sentences for them to make them bloom. I need more long sentences that make the flowers more flowery. So I write, I write like a ritual over and over. The more exist the more I go I fly, they slay. They were etching each other in fine copper plates. You can see them today and tomorrow for the first time.`;
 
 
 

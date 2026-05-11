@@ -7,7 +7,6 @@ import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, Men
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useWortnetz } from '../context/WortnetzContext';
-import { useHistory } from '../hooks/useHistory';
 import { useProject } from '../hooks/useProject';
 
 function NetworkLogo() {
@@ -45,10 +44,10 @@ export function TopBar({
     viewMode, setViewMode, 
     themeMode, setThemeMode, 
     renderMode, setRenderMode,
-    setPhysicsParams
+    setPhysicsParams,
+    undo, redo, canUndo, canRedo
   } = useWortnetz();
   
-  const { undo, redo, canUndo, canRedo } = useHistory();
   const { handleSave, handleLoad } = useProject();
 
   const handleViewModeChange = (mode: '2D' | '3D') => {

@@ -92,58 +92,72 @@ function AppContent() {
 
   return (
     <AppShell>
-      {/* Top Section */}
-      <div className="p-2 z-50">
-        <TopBar 
-          onOpenShortcuts={() => setIsShortcutsOpen(true)}
-          onApplyNodeStylePreset={handleApplyNodeStylePreset}
-          onExport={() => network3DRef.current?.exportPNG()}
-        />
+      {/* Background Layer: Preview fills the whole shell */}
+      <div className="absolute inset-0 z-0">
+        <Preview ref={network3DRef} />
       </div>
 
-      <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
-        <AppCanvas>
-          {/* Main 3D View */}
-          <Preview ref={network3DRef} />
+      {/* UI Overlay Layer */}
+      <div className="relative z-10 flex flex-col h-full pointer-events-none">
+        {/* Top Section */}
+        <div className="p-2 pointer-events-auto shrink-0">
+          <TopBar 
+            onOpenShortcuts={() => setIsShortcutsOpen(true)}
+            onApplyNodeStylePreset={handleApplyNodeStylePreset}
+            onExport={() => network3DRef.current?.exportPNG()}
+          />
+        </div>
 
-          {/* Floating Toolbar */}
-          <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50">
-            <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+        {/* Main Content Area: Horizontal split between (Preview+Timeline) and Sidebar */}
+        <div className="flex-1 flex flex-row min-h-0 relative overflow-hidden">
+          
+          {/* Left Column: Preview space and Timeline */}
+          <div className="flex-1 flex flex-col min-w-0 relative">
+            <div className="flex-1 relative">
+              {/* Floating Toolbar - Centered in workspace gap */}
+              <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-auto z-30">
+                <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+              </div>
+
+              {/* Floating Path Animator UI */}
+              {activeTool === 'path' && (
+                <div className="absolute left-20 top-24 pointer-events-auto z-40">
+                  <PathAnimatorUI 
+                    nodes={[]} 
+                    onReorder={() => {}} 
+                    onRemove={() => {}} 
+                    onClose={() => setActiveTool('pointer')} 
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Section (Timeline) */}
+            <div className="relative shrink-0 pointer-events-auto">
+              <div 
+                className="h-1 shrink-0 cursor-row-resize bg-white/5 hover:bg-white/20 transition-colors z-50"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const startY = e.clientY;
+                  const startHeight = timelineHeight;
+                  const onMove = (ev: MouseEvent) => setTimelineHeight(Math.max(100, Math.min(600, startHeight - (ev.clientY - startY))));
+                  const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                  window.addEventListener('mousemove', onMove);
+                  window.addEventListener('mouseup', onUp);
+                }}
+              />
+              <Timeline />
+            </div>
           </div>
 
-          {/* Floating Path Animator UI */}
-          {activeTool === 'path' && (
-            <div className="absolute left-20 top-24 z-[60]">
-              <PathAnimatorUI 
-                nodes={[]} 
-                onReorder={() => {}} 
-                onRemove={() => {}} 
-                onClose={() => setActiveTool('pointer')} 
-              />
-            </div>
-          )}
-        </AppCanvas>
+          {/* Right Column: Sidebar (Full Height) */}
+          <div className="pointer-events-auto h-full flex flex-row shrink-0 relative z-20">
+            <AppSidebar>
+              <Inspector />
+            </AppSidebar>
+          </div>
 
-        <AppSidebar>
-          <Inspector />
-        </AppSidebar>
-      </div>
-
-      {/* Bottom Section */}
-      <div className="relative">
-        <div 
-          className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors z-50"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            const startY = e.clientY;
-            const startHeight = timelineHeight;
-            const onMove = (ev: MouseEvent) => setTimelineHeight(Math.max(100, Math.min(600, startHeight - (ev.clientY - startY))));
-            const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-            window.addEventListener('mousemove', onMove);
-            window.addEventListener('mouseup', onUp);
-          }}
-        />
-        <Timeline />
+        </div>
       </div>
 
       <ShortcutsDialog

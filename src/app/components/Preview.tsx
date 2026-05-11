@@ -25,7 +25,10 @@ export const Preview = forwardRef<Network3DHandle, {}>(function Preview(_, ref) 
     canvasAspectRatio,
     initProgress,
     visualSettings,
-    setSelectedNode
+    setSelectedNode,
+    timelineHeight,
+    inspectorWidth,
+    isSidebarOpen
   } = useWortnetz();
 
   const [mounted, setMounted] = useState(false);
@@ -47,8 +50,15 @@ export const Preview = forwardRef<Network3DHandle, {}>(function Preview(_, ref) 
         }}
       />
 
-      {/* Canvas Area with Letterboxing */}
-      <div className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-500 ${canvasAspectRatio === 'full' ? 'p-0' : 'p-8 sm:p-12 lg:p-16'}`}>
+      {/* Canvas Area with Letterboxing - Centered in visible space */}
+      <div 
+        className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-500 ${canvasAspectRatio === 'full' ? 'p-0' : 'p-8 sm:p-12 lg:p-16'}`}
+        style={{
+          paddingRight: isSidebarOpen ? inspectorWidth : 48,
+          paddingBottom: timelineHeight,
+          paddingTop: 60, // TopBar height + padding
+        }}
+      >
         {mounted && (
           <div 
             className={`relative transition-all duration-500 ease-in-out overflow-hidden border border-zinc-300 dark:border-white/10 rounded-[2px] ${
