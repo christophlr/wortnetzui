@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  ChevronRight, 
   Diamond, 
   Type, 
   PaintRoller, 
@@ -54,6 +53,12 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { Slider } from './ui/slider';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './ui/accordion';
 import {
   SidebarContent,
   SidebarHeader,
@@ -353,275 +358,318 @@ export function Inspector({
               </div>
             )}
 
-            {/* VISUAL TAB (Refactored to DCC Property Stack) */}
+            {/* VISUAL TAB (Accordion-based Property Stack) */}
             {activeTab === 'visual' && (
-              <div className="flex flex-col h-full text-[11px]">
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Knoten (Nodes)</SidebarGroupLabel>
-                    <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, nodesVisible: !visualSettings.nodesVisible })}
-                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                    >
-                      {visualSettings.nodesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                    </button>
-                  </div>
-                  
-                  <SidebarGroupContent className="px-3 space-y-5">
-                    {/* Node Shape Segmented Control */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Form</span>
-                      <div className="flex bg-zinc-100 rounded-md p-0.5 border border-zinc-200">
-                        {[
-                          { id: 'rectangle', icon: Square, label: 'Rect' },
-                          { id: 'rounded-rectangle', icon: RectangleHorizontal, label: 'Rounded' },
-                          { id: 'ellipse', icon: Circle, label: 'Ellipse' }
-                        ].map((shape) => (
+              <div className="px-3 py-4">
+                <Accordion type="multiple" defaultValue={["nodes", "labels", "edges", "environment"]} className="space-y-3">
+
+                  {/* KNOTEN (Nodes) */}
+                  <AccordionItem value="nodes" className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-zinc-50/80 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-zinc-700 dark:text-zinc-300 font-bold uppercase tracking-wide text-[10px]">Knoten</span>
+                        <button
+                          className={cn(
+                            "ml-auto p-0 transition-colors",
+                            visualSettings.nodesVisible
+                              ? "text-zinc-900 dark:text-zinc-100"
+                              : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onVisualSettingsChange?.({ ...visualSettings, nodesVisible: !visualSettings.nodesVisible });
+                          }}
+                        >
+                          {visualSettings.nodesVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-2 py-2 space-y-3 bg-white dark:bg-zinc-900/10">
+                      <div className="space-y-3 pl-2">
+                        <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">Form</span>
+                        <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 border border-zinc-200 dark:border-zinc-700">
+                          {[
+                            { id: 'rectangle', icon: Square, label: 'Rect' },
+                            { id: 'rounded-rectangle', icon: RectangleHorizontal, label: 'Rounded' },
+                            { id: 'ellipse', icon: Circle, label: 'Ellipse' }
+                          ].map((shape) => (
+                            <button
+                              key={shape.id}
+                              onClick={() => onStyleChange({ nodeShape: shape.id as NodeShape })}
+                              className={cn(
+                                "flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md transition-all text-[9px] font-medium",
+                                styleSettings.nodeShape === shape.id
+                                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50"
+                              )}
+                              title={shape.label}
+                            >
+                              <shape.icon size={12} />
+                              <span>{shape.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pl-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Basis-Skalierung</span>
+                          <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{(styleSettings.nodeScale ?? 1).toFixed(1)}x</span>
+                        </div>
+                        <Slider
+                          value={[(styleSettings.nodeScale ?? 1) * 100]}
+                          max={250}
+                          step={5}
+                          onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+                          className="py-2"
+                        />
+                      </div>
+
+                      <div className="space-y-2 pl-2 pt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Radialer Bias</span>
+                          <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{visualSettings.radialBiasScale.toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[visualSettings.radialBiasScale * 100]}
+                          max={100}
+                          step={1}
+                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
+                          className="py-2"
+                        />
+                        <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight pr-2">Scale = Basis + (Bias × Dist)</p>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* BESCHRIFTUNG (Labels) */}
+                  <AccordionItem value="labels" className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-zinc-50/80 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-zinc-700 dark:text-zinc-300 font-bold uppercase tracking-wide text-[10px]">Beschriftung</span>
+                        <button
+                          className={cn(
+                            "ml-auto p-0 transition-colors",
+                            visualSettings.labelsVisible
+                              ? "text-zinc-900 dark:text-zinc-100"
+                              : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onVisualSettingsChange?.({ ...visualSettings, labelsVisible: !visualSettings.labelsVisible });
+                          }}
+                        >
+                          {visualSettings.labelsVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 py-2 space-y-4 bg-white dark:bg-zinc-900/10">
+                      <div className="space-y-2 pl-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Weight-Mapping</span>
+                          <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{visualSettings.labelWeightMapping.toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[visualSettings.labelWeightMapping * 100]}
+                          max={100}
+                          step={1}
+                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
+                          className="py-2"
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* VERBINDUNGEN (Edges) */}
+                  <AccordionItem value="edges" className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-zinc-50/80 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-zinc-700 dark:text-zinc-300 font-bold uppercase tracking-wide text-[10px]">Verbindungen</span>
+                        <button
+                          className={cn(
+                            "ml-auto p-0 transition-colors",
+                            visualSettings.edgesVisible
+                              ? "text-zinc-900 dark:text-zinc-100"
+                              : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onVisualSettingsChange?.({ ...visualSettings, edgesVisible: !visualSettings.edgesVisible });
+                          }}
+                        >
+                          {visualSettings.edgesVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 py-2 space-y-4 bg-white dark:bg-zinc-900/10">
+                      <div className="pl-3 flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Flow Animation</span>
+                        <Switch
+                          checked={visualSettings.edgeFlowAnimation}
+                          onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
+                          className="scale-90 data-[state=checked]:bg-zinc-900"
+                        />
+                      </div>
+
+                      <div className="space-y-2 pl-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Global Opacity</span>
+                          <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{Math.round(styleSettings.edgeOpacity * 100)}%</span>
+                        </div>
+                        <Slider
+                          value={[styleSettings.edgeOpacity * 100]}
+                          max={100}
+                          step={1}
+                          onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
+                          className="py-2"
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* UMGEBUNG (Environment) */}
+                  <AccordionItem value="environment" className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-zinc-50/80 dark:bg-zinc-900/20 hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-zinc-700 dark:text-zinc-300 font-bold uppercase tracking-wide text-[10px]">Umgebung</span>
+                        <div className="ml-auto flex items-center gap-2">
                           <button
-                            key={shape.id}
-                            onClick={() => onStyleChange({ nodeShape: shape.id as NodeShape })}
-                            className={cn(
-                              "flex items-center gap-1.5 px-2 py-1 rounded-[4px] transition-all",
-                              styleSettings.nodeShape === shape.id 
-                                ? "bg-white text-zinc-900 shadow-sm" 
-                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50"
-                            )}
-                            title={shape.label}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVisualSettingsChange?.({ ...visualSettings, envAtmosphereSeed: Math.random() * 1000 });
+                            }}
+                            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
+                            title="Shuffle Atmosphere"
                           >
-                            <shape.icon size={12} />
-                            <span className="text-[9px] font-medium">{shape.label}</span>
+                            <Dices size={13} />
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Node Scale */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Basis-Skalierung</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{(styleSettings.nodeScale ?? 1).toFixed(1)}x</span>
-                      </div>
-                      <Slider 
-                        value={[styleSettings.nodeScale * 100 ?? 100]} 
-                        max={250} 
-                        step={5} 
-                        onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
-                        className="py-2"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Radialer Bias</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.radialBiasScale.toFixed(2)}</span>
-                      </div>
-                      <Slider 
-                        value={[visualSettings.radialBiasScale * 100]} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
-                        className="py-1"
-                      />
-                      <p className="text-[9px] text-zinc-400 font-mono italic leading-tight">Scale = Basis + (Bias * Dist)</p>
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Beschriftung (Labels)</SidebarGroupLabel>
-                    <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, labelsVisible: !visualSettings.labelsVisible })}
-                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                    >
-                      {visualSettings.labelsVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                    </button>
-                  </div>
-                  
-                  <SidebarGroupContent className="px-3 space-y-5">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Weight-Mapping</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.labelWeightMapping.toFixed(2)}</span>
-                      </div>
-                      <Slider 
-                        value={[visualSettings.labelWeightMapping * 100]} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
-                        className="py-2"
-                      />
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Verbindungen (Edges)</SidebarGroupLabel>
-                    <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, edgesVisible: !visualSettings.edgesVisible })}
-                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                    >
-                      {visualSettings.edgesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                    </button>
-                  </div>
-                  
-                  <SidebarGroupContent className="px-3 space-y-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Flow Animation</span>
-                      <Switch 
-                        checked={visualSettings.edgeFlowAnimation}
-                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
-                        className="scale-75 data-[state=checked]:bg-zinc-900"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Global Opacity</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{Math.round(styleSettings.edgeOpacity * 100)}%</span>
-                      </div>
-                      <Slider 
-                        value={[styleSettings.edgeOpacity * 100]} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
-                        className="py-2"
-                      />
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Umgebung (Environment)</SidebarGroupLabel>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envAtmosphereSeed: Math.random() * 1000 })}
-                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                        title="Shuffle Atmosphere"
-                      >
-                        <Dices size={14} />
-                      </button>
-                      <button 
-                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envVisible: !visualSettings.envVisible })}
-                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                      >
-                        {visualSettings.envVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <SidebarGroupContent className="px-3 space-y-4">
-                    <div className="space-y-3">
-                      <span className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase tracking-tighter font-bold">Atmosphere Gradient</span>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Origin</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientOrigin }} />
-                            <Input 
-                              value={visualSettings.gradientOrigin} 
-                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
-                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientOrigin: e.target.value })}
-                            />
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVisualSettingsChange?.({ ...visualSettings, envVisible: !visualSettings.envVisible });
+                            }}
+                            className={cn(
+                              "p-0 transition-colors",
+                              visualSettings.envVisible
+                                ? "text-zinc-900 dark:text-zinc-100"
+                                : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                            )}
+                          >
+                            {visualSettings.envVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                          </button>
                         </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Periphery</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientPeriphery }} />
-                            <Input 
-                              value={visualSettings.gradientPeriphery} 
-                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
-                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientPeriphery: e.target.value })}
-                            />
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 py-2 space-y-3 bg-white dark:bg-zinc-900/10">
+                      <div className="space-y-3 pl-3">
+                        <span className="text-zinc-700 dark:text-zinc-300 text-[10px] uppercase tracking-wide font-semibold">Atmosphere Gradient</span>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <span className="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase font-medium tracking-wide">Origin</span>
+                            <div className="flex items-center gap-2">
+                              <div className="size-5 rounded-md border-2 border-zinc-300 dark:border-zinc-600 shadow-sm" style={{ backgroundColor: visualSettings.gradientOrigin }} />
+                              <Input
+                                value={visualSettings.gradientOrigin}
+                                className="h-7 text-[9px] font-mono bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientOrigin: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <span className="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase font-medium tracking-wide">Periphery</span>
+                            <div className="flex items-center gap-2">
+                              <div className="size-5 rounded-md border-2 border-zinc-300 dark:border-zinc-600 shadow-sm" style={{ backgroundColor: visualSettings.gradientPeriphery }} />
+                              <Input
+                                value={visualSettings.gradientPeriphery}
+                                className="h-7 text-[9px] font-mono bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientPeriphery: e.target.value })}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Glitch Paint Tool</SidebarGroupLabel>
-                    <Switch 
-                      checked={visualSettings.glitchActive}
-                      onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, glitchActive: checked })}
-                      className="scale-75 data-[state=checked]:bg-indigo-600"
-                    />
-                  </div>
-                  
-                  {visualSettings.glitchActive && (
-                    <SidebarGroupContent className="px-3 space-y-5">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Brush Radius</span>
-                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchBrushRadius}px</span>
+                  {/* GLITCH PAINT */}
+                  <AccordionItem value="glitch" className="border-2 border-indigo-100 dark:border-indigo-900/30 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-indigo-50/80 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-indigo-700 dark:text-indigo-300 font-bold uppercase tracking-wide text-[10px]">Glitch Paint</span>
+                        <Switch
+                          className="ml-auto scale-90 data-[state=checked]:bg-indigo-600"
+                          checked={visualSettings.glitchActive}
+                          onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, glitchActive: checked })}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </AccordionTrigger>
+                    {visualSettings.glitchActive && (
+                      <AccordionContent className="px-3 py-2 space-y-4 bg-indigo-50/20 dark:bg-indigo-950/10">
+                        <div className="space-y-2 pl-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Brush Radius</span>
+                            <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{visualSettings.glitchBrushRadius}px</span>
+                          </div>
+                          <Slider
+                            value={[visualSettings.glitchBrushRadius]}
+                            max={500}
+                            step={5}
+                            onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
+                            className="py-2"
+                          />
                         </div>
-                        <Slider 
-                          value={[visualSettings.glitchBrushRadius]} 
-                          max={500} 
-                          step={5} 
-                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
+                        <div className="space-y-2 pl-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Feather</span>
+                            <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{visualSettings.glitchFeather.toFixed(2)}</span>
+                          </div>
+                          <Slider
+                            value={[visualSettings.glitchFeather * 100]}
+                            max={100}
+                            step={1}
+                            onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
+                            className="py-2"
+                          />
+                        </div>
+                      </AccordionContent>
+                    )}
+                  </AccordionItem>
+
+                  {/* PATH ANIMATOR */}
+                  <AccordionItem value="path" className="border-2 border-emerald-100 dark:border-emerald-900/30 rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline bg-emerald-50/80 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors">
+                      <div className="flex items-center w-full pr-2 gap-2">
+                        <span className="text-emerald-700 dark:text-emerald-300 font-bold uppercase tracking-wide text-[10px]">Path Animator</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 py-2 space-y-4 bg-emerald-50/20 dark:bg-emerald-950/10">
+                      <div className="pl-3 flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Camera Follow</span>
+                        <Switch
+                          checked={visualSettings.pathCameraFollow}
+                          onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
+                          className="scale-90 data-[state=checked]:bg-emerald-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2 pl-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Smoothness</span>
+                          <span className="font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{visualSettings.pathSmoothness.toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[visualSettings.pathSmoothness * 100]}
+                          max={100}
+                          step={1}
+                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
                           className="py-2"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Feather</span>
-                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchFeather.toFixed(2)}</span>
-                        </div>
-                        <Slider 
-                          value={[visualSettings.glitchFeather * 100]} 
-                          max={100} 
-                          step={1} 
-                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
-                          className="py-2"
-                        />
-                      </div>
-                    </SidebarGroupContent>
-                  )}
-                </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Path Animator</SidebarGroupLabel>
-                  <SidebarGroupContent className="px-3 space-y-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Camera Follow</span>
-                      <Switch 
-                        checked={visualSettings.pathCameraFollow}
-                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
-                        className="scale-75 data-[state=checked]:bg-emerald-600"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Smoothness</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.pathSmoothness.toFixed(2)}</span>
-                      </div>
-                      <Slider 
-                        value={[visualSettings.pathSmoothness * 100]} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
-                        className="py-2"
-                      />
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
+                </Accordion>
               </div>
             )}
 

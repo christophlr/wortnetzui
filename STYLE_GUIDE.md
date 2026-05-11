@@ -43,11 +43,10 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
   absolute positioning requirement.
 
 ### Property Stack UI Pattern (Inspector)
-- The **Visualisierung** (Visuals) tab uses a high-density "Property Stack" layout.
-- **Section Headers**: Use standard `SidebarGroupLabel` styling with a global visibility toggle (eye icon) on the far right.
-- **Segmented Controls**: Prefer horizontal icon-button groups (Figma-style) with `bg-zinc-100` and `bg-white` active states.
-- **Density**: Use `text-[11px]` and standard sidebar background for consistent visual flow.
-- **Readouts**: Numeric values should be subtle monospaced readouts (`text-zinc-400`) aligned to the right.
+- **Accordion Density**: Visual inspector accordion content uses tighter padding (`px-3 py-2`) and reduced vertical gaps.
+- **Knoten Inset**: The Knoten accordion block keeps an even tighter horizontal inset (`px-2` / `pl-2`) for the form and slider groups.
+- **Helper Text**: Secondary captions should use the same muted descriptive treatment as physics rows (`text-[9px] text-zinc-400 leading-tight`).
+- **Accordion Headers**: Section headers use a vertically centered chevron at the left, with visibility controls pinned to the far right and no filled background on the eye button.
 
 
 ### Version Display Rule
