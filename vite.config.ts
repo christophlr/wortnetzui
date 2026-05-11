@@ -48,7 +48,7 @@ function getBuildNumber(): string {
 }
 
 export default defineConfig({
-  base: '/wortnetzui/',
+  base: process.env.GITHUB_PAGES ? '/wortnetzui/' : '/',
   plugins: [
     react(),
     tailwindcss(),
