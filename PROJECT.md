@@ -32,7 +32,7 @@ These rules apply to every task, every session, without exception:
     - Changed visual appearance, colour, spacing, or UI pattern → `STYLE_GUIDE.md`
     - Completed a known gap or added a planned feature → `ROADMAP.md`
     - Pure internal refactor/bug fix with no behavioural change → no update needed.
-11. **The orientation gizmo is deactivated.** It is hidden from the UI and its logic is commented out in `Network3D.tsx`. Camera zoom is now handled in the Inspector.
+11. **The orientation gizmo and manual pan/fit-to-view controls are deactivated.** They are hidden from the UI. Navigation is handled exclusively via mouse/trackpad (OrbitControls) and the Inspector controls. Camera zoom is now handled in the Inspector.
 
 ---
 

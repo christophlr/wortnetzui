@@ -200,7 +200,7 @@ export function GraphEditor({
   return (
     <div className={`flex border-b border-border/50`} style={{ height: GRAPH_H }}>
       {/* Label column */}
-      <div className="shrink-0 flex flex-col justify-between pl-8 pr-2 border-r border-border bg-background py-1 relative" style={{ width: LABEL_W }}>
+      <div className="shrink-0 flex flex-col justify-between pl-8 pr-2 border-r border-border bg-background py-1 relative z-30" style={{ width: LABEL_W }}>
         <div className="flex items-center gap-1.5">
           <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
             <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />

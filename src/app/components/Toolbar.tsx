@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { MousePointer2, Hand, Paintbrush, View, Scale3D } from 'lucide-react';
+import { MousePointer2, Hand, Paintbrush, View, Scale3D, Wand2, Route } from 'lucide-react';
 import { cn } from './ui/utils';
 
-export type ToolId = 'pointer' | 'pan' | 'paint' | 'zoom' | 'scale';
+export type ToolId = 'pointer' | 'pan' | 'paint' | 'zoom' | 'scale' | 'glitch' | 'path';
 
 interface ToolbarProps {
   activeTool: ToolId;
@@ -50,21 +50,21 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
         activeTool={activeTool} 
         onToolChange={onToolChange} 
         icon={MousePointer2} 
-        label="Pointer (V)" 
+        label="Auswahl (V)" 
       />
       <ToolButton 
         id="pan" 
         activeTool={activeTool} 
         onToolChange={onToolChange} 
         icon={Hand} 
-        label="Pan (H)" 
+        label="Hand (H)" 
       />
       <ToolButton 
         id="paint" 
         activeTool={activeTool} 
         onToolChange={onToolChange} 
         icon={Paintbrush} 
-        label="Paint (B)" 
+        label="Pinsel (B)" 
       />
       <ToolButton 
         id="zoom" 
@@ -78,7 +78,22 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
         activeTool={activeTool} 
         onToolChange={onToolChange} 
         icon={Scale3D} 
-        label="Scale (S)" 
+        label="Skalieren (S)" 
+      />
+      <div className="w-6 h-[1px] bg-zinc-200/60 my-0.5" />
+      <ToolButton 
+        id="glitch" 
+        activeTool={activeTool} 
+        onToolChange={onToolChange} 
+        icon={Wand2} 
+        label="Glitch-Pinsel (G)" 
+      />
+      <ToolButton 
+        id="path" 
+        activeTool={activeTool} 
+        onToolChange={onToolChange} 
+        icon={Route} 
+        label="Pfad-Animator (P)" 
       />
     </div>
   );

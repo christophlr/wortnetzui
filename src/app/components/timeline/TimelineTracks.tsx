@@ -13,18 +13,19 @@ import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 
 export function SceneMarkerLane({
   markers, viewWindow, selectedKeyframes,
-  onAddMarker, onDropMarker, onDeleteMarker,
+  onAddMarker, onMoveMarker, onDropMarker, onDeleteMarker,
   onSelect, onContextMenu, timeFromClientX, contentRef,
 }: {
   markers: SceneMarker[];
   viewWindow: ViewWindow;
   selectedKeyframes?: { track: string; time: number }[];
   onAddMarker?: (time: number) => void;
+  onMoveMarker?: (oldTime: number, newTime: number) => void;
   onDropMarker?: (fromTime: number, toTime: number) => void;
   onDeleteMarker?: (time: number) => void;
   onSelect?: (track: string, time: number, additive: boolean) => void;
   onContextMenu?: (time: number, label: string) => void;
-  timeFromClientX: (clientX: number, el: HTMLElement | null) => number | null;
+  timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -34,22 +35,24 @@ export function SceneMarkerLane({
     e.stopPropagation();
     onSelect?.('scene-markers', marker.time, e.shiftKey || e.metaKey);
     // Start manual drag
-    const origTime = marker.time;
-    setDraggingMarker({ origTime, currentTime: origTime });
+    let currentTime = marker.time;
+    setDraggingMarker({ origTime: marker.time, currentTime: marker.time });
 
     const onMove = (ev: MouseEvent) => {
-      const t = timeFromClientX(ev.clientX, contentRef.current);
-      if (t !== null) {
+      // Snap to other markers? Maybe not while dragging the marker itself, but good to have the option.
+      // Usually you don't snap a marker to another marker.
+      const t = timeFromClientX(ev.clientX, contentRef.current, markers.map(m => m.time));
+      if (t !== null && Math.abs(t - currentTime) > 0.001) {
+        onMoveMarker?.(currentTime, t);
+        currentTime = t;
         setDraggingMarker(prev => prev ? { ...prev, currentTime: t } : null);
       }
     };
     const onUp = () => {
-      setDraggingMarker(prev => {
-        if (prev && Math.abs(prev.currentTime - origTime) > 0.001) {
-          onDropMarker?.(origTime, prev.currentTime);
-        }
-        return null;
-      });
+      setDraggingMarker(null);
+      if (Math.abs(currentTime - marker.time) > 0.001) {
+        onDropMarker?.(marker.time, currentTime);
+      }
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -58,14 +61,14 @@ export function SceneMarkerLane({
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    const t = timeFromClientX(e.clientX, contentRef.current);
+    const t = timeFromClientX(e.clientX, contentRef.current, markers.map(m => m.time));
     if (t !== null) onAddMarker?.(t);
   };
 
   return (
-    <div className="flex sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: TRACK_H }}>
+    <div className="flex sticky top-[24px] z-20 border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: TRACK_H }}>
       {/* Label */}
-      <div className="shrink-0 flex items-center gap-1.5 px-2 border-r border-border" style={{ width: LABEL_W }}>
+      <div className="shrink-0 flex items-center gap-1.5 px-2 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }}>
         <Bookmark className="w-3 h-3 text-purple-400" fill="currentColor" />
         <span className="text-xs text-muted-foreground font-medium truncate">Scene Markers</span>
       </div>
@@ -115,9 +118,11 @@ export function SceneMarkerLane({
 export function TrackRow({
   trackId, name, color, keyframeData, viewWindow,
   selectedKeyframes, showMiniCurve,
+  isGraphEditorVisible,
+  onToggleGraphEditor,
   onSelect, onMoveKeyframe, onContextMenu,
   onDragStart, onDragEnd,
-  timeFromClientX, contentRef,
+  timeFromClientX, contentRef, sceneMarkers = [],
 }: {
   trackId: string;
   name: string;
@@ -126,13 +131,16 @@ export function TrackRow({
   viewWindow: ViewWindow;
   selectedKeyframes?: { track: string; time: number }[];
   showMiniCurve?: boolean;
+  isGraphEditorVisible?: boolean;
+  onToggleGraphEditor?: () => void;
   onSelect?: (track: string, time: number, additive: boolean) => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onContextMenu?: (trackId: string, time: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  timeFromClientX: (clientX: number, el: HTMLElement | null) => number | null;
+  timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  sceneMarkers?: SceneMarker[];
 }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
   const colorMap = COLOR[color];
@@ -186,9 +194,10 @@ export function TrackRow({
     onDragStart?.();
 
     let currentTime = kfTime;
+    const snapPoints = sceneMarkers.map(m => m.time);
 
     const onMove = (ev: MouseEvent) => {
-      const t = timeFromClientX(ev.clientX, contentRef.current);
+      const t = timeFromClientX(ev.clientX, contentRef.current, snapPoints);
       if (t !== null && Math.abs(t - currentTime) > 0.001) {
         onMoveKeyframe?.(trackId, currentTime, t);
         currentTime = t;
@@ -204,10 +213,19 @@ export function TrackRow({
   };
 
   return (
-    <div className={`flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
+    <div className={`group flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
       {/* Label */}
-      <div className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background" style={{ width: LABEL_W }}>
-        <span className="text-[11px] text-muted-foreground truncate">{name}</span>
+      <div className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }}>
+        <span className="text-[11px] text-muted-foreground truncate flex-1">{name}</span>
+        {onToggleGraphEditor && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
+            className={`opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all ${isGraphEditorVisible ? 'text-blue-400 bg-blue-500/10 opacity-100' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Toggle Graph Editor"
+          >
+            <LineChart className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
       {/* Track area */}
       <div className={`flex-1 relative ${colorMap.trackBg}`}>
@@ -284,26 +302,14 @@ export function TrackGroup({
     <div>
       {/* Group header */}
       <div
-        className={`group flex items-center border-b border-border bg-background cursor-pointer select-none ${colorMap.border} border-l-2`}
+        className={`group flex items-center border-b border-border bg-background/50 cursor-pointer select-none relative ${colorMap.border} border-l-2`}
         style={{ height: TRACK_H }}
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="shrink-0 flex items-center gap-1.5 px-2" style={{ width: LABEL_W }}>
+        <div className="shrink-0 flex items-center gap-1.5 px-2 bg-background relative z-30" style={{ width: LABEL_W }}>
           <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
           <div className={`w-2 h-2 rounded-full ${colorMap.dot}`} />
           <span className="text-xs font-medium text-foreground flex-1 truncate">{name}</span>
-          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Lock className="w-3 h-3 text-muted-foreground opacity-50" />
-            {onToggleGraphEditor && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
-                className={`flex items-center justify-center rounded-sm transition-colors ${isGraphEditorVisible ? 'text-blue-400 bg-blue-500/10' : 'text-muted-foreground hover:text-foreground'}`}
-                title="Toggle Graph Editor"
-              >
-                <LineChart className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
         <div className="flex-1 border-r-0" />
       </div>

@@ -2,13 +2,14 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { LABEL_W, type ViewWindow } from './types';
 import { TIMELINE_DURATION } from '../../constants';
 
+// Base zoom multiplier. User's "1x" = 12.0 internal zoom.
+const ZOOM_SCALE = 12;
+
 /**
  * Shared hook for timeline view window state: zoom, pan, snap, and helpers.
  * Consolidates the scattered zoom/pan/snap state from the main Timeline component.
  */
 export function useTimelineView(initialDuration = TIMELINE_DURATION) {
-  const [targetZoom, setTargetZoom] = useState(1);
-  const [targetPanStart, setTargetPanStart] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [panStart, setPanStart] = useState(0);
   const [snap, setSnap] = useState(true);
@@ -16,50 +17,22 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
 
   // Animated values for display
   const viewWindow = useMemo((): ViewWindow => {
-    const visibleDuration = duration / zoom;
+    const visibleDuration = duration / (zoom * ZOOM_SCALE);
     const maxStart = Math.max(0, duration - visibleDuration);
     const start = Math.max(0, Math.min(maxStart, panStart));
     return { start, end: start + visibleDuration };
   }, [zoom, panStart, duration]);
 
-  // Target window for calculations (prevents drifting during animation)
-  const targetViewWindow = useMemo((): ViewWindow => {
-    const visibleDuration = duration / targetZoom;
-    const maxStart = Math.max(0, duration - visibleDuration);
-    const start = Math.max(0, Math.min(maxStart, targetPanStart));
-    return { start, end: start + visibleDuration };
-  }, [targetZoom, targetPanStart, duration]);
-
   // Refs for non-stale access in event handlers
-  const targetZoomRef = useRef(targetZoom);
-  const targetPanStartRef = useRef(targetPanStart);
+  const zoomRef = useRef(zoom);
+  const panStartRef = useRef(panStart);
   useEffect(() => { 
-    targetZoomRef.current = targetZoom; 
-    targetPanStartRef.current = targetPanStart;
-  }, [targetZoom, targetPanStart]);
-
-  // Animation Loop: Lerp current values toward targets
-  useEffect(() => {
-    let raf: number;
-    const step = () => {
-      setZoom(prev => {
-        const diff = targetZoomRef.current - prev;
-        if (Math.abs(diff) < 0.0001) return targetZoomRef.current;
-        return prev + diff * 0.25; // Smoothing factor
-      });
-      setPanStart(prev => {
-        const diff = targetPanStartRef.current - prev;
-        if (Math.abs(diff) < 0.0001) return targetPanStartRef.current;
-        return prev + diff * 0.25;
-      });
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    zoomRef.current = zoom; 
+    panStartRef.current = panStart;
+  }, [zoom, panStart]);
 
   /** Convert a clientX pixel position to a time value, applying snap. */
-  const timeFromClientX = useCallback((clientX: number, contentEl: HTMLElement | null): number | null => {
+  const timeFromClientX = useCallback((clientX: number, contentEl: HTMLElement | null, snapPoints: number[] = []): number | null => {
     if (!contentEl) return null;
     const rect = contentEl.getBoundingClientRect();
     const rightW = rect.width - LABEL_W;
@@ -70,7 +43,27 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
     const visibleDuration = viewWindow.end - viewWindow.start;
     const raw = viewWindow.start + frac * visibleDuration;
     const clamped = Math.max(0, Math.min(duration, raw));
-    if (snap) return Math.round(clamped * 30) / 30;
+
+    if (snap) {
+      // 1. Try snapping to provided points (scene markers, etc)
+      // Threshold: ~10 pixels in time
+      const threshold = (visibleDuration / rightW) * 10;
+      let bestPoint = -1;
+      let minDiff = threshold;
+
+      for (const p of snapPoints) {
+        const diff = Math.abs(clamped - p);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestPoint = p;
+        }
+      }
+
+      if (bestPoint !== -1) return bestPoint;
+
+      // 2. Fallback to frame grid
+      return Math.round(clamped * 30) / 30;
+    }
     return clamped;
   }, [snap, duration, viewWindow]);
 
@@ -85,37 +78,38 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
       e.preventDefault();
       
       // Calculate anchor relative to TARGET view window to keep the zoom stable
-      const z = targetZoomRef.current;
+      const z = zoomRef.current;
       const x = e.clientX - rect.left - LABEL_W;
       const rightW = rect.width - LABEL_W;
       const frac = Math.max(0, Math.min(1, x / rightW));
       
-      const visibleDuration = duration / z;
+      const visibleDuration = duration / (z * ZOOM_SCALE);
       const maxStart = Math.max(0, duration - visibleDuration);
-      const start = Math.max(0, Math.min(maxStart, targetPanStartRef.current));
+      const start = Math.max(0, Math.min(maxStart, panStartRef.current));
       const timeAtCursor = start + frac * visibleDuration;
 
       // Continuous zoom factor based on deltaY magnitude
       const factor = Math.pow(1.1, -e.deltaY * 0.02);
-      const newZoom = Math.max(1, Math.min(200, z * factor));
-      const newVisibleDuration = duration / newZoom;
+      // New constraints: 0.08 (full duration) to 20 (240x original)
+      const newZoom = Math.max(0.08, Math.min(20, z * factor));
+      const newVisibleDuration = duration / (newZoom * ZOOM_SCALE);
       const newPanStart = Math.max(0, Math.min(
         duration - newVisibleDuration,
         timeAtCursor - frac * newVisibleDuration
       ));
 
-      setTargetZoom(newZoom);
-      setTargetPanStart(newPanStart);
+      setZoom(newZoom);
+      setPanStart(newPanStart);
     } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 || Math.abs(e.deltaX) > 2) {
       // Horizontal scroll / trackpad swipe -> pan
       e.preventDefault();
-      const z = targetZoomRef.current;
+      const z = zoomRef.current;
       const rightW = rect.width - LABEL_W;
-      const visibleDuration = duration / z;
+      const visibleDuration = duration / (z * ZOOM_SCALE);
       const secondsPerPixel = visibleDuration / rightW;
       const delta = e.deltaX * secondsPerPixel;
       
-      setTargetPanStart(prev => {
+      setPanStart(prev => {
         const maxStart = Math.max(0, duration - visibleDuration);
         return Math.max(0, Math.min(maxStart, prev + delta));
       });
@@ -124,30 +118,30 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
 
   /** Zoom in, keeping the center of the view fixed. */
   const zoomIn = useCallback(() => {
-    const mid = (targetViewWindow.start + targetViewWindow.end) / 2;
-    setTargetZoom(z => {
-      const newZ = Math.min(200, z * 1.5);
-      const newVisible = duration / newZ;
-      setTargetPanStart(Math.max(0, Math.min(duration - newVisible, mid - newVisible / 2)));
+    const mid = (viewWindow.start + viewWindow.end) / 2;
+    setZoom(z => {
+      const newZ = Math.min(20, z * 1.5);
+      const newVisible = duration / (newZ * ZOOM_SCALE);
+      setPanStart(Math.max(0, Math.min(duration - newVisible, mid - newVisible / 2)));
       return newZ;
     });
-  }, [duration, targetViewWindow]);
+  }, [duration, viewWindow]);
 
   /** Zoom out, keeping the center of the view fixed. */
   const zoomOut = useCallback(() => {
-    const mid = (targetViewWindow.start + targetViewWindow.end) / 2;
-    setTargetZoom(z => {
-      const newZ = Math.max(1, z / 1.5);
-      const newVisible = duration / newZ;
-      setTargetPanStart(Math.max(0, Math.min(duration - newVisible, mid - newVisible / 2)));
+    const mid = (viewWindow.start + viewWindow.end) / 2;
+    setZoom(z => {
+      const newZ = Math.max(0.08, z / 1.5);
+      const newVisible = duration / (newZ * ZOOM_SCALE);
+      setPanStart(Math.max(0, Math.min(duration - newVisible, mid - newVisible / 2)));
       return newZ;
     });
-  }, [duration, targetViewWindow]);
+  }, [duration, viewWindow]);
 
-  /** Reset zoom to show the full duration. */
+  /** Reset zoom to show the default 1x zoom. */
   const zoomReset = useCallback(() => {
-    setTargetZoom(1);
-    setTargetPanStart(0);
+    setZoom(1);
+    setPanStart(0);
   }, []);
 
   /** Zoom to fit all keyframes in view. */
@@ -159,10 +153,12 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
     const fitStart = Math.max(0, min - padding);
     const fitEnd = Math.min(duration, max + padding);
     const fitDuration = fitEnd - fitStart;
-    const newZoom = Math.max(1, Math.min(200, duration / fitDuration));
-    setTargetZoom(newZoom);
-    setTargetPanStart(fitStart);
+    const newZoom = Math.max(0.08, Math.min(20, duration / (fitDuration * ZOOM_SCALE)));
+    setZoom(newZoom);
+    setPanStart(fitStart);
   }, [duration, zoomReset]);
+
+
 
   /** Auto-extend duration when keyframes approach the end. */
   const autoExtendDuration = useCallback((maxKfTime: number) => {
@@ -172,8 +168,8 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
   }, [duration]);
 
   return {
-    zoom, setZoom: setTargetZoom,
-    panStart, setPanStart: setTargetPanStart,
+    zoom, setZoom,
+    panStart, setPanStart,
     snap, setSnap,
     duration, setDuration,
     viewWindow,

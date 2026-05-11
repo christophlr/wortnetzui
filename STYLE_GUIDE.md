@@ -38,6 +38,17 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - TopBar = absolute top-0 inside main viewport div, `pointer-events-none` shell with
   `pointer-events-auto` on the pills.
 - Timeline = absolute bottom-0 inside main viewport div.
+- **Dynamic Offsets**: The `Preview` area is constrained by `top` and `bottom` offsets 
+  calculated from the absolute UI bands. This prevents overlap while respecting the 
+  absolute positioning requirement.
+
+### Property Stack UI Pattern (Inspector)
+- The **Visualisierung** (Visuals) tab uses a high-density "Property Stack" layout.
+- **Section Headers**: Use standard `SidebarGroupLabel` styling with a global visibility toggle (eye icon) on the far right.
+- **Segmented Controls**: Prefer horizontal icon-button groups (Figma-style) with `bg-zinc-100` and `bg-white` active states.
+- **Density**: Use `text-[11px]` and standard sidebar background for consistent visual flow.
+- **Readouts**: Numeric values should be subtle monospaced readouts (`text-zinc-400`) aligned to the right.
+
 
 ### Version Display Rule
 - Lives in the **bottom-left of the artboard** (inside Preview).

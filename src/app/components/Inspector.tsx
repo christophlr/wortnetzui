@@ -24,7 +24,27 @@ import {
   Tv,
   Image,
   FileText,
-  Move
+  Move,
+  Eye,
+  EyeOff,
+  Link,
+  Link2Off,
+  Wand2,
+  Route,
+  Target,
+  CircleDot,
+  Layers,
+  Globe,
+  MousePointer2,
+  Dices,
+  Square,
+  Circle,
+  RectangleHorizontal,
+  MousePointerClick,
+  Sparkles,
+  Camera,
+  CornerUpRight,
+  Activity
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -52,6 +72,54 @@ const GRADIENT_PRESETS = [
   { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
   { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
 ];
+
+function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [localValue, setLocalValue] = React.useState(value.toString());
+
+  const commitValue = (valStr: string) => {
+    let val = parseFloat(valStr);
+    if (!isNaN(val)) {
+      if (min !== undefined) val = Math.max(min, val);
+      if (max !== undefined) val = Math.min(max, val);
+      onCommit(val);
+    }
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <Input
+        type="number"
+        autoFocus
+        className="w-12 h-6 text-[10px] px-1 py-0 text-center border-zinc-200"
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            commitValue(localValue);
+          } else if (e.key === 'Escape') {
+            setIsEditing(false);
+            setLocalValue(value.toString());
+          }
+        }}
+        onBlur={() => commitValue(localValue)}
+      />
+    );
+  }
+
+  return (
+    <button 
+      onClick={() => {
+        setIsEditing(true);
+        setLocalValue(value.toString());
+      }}
+      className="text-[10px] font-mono text-zinc-400 hover:text-zinc-900 transition-colors"
+    >
+      {format(value)}
+    </button>
+  );
+}
 
 interface InspectorProps {
   onPhysicsChange: (p: any) => void;
@@ -84,6 +152,27 @@ interface InspectorProps {
   onCanvasAspectRatioChange?: (v: string) => void;
   onZoomChange: (v: number) => void;
   zoomValue: number;
+  selectedNode?: any;
+  onOverrideChange?: (nodeId: string, property: string, value: any, unlinked: boolean) => void;
+  visualSettings?: {
+    nodesVisible: boolean;
+    labelsVisible: boolean;
+    edgesVisible: boolean;
+    envVisible: boolean;
+    radialBiasScale: number;
+    radialBiasOpacity: number;
+    gradientOrigin: string;
+    gradientPeriphery: string;
+    labelWeightMapping: number;
+    edgeFlowAnimation: boolean;
+    envAtmosphereSeed: number;
+    glitchActive: boolean;
+    glitchBrushRadius: number;
+    glitchFeather: number;
+    pathSmoothness: number;
+    pathCameraFollow: boolean;
+  };
+  onVisualSettingsChange?: (vs: any) => void;
 }
 
 export function Inspector({
@@ -93,7 +182,26 @@ export function Inspector({
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
   width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
   onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
-  onZoomChange, zoomValue
+  onZoomChange, zoomValue,
+  selectedNode, onOverrideChange, visualSettings = {
+    nodesVisible: true,
+    labelsVisible: true,
+    edgesVisible: true,
+    envVisible: true,
+    radialBiasScale: 0.5,
+    radialBiasOpacity: 0.5,
+    gradientOrigin: '#4f46e5',
+    gradientPeriphery: '#10b981',
+    labelWeightMapping: 0.5,
+    edgeFlowAnimation: false,
+    envAtmosphereSeed: 123,
+    glitchActive: false,
+    glitchBrushRadius: 100,
+    glitchFeather: 0.5,
+    pathSmoothness: 0.5,
+    pathCameraFollow: true
+  },
+  onVisualSettingsChange
 }: InspectorProps) {
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
@@ -133,13 +241,13 @@ export function Inspector({
       onClick={() => handleTabClick(id)}
       className={cn(
         "group relative flex h-10 w-10 items-center justify-center",
-        activeTab === id ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+        activeTab === id ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
       )}
       title={label}
     >
       <Icon size={20} className={cn(activeTab === id ? "scale-110" : "scale-100 group-hover:scale-105")} />
       {activeTab === id && (
-        <div className="absolute left-0 h-5 w-0.5 bg-zinc-900 rounded-r-full" />
+        <div className="absolute left-0 h-5 w-0.5 bg-zinc-900 dark:bg-zinc-100 rounded-r-full" />
       )}
     </button>
   );
@@ -150,7 +258,7 @@ export function Inspector({
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
           <button 
             onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar einblenden"
           >
             <PanelRight size={18} />
@@ -173,7 +281,7 @@ export function Inspector({
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
           <button 
             onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar ausblenden"
           >
             <PanelRightClose size={18} />
@@ -191,19 +299,19 @@ export function Inspector({
             <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
               {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : activeTab === 'camera' ? 'Kamera Steuerung' : 'Canvas Layout'}
             </h2>
-            <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 transition-colors md:hidden">
+            <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
               <X size={16} />
             </button>
           </SidebarHeader>
 
-          <SidebarContent className="flex-1 overflow-auto p-0">
+          <SidebarContent className="flex-1 overflow-y-auto overflow-x-hidden p-0">
             
             {/* CONTENT TAB */}
             {activeTab === 'content' && (
               <div>
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Eingabetext</SidebarGroupLabel>
-                  <SidebarGroupContent className="space-y-4 pt-1">
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Eingabetext</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-4">
                     <Textarea 
                       className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans" 
                       placeholder="Text hier einfügen..."
@@ -222,9 +330,9 @@ export function Inspector({
 
                 <Separator className="bg-zinc-200/60 mx-4" />
 
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Analyse / Zerteilung</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-2">
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Parse Modus</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3">
                     <RadioGroup defaultValue="word" onValueChange={(v) => onParsingChange(v as any)} className="gap-4">
                       {[
                         { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
@@ -233,9 +341,9 @@ export function Inspector({
                       ].map((item) => (
                         <div key={item.id} className="flex items-start space-x-3 group cursor-pointer">
                           <RadioGroupItem value={item.id} id={item.id} className="mt-0.5 border-zinc-300 text-zinc-900" />
-                          <label htmlFor={item.id} className="text-[12px] font-medium leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-600 transition-colors">
+                          <label htmlFor={item.id} className="text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-800 transition-colors">
                             {item.label}
-                            <p className="text-[10px] text-zinc-400 font-normal mt-0.5">{item.desc}</p>
+                            <p className="text-[10px] text-zinc-400 font-normal mt-1">{item.desc}</p>
                           </label>
                         </div>
                       ))}
@@ -245,140 +353,273 @@ export function Inspector({
               </div>
             )}
 
-            {/* VISUAL TAB */}
+            {/* VISUAL TAB (Refactored to DCC Property Stack) */}
             {activeTab === 'visual' && (
-              <div>
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Presets</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm" className={cn("h-8 text-[11px] bg-white border-zinc-200", appliedNodePreset === 'filled' && "border-indigo-500 bg-indigo-50/30 text-indigo-700")} onClick={() => onNodeAppearanceChange({ borderColor: 'auto', fillColor: 'auto', textColor: '#ffffff' })}>
-                        Filled (Export)
-                      </Button>
-                      <Button variant="outline" size="sm" className={cn("h-8 text-[11px] bg-white border-zinc-200", appliedNodePreset === 'outline' && "border-indigo-500 bg-indigo-50/30 text-indigo-700")} onClick={() => onNodeAppearanceChange({ borderColor: 'auto', fillColor: 'transparent', textColor: 'auto' })}>
-                        Outline (Edit)
-                      </Button>
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-200/60 mx-4" />
-
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Element-Darstellung</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-3 space-y-5 px-1">
-
-                    {/* Node Shape */}
-                    <div className="space-y-2">
-                      <span className="text-[11px] font-medium text-zinc-600">Form</span>
-                      <div className="grid grid-cols-3 gap-1.5">
+              <div className="flex flex-col h-full text-[11px]">
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <div className="flex items-center justify-between pr-2 mb-3">
+                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Knoten (Nodes)</SidebarGroupLabel>
+                    <button 
+                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, nodesVisible: !visualSettings.nodesVisible })}
+                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      {visualSettings.nodesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
+                  
+                  <SidebarGroupContent className="px-3 space-y-5">
+                    {/* Node Shape Segmented Control */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Form</span>
+                      <div className="flex bg-zinc-100 rounded-md p-0.5 border border-zinc-200">
                         {[
-                          { value: 'rectangle' as NodeShape, label: 'Rect' },
-                          { value: 'rounded-rectangle' as NodeShape, label: 'Rund' },
-                          { value: 'ellipse' as NodeShape, label: 'Ellipse' },
-                        ].map(shape => (
+                          { id: 'rectangle', icon: Square, label: 'Rect' },
+                          { id: 'rounded-rectangle', icon: RectangleHorizontal, label: 'Rounded' },
+                          { id: 'ellipse', icon: Circle, label: 'Ellipse' }
+                        ].map((shape) => (
                           <button
-                            key={shape.value}
-                            onClick={() => onStyleChange({ nodeShape: shape.value })}
+                            key={shape.id}
+                            onClick={() => onStyleChange({ nodeShape: shape.id as NodeShape })}
                             className={cn(
-                              "h-7 text-[10px] rounded-md border transition-colors",
-                              (styleSettings.nodeShape ?? 'rectangle') === shape.value
-                                ? "border-blue-500 bg-blue-50/50 text-blue-700 font-medium"
-                                : "border-zinc-200 bg-zinc-50/50 text-zinc-500 hover:bg-zinc-100"
+                              "flex items-center gap-1.5 px-2 py-1 rounded-[4px] transition-all",
+                              styleSettings.nodeShape === shape.id 
+                                ? "bg-white text-zinc-900 shadow-sm" 
+                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50"
                             )}
+                            title={shape.label}
                           >
-                            {shape.label}
+                            <shape.icon size={12} />
+                            <span className="text-[9px] font-medium">{shape.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
                     {/* Node Scale */}
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Skalierung</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{((styleSettings.nodeScale ?? 1)).toFixed(1)}x</span>
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Basis-Skalierung</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{(styleSettings.nodeScale ?? 1).toFixed(1)}x</span>
                       </div>
                       <Slider 
                         value={[styleSettings.nodeScale * 100 ?? 100]} 
                         max={250} 
                         step={5} 
                         onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+                        className="py-2"
                       />
                     </div>
 
-                    {/* Border Width */}
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Randbreite</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{(styleSettings.nodeBorderWidth ?? 2)}px</span>
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Radialer Bias</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.radialBiasScale.toFixed(2)}</span>
                       </div>
                       <Slider 
-                        value={[styleSettings.nodeBorderWidth ?? 2]} 
-                        min={0}
-                        max={8} 
-                        step={0.5} 
-                        onValueChange={([val]) => onStyleChange({ nodeBorderWidth: val })}
+                        value={[visualSettings.radialBiasScale * 100]} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
+                        className="py-1"
+                      />
+                      <p className="text-[9px] text-zinc-400 font-mono italic leading-tight">Scale = Basis + (Bias * Dist)</p>
+                    </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-100 mx-4" />
+
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <div className="flex items-center justify-between pr-2 mb-3">
+                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Beschriftung (Labels)</SidebarGroupLabel>
+                    <button 
+                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, labelsVisible: !visualSettings.labelsVisible })}
+                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      {visualSettings.labelsVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
+                  
+                  <SidebarGroupContent className="px-3 space-y-5">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Weight-Mapping</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.labelWeightMapping.toFixed(2)}</span>
+                      </div>
+                      <Slider 
+                        value={[visualSettings.labelWeightMapping * 100]} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
+                        className="py-2"
+                      />
+                    </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-100 mx-4" />
+
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <div className="flex items-center justify-between pr-2 mb-3">
+                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Verbindungen (Edges)</SidebarGroupLabel>
+                    <button 
+                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, edgesVisible: !visualSettings.edgesVisible })}
+                      className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      {visualSettings.edgesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
+                  
+                  <SidebarGroupContent className="px-3 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Flow Animation</span>
+                      <Switch 
+                        checked={visualSettings.edgeFlowAnimation}
+                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
+                        className="scale-75 data-[state=checked]:bg-zinc-900"
                       />
                     </div>
 
-                    {/* Edge Opacity */}
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Kanten Deckkraft</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{Math.round(styleSettings.edgeOpacity * 100)}%</span>
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Global Opacity</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{Math.round(styleSettings.edgeOpacity * 100)}%</span>
                       </div>
                       <Slider 
                         value={[styleSettings.edgeOpacity * 100]} 
                         max={100} 
                         step={1} 
                         onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
+                        className="py-2"
                       />
                     </div>
-
-                    {/* Depth Size */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-zinc-600">Tiefenskalierung</span>
-                        <Switch
-                          checked={styleSettings.depthSizeEnabled ?? false}
-                          onCheckedChange={(v) => onStyleChange({ depthSizeEnabled: v })}
-                        />
-                      </div>
-                      {styleSettings.depthSizeEnabled && (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-zinc-500">Stärke</span>
-                            <span className="text-[10px] font-mono text-zinc-400">{styleSettings.depthSizeStrength ?? 50}%</span>
-                          </div>
-                          <Slider 
-                            value={[styleSettings.depthSizeStrength ?? 50]} 
-                            max={100} 
-                            step={1} 
-                            onValueChange={([val]) => onStyleChange({ depthSizeStrength: val })}
-                          />
-                        </>
-                      )}
-                    </div>
-
                   </SidebarGroupContent>
                 </SidebarGroup>
 
-                <Separator className="bg-zinc-200/60 mx-4" />
+                <Separator className="bg-zinc-100 mx-4" />
 
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Farbverläufe</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-2 grid grid-cols-2 gap-2">
-                    {GRADIENT_PRESETS.map((p) => (
-                      <button
-                        key={p.name}
-                        className="flex items-center gap-2 p-2 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-100 transition-colors text-left shadow-xs"
-                        onClick={() => onGradientChange({ mode: 'gradient', innerColor: p.inner, outerColor: p.outer })}
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <div className="flex items-center justify-between pr-2 mb-3">
+                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Umgebung (Environment)</SidebarGroupLabel>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envAtmosphereSeed: Math.random() * 1000 })}
+                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                        title="Shuffle Atmosphere"
                       >
-                        <div className="size-3.5 rounded-full shadow-sm" style={{ background: `linear-gradient(to bottom right, ${p.inner}, ${p.outer})` }} />
-                        <span className="text-[10px] font-medium truncate text-zinc-700">{p.name}</span>
+                        <Dices size={14} />
                       </button>
-                    ))}
+                      <button 
+                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envVisible: !visualSettings.envVisible })}
+                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        {visualSettings.envVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <SidebarGroupContent className="px-3 space-y-4">
+                    <div className="space-y-3">
+                      <span className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase tracking-tighter font-bold">Atmosphere Gradient</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Origin</span>
+                          <div className="flex items-center gap-2">
+                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientOrigin }} />
+                            <Input 
+                              value={visualSettings.gradientOrigin} 
+                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
+                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientOrigin: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Periphery</span>
+                          <div className="flex items-center gap-2">
+                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientPeriphery }} />
+                            <Input 
+                              value={visualSettings.gradientPeriphery} 
+                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
+                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientPeriphery: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-100 mx-4" />
+
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <div className="flex items-center justify-between pr-2 mb-3">
+                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Glitch Paint Tool</SidebarGroupLabel>
+                    <Switch 
+                      checked={visualSettings.glitchActive}
+                      onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, glitchActive: checked })}
+                      className="scale-75 data-[state=checked]:bg-indigo-600"
+                    />
+                  </div>
+                  
+                  {visualSettings.glitchActive && (
+                    <SidebarGroupContent className="px-3 space-y-5">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Brush Radius</span>
+                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchBrushRadius}px</span>
+                        </div>
+                        <Slider 
+                          value={[visualSettings.glitchBrushRadius]} 
+                          max={500} 
+                          step={5} 
+                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
+                          className="py-2"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Feather</span>
+                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchFeather.toFixed(2)}</span>
+                        </div>
+                        <Slider 
+                          value={[visualSettings.glitchFeather * 100]} 
+                          max={100} 
+                          step={1} 
+                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
+                          className="py-2"
+                        />
+                      </div>
+                    </SidebarGroupContent>
+                  )}
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-100 mx-4" />
+
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Path Animator</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Camera Follow</span>
+                      <Switch 
+                        checked={visualSettings.pathCameraFollow}
+                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
+                        className="scale-75 data-[state=checked]:bg-emerald-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Smoothness</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.pathSmoothness.toFixed(2)}</span>
+                      </div>
+                      <Slider 
+                        value={[visualSettings.pathSmoothness * 100]} 
+                        max={100} 
+                        step={1} 
+                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
+                        className="py-2"
+                      />
+                    </div>
                   </SidebarGroupContent>
                 </SidebarGroup>
               </div>
@@ -387,9 +628,9 @@ export function Inspector({
             {/* PHYSICS TAB */}
             {activeTab === 'physics' && (
               <div>
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Physik-Steuerung</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-3 space-y-8 px-1">
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3 mt-2">Physik-Steuerung</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-7">
                     {[
                       { id: 'phys-rep', label: 'Streuung (Abstoßung)', desc: 'Wie stark Elemente sich gegenseitig verdrängen.', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000, step: 10, key: 'repulsion' },
                       { id: 'phys-spk', label: 'Spannung (Tension)', desc: 'Wie straff Verbindungen die Elemente zusammenziehen. Höher = snappier.', value: effectivePhysicsParams?.springK ?? 0.2, max: 0.8, step: 0.01, key: 'springK' },
@@ -403,11 +644,17 @@ export function Inspector({
                       <div key={p.id} className="space-y-3">
                         <div className="flex items-start justify-between">
                           <div className="flex flex-col">
-                            <span className="text-[11px] font-bold text-zinc-700">{p.label}</span>
+                            <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">{p.label}</span>
                             <span className="text-[9px] text-zinc-400 mt-0.5 leading-tight pr-2">{p.desc}</span>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[10px] font-mono text-zinc-400">{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}</span>
+                            <SliderValue 
+                              value={p.value} 
+                              min={p.min ?? 0}
+                              max={p.max}
+                              onCommit={(val) => onPhysicsChange({ [p.key]: val })} 
+                              format={(v) => typeof v === 'number' ? v.toFixed(2) : v} 
+                            />
                             <button 
                               onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
                               className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
@@ -433,9 +680,9 @@ export function Inspector({
             {/* CAMERA TAB */}
             {activeTab === 'camera' && (
               <div>
-                <SidebarGroup>
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-wider text-[9px]">Ansicht-Positionierung</SidebarGroupLabel>
-                  <SidebarGroupContent className="pt-3 space-y-6 px-1">
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Ansicht-Positionierung</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-6">
                     
                     <div className="flex flex-col items-center gap-3">
                       <div 
@@ -550,7 +797,7 @@ export function Inspector({
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between px-1">
-                        <span className="text-[11px] font-medium text-zinc-600">Ansicht verschieben (Pan)</span>
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Ansicht verschieben (Pan)</span>
                       </div>
                       
                       <div className="flex flex-col items-center gap-2">
@@ -624,7 +871,7 @@ export function Inspector({
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between px-1">
-                        <span className="text-[11px] font-medium text-zinc-600">Zoom</span>
+                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Zoom</span>
                         <span className="text-[10px] font-mono text-zinc-400">{zoomValue.toFixed(1)}%</span>
                       </div>
                       
@@ -704,15 +951,14 @@ export function Inspector({
             )}
 
             {activeTab === 'canvas' && (
-              <div className="p-4 space-y-6">
-                <div>
-                  <h3 className="text-[11px] font-semibold text-zinc-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    Canvas Layout
-                  </h3>
+              <div>
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Canvas Layout</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-6">
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="text-[11px] font-medium text-zinc-500 mb-3 block">Seitenverhältnis</label>
+                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200 mb-3 block">Seitenverhältnis</span>
                       <RadioGroup 
                         value={canvasAspectRatio} 
                         onValueChange={onCanvasAspectRatioChange}
@@ -748,10 +994,11 @@ export function Inspector({
                       </RadioGroup>
                     </div>
                   </div>
-                </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
 
-                <div className="pt-4 border-t border-zinc-100">
-                  <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                <div className="px-3 pt-2">
+                  <p className="text-[10px] text-zinc-400 leading-relaxed italic border-t border-zinc-100 pt-4">
                     Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport an, um Komposition und Bildausschnitt zu steuern.
                   </p>
                 </div>
@@ -762,7 +1009,7 @@ export function Inspector({
           </SidebarContent>
 
           <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
-            <p className="text-[9px] text-zinc-400 font-medium tracking-wide uppercase">Workspace Eigenschaften</p>
+            <p className="text-[9px] text-zinc-400 font-bold tracking-widest uppercase">Workspace Properties</p>
             <p className="text-[9px] text-zinc-400 font-mono">v0.8.2</p>
           </div>
         </div>

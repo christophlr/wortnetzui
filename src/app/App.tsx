@@ -10,6 +10,7 @@ import { TIMELINE_DURATION } from './constants';
 import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar, type ToolId } from './components/Toolbar';
+import { PathAnimatorUI } from './components/PathAnimatorUI';
 
 type Keyframe = {
   time: number;
@@ -63,7 +64,7 @@ const PHYS_TRACK_PARAM: Record<string, string> = {
   'phys-pls': 'pulse'
 };
 
-function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
+function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number, trackId?: string): number | null {
   if (sorted.length === 0) return null;
   if (time <= sorted[0].time) return sorted[0].value;
   if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
@@ -80,11 +81,13 @@ function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): numbe
       const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
       const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
 
-      // Boundary fix: clamp to 0 at first/last keyframe to prevent overshoot spike
       const m0 = a.handleOut ?? (prevTime === null ? 0 : computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value));
       const m1 = b.handleIn ?? (nextTime === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal));
 
-      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
+      const val = evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
+      
+      // Prevent negative values for all params except gravity
+      return trackId === 'phys-grv' ? val : Math.max(0, val);
     }
   }
   return null;
@@ -120,6 +123,26 @@ export default function App() {
   const [activeTool, setActiveTool] = useState<ToolId>('pointer');
   const [overlayBandOffsets, setOverlayBandOffsets] = useState({ top: 0, bottom: 0 });
   const [zoomValue, setZoomValue] = useState(50);
+  const [visualSettings, setVisualSettings] = useState({
+    nodesVisible: true,
+    labelsVisible: true,
+    edgesVisible: true,
+    envVisible: true,
+    radialBiasScale: 0.5,
+    radialBiasOpacity: 0.5,
+    gradientOrigin: '#4f46e5',
+    gradientPeriphery: '#10b981',
+    labelWeightMapping: 0.5,
+    edgeFlowAnimation: false,
+    envAtmosphereSeed: 123,
+    glitchActive: false,
+    glitchBrushRadius: 100,
+    glitchFeather: 0.5,
+    pathSmoothness: 0.5,
+    pathCameraFollow: true
+  });
+  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (!isNetworkReady) {
@@ -151,6 +174,7 @@ export default function App() {
     { id: '3', command: 'Rückgängig', key: 'z' },
     { id: '4', command: 'Wiederholen', key: 'Z' }, // shift+z
     { id: '5', command: 'Abspielen/Pause', key: ' ' },
+    { id: '6', command: 'Aufnahme', key: 'r' },
   ]);
 
   const physicsKeyframesRef = useRef(physicsKeyframes);
@@ -161,6 +185,9 @@ export default function App() {
 
   const selectedKeyframesRef = useRef(selectedKeyframes);
   useEffect(() => { selectedKeyframesRef.current = selectedKeyframes; }, [selectedKeyframes]);
+  
+  const isRecordingRef = useRef(isRecording);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
 
   const preDragStateRef = useRef<TimelineState | null>(null);
 
@@ -170,9 +197,17 @@ export default function App() {
     sceneMarkers: sceneMarkersRef.current,
   }), []);
 
-  const pushHistory = useCallback((prev: TimelineState, next: TimelineState) => {
-    setKeyframeHistory(h => [...h.slice(0, historyIndex + 1), prev, next].slice(-50));
-    setHistoryIndex(i => Math.min(i + 1, 49));
+  const preRecordStateRef = useRef<TimelineState | null>(null);
+
+  const pushHistory = useCallback((next: TimelineState) => {
+    setKeyframeHistory(h => {
+      const newHistory = [...h.slice(0, historyIndex + 1), next].slice(-50);
+      return newHistory;
+    });
+    setHistoryIndex(i => {
+      const nextIndex = Math.min(i + 1, 49);
+      return nextIndex;
+    });
   }, [historyIndex]);
 
   const handleUndo = useCallback(() => {
@@ -200,7 +235,7 @@ export default function App() {
 
   const handleDragEnd = useCallback(() => {
     if (!preDragStateRef.current) return;
-    pushHistory(preDragStateRef.current, getTimelineState());
+    pushHistory(getTimelineState());
     preDragStateRef.current = null;
   }, [pushHistory, getTimelineState]);
 
@@ -283,6 +318,15 @@ export default function App() {
     }
   }, [themeMode]);
 
+  useEffect(() => {
+    if (isRecording) {
+      preRecordStateRef.current = getTimelineState();
+    } else if (preRecordStateRef.current) {
+      pushHistory(getTimelineState());
+      preRecordStateRef.current = null;
+    }
+  }, [isRecording]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const uiIsDark = themeMode === 'dark';
   const previewIsDark = themeMode === 'dark' || themeMode === 'hybrid';
 
@@ -296,8 +340,14 @@ export default function App() {
       // Find matching shortcut
       const match = shortcuts.find(s => {
         if (s.key === ' ' && e.code === 'Space') return true;
-        if (s.key === 'Z' && e.key === 'Z' && isMod && e.shiftKey) return true; // Shift+Z
-        return isMod && e.key.toLowerCase() === s.key.toLowerCase();
+        if (s.key.toLowerCase() === 'r' && e.key.toLowerCase() === 'r' && !isMod) return true;
+        
+        // Exact match for Shift+Z to prevent it being caught by Cmd+Z
+        if (s.key === 'Z' && e.key === 'Z' && isMod && e.shiftKey) return true;
+        if (s.key === 'z' && e.key === 'z' && isMod && !e.shiftKey) return true;
+        
+        // General case for other shortcuts
+        return isMod && e.key.toLowerCase() === s.key.toLowerCase() && !e.shiftKey;
       });
 
       if (match) {
@@ -308,6 +358,7 @@ export default function App() {
           case 'Rückgängig': handleUndo(); break;
           case 'Wiederholen': handleRedo(); break;
           case 'Abspielen/Pause': setIsPlaying(p => !p); break;
+          case 'Aufnahme': setIsRecording(p => !p); break;
           case 'Sidebar umschalten': setIsSidebarOpen(p => !p); break;
           default: 
             console.log('Action not implemented:', match.command);
@@ -354,7 +405,7 @@ export default function App() {
     const next = { ...physicsParams };
     for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
       const sorted = [...(physicsKeyframes[trackId] ?? [])].sort((a, b) => a.time - b.time);
-      const v = interpolatePhysicsParam(sorted, playheadPosition);
+      const v = interpolatePhysicsParam(sorted, playheadPosition, trackId);
       if (v !== null) (next as Record<string, number>)[param] = v;
     }
     return next;
@@ -389,13 +440,13 @@ export default function App() {
         sceneMarkersRef.current = nextMarkers2D;
         setSceneMarkers(nextMarkers2D);
       }
-      pushHistory(prev, { ...prev, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers2D });
+      pushHistory({ ...prev, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers2D });
       return;
     }
 
     const keyframe = network3DRef.current?.getCameraKeyframe();
     if (!keyframe) {
-      pushHistory(prev, { ...prev, physicsKeyframes: nextPhysKfs });
+      pushHistory({ ...prev, physicsKeyframes: nextPhysKfs });
       return;
     }
 
@@ -420,7 +471,7 @@ export default function App() {
       setSceneMarkers(nextMarkers);
     }
     setSelectedKeyframes([]);
-    pushHistory(prev, { cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
+    pushHistory({ cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
 
   const handleCameraChange = useCallback(() => {
@@ -471,6 +522,15 @@ export default function App() {
         }
         physicsKeyframesRef.current = nextKfs;
         return nextKfs;
+      });
+      setSceneMarkers(prev => {
+        const selectedTimes = new Set(sel.filter(s => s.track === 'scene-markers').map(s => s.time));
+        const next = prev.map(m => selectedTimes.has(m.time)
+          ? { ...m, time: Math.max(0, Math.min(TIMELINE_DURATION, m.time + delta)) }
+          : m
+        ).sort((a, b) => a.time - b.time);
+        sceneMarkersRef.current = next;
+        return next;
       });
       setSelectedKeyframes(prev => prev.map(s => ({
         ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)),
@@ -614,25 +674,16 @@ export default function App() {
         const next = prevCkfs.map(s => {
           if (Math.abs(s.time - time) >= 0.01) return s;
           const nextKf = { ...s, mode };
-          // If aligned, mirror handles (e.g., out becomes in)
-          if (mode === 'aligned' && nextKf.handleOutPos) {
-            nextKf.handleInPos = { ...nextKf.handleOutPos };
-          }
-          if (mode === 'aligned' && nextKf.handleOutTgt) {
-            nextKf.handleInTgt = { ...nextKf.handleOutTgt };
-          }
-          if (mode === 'aligned' && nextKf.tensionHandleOut !== undefined) {
-            nextKf.tensionHandleIn = nextKf.tensionHandleOut;
-          }
-          if (mode === 'aligned' && nextKf.tensionHandleOutTime !== undefined) {
-            nextKf.tensionHandleInTime = nextKf.tensionHandleOutTime;
-          }
+          if (mode === 'aligned' && nextKf.handleOutPos) nextKf.handleInPos = { ...nextKf.handleOutPos };
+          if (mode === 'aligned' && nextKf.handleOutTgt) nextKf.handleInTgt = { ...nextKf.handleOutTgt };
+          if (mode === 'aligned' && nextKf.tensionHandleOut !== undefined) nextKf.tensionHandleIn = nextKf.tensionHandleOut;
+          if (mode === 'aligned' && nextKf.tensionHandleOutTime !== undefined) nextKf.tensionHandleInTime = nextKf.tensionHandleOutTime;
           return nextKf;
         });
         cameraKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, cameraKeyframes: next });
         return next;
       });
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
@@ -648,9 +699,9 @@ export default function App() {
         });
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, physicsKeyframes: next });
         return next;
       });
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
   }, [getTimelineState, pushHistory]);
 
@@ -660,19 +711,19 @@ export default function App() {
       setCameraKeyframes(prevCkfs => {
         const next = prevCkfs.filter(s => Math.abs(s.time - time) > 0.1);
         cameraKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, cameraKeyframes: next });
         return next;
       });
       setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.1);
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, physicsKeyframes: next });
         return next;
       });
       setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
   }, [getTimelineState, pushHistory]);
 
@@ -685,9 +736,9 @@ export default function App() {
         const filtered = prevCkfs.filter(s => Math.abs(s.time - destTime) > 0.1);
         const next = [...filtered, { ...src, time: destTime }].sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, cameraKeyframes: next });
         return next;
       });
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
         const src = (prevPkfs[trackId] ?? []).find(k => Math.abs(k.time - srcTime) < 0.01);
@@ -696,9 +747,9 @@ export default function App() {
         const kfs = [...filtered, { ...src, time: destTime }].sort((a, b) => a.time - b.time);
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
-        pushHistory(prev, { ...prev, physicsKeyframes: next });
         return next;
       });
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
   }, [getTimelineState, pushHistory]);
 
@@ -739,20 +790,60 @@ export default function App() {
 
   const handleAddSceneMarker = useCallback((time: number) => {
     const prev = getTimelineState();
-    const label = `Scene ${sceneMarkersRef.current.length + 1}`;
     const next = [...sceneMarkersRef.current, { time, label }].sort((a, b) => a.time - b.time);
     sceneMarkersRef.current = next;
     setSceneMarkers(next);
-    pushHistory(prev, { ...prev, sceneMarkers: next });
+    pushHistory({ ...prev, sceneMarkers: next });
   }, [getTimelineState, pushHistory]);
 
   // Lightweight: only moves the marker position during drag (no cascade, no swap, no history).
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
-    const nextMarkers = sceneMarkersRef.current.map(m =>
-      Math.abs(m.time - oldTime) < 0.01 ? { ...m, time: newTime } : m
-    ).sort((a, b) => a.time - b.time);
-    sceneMarkersRef.current = nextMarkers;
-    setSceneMarkers(nextMarkers);
+    const delta = newTime - oldTime;
+    const sel = selectedKeyframesRef.current;
+    const isMultiDrag = sel.length > 1 && sel.some(s => s.track === 'scene-markers' && Math.abs(s.time - oldTime) < 0.01);
+
+    if (isMultiDrag) {
+      // Use common multi-move logic (same as handleMoveKeyframe)
+      setCameraKeyframes(prev => {
+        const selectedTimes = new Set(sel.filter(s => s.track === 'camera-keyframes').map(s => s.time));
+        const next = prev.map(s => selectedTimes.has(s.time)
+          ? { ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)) }
+          : s
+        ).sort((a, b) => a.time - b.time);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+      setPhysicsKeyframes(prev => {
+        const nextKfs: Record<string, PhysicsKeyframe[]> = { ...prev };
+        for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
+          const selectedTimes = new Set(sel.filter(s => s.track === tid).map(s => s.time));
+          nextKfs[tid] = (prev[tid] ?? []).map(k => selectedTimes.has(k.time)
+            ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
+            : k
+          ).sort((a, b) => a.time - b.time);
+        }
+        physicsKeyframesRef.current = nextKfs;
+        return nextKfs;
+      });
+      setSceneMarkers(prev => {
+        const selectedTimes = new Set(sel.filter(s => s.track === 'scene-markers').map(s => s.time));
+        const next = prev.map(m => selectedTimes.has(m.time)
+          ? { ...m, time: Math.max(0, Math.min(TIMELINE_DURATION, m.time + delta)) }
+          : m
+        ).sort((a, b) => a.time - b.time);
+        sceneMarkersRef.current = next;
+        return next;
+      });
+      setSelectedKeyframes(prev => prev.map(s => ({
+        ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)),
+      })));
+    } else {
+      const nextMarkers = sceneMarkersRef.current.map(m =>
+        Math.abs(m.time - oldTime) < 0.01 ? { ...m, time: newTime } : m
+      ).sort((a, b) => a.time - b.time);
+      sceneMarkersRef.current = nextMarkers;
+      setSceneMarkers(nextMarkers);
+    }
   }, []);
 
   // Full commit on drop: cascade children + collision-swap + push history.
@@ -847,16 +938,18 @@ export default function App() {
   /* ── Selection ── */
 
   const handleKeyframeSelect = useCallback((track: string, time: number, additive: boolean) => {
-    if (additive) {
-      setSelectedKeyframes(prev => {
-        const already = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
+    setSelectedKeyframes(prev => {
+      const already = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
+      if (additive) {
         return already
           ? prev.filter(s => !(s.track === track && Math.abs(s.time - time) < 0.01))
           : [...prev, { track, time }];
-      });
-    } else {
-      setSelectedKeyframes([{ track, time }]);
-    }
+      } else {
+        // If already selected, keep selection for potential multi-drag.
+        // If not selected, clear and select only this one.
+        return already ? prev : [{ track, time }];
+      }
+    });
   }, []);
 
   const handleSelectKeyframes = useCallback((kfs: { track: string; time: number }[]) => {
@@ -878,7 +971,8 @@ export default function App() {
         if (newVal === undefined) continue;
 
         const track = prevKfs[trackId] ?? [];
-        if (track.length === 0) continue; // No keyframes on this track, base value is used
+        const isRecordingLocal = isRecordingRef.current;
+        if (track.length === 0 && !isRecordingLocal) continue; // No keyframes and not recording
         
         const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
         if (kfIdx >= 0) {
@@ -887,7 +981,7 @@ export default function App() {
             changed = true;
           }
         } else {
-          // Auto-key
+          // Auto-key or Recording
           const nextTrack = [...track, { time: currentTime, value: newVal, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
           nextKfs[trackId] = nextTrack;
           changed = true;
@@ -955,8 +1049,14 @@ export default function App() {
       <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
         {/* Main Viewport Area */}
         <div className="flex-1 relative overflow-hidden h-full">
-          {/* Background Canvas */}
-          <div className="absolute inset-0 z-0">
+          {/* Background Canvas - positioned absolutely between measured UI bands */}
+          <div 
+            className="absolute left-0 right-0 z-0"
+            style={{ 
+              top: overlayBandOffsets.top, 
+              bottom: overlayBandOffsets.bottom 
+            }}
+          >
             <Preview
               ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
               isPlaying={isPlaying} playheadPosition={playheadPosition}
@@ -970,10 +1070,12 @@ export default function App() {
               nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
               canvasAspectRatio={canvasAspectRatio}
               initProgress={initProgress}
+              visualSettings={visualSettings}
+              onNodeSelect={setSelectedNode}
             />
           </div>
 
-          {/* Toolbar - Floating Left */}
+          {/* Toolbar - Floating Left inside artboard, respects UI bands */}
           <div 
             className="absolute left-6 z-50 flex items-center pointer-events-none"
             style={{ 
@@ -986,7 +1088,24 @@ export default function App() {
             </div>
           </div>
 
-          {/* Floating TopBar - now constrained to viewport */}
+          {/* Floating Path Animator UI - only when tool is active */}
+          {activeTool === 'path' && (
+            <div 
+              className="absolute left-20 z-[60] pointer-events-none"
+              style={{ top: overlayBandOffsets.top + 96 }}
+            >
+              <div className="pointer-events-auto">
+                <PathAnimatorUI 
+                  nodes={[]} 
+                  onReorder={() => {}} 
+                  onRemove={() => {}} 
+                  onClose={() => setActiveTool('pointer')} 
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Floating TopBar - now part of absolute viewport layout as per STYLE_GUIDE */}
           <div ref={topBarContainerRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
             <TopBar
               viewMode={viewMode} onViewModeChange={(mode) => {
@@ -1002,7 +1121,6 @@ export default function App() {
               onUndo={handleUndo}
               onRedo={handleRedo}
               onApplyNodeStylePreset={handleApplyNodeStylePreset}
-
               onOpenShortcuts={() => setIsShortcutsOpen(true)}
             />
           </div>
@@ -1015,7 +1133,7 @@ export default function App() {
             onRemoveShortcut={(id) => setShortcuts(prev => prev.filter(s => s.id !== id))}
           />
 
-          {/* Floating Timeline - stays absolute to viewport bottom */}
+          {/* Floating Timeline - stays absolute to viewport bottom as per STYLE_GUIDE */}
           <div ref={timelineContainerRef} className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
             <div 
               className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
@@ -1050,6 +1168,8 @@ export default function App() {
                 onDropSceneMarker={handleDropSceneMarker}
                 onDeleteSceneMarker={handleDeleteSceneMarker}
                 onRenameSceneMarker={handleRenameSceneMarker}
+                isRecording={isRecording}
+                onToggleRecording={() => setIsRecording(!isRecording)}
               />
             </div>
           </div>
@@ -1100,6 +1220,9 @@ export default function App() {
               network3DRef.current?.setZoom(val);
             }}
             zoomValue={zoomValue}
+            visualSettings={visualSettings}
+            onVisualSettingsChange={setVisualSettings}
+            selectedNode={selectedNode}
           />
         </div>
       </div>

@@ -91,6 +91,7 @@ Text input
       ├── applyCameraKeyframes (Hermite spline)       [main thread]
       ├── zoomAnim / cameraFly lerp                  [main thread]
       ├── OrbitControls.update() (damping)            [main thread]
+      ├── handleResize (ResizeObserver)               [main thread, updates renderer + camera]
       └── renderer.render(scene, camera)              [GPU]
 ```
 
@@ -166,6 +167,9 @@ without benchmarking — it replaced a system that caused 10–30ms jank per hov
 **Physics "Jolt" Effect**:
 To make the UI feel responsive, parameter changes (e.g. dragging a slider) compute a "velocity" of change. If this velocity is high, a temporary "jolt" is sent to the worker by decreasing friction (increasing `damping` temporarily toward 0.92). This causes the network to react instantly and energetically to user input before decaying back to the stable parameter values.
 
+**Glitch Paint Interaction**:
+A specialized visual reveal mode where nodes are "glitched" into visibility based on their distance from the mouse pointer. The engine tracks `uMousePos` (mapped [-1, 1] coordinates) and applies a `smoothstep` reveal curve in the `syncGraphVisuals` loop. This is designed for artistic "searchlight" interactions and cinematic reveals.
+
 **🔒 Do not make the worker synchronous or move the physics loop back to the main thread.**
 The RAF loop must remain free for Three.js rendering.
 
@@ -180,9 +184,9 @@ Camera animation uses Cubic Hermite splines with Catmull-Rom tangent auto-comput
 (see `easing.ts`). Keyframe handles can be 'aligned' or 'broken' modes, matching standard
 DCCs like After Effects and Blender.
 
-The gizmo canvas (`drawGizmoCanvas`) is deactivated and commented out in the code.
+The gizmo canvas (`drawGizmoCanvas`) and the manual pan/fit-to-view UI controls are deactivated and removed from the UI.
 
-Camera zoom is now controlled via a slider in the **Inspector > Camera** tab, which communicates with the Three.js scene via an imperative handle.
+Camera zoom and navigation are now controlled via mouse/trackpad interaction (OrbitControls) and the dedicated controls in the **Inspector > Camera** tab.
 
 ---
 
@@ -195,8 +199,9 @@ App.tsx (React state owner)
   ├── physicsKeyframes             → Network3D: per-frame interpolation during playback
   ├── cameraKeyframes              → Network3D: Hermite interpolation during playback
   ├── gradientSettings             → Network3D: triggers texture cache rebuild
-  ├── styleSettings                → Network3D: edge opacity/width, node scale/shape
-  ├── nodeAppearance               → Network3D: fill/border/text color overrides
+   ├── styleSettings                → Network3D: edge opacity/width, node scale/shape
+   ├── visualSettings               → Network3D: radial bias, mesh gradients, glitch paint, path animation
+   ├── nodeAppearance               → Network3D: fill/border/text color overrides
   ├── edgeAppearance               → Network3D: edge color override
   ├── renderMode ('edit'|'render') → Network3D: scene background + node color mode
   ├── viewMode ('2D'|'3D')        → Network3D: full scene rebuild
@@ -338,12 +343,17 @@ ensure all three states produce canvases of identical pixel dimensions for a giv
 - Keyframe UX Paradigm: The timeline uses progressive disclosure and standardized Shadcn context menus.
   - **Dopesheet Mode** (default): Shows keyframes as icons whose shape indicates inferred easing type (Auto, Linear, Hold, Easy Ease). Physics tracks show Ableton-style mini-curves.
   - **Graph Editor Mode**: Toggled on demand. Shows full interactive Hermite curves. Handles are hidden until keyframe is selected to reduce clutter.
+- **Snapping**: The timeline supports snapping to scene markers and the frame grid (30fps). Snapping is active during playhead scrubbing, keyframe dragging, and marker creation.
+- **Multi-Selection & Dragging**:
+  - Multiple keyframes and scene markers can be selected (Marquee or Shift-click).
+  - Dragging any selected item moves the entire selection across all tracks, maintaining relative timing.
+  - Clicking an already-selected item without modifiers preserves the selection for dragging, rather than clearing it.
 - **Context Menus**: Standardized across Timeline and Preview using **Shadcn/Radix**. Right-click interactions are managed via the design system for consistent shadows, blurs, and hover states.
 - Keyframe handles: each keyframe has `handleIn` / `handleOut` (value-space tangents for
   physics) or `handleInPos` / `handleOutPos` / `handleInTgt` / `handleOutTgt` (3D vectors
   for camera). Mode is `'aligned'` (handles mirror each other) or `'broken'` (independent).
 - Scene markers group keyframes: moving a marker cascades child keyframes within
-  `±0.1s`. Colliding markers swap positions.
+  `±0.1s`. Colliding markers swap positions. Moving a selected marker with a multi-selection of other items shifts all items by the same delta.
 
 ---
 

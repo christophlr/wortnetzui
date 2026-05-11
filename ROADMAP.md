@@ -29,4 +29,5 @@
 - **Arrow key camera pan**: Implemented in `Network3D.tsx` with shift-key multiplier.
 - **Toolbar migration**: Moved from `Preview.tsx` to `App.tsx` viewport overlay.
 - **Timeline Refactor**: Modularized architecture, visual easing icons, and Shadcn context menus.
+- **Timeline Improvements**: Implemented multi-selection dragging for keyframes and markers, and interactive snapping to scene markers.
 - **3D Viewport Context Menu**: Standardized with Shadcn/Radix components.

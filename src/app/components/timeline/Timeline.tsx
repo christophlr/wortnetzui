@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2 } from 'lucide-react';
+import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { TIMELINE_DURATION } from '../../constants';
 import { useTimelineView } from './useTimelineView';
@@ -54,7 +54,10 @@ export function Timeline(props: TimelineProps) {
     onUndo, onRedo, canUndo, canRedo,
     height = 260,
     sceneMarkers = [],
-    onAddSceneMarker, onDropSceneMarker, onDeleteSceneMarker,
+    onAddSceneMarker, onMoveSceneMarker, onDropSceneMarker, onDeleteSceneMarker,
+    onRenameSceneMarker,
+    isRecording,
+    onToggleRecording,
   } = props;
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -125,11 +128,11 @@ export function Timeline(props: TimelineProps) {
   }, []);
 
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
-    const t = timeFromClientX(e.clientX, contentRef.current);
+    const t = timeFromClientX(e.clientX, contentRef.current, sceneMarkers.map(m => m.time));
     if (t !== null) {
       setContextMenuTarget({ mode: 'background', time: t });
     }
-  }, [timeFromClientX]);
+  }, [timeFromClientX, sceneMarkers]);
 
   const handleSetEasing = useCallback((type: EasingType) => {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
@@ -157,8 +160,9 @@ export function Timeline(props: TimelineProps) {
   const handleRulerMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    e.stopPropagation();
     const updatePlayhead = (clientX: number) => {
-      const t = timeFromClientX(clientX, contentRef.current);
+      const t = timeFromClientX(clientX, contentRef.current, sceneMarkers.map(m => m.time));
       if (t !== null) onPlayheadChange(t);
     };
 
@@ -182,7 +186,7 @@ export function Timeline(props: TimelineProps) {
     setDragSelect({ startX, startY, endX: startX, endY: startY });
 
     const updatePlayhead = (clientX: number) => {
-      const t = timeFromClientX(clientX, contentRef.current);
+      const t = timeFromClientX(clientX, contentRef.current, sceneMarkers.map(m => m.time));
       if (t !== null) onPlayheadChange(t);
     };
     updatePlayhead(startX);
@@ -246,8 +250,6 @@ export function Timeline(props: TimelineProps) {
         onDeleteSelected();
         e.preventDefault();
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { onUndo?.(); e.preventDefault(); }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' || e.key === 'y')) { onRedo?.(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') { handleCopy(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'x') { handleCut(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
@@ -255,15 +257,23 @@ export function Timeline(props: TimelineProps) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedKeyframes, onDeleteKeyframe, onDeleteSceneMarker, onSelectKeyframes, onUndo, onRedo, onDeleteSelected, handleCopy, handleCut, handlePaste]);
+  }, [selectedKeyframes, onDeleteSelected, handleCopy, handleCut, handlePaste]);
 
   // Playhead position as CSS
   const visibleDuration = viewWindow.end - viewWindow.start;
   const playheadRatio = (playheadPosition - viewWindow.start) / visibleDuration;
   const playheadVisible = playheadRatio >= -0.01 && playheadRatio <= 1.01;
 
-  // Check if keyframe exists at playhead
-  const hasKfAtPlayhead = cameraKeyframes.some(k => Math.abs(k.time - playheadPosition) <= 0.1);
+  // Check if any keyframe exists at playhead
+  const hasKfAtPlayhead = useMemo(() => {
+    const thresh = 0.01;
+    if (cameraKeyframes.some(k => Math.abs(k.time - playheadPosition) <= thresh)) return true;
+    if (sceneMarkers.some(m => Math.abs(m.time - playheadPosition) <= thresh)) return true;
+    for (const trackKfs of Object.values(physicsKeyframes)) {
+      if (trackKfs.some(k => Math.abs(k.time - playheadPosition) <= thresh)) return true;
+    }
+    return false;
+  }, [cameraKeyframes, physicsKeyframes, sceneMarkers, playheadPosition]);
 
   return (
     <div className="flex flex-col bg-background border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto" style={{ height }}>
@@ -298,6 +308,21 @@ export function Timeline(props: TimelineProps) {
                 <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title="Next Frame">
                   <ChevronLeft className="w-3 h-3 rotate-180" />
                 </TBtn>
+                <div className="w-px h-4 bg-border mx-0.5" />
+                <TBtn 
+                  onClick={onCaptureKeyframe} 
+                  title="Capture Keyframe (All Tracks)" 
+                  active={hasKfAtPlayhead}
+                >
+                  <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-blue-400 fill-blue-400' : ''}`} />
+                </TBtn>
+                <TBtn 
+                  onClick={onToggleRecording} 
+                  title="Record (Automation)" 
+                  active={isRecording}
+                >
+                  <Circle className={`w-3 h-3 ${isRecording ? 'text-red-500 fill-red-500 animate-pulse' : ''}`} />
+                </TBtn>
               </div>
 
               <div className="w-px h-4 bg-border mx-0.5" />
@@ -324,10 +349,25 @@ export function Timeline(props: TimelineProps) {
               onContextMenu={handleBackgroundContextMenu}
             >
               {/* Ruler */}
-              <div className="flex border-b border-border shrink-0 cursor-pointer" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
-                <div className="shrink-0 border-r border-border bg-background" style={{ width: LABEL_W }} />
+              <div className="flex border-b border-border shrink-0 cursor-pointer sticky top-0 z-60 bg-background" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
+                <div className="shrink-0 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }} />
                 <div className="flex-1 relative">
-                  <TimelineRuler zoom={zoom} duration={view.duration} viewWindow={viewWindow} />
+                  {/* Pass absolute zoom (zoom * 12) to ruler for tick density */}
+                  <TimelineRuler zoom={zoom * 12} duration={view.duration} viewWindow={viewWindow} />
+                  
+                  {/* Playhead Marker (Triangle + Ruler Line segment) */}
+                  {playheadVisible && (
+                    <div 
+                      className="absolute top-0 w-px h-full bg-red-500 z-20 pointer-events-none"
+                      style={{ left: `${playheadRatio * 100}%` }}
+                    >
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2">
+                        <svg width="10" height="8" viewBox="0 0 10 8">
+                          <polygon points="0,0 10,0 5,8" fill="#ef4444" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -337,6 +377,7 @@ export function Timeline(props: TimelineProps) {
                 viewWindow={viewWindow}
                 selectedKeyframes={selectedKeyframes}
                 onAddMarker={onAddSceneMarker}
+                onMoveMarker={onMoveSceneMarker}
                 onDropMarker={onDropSceneMarker}
                 onDeleteMarker={onDeleteSceneMarker}
                 onSelect={onKeyframeSelect}
@@ -345,11 +386,25 @@ export function Timeline(props: TimelineProps) {
                 contentRef={contentRef}
               />
 
+              {/* Drag-select marquee (rendered locally to be clipped by timeline) */}
+              {dragSelect && contentRef.current && (() => {
+                const rect = contentRef.current.getBoundingClientRect();
+                const scrollT = contentRef.current.scrollTop;
+                const left = Math.min(dragSelect.startX, dragSelect.endX) - rect.left;
+                const top = Math.min(dragSelect.startY, dragSelect.endY) - rect.top + scrollT;
+                const width = Math.abs(dragSelect.endX - dragSelect.startX);
+                const height = Math.abs(dragSelect.endY - dragSelect.startY);
+                return (
+                  <div
+                    className="absolute border border-blue-500/60 bg-blue-500/10 pointer-events-none z-[9999]"
+                    style={{ left, top, width, height }}
+                  />
+                );
+              })()}
+
             {/* Camera track group */}
             <TrackGroup 
               id="camera" name="Camera" color="cyan"
-              isGraphEditorVisible={expandedGraphTracks.has('camera')}
-              onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('camera')) n.delete('camera'); else n.add('camera'); return n; })}
             >
               <TrackRow
                 trackId="camera-keyframes"
@@ -365,6 +420,8 @@ export function Timeline(props: TimelineProps) {
                 }))}
                 viewWindow={viewWindow}
                 selectedKeyframes={selectedKeyframes}
+                isGraphEditorVisible={expandedGraphTracks.has('camera')}
+                onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('camera')) n.delete('camera'); else n.add('camera'); return n; })}
                 onSelect={onKeyframeSelect}
                 onMoveKeyframe={onMoveKeyframe}
                 onContextMenu={handleKeyframeContextMenu}
@@ -372,6 +429,7 @@ export function Timeline(props: TimelineProps) {
                 onDragEnd={onDragEnd}
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
+                sceneMarkers={sceneMarkers}
               />
               {/* Camera graph editor (tension curve) */}
               {expandedGraphTracks.has('camera') && (
@@ -403,8 +461,6 @@ export function Timeline(props: TimelineProps) {
             {/* Physics track group */}
             <TrackGroup 
               id="physics" name="Physics" color="orange"
-              isGraphEditorVisible={expandedGraphTracks.has('physics')}
-              onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('physics')) n.delete('physics'); else n.add('physics'); return n; })}
             >
               {TRACK_GROUPS[1].tracks.map(track => {
                 const kfArr = physicsKeyframes[track.id] ?? [];
@@ -417,7 +473,8 @@ export function Timeline(props: TimelineProps) {
                       keyframeData={kfArr}
                       viewWindow={viewWindow}
                       selectedKeyframes={selectedKeyframes}
-                      showMiniCurve={!expandedGraphTracks.has('physics')}
+                      isGraphEditorVisible={expandedGraphTracks.has(track.id)}
+                      onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has(track.id)) n.delete(track.id); else n.add(track.id); return n; })}
                       onSelect={onKeyframeSelect}
                       onMoveKeyframe={onMoveKeyframe}
                       onContextMenu={handleKeyframeContextMenu}
@@ -425,9 +482,10 @@ export function Timeline(props: TimelineProps) {
                       onDragEnd={onDragEnd}
                       timeFromClientX={timeFromClientX}
                       contentRef={contentRef}
+                      sceneMarkers={sceneMarkers}
                     />
                     {/* Per-track graph editor */}
-                    {expandedGraphTracks.has('physics') && (
+                    {expandedGraphTracks.has(track.id) && (
                       <GraphEditor
                         trackId={track.id}
                         color="orange"
@@ -449,36 +507,19 @@ export function Timeline(props: TimelineProps) {
               })}
             </TrackGroup>
 
-            {/* Playhead */}
+            {/* Playhead Line */}
             {playheadVisible && (
-              <div
-                className="absolute top-0 bottom-0 w-px bg-red-500 z-30 pointer-events-none"
-                style={{
-                  left: `calc(${playheadRatio * 100}% + ${LABEL_W * (1 - playheadRatio)}px)`,
-                }}
+              <div 
+                className="absolute top-[24px] bottom-0 right-0 pointer-events-none z-50 overflow-hidden"
+                style={{ left: LABEL_W }}
               >
-                {/* Playhead triangle */}
-                <div className="absolute -top-0 left-1/2 -translate-x-1/2">
-                  <svg width="10" height="8" viewBox="0 0 10 8">
-                    <polygon points="0,0 10,0 5,8" fill="#ef4444" />
-                  </svg>
-                </div>
+                <div
+                  className="absolute top-0 bottom-0 w-px bg-red-500"
+                  style={{ left: `${playheadRatio * 100}%` }}
+                />
               </div>
             )}
 
-            {/* Drag-select marquee */}
-            {dragSelect && createPortal(
-              <div
-                className="fixed border border-blue-500/60 bg-blue-500/10 pointer-events-none z-[9998]"
-                style={{
-                  left: Math.min(dragSelect.startX, dragSelect.endX),
-                  top: Math.min(dragSelect.startY, dragSelect.endY),
-                  width: Math.abs(dragSelect.endX - dragSelect.startX),
-                  height: Math.abs(dragSelect.endY - dragSelect.startY),
-                }}
-              />,
-              document.body
-            )}
           </div>
         </div>
       </ContextMenuTrigger>

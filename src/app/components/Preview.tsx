@@ -34,6 +34,17 @@ interface PreviewProps {
   edgeAppearance?: { color: 'auto' | string };
   canvasAspectRatio?: string;
   initProgress?: number;
+  visualSettings?: {
+    nodesVisible: boolean;
+    labelsVisible: boolean;
+    edgesVisible: boolean;
+    envVisible: boolean;
+    radialBiasScale: number;
+    radialBiasOpacity: number;
+    gradientOrigin: string;
+    gradientPeriphery: string;
+  };
+  onNodeSelect?: (node: any) => void;
 }
 
 export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Preview({
@@ -57,6 +68,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   edgeAppearance,
   canvasAspectRatio = 'full',
   initProgress,
+  visualSettings,
+  onNodeSelect,
 }: PreviewProps, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -146,6 +159,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
                 renderMode={renderMode}
                 nodeAppearance={nodeAppearance}
                 edgeAppearance={edgeAppearance}
+                visualSettings={visualSettings}
+                onNodeSelect={onNodeSelect}
               />
             </div>
             

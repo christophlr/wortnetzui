@@ -1,10 +1,10 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
-import { Crosshair, Lock, Maximize2 } from 'lucide-react';
+import { Crosshair, Lock } from 'lucide-react';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape } from '../networkTheme';
+import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape, type NodeAppearanceSettings } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import {
@@ -21,15 +21,8 @@ interface Network3DProps {
   playheadPosition: number;
   inputText?: string;
   viewMode?: '2D' | '3D';
-  physicsParams?: {
-    repulsion: number;
-    springK: number;
-    damping: number;
-    minSpeed: number;
-    linkDistance: number;
-    gravity: number;
-    turbulence: number;
-  };
+  physicsParams?: PhysicsParams;
+  nodeAppearance?: NodeAppearanceSettings;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   parseMode?: 'sentence' | 'word' | 'both';
   gradientSettings?: GradientSettings;
@@ -49,9 +42,27 @@ interface Network3DProps {
   isDark?: boolean;
   onReady?: () => void;
   renderMode?: 'edit' | 'render';
-  nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
   edgeAppearance?: { color: 'auto' | string };
   timelineHeight?: number;
+  visualSettings?: {
+    nodesVisible: boolean;
+    labelsVisible: boolean;
+    edgesVisible: boolean;
+    envVisible: boolean;
+    radialBiasScale: number;
+    radialBiasOpacity: number;
+    gradientOrigin: string;
+    gradientPeriphery: string;
+    labelWeightMapping: number;
+    edgeFlowAnimation: boolean;
+    envAtmosphereSeed: number;
+    glitchActive: boolean;
+    glitchBrushRadius: number;
+    glitchFeather: number;
+    pathSmoothness: number;
+    pathCameraFollow: boolean;
+  };
+  onNodeSelect?: (node: any) => void;
 }
 
 
@@ -213,6 +224,25 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     nodeAppearance = defaultNodeAppearance,
     edgeAppearance = { color: 'auto' },
     timelineHeight = 0,
+    visualSettings = {
+      nodesVisible: true,
+      labelsVisible: true,
+      edgesVisible: true,
+      envVisible: true,
+      radialBiasScale: 0.5,
+      radialBiasOpacity: 0.5,
+      gradientOrigin: '#4f46e5',
+      gradientPeriphery: '#10b981',
+      labelWeightMapping: 0.5,
+      edgeFlowAnimation: false,
+      envAtmosphereSeed: 123,
+      glitchActive: false,
+      glitchBrushRadius: 100,
+      glitchFeather: 0.5,
+      pathSmoothness: 0.5,
+      pathCameraFollow: true
+    },
+    onNodeSelect
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -273,6 +303,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const gizmoActiveRef = useRef<string | null>(null);
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
+  const mousePosRef = useRef(new THREE.Vector2(0, 0));
   const [contextMenuNode, setContextMenuNode] = useState<GraphNode | null>(null);
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
@@ -283,11 +314,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(isDark);
   const onReadyRef = useRef(onReady);
+  const onNodeSelectRef = useRef(onNodeSelect);
+  useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
   const renderModeRef = useRef(renderMode);
   const nodeAppearanceRef = useRef(nodeAppearance);
   const edgeAppearanceRef = useRef(edgeAppearance);
   const onCameraChangeRef = useRef(onCameraChange);
   const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
+  const visualSettingsRef = useRef(visualSettings);
+  useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
@@ -501,6 +536,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }, []);
 
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      mousePosRef.current.set(x, y);
+    };
+    containerRef.current?.addEventListener('mousemove', handleMouseMove);
+    return () => containerRef.current?.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  useEffect(() => {
     isPlayingRef.current = isPlaying;
     if (isPlaying) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
   }, [isPlaying]);
@@ -554,16 +601,86 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
 
 
-  const syncGraphVisuals = (nodes: Map<string, GraphNode>, edges: GraphEdge[], nodeArr?: GraphNode[]) => {
+  const syncGraphVisuals = (nodes: Map<string, GraphNode>, edges: GraphEdge[], nodeArr?: GraphNode[], vsOverride?: any, ssOverride?: any) => {
     const arr = nodeArr ?? Array.from(nodes.values());
+    const vs = vsOverride ?? visualSettingsRef.current;
+    const ss = ssOverride ?? styleSettingsRef.current;
+    
+    // Preparation for uDistMap (conceptual for now as requested)
+    const uDistMap = {
+      origin: new THREE.Color(vs.gradientOrigin),
+      periphery: new THREE.Color(vs.gradientPeriphery)
+    };
+
     for (let i = 0; i < arr.length; i++) {
       const node = arr[i];
-      if (node.textSprite) node.textSprite.position.set(node.x, node.y, node.z);
+      if (node.textSprite) {
+        node.textSprite.position.set(node.x, node.y, node.z);
+        
+        // Visibility
+        node.textSprite.visible = vs.nodesVisible;
+        
+        // RADIAL BIAS LOGIC
+        // Intensity = BaseValue + (RadialBias * DistanceFromCenter)
+        // Note: Distance is normalized relative to a "viewport center" or global origin
+        const dist = Math.sqrt(node.x * node.x + node.y * node.y + node.z * node.z);
+        const normDist = Math.min(1.0, dist / 1000); // Normalize to typical graph spread
+        
+        // Scale Radial Bias
+        const baseScale = node.textSprite.userData.baseScale * ss.nodeScale;
+        const scaleIntensity = 1.0 + (vs.radialBiasScale * normDist);
+        const aspectRatio = node.textSprite.userData.aspectRatio;
+        
+        let finalScale = baseScale * scaleIntensity;
+        // Instance Override
+        if (node.unlinkedScale && node.scaleOverride !== undefined) {
+          finalScale = node.textSprite.userData.baseScale * node.scaleOverride;
+        }
+        
+        node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
+        
+        // Opacity Radial Bias
+        let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDist));
+        // Instance Override
+        if (node.unlinkedOpacity && node.opacityOverride !== undefined) {
+          finalOpacity = node.opacityOverride;
+        }
+        node.textSprite.material.opacity = finalOpacity;
+        
+        // MESH GRADIENT (uDistMap simulation)
+        // Interpolate between Origin and Periphery based on distance
+        const nodeColor = new THREE.Color().lerpColors(uDistMap.origin, uDistMap.periphery, normDist);
+        // Apply color - since we use textures, we might need to adjust the sprite's material color
+        // if the texture itself is white/grayscale, or swap textures if they are color-baked.
+        // For now, let's tint the sprite material.
+        node.textSprite.material.color.copy(nodeColor);
+
+        // GLITCH PAINT LOGIC (Reveal by distance from mouse)
+        if (vs.glitchActive) {
+          // Calculate distance from mouse in world space or screen space
+          // This is a simplified JS version of the shader logic requested
+          const spritePos = node.textSprite.position.clone().project(cameraRef.current!);
+          const mouseDist = spritePos.distanceTo(new THREE.Vector3(mousePosRef.current.x, mousePosRef.current.y, spritePos.z));
+          
+          // Revealed radius based on brush size (normalized)
+          const brushRadiusNorm = vs.glitchBrushRadius / 500; 
+          const feather = vs.glitchFeather;
+          
+          const reveal = 1.0 - THREE.MathUtils.smoothstep(mouseDist, brushRadiusNorm * (1 - feather), brushRadiusNorm);
+          node.textSprite.material.opacity *= reveal;
+        }
+        
+        // Label Visibility
+        if (!vs.labelsVisible) {
+          node.textSprite.material.opacity *= 0.2;
+        }
+      }
     }
 
     // Update merged edge positions buffer (single LineSegments object)
     const edgeLines = edgeLinesRef.current;
     if (edgeLines) {
+      edgeLines.visible = vs.edgesVisible;
       const pos = edgeLines.geometry.attributes.position as THREE.BufferAttribute;
       for (let i = 0; i < edges.length; i++) {
         const edge = edges[i];
@@ -572,8 +689,27 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         pos.setXYZ(idx + 1, edge.b.x, edge.b.y, edge.b.z);
       }
       pos.needsUpdate = true;
+      
+      // Handle flow animation (conceptual for now)
+      if (vs.edgeFlowAnimation) {
+        // This would typically involve a shader update or texture offset
+        // For now we just keep the flag in mind
+      }
+    }
+    
+    // GLITCH PAINT TOOL revealed by distance (conceptual uniform update)
+    if (vs.glitchActive) {
+      // In a real implementation, we would pass uMousePos and vs.glitchBrushRadius/glitchFeather
+      // to the node shader here.
     }
   };
+
+  // Immediate sync when visual/style settings change
+  useEffect(() => {
+    if (graphNodesRef.current) {
+      syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, undefined, visualSettings, styleSettings);
+    }
+  }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── CANVAS TEXTURE CREATION (fixed dimensions for all states) ── */
   const EDIT_NODE_COLOR = '#6b7280'; // neutral gray for edit mode
@@ -1240,6 +1376,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const selecting = hit.label !== prev?.label;
       selectedNodeRef.current = selecting ? hit : null;
       swapSpriteTexture(hit, hit.label === hoveredNodeRef.current?.label, selecting);
+      
+      // Notify parent
+      onNodeSelectRef.current?.(selecting ? hit : null);
     };
 
     const handleDblClick = (e: MouseEvent) => {
@@ -1319,6 +1458,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           }
         }
 
+        let isDrivenByTimeline = false;
         // Apply physics keyframe overrides (during playback and when scrubbing)
         {
           const pkfs = physicsKeyframesRef.current;
@@ -1346,6 +1486,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           if (overridden) {
             paramsForFrame = scratch;
             stillFramesRef.current = 0; // keep physics active while keyframes are driving values
+            isDrivenByTimeline = true;
           }
         }
 
@@ -1366,16 +1507,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dPls = Math.abs((paramsForFrame.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
         
         const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dt;
-        physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
+        
+        // Suppress jolt if timeline is driving the animation or we are playing
+        if (!isDrivenByTimeline && !isPlayingRef.current) {
+          physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
+        } else {
+          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8; // Fast decay
+        }
         
         lastParamsTimeRef.current = now;
         lastParamsValuesRef.current = { ...paramsForFrame };
 
         effectivePhysicsRef.current = paramsForFrame;
 
-        let sentParams = paramsForFrame;
-        if ((physicsVelocityRef.current || 0) > 0.01 || (paramsForFrame.pulse ?? 0) > 0) {
-          sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
+        let sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
+        if ((physicsVelocityRef.current || 0) > 0.01 || sentParams.pulse > 0) {
           
           if (sentParams.pulse > 0) {
              const pulseTime = performance.now() * 0.002;
@@ -1392,8 +1538,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
             sentParams.damping = sentParams.damping + (targetDamping - sentParams.damping) * Math.min(1, jolt * 1.5);
             physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80; // Fast decay back to normal
           }
-        } else {
-          sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
         }
 
         // Pack current positions + velocities into the reusable buffer and transfer to worker
@@ -1493,6 +1637,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (!containerRef.current || !camera || !renderer) return;
       const nw = containerRef.current.clientWidth;
       const nh = containerRef.current.clientHeight;
+      if (nw === 0 || nh === 0) return;
       if (is2D) {
         const cam = camera as THREE.OrthographicCamera;
         cam.left = -nw / 2; cam.right = nw / 2;
@@ -1503,9 +1648,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       camera.updateProjectionMatrix();
       renderer.setSize(nw, nh);
     };
+
+    const ro = new ResizeObserver(handleResize);
+    if (containerRef.current) ro.observe(containerRef.current);
     window.addEventListener('resize', handleResize);
 
     localCleanup = () => {
+      ro.disconnect();
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       renderer.domElement.removeEventListener('click', handleClick);
@@ -1548,6 +1697,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     };
 
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle Environment Background Toggle
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (renderMode !== 'edit') {
+      if (visualSettings.envVisible) {
+        const bgColors = getNetworkThemeBackground(isDark);
+        sceneRef.current.background = new THREE.Color(bgColors.threeColor);
+      } else {
+        sceneRef.current.background = new THREE.Color(isDark ? 0x000000 : 0xffffff);
+      }
+    } else {
+      sceneRef.current.background = null;
+    }
+  }, [visualSettings.envVisible, isDark, renderMode]);
 
   // Camera settings removed - OrbitControls handles all camera interaction
 
@@ -1800,30 +1964,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           {/* Three.js Canvas will be here */}
         </ContextMenuTrigger>
 
-        {/* Floating UI Overlays */}
-        <div className="absolute bottom-16 left-4 z-20 flex flex-col gap-2">
-          {/* Pan control */}
-          <div className="bg-background/80 backdrop-blur-md border border-border p-1.5 rounded-lg shadow-xl flex items-center gap-2">
-             <button 
-               className="p-1.5 hover:bg-accent rounded-md transition-colors"
-               onMouseDown={() => fitToView(false)}
-               title="Fit to view"
-             >
-               <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />
-             </button>
-             <div className="w-px h-4 bg-border mx-0.5" />
-             <div className="flex flex-col gap-0.5">
-               <div className="flex gap-0.5">
-                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(0, 30)}>↑</button>
-               </div>
-               <div className="flex gap-0.5">
-                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(-30, 0)}>←</button>
-                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(0, -30)}>↓</button>
-                 <button className="w-6 h-6 flex items-center justify-center hover:bg-accent rounded transition-colors text-muted-foreground" onMouseDown={() => panView(30, 0)}>→</button>
-               </div>
-             </div>
-          </div>
-        </div>
 
         {/* Orientation Gizmo (Bottom Right) - Deactivated */}
         {/*
