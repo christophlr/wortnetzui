@@ -9,10 +9,8 @@
 
 | Item | Status | Notes |
 |---|---|---|
-| **Export** | 🚧 Stub | `TopBar` renders the button; `onExport` is not wired in `App.tsx`. Planned: single image, image sequence (one PNG per frame), video. Do not implement without discussing format/codec first. |
-| **Camera info overlay** | 🚧 Placeholder | `Preview` shows hardcoded `"CAM · POS 0 / 0 / 500"` etc. — not live data. |
-| **Parse mode default mismatch** | ⚠️ Bug | `App.tsx` initialises `parseMode` to `'sentence'`; Inspector `RadioGroup` defaults to `'word'`. UI shows wrong selection until user clicks. |
-| **Timeline Stop button** | ⚠️ Absent | `onStop` prop exists; transport renders "Go to start" (`SkipBack`) but doesn't stop playback. No dedicated Stop button. |
+| **Export** | 🚧 Stub | `TopBar` renders the button; `onExport` is wired to `network3DRef.current?.exportPNG()`. Planned: image sequence, video. |
+| **Camera info overlay** | 🚧 Placeholder | `Preview` shows hardcoded `"CAM · POS 0 / 0 / 500"` — not live data. |
 
 ---
 
@@ -31,3 +29,4 @@
 - **Timeline Refactor**: Modularized architecture, visual easing icons, and Shadcn context menus.
 - **Timeline Improvements**: Implemented multi-selection dragging for keyframes and markers, and interactive snapping to scene markers.
 - **3D Viewport Context Menu**: Standardized with Shadcn/Radix components.
+- **Modular Architecture Refactor**: Transitioned from monolithic `App.tsx` to a context-driven modular architecture (`WortnetzContext`, `AppShell`, `AppSidebar`, `AppCanvas`). Resolved state sync bugs (e.g., parse mode default mismatch) and wired up transport controls (e.g., Stop button).

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronRight, 
   Diamond, 
@@ -65,13 +65,8 @@ import {
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { cn } from './ui/utils';
-
-const GRADIENT_PRESETS = [
-  { name: 'Indigo → Violett', inner: '#4f46e5', outer: '#7c3aed' },
-  { name: 'Cyan → Grün', inner: '#06b6d4', outer: '#10b981' },
-  { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
-  { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
-];
+import { useWortnetz } from '../context/WortnetzContext';
+import { useHistory } from '../hooks/useHistory';
 
 function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -121,88 +116,35 @@ function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFi
   );
 }
 
-interface InspectorProps {
-  onPhysicsChange: (p: any) => void;
-  onTextChange: (t: string) => void;
-  inputText?: string;
-  onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
-  onGradientChange: (gs: any) => void;
-  onStyleChange: (s: any) => void;
-  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
-  onNodeAppearanceChange: (na: NodeAppearanceSettings) => void;
-  onEdgeAppearanceChange: (ea: any) => void;
-  nodeAppearance: NodeAppearanceSettings;
-  appliedNodePreset: 'outline' | 'filled' | null;
-  effectivePhysicsParams: any;
-  currentTime: number;
-  cameraKeyframes: any[];
-  physicsKeyframes: Record<string, any[]>;
-  onTogglePhysicsKeyframe: (track: string, val: number) => void;
-  width: number;
-  viewMode: '2D' | '3D';
-  onDeleteKeyframe: (time: number) => void;
-  onCollapse?: () => void;
-  isSidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
-  onPanView: (dx: number, dy: number) => void;
-  onRotateView: (dTheta: number, dPhi: number) => void;
-  onSetRotation: (theta: number, phi: number) => void;
-  onResetView: () => void;
-  canvasAspectRatio?: string;
-  onCanvasAspectRatioChange?: (v: string) => void;
-  onZoomChange: (v: number) => void;
-  zoomValue: number;
-  selectedNode?: any;
-  onOverrideChange?: (nodeId: string, property: string, value: any, unlinked: boolean) => void;
-  visualSettings?: {
-    nodesVisible: boolean;
-    labelsVisible: boolean;
-    edgesVisible: boolean;
-    envVisible: boolean;
-    radialBiasScale: number;
-    radialBiasOpacity: number;
-    gradientOrigin: string;
-    gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
-    glitchActive: boolean;
-    glitchBrushRadius: number;
-    glitchFeather: number;
-    pathSmoothness: number;
-    pathCameraFollow: boolean;
-  };
-  onVisualSettingsChange?: (vs: any) => void;
-}
+export function Inspector() {
+  const {
+    inputText, setInputText,
+    parseMode, setParseMode,
+    gradientSettings, setGradientSettings,
+    styleSettings, setStyleSettings,
+    physicsParams, setPhysicsParams,
+    visualSettings, setVisualSettings,
+    nodeAppearance, setNodeAppearance,
+    edgeAppearance, setEdgeAppearance,
+    lastAppliedPreset,
+    canvasAspectRatio, setCanvasAspectRatio,
+    effectivePhysicsParams,
+    playheadPosition,
+    cameraKeyframes,
+    physicsKeyframes, setPhysicsKeyframes,
+    isSidebarOpen, setIsSidebarOpen,
+    inspectorWidth,
+    viewMode,
+    network3DRef,
+    zoomValue, setZoomValue,
+    selectedNode,
+    physicsKeyframesRef,
+    isRecordingRef,
+    playheadRef
+  } = useWortnetz();
 
-export function Inspector({
-  onPhysicsChange, onTextChange, inputText = "", onParsingChange, onGradientChange,
-  onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
-  nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
-  currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
-  width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
-  onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
-  onZoomChange, zoomValue,
-  selectedNode, onOverrideChange, visualSettings = {
-    nodesVisible: true,
-    labelsVisible: true,
-    edgesVisible: true,
-    envVisible: true,
-    radialBiasScale: 0.5,
-    radialBiasOpacity: 0.5,
-    gradientOrigin: '#4f46e5',
-    gradientPeriphery: '#10b981',
-    labelWeightMapping: 0.5,
-    edgeFlowAnimation: false,
-    envAtmosphereSeed: 123,
-    glitchActive: false,
-    glitchBrushRadius: 100,
-    glitchFeather: 0.5,
-    pathSmoothness: 0.5,
-    pathCameraFollow: true
-  },
-  onVisualSettingsChange
-}: InspectorProps) {
+  const { pushHistory, getTimelineState } = useHistory();
+
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
   const [puckPos, setPuckPos] = useState({ x: 0, y: 0 });
@@ -212,28 +154,88 @@ export function Inspector({
   const [zoomPuckPos, setZoomPuckPos] = useState({ x: 0, y: 0 });
   const [isDraggingZoomPuck, setIsDraggingZoomPuck] = useState(false);
 
-  // Sync local text with default input text on load
   useEffect(() => {
-    if (inputText && !localText) {
-      setLocalText(inputText);
-    }
+    setLocalText(inputText);
   }, [inputText]);
 
-  // Sync physics keyframe states
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
     const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-min', 'phys-lnk', 'phys-grv', 'phys-trb', 'phys-vto', 'phys-pls'];
     tracks.forEach(trackId => {
-      result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
+      result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - playheadPosition) < 0.1);
     });
     return result;
-  }, [physicsKeyframes, currentTime]);
+  }, [physicsKeyframes, playheadPosition]);
+
+  const handleToggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   const handleTabClick = (id: typeof activeTab) => {
     setActiveTab(id);
-    if (!isSidebarOpen && onToggleSidebar) {
-      onToggleSidebar();
+    if (!isSidebarOpen) {
+      setIsSidebarOpen(true);
     }
+  };
+
+  const handlePhysicsChange = (params: Partial<typeof physicsParams>) => {
+    setPhysicsParams((prev: any) => ({ ...prev, ...params }));
+    
+    const currentTime = playheadRef.current;
+    const PHYS_TRACK_PARAM: Record<string, string> = { 
+      'phys-rep': 'repulsion', 
+      'phys-spk': 'springK', 
+      'phys-dmp': 'damping',
+      'phys-min': 'minSpeed',
+      'phys-lnk': 'linkDistance',
+      'phys-grv': 'gravity',
+      'phys-trb': 'turbulence',
+      'phys-vto': 'verticalOrder',
+      'phys-pls': 'pulse'
+    };
+
+    setPhysicsKeyframes((prevKfs: any) => {
+      let changed = false;
+      const nextKfs = { ...prevKfs };
+      
+      for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
+        const newVal = (params as Record<string, number>)[paramName];
+        if (newVal === undefined) continue;
+
+        const track = prevKfs[trackId] ?? [];
+        const isRecordingLocal = isRecordingRef.current;
+        if (track.length === 0 && !isRecordingLocal) continue;
+        
+        const kfIdx = track.findIndex((k: any) => Math.abs(k.time - currentTime) <= 0.1);
+        if (kfIdx >= 0) {
+          if (newVal !== track[kfIdx].value) {
+            nextKfs[trackId] = track.map((k: any, i: number) => i === kfIdx ? { ...k, value: newVal } : k);
+            changed = true;
+          }
+        } else {
+          const nextTrack = [...track, { time: currentTime, value: newVal, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
+          nextKfs[trackId] = nextTrack;
+          changed = true;
+        }
+      }
+      
+      if (!changed) return prevKfs;
+      physicsKeyframesRef.current = nextKfs;
+      return nextKfs;
+    });
+  };
+
+  const handleTogglePhysicsKeyframe = (trackId: string, value: number) => {
+    const prev = getTimelineState();
+    const currentTime = playheadRef.current;
+    setPhysicsKeyframes((prevKfs: any) => {
+      const track = prevKfs[trackId] ?? [];
+      const hasKf = track.some((k: any) => Math.abs(k.time - currentTime) <= 0.1);
+      const next = hasKf
+        ? { ...prevKfs, [trackId]: track.filter((k: any) => Math.abs(k.time - currentTime) > 0.1) }
+        : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, mode: 'aligned' as const }].sort((a, b) => a.time - b.time) };
+      physicsKeyframesRef.current = next;
+      pushHistory({ ...prev, physicsKeyframes: next });
+      return next;
+    });
   };
 
   const SidebarTab = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
@@ -257,7 +259,7 @@ export function Inspector({
       <div className="flex h-full w-12 bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
           <button 
-            onClick={onCollapse}
+            onClick={handleToggleSidebar}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar einblenden"
           >
@@ -277,10 +279,10 @@ export function Inspector({
     <SidebarProvider className="h-full w-full">
       <div className="flex h-full w-full bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
         
-        {/* VS Code Style Activity Bar (Icons) */}
+        {/* Activity Bar */}
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
           <button 
-            onClick={onCollapse}
+            onClick={handleToggleSidebar}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar ausblenden"
           >
@@ -299,7 +301,7 @@ export function Inspector({
             <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
               {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : activeTab === 'camera' ? 'Kamera Steuerung' : 'Canvas Layout'}
             </h2>
-            <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
+            <button onClick={handleToggleSidebar} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
               <X size={16} />
             </button>
           </SidebarHeader>
@@ -320,7 +322,7 @@ export function Inspector({
                     />
                     <Button 
                       className="w-full h-9 text-xs gap-2 bg-zinc-900 hover:bg-zinc-800 text-white shadow-md active:scale-[0.98] transition-transform"
-                      onClick={() => onTextChange(localText)}
+                      onClick={() => setInputText(localText)}
                     >
                       <RefreshCw size={14} />
                       Aktualisieren
@@ -333,7 +335,7 @@ export function Inspector({
                 <SidebarGroup className="py-4 pb-6 mt-2">
                   <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Parse Modus</SidebarGroupLabel>
                   <SidebarGroupContent className="px-3">
-                    <RadioGroup defaultValue="word" onValueChange={(v) => onParsingChange(v as any)} className="gap-4">
+                    <RadioGroup value={parseMode} onValueChange={(v) => setParseMode(v as any)} className="gap-4">
                       {[
                         { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
                         { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
@@ -353,14 +355,14 @@ export function Inspector({
               </div>
             )}
 
-            {/* VISUAL TAB (Refactored to DCC Property Stack) */}
+            {/* VISUAL TAB */}
             {activeTab === 'visual' && (
               <div className="flex flex-col h-full text-[11px]">
                 <SidebarGroup className="py-4 pb-6 mt-2">
                   <div className="flex items-center justify-between pr-2 mb-3">
                     <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Knoten (Nodes)</SidebarGroupLabel>
                     <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, nodesVisible: !visualSettings.nodesVisible })}
+                      onClick={() => setVisualSettings({ ...visualSettings, nodesVisible: !visualSettings.nodesVisible })}
                       className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
                     >
                       {visualSettings.nodesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -368,7 +370,6 @@ export function Inspector({
                   </div>
                   
                   <SidebarGroupContent className="px-3 space-y-5">
-                    {/* Node Shape Segmented Control */}
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Form</span>
                       <div className="flex bg-zinc-100 rounded-md p-0.5 border border-zinc-200">
@@ -379,7 +380,7 @@ export function Inspector({
                         ].map((shape) => (
                           <button
                             key={shape.id}
-                            onClick={() => onStyleChange({ nodeShape: shape.id as NodeShape })}
+                            onClick={() => setStyleSettings((prev: any) => ({ ...prev, nodeShape: shape.id as NodeShape }))}
                             className={cn(
                               "flex items-center gap-1.5 px-2 py-1 rounded-[4px] transition-all",
                               styleSettings.nodeShape === shape.id 
@@ -395,7 +396,6 @@ export function Inspector({
                       </div>
                     </div>
 
-                    {/* Node Scale */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Basis-Skalierung</span>
@@ -405,7 +405,7 @@ export function Inspector({
                         value={[styleSettings.nodeScale * 100 ?? 100]} 
                         max={250} 
                         step={5} 
-                        onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+                        onValueChange={([val]) => setStyleSettings((prev: any) => ({ ...prev, nodeScale: val / 100 }))}
                         className="py-2"
                       />
                     </div>
@@ -419,10 +419,9 @@ export function Inspector({
                         value={[visualSettings.radialBiasScale * 100]} 
                         max={100} 
                         step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
+                        onValueChange={([val]) => setVisualSettings({ ...visualSettings, radialBiasScale: val / 100 })}
                         className="py-1"
                       />
-                      <p className="text-[9px] text-zinc-400 font-mono italic leading-tight">Scale = Basis + (Bias * Dist)</p>
                     </div>
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -433,13 +432,12 @@ export function Inspector({
                   <div className="flex items-center justify-between pr-2 mb-3">
                     <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Beschriftung (Labels)</SidebarGroupLabel>
                     <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, labelsVisible: !visualSettings.labelsVisible })}
+                      onClick={() => setVisualSettings({ ...visualSettings, labelsVisible: !visualSettings.labelsVisible })}
                       className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
                     >
                       {visualSettings.labelsVisible ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                   </div>
-                  
                   <SidebarGroupContent className="px-3 space-y-5">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -450,7 +448,7 @@ export function Inspector({
                         value={[visualSettings.labelWeightMapping * 100]} 
                         max={100} 
                         step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
+                        onValueChange={([val]) => setVisualSettings({ ...visualSettings, labelWeightMapping: val / 100 })}
                         className="py-2"
                       />
                     </div>
@@ -463,23 +461,21 @@ export function Inspector({
                   <div className="flex items-center justify-between pr-2 mb-3">
                     <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Verbindungen (Edges)</SidebarGroupLabel>
                     <button 
-                      onClick={() => onVisualSettingsChange?.({ ...visualSettings, edgesVisible: !visualSettings.edgesVisible })}
+                      onClick={() => setVisualSettings({ ...visualSettings, edgesVisible: !visualSettings.edgesVisible })}
                       className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
                     >
                       {visualSettings.edgesVisible ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                   </div>
-                  
                   <SidebarGroupContent className="px-3 space-y-5">
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Flow Animation</span>
                       <Switch 
                         checked={visualSettings.edgeFlowAnimation}
-                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
+                        onCheckedChange={(checked) => setVisualSettings({ ...visualSettings, edgeFlowAnimation: checked })}
                         className="scale-75 data-[state=checked]:bg-zinc-900"
                       />
                     </div>
-
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Global Opacity</span>
@@ -489,134 +485,7 @@ export function Inspector({
                         value={[styleSettings.edgeOpacity * 100]} 
                         max={100} 
                         step={1} 
-                        onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
-                        className="py-2"
-                      />
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Umgebung (Environment)</SidebarGroupLabel>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envAtmosphereSeed: Math.random() * 1000 })}
-                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                        title="Shuffle Atmosphere"
-                      >
-                        <Dices size={14} />
-                      </button>
-                      <button 
-                        onClick={() => onVisualSettingsChange?.({ ...visualSettings, envVisible: !visualSettings.envVisible })}
-                        className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-                      >
-                        {visualSettings.envVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <SidebarGroupContent className="px-3 space-y-4">
-                    <div className="space-y-3">
-                      <span className="text-zinc-500 dark:text-zinc-400 text-[10px] uppercase tracking-tighter font-bold">Atmosphere Gradient</span>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Origin</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientOrigin }} />
-                            <Input 
-                              value={visualSettings.gradientOrigin} 
-                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
-                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientOrigin: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] text-zinc-400 uppercase font-medium">Periphery</span>
-                          <div className="flex items-center gap-2">
-                            <div className="size-4 rounded-sm border border-zinc-200" style={{ backgroundColor: visualSettings.gradientPeriphery }} />
-                            <Input 
-                              value={visualSettings.gradientPeriphery} 
-                              className="h-6 text-[9px] font-mono bg-zinc-50 border-zinc-200 text-zinc-600" 
-                              onChange={(e) => onVisualSettingsChange?.({ ...visualSettings, gradientPeriphery: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <div className="flex items-center justify-between pr-2 mb-3">
-                    <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2">Glitch Paint Tool</SidebarGroupLabel>
-                    <Switch 
-                      checked={visualSettings.glitchActive}
-                      onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, glitchActive: checked })}
-                      className="scale-75 data-[state=checked]:bg-indigo-600"
-                    />
-                  </div>
-                  
-                  {visualSettings.glitchActive && (
-                    <SidebarGroupContent className="px-3 space-y-5">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Brush Radius</span>
-                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchBrushRadius}px</span>
-                        </div>
-                        <Slider 
-                          value={[visualSettings.glitchBrushRadius]} 
-                          max={500} 
-                          step={5} 
-                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
-                          className="py-2"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Feather</span>
-                          <span className="font-mono text-[10px] text-zinc-400">{visualSettings.glitchFeather.toFixed(2)}</span>
-                        </div>
-                        <Slider 
-                          value={[visualSettings.glitchFeather * 100]} 
-                          max={100} 
-                          step={1} 
-                          onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
-                          className="py-2"
-                        />
-                      </div>
-                    </SidebarGroupContent>
-                  )}
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-100 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Path Animator</SidebarGroupLabel>
-                  <SidebarGroupContent className="px-3 space-y-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Camera Follow</span>
-                      <Switch 
-                        checked={visualSettings.pathCameraFollow}
-                        onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
-                        className="scale-75 data-[state=checked]:bg-emerald-600"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Smoothness</span>
-                        <span className="font-mono text-[10px] text-zinc-400">{visualSettings.pathSmoothness.toFixed(2)}</span>
-                      </div>
-                      <Slider 
-                        value={[visualSettings.pathSmoothness * 100]} 
-                        max={100} 
-                        step={1} 
-                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
+                        onValueChange={([val]) => setStyleSettings((prev: any) => ({ ...prev, edgeOpacity: val / 100 }))}
                         className="py-2"
                       />
                     </div>
@@ -633,12 +502,12 @@ export function Inspector({
                   <SidebarGroupContent className="px-3 space-y-7">
                     {[
                       { id: 'phys-rep', label: 'Streuung (Abstoßung)', desc: 'Wie stark Elemente sich gegenseitig verdrängen.', value: effectivePhysicsParams?.repulsion ?? 1500, max: 5000, step: 10, key: 'repulsion' },
-                      { id: 'phys-spk', label: 'Spannung (Tension)', desc: 'Wie straff Verbindungen die Elemente zusammenziehen. Höher = snappier.', value: effectivePhysicsParams?.springK ?? 0.2, max: 0.8, step: 0.01, key: 'springK' },
-                      { id: 'phys-dmp', label: 'Reibung (Friction)', desc: 'Wie schnell Bewegungen abbremsen. Niedriger = bouncier.', value: effectivePhysicsParams?.damping ?? 0.85, max: 1, step: 0.01, key: 'damping' },
+                      { id: 'phys-spk', label: 'Spannung (Tension)', desc: 'Wie straff Verbindungen die Elemente zusammenziehen.', value: effectivePhysicsParams?.springK ?? 0.06, max: 0.8, step: 0.01, key: 'springK' },
+                      { id: 'phys-dmp', label: 'Reibung (Friction)', desc: 'Wie schnell Bewegungen abbremsen.', value: effectivePhysicsParams?.damping ?? 0.88, max: 1, step: 0.01, key: 'damping' },
                       { id: 'phys-lnk', label: 'Abstand (Distance)', desc: 'Die gewünschte Grundlänge aller Verbindungen.', value: effectivePhysicsParams?.linkDistance ?? 80, max: 500, step: 1, key: 'linkDistance' },
                       { id: 'phys-grv', label: 'Schwerkraft (Gravity)', desc: 'Zieht alle Elemente zur Mitte des Canvas.', value: effectivePhysicsParams?.gravity ?? 0, min: -5, max: 10, step: 0.1, key: 'gravity' },
                       { id: 'phys-trb', label: 'Bewegung (Wobble)', desc: 'Erzeugt eine stetige, organische Unruhe.', value: effectivePhysicsParams?.turbulence ?? 0, max: 10, step: 0.1, key: 'turbulence' },
-                      { id: 'phys-vto', label: 'Vertikale Ordnung', desc: 'Sortiert Knoten nach Textlänge (kurz oben, lang unten).', value: effectivePhysicsParams?.verticalOrder ?? 0, max: 10, step: 0.1, key: 'verticalOrder' },
+                      { id: 'phys-vto', label: 'Vertikale Ordnung', desc: 'Sortiert Knoten nach Textlänge.', value: effectivePhysicsParams?.verticalOrder ?? 0, max: 10, step: 0.1, key: 'verticalOrder' },
                       { id: 'phys-pls', label: 'Lebendigkeit (Pulse)', desc: 'Organisches Atmen der Knotenabstände.', value: effectivePhysicsParams?.pulse ?? 0, max: 1, step: 0.01, key: 'pulse' },
                     ].map((p) => (
                       <div key={p.id} className="space-y-3">
@@ -652,11 +521,11 @@ export function Inspector({
                               value={p.value} 
                               min={p.min ?? 0}
                               max={p.max}
-                              onCommit={(val) => onPhysicsChange({ [p.key]: val })} 
+                              onCommit={(val) => handlePhysicsChange({ [p.key]: val })} 
                               format={(v) => typeof v === 'number' ? v.toFixed(2) : v} 
                             />
                             <button 
-                              onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                              onClick={() => handleTogglePhysicsKeyframe(p.id, p.value)}
                               className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
                             >
                               <Diamond size={10} fill={physKfActive[p.id] ? 'currentColor' : 'none'} />
@@ -668,7 +537,7 @@ export function Inspector({
                           min={p.min ?? 0}
                           max={p.max} 
                           step={p.step}
-                          onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
+                          onValueChange={([val]) => handlePhysicsChange({ [p.key]: val })}
                         />
                       </div>
                     ))}
@@ -683,12 +552,11 @@ export function Inspector({
                 <SidebarGroup className="py-4 pb-6 mt-2">
                   <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Ansicht-Positionierung</SidebarGroupLabel>
                   <SidebarGroupContent className="px-3 space-y-6">
-                    
                     <div className="flex flex-col items-center gap-3">
                       <div 
                         className="relative w-full h-40 bg-zinc-50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
                         onDoubleClick={() => {
-                          onResetView();
+                          network3DRef.current?.resetView();
                           setPuckPos({ x: 0, y: 0 });
                         }}
                         onMouseDown={(e) => {
@@ -700,7 +568,7 @@ export function Inspector({
                           const onMove = (ev: MouseEvent) => {
                             const dx = ev.movementX;
                             const dy = ev.movementY;
-                            onRotateView(-dx * 0.01, -dy * 0.01);
+                            network3DRef.current?.rotateView(-dx * 0.01, -dy * 0.01);
 
                             const relX = ev.clientX - centerX;
                             const relY = ev.clientY - centerY;
@@ -725,71 +593,45 @@ export function Inspector({
                           window.addEventListener('mouseup', onUp);
                         }}
                       >
-                        <div className="absolute inset-0 grid grid-cols-12 grid-rows-6 pointer-events-none opacity-[0.05]">
-                          {Array.from({ length: 72 }).map((_, i) => (
-                            <div key={i} className="border-[0.5px] border-zinc-900" />
-                          ))}
-                        </div>
-
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                           <div className="w-full h-[1px] bg-zinc-300" />
                           <div className="h-full w-[1px] bg-zinc-300" />
-                          <div className="absolute w-full h-[1px] bg-zinc-300/20 rotate-[31deg]" />
-                          <div className="absolute w-full h-[1px] bg-zinc-300/20 -rotate-[31deg]" />
                         </div>
 
                         <div className="absolute inset-0 p-4 flex flex-col justify-between items-center pointer-events-none">
                           <button 
                             className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                            onClick={() => onSetRotation(0, 0)}
-                            title="Top View (Y)"
+                            onClick={() => network3DRef.current?.setRotation(0, 0)}
                           >Y</button>
                           <div className="flex justify-between w-full items-center">
                             <button 
                               className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                              onClick={() => onSetRotation(-Math.PI/2, Math.PI/2)}
-                              title="Left View (-X)"
+                              onClick={() => network3DRef.current?.setRotation(-Math.PI/2, Math.PI/2)}
                             >-X</button>
-                            
                             <div 
                               className={cn(
                                 "size-8 rounded-full bg-white border border-zinc-300 shadow-md flex items-center justify-center text-zinc-400 z-10",
                                 !isDraggingPuck && "transition-transform duration-300 ease-out"
                               )}
-                              style={{ 
-                                transform: `translate(${puckPos.x}px, ${puckPos.y}px)` 
-                              }}
+                              style={{ transform: `translate(${puckPos.x}px, ${puckPos.y}px)` }}
                             >
                               <MoreHorizontal size={14} className="rotate-90" />
                             </div>
-
                             <button 
                               className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                              onClick={() => onSetRotation(Math.PI/2, Math.PI/2)}
-                              title="Right View (X)"
+                              onClick={() => network3DRef.current?.setRotation(Math.PI/2, Math.PI/2)}
                             >X</button>
                           </div>
                           <button 
                             className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                            onClick={() => onSetRotation(Math.PI, 0)}
-                            title="Bottom View (-Y)"
+                            onClick={() => network3DRef.current?.setRotation(Math.PI, 0)}
                           >-Y</button>
                         </div>
-                        
-                        <button onClick={() => onSetRotation(Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 1" />
-                        <button onClick={() => onSetRotation(-Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute top-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 2" />
-                        <button onClick={() => onSetRotation(3*Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute bottom-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 3" />
-                        <button onClick={() => onSetRotation(-3*Math.PI/4, Math.PI/4)} className="pointer-events-auto absolute bottom-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all" title="ISO 4" />
                       </div>
                       
                       <div className="flex justify-between w-full px-1">
                          <span className="text-[10px] text-zinc-400 italic">Orbit: Ziehen / Klicken zum Einrasten</span>
-                         <button 
-                           onClick={() => onResetView()}
-                           className="text-[10px] text-zinc-500 hover:text-zinc-900 font-medium underline-offset-2 hover:underline"
-                         >
-                           Reset
-                         </button>
+                         <button onClick={() => network3DRef.current?.resetView()} className="text-[10px] text-zinc-500 hover:text-zinc-900 font-medium underline">Reset</button>
                       </div>
                     </div>
 
@@ -797,221 +639,52 @@ export function Inspector({
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between px-1">
-                        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Ansicht verschieben (Pan)</span>
-                      </div>
-                      
-                      <div className="flex flex-col items-center gap-2">
-                        <div 
-                          className="relative w-full h-32 bg-zinc-50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
-                          onDoubleClick={() => {
-                            onResetView();
-                            setPanPuckPos({ x: 0, y: 0 });
-                          }}
-                          onMouseDown={(e) => {
-                            setIsDraggingPanPuck(true);
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const centerX = rect.left + rect.width / 2;
-                            const centerY = rect.top + rect.height / 2;
-
-                            const onMove = (ev: MouseEvent) => {
-                              const scale = 5;
-                              onPanView(ev.movementX * scale, -ev.movementY * scale);
-
-                              const relX = ev.clientX - centerX;
-                              const relY = ev.clientY - centerY;
-                              
-                              const limitX = rect.width / 2 - 16;
-                              const limitY = rect.height / 2 - 16;
-                              
-                              setPanPuckPos({ 
-                                x: Math.max(-limitX, Math.min(limitX, relX)), 
-                                y: Math.max(-limitY, Math.min(limitY, relY)) 
-                              });
-                            };
-                            const onUp = () => {
-                              setIsDraggingPanPuck(false);
-                              setPanPuckPos({ x: 0, y: 0 });
-                              document.body.style.cursor = 'default';
-                              window.removeEventListener('mousemove', onMove);
-                              window.removeEventListener('mouseup', onUp);
-                            };
-                            document.body.style.cursor = 'grabbing';
-                            window.addEventListener('mousemove', onMove);
-                            window.addEventListener('mouseup', onUp);
-                          }}
-                        >
-                          {/* Grid Background */}
-                          <div className="absolute inset-0 grid grid-cols-8 grid-rows-3 pointer-events-none opacity-[0.05]">
-                            {Array.from({ length: 24 }).map((_, i) => (
-                              <div key={i} className="border-[0.5px] border-zinc-900" />
-                            ))}
-                          </div>
-                          
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-full h-[1px] bg-zinc-300" />
-                            <div className="h-full w-[1px] bg-zinc-300" />
-                          </div>
-
-                          <div 
-                            className={cn(
-                              "size-8 rounded-lg bg-white border border-zinc-300 shadow-sm flex items-center justify-center text-zinc-400 z-10 transition-colors",
-                              isDraggingPanPuck ? "border-blue-500 text-blue-500 shadow-md" : "group-hover:border-zinc-400",
-                              !isDraggingPanPuck && "transition-transform duration-300 ease-out"
-                            )}
-                            style={{ 
-                              transform: `translate(${panPuckPos.x}px, ${panPuckPos.y}px)` 
-                            }}
-                          >
-                            <Move size={14} />
-                          </div>
-                        </div>
-                        <span className="text-[9px] text-zinc-400 italic">Ziehen zum Verschieben</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between px-1">
                         <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Zoom</span>
-                        <span className="text-[10px] font-mono text-zinc-400">{zoomValue.toFixed(1)}%</span>
+                        <span className="font-mono text-[10px] text-zinc-400">{Math.round(zoomValue)}</span>
                       </div>
-                      
-                      <div className="relative h-6 flex items-center px-1 group">
-                        {/* Slider Track */}
-                        <div className="absolute inset-x-1 h-1.5 bg-zinc-200 rounded-full" />
-                        {/* Center Tick */}
-                        <div className="absolute left-1/2 -translate-x-1/2 w-0.5 h-3 bg-zinc-300 z-0" />
-                        
-                        {/* Draggable Handle */}
-                        <div 
-                          className={cn(
-                            "absolute size-4 rounded-full bg-white border border-zinc-300 shadow-sm z-10 cursor-grab active:cursor-grabbing hover:border-zinc-400 transition-colors flex items-center justify-center",
-                            isDraggingZoomPuck && "border-blue-500 shadow-md",
-                            !isDraggingZoomPuck && "transition-all duration-300 ease-out"
-                          )}
-                          style={{ 
-                            left: `calc(50% + ${zoomPuckPos.x}px)`,
-                            transform: 'translateX(-50%)'
-                          }}
-                          onMouseDown={(e) => {
-                            setIsDraggingZoomPuck(true);
-                            const startX = e.clientX;
-                            const startPuckX = zoomPuckPos.x;
-
-                            const onMove = (ev: MouseEvent) => {
-                              const dx = ev.clientX - startX;
-                              const newPuckX = startPuckX + dx;
-                              
-                              // Clamp handle movement to track
-                              const limit = 100; // Track half-width approx
-                              const clampedX = Math.max(-limit, Math.min(limit, newPuckX));
-                              setZoomPuckPos({ x: clampedX, y: 0 });
-
-                              // Relative zoom: displacement from center = speed/delta
-                              // We use a non-linear feel: further from center = faster zoom
-                              const scale = 0.05;
-                              const delta = clampedX * scale;
-                              onZoomChange(Math.max(0, Math.min(100, zoomValue + delta)));
-                            };
-                            const onUp = () => {
-                              setIsDraggingZoomPuck(false);
-                              setZoomPuckPos({ x: 0, y: 0 });
-                              document.body.style.cursor = 'default';
-                              window.removeEventListener('mousemove', onMove);
-                              window.removeEventListener('mouseup', onUp);
-                            };
-                            document.body.style.cursor = 'grabbing';
-                            window.addEventListener('mousemove', onMove);
-                            window.addEventListener('mouseup', onUp);
-                          }}
-                        >
-                          <div className="size-1 rounded-full bg-zinc-300" />
-                        </div>
-                      </div>
-                      <div className="flex justify-between px-1">
-                        <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">-</span>
-                        <span className="text-[9px] text-zinc-400 italic">Schieben zum Zoomen (Relativ)</span>
-                        <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">+</span>
-                      </div>
+                      <Slider 
+                        value={[zoomValue]} 
+                        min={10} 
+                        max={1000} 
+                        onValueChange={([val]) => {
+                          setZoomValue(val);
+                          network3DRef.current?.setZoom(val);
+                        }}
+                      />
                     </div>
-
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-8 text-[11px] bg-white border-zinc-200 mt-4"
-                      onClick={() => {
-                        onResetView();
-                        setPanPuckPos({ x: 0, y: 0 });
-                        onZoomChange(50); // Default zoom on reset
-                      }}
-                    >
-                      Kamera zurücksetzen
-                    </Button>
                   </SidebarGroupContent>
                 </SidebarGroup>
               </div>
             )}
 
+            {/* CANVAS TAB */}
             {activeTab === 'canvas' && (
               <div>
                 <SidebarGroup className="py-4 pb-6 mt-2">
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Canvas Layout</SidebarGroupLabel>
-                  <SidebarGroupContent className="px-3 space-y-6">
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200 mb-3 block">Seitenverhältnis</span>
-                      <RadioGroup 
-                        value={canvasAspectRatio} 
-                        onValueChange={onCanvasAspectRatioChange}
-                        className="grid grid-cols-2 gap-2"
-                      >
-                        {[
-                          { id: 'full', label: 'Vollbild', icon: Fullscreen },
-                          { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
-                          { id: '4:3', label: '4:3 Standard', icon: Tv },
-                          { id: '3:2', label: '3:2 Classic', icon: Image },
-                          { id: 'din', label: 'DIN Landscape', icon: FileText },
-                        ].map((ratio) => {
-                          const IconComponent = ratio.icon;
-                          return (
-                          <div key={ratio.id}>
-                            <RadioGroupItem
-                              value={ratio.id}
-                              id={`ratio-${ratio.id}`}
-                              className="peer sr-only"
-                            />
-                            <label
-                              htmlFor={`ratio-${ratio.id}`}
-                              className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50/50 cursor-pointer transition-all"
-                            >
-                              <span className="mb-1 flex h-4 items-center justify-center">
-                                <IconComponent size={16} className="text-zinc-600" />
-                              </span>
-                              <span className="text-[10px] font-medium">{ratio.label}</span>
-                            </label>
-                          </div>
-                        );
-                        })}
-                      </RadioGroup>
-                    </div>
-                  </div>
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Seitenverhältnis (Ratio)</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3">
+                    <RadioGroup value={canvasAspectRatio} onValueChange={setCanvasAspectRatio} className="gap-3">
+                      {[
+                        { id: 'full', label: 'Freies Fenster', icon: Fullscreen },
+                        { id: '16:9', label: '16:9 Video', icon: Tv },
+                        { id: '4:3', label: '4:3 Standard', icon: Monitor },
+                        { id: '3:2', label: '3:2 Foto', icon: Camera },
+                        { id: 'din', label: 'DIN A4/A3', icon: FileText },
+                      ].map((ratio) => (
+                        <div key={ratio.id} className="flex items-center space-x-3 group cursor-pointer">
+                          <RadioGroupItem value={ratio.id} id={ratio.id} className="border-zinc-300 text-zinc-900" />
+                          <label htmlFor={ratio.id} className="flex items-center gap-2 text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-800 transition-colors">
+                            <ratio.icon size={14} className="text-zinc-400" />
+                            {ratio.label}
+                          </label>
+                        </div>
+                      ))}
+                    </RadioGroup>
                   </SidebarGroupContent>
                 </SidebarGroup>
-
-                <div className="px-3 pt-2">
-                  <p className="text-[10px] text-zinc-400 leading-relaxed italic border-t border-zinc-100 pt-4">
-                    Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport an, um Komposition und Bildausschnitt zu steuern.
-                  </p>
-                </div>
               </div>
             )}
-
-            <div className="h-20" />
           </SidebarContent>
-
-          <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
-            <p className="text-[9px] text-zinc-400 font-bold tracking-widest uppercase">Workspace Properties</p>
-            <p className="text-[9px] text-zinc-400 font-mono">v0.8.2</p>
-          </div>
         </div>
       </div>
     </SidebarProvider>

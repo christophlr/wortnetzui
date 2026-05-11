@@ -1,29 +1,14 @@
 import {
-  Settings, Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
-  Square, Box, PencilLine, MonitorPlay, CircleDashed, CircleDotDashed, RotateCcw,
-  PanelRight, PanelRightClose, Keyboard
+  Save, FolderOpen, Sun, Moon, Undo2, Redo2, Download,
+  Square, Box, MonitorPlay,
+  Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-
-interface TopBarProps {
-  viewMode: '2D' | '3D';
-  onViewModeChange: (mode: '2D' | '3D') => void;
-  onSaveState?: () => void;
-  onLoadState?: () => void;
-  themeMode?: 'light' | 'hybrid' | 'dark';
-  onThemeModeChange?: (mode: 'light' | 'hybrid' | 'dark') => void;
-  renderMode?: 'edit' | 'render';
-  onRenderModeChange?: (mode: 'edit' | 'render') => void;
-  onApplyNodeStylePreset?: (preset: 'outline' | 'filled' | 'reset') => void;
-  onUndo?: () => void;
-  onRedo?: () => void;
-  canUndo?: boolean;
-  canRedo?: boolean;
-  onExport?: () => void;
-  onOpenShortcuts?: () => void;
-}
+import { useWortnetz } from '../context/WortnetzContext';
+import { useHistory } from '../hooks/useHistory';
+import { useProject } from '../hooks/useProject';
 
 function NetworkLogo() {
   return (
@@ -45,17 +30,31 @@ function NetworkLogo() {
   );
 }
 
+interface TopBarProps {
+  onOpenShortcuts?: () => void;
+  onExport?: () => void;
+  onApplyNodeStylePreset?: (preset: 'outline' | 'filled' | 'reset') => void;
+}
 
 export function TopBar({
-  viewMode, onViewModeChange,
-  onSaveState, onLoadState, themeMode = 'light', onThemeModeChange,
-  renderMode = 'edit', onRenderModeChange,
-  onApplyNodeStylePreset,
-  onUndo, onRedo, canUndo = false, canRedo = false,
-  onExport,
   onOpenShortcuts,
+  onExport,
+  onApplyNodeStylePreset
 }: TopBarProps) {
+  const { 
+    viewMode, setViewMode, 
+    themeMode, setThemeMode, 
+    renderMode, setRenderMode,
+    setPhysicsParams
+  } = useWortnetz();
+  
+  const { undo, redo, canUndo, canRedo } = useHistory();
+  const { handleSave, handleLoad } = useProject();
 
+  const handleViewModeChange = (mode: '2D' | '3D') => {
+    setViewMode(mode);
+    setPhysicsParams((p: any) => ({ ...p, gravity: mode === '2D' ? 3 : 0 }));
+  };
 
   return (
     <div className="flex items-start justify-between w-full pointer-events-none select-none">
@@ -77,12 +76,12 @@ export function TopBar({
               <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Datei</MenubarTrigger>
               <MenubarContent>
                 <MenubarGroup>
-                  <MenubarItem onSelect={() => onSaveState?.()}>
+                  <MenubarItem onSelect={handleSave}>
                     <Save size={12} />
                     Speichern
                     <MenubarShortcut>⌘S</MenubarShortcut>
                   </MenubarItem>
-                  <MenubarItem onSelect={() => onLoadState?.()}>
+                  <MenubarItem onSelect={handleLoad}>
                     <FolderOpen size={12} />
                     Laden
                     <MenubarShortcut>⌘O</MenubarShortcut>
@@ -95,12 +94,12 @@ export function TopBar({
               <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Bearbeiten</MenubarTrigger>
               <MenubarContent>
                 <MenubarGroup>
-                  <MenubarItem onSelect={() => onUndo?.()} disabled={!canUndo}>
+                  <MenubarItem onSelect={undo} disabled={!canUndo}>
                     <Undo2 size={12} />
                     Rückgängig
                     <MenubarShortcut>⌘Z</MenubarShortcut>
                   </MenubarItem>
-                  <MenubarItem onSelect={() => onRedo?.()} disabled={!canRedo}>
+                  <MenubarItem onSelect={redo} disabled={!canRedo}>
                     <Redo2 size={12} />
                     Wiederholen
                     <MenubarShortcut>⌘⇧Z</MenubarShortcut>
@@ -108,7 +107,7 @@ export function TopBar({
                 </MenubarGroup>
                 <MenubarSeparator />
                 <MenubarGroup>
-                  <MenubarItem onSelect={() => onOpenShortcuts?.()}>
+                  <MenubarItem onSelect={onOpenShortcuts}>
                     <Keyboard size={12} />
                     Tastaturkürzel...
                   </MenubarItem>
@@ -121,7 +120,7 @@ export function TopBar({
               <MenubarContent>
                 <MenubarGroup>
                   <MenubarLabel>Modus</MenubarLabel>
-                  <MenubarItem onSelect={() => onRenderModeChange?.(renderMode === 'edit' ? 'render' : 'edit')}>
+                  <MenubarItem onSelect={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}>
                     <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-blue-600' : 'text-muted-foreground'} />
                     Preview
                     <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
@@ -130,16 +129,13 @@ export function TopBar({
                 <MenubarSeparator />
                 <MenubarGroup>
                   <MenubarLabel>Design</MenubarLabel>
-                  <MenubarRadioGroup value={themeMode} onValueChange={(v) => onThemeModeChange?.(v as 'light' | 'hybrid' | 'dark')}>
+                  <MenubarRadioGroup value={themeMode} onValueChange={(v) => setThemeMode(v as any)}>
                     <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />Hell</MenubarRadioItem>
-                    <MenubarRadioItem value="hybrid"><MonitorPlay size={12} strokeWidth={2} />Kontrastreiche Vorschau</MenubarRadioItem>
                     <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />Dunkel</MenubarRadioItem>
                   </MenubarRadioGroup>
                 </MenubarGroup>
               </MenubarContent>
             </MenubarMenu>
-
-
           </Menubar>
         </div>
       </div>
@@ -149,7 +145,7 @@ export function TopBar({
         <ToggleGroup
           type="single"
           value={viewMode}
-          onValueChange={(v) => v && onViewModeChange(v as '2D' | '3D')}
+          onValueChange={(v) => v && handleViewModeChange(v as '2D' | '3D')}
           className="h-7 gap-0 border border-zinc-200 rounded-md overflow-hidden bg-background/50"
         >
           <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
@@ -160,8 +156,6 @@ export function TopBar({
           </ToggleGroupItem>
         </ToggleGroup>
 
-
-
         <Button
           variant="outline"
           size="sm"
@@ -170,7 +164,7 @@ export function TopBar({
               ? 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20 hover:text-blue-700' 
               : 'text-zinc-600 hover:bg-zinc-100 border-zinc-200'
           }`}
-          onClick={() => onRenderModeChange?.(renderMode === 'edit' ? 'render' : 'edit')}
+          onClick={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}
         >
           <MonitorPlay 
             size={12} 
@@ -180,13 +174,11 @@ export function TopBar({
           Vorschau
         </Button>
 
-
-
         <Button 
           variant="outline" 
           size="sm" 
           className="h-7 px-3 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 border-zinc-200 transition-all duration-200" 
-          onClick={() => onExport?.()}
+          onClick={onExport}
         >
           <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
           Exportieren

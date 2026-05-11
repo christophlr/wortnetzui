@@ -50,14 +50,20 @@ high-end motion graphics transitions, reacting energetically to user input via t
 ```
 src/
   app/
-    App.tsx              — root component; owns all React state
+    App.tsx              — slim composer; wraps the app in `WortnetzProvider`
+    context/
+      WortnetzContext.tsx — **SINGLE SOURCE OF TRUTH**; owns all React state/handlers
+    hooks/
+      useHistory.ts      — undo/redo logic
+      useProject.ts      — save/load logic
     components/
-      Network3D.tsx      — the 3D/2D scene (Three.js, imperative, 1800+ lines)
-      Inspector.tsx      — right sidebar with all parameter controls
-      Preview.tsx        — artboard wrapper around Network3D
-      timeline/          — modular animation workspace (Transport, Ruler, Dopesheet, Graph Editor)
-      TopBar.tsx         — menu bar + playback controls
-      Toolbar.tsx        — vertical floating tool picker (pointer/pan/paint/zoom)
+      shell/             — layout components: `AppShell`, `AppSidebar`, `AppCanvas`
+      Network3D.tsx      — the 3D/2D scene (Three.js, imperative)
+      Inspector.tsx      — right sidebar panels (consumes context)
+      Preview.tsx        — artboard wrapper around Network3D (consumes context)
+      timeline/          — animation workspace (consumes context)
+      TopBar.tsx         — floating menu/action pills (consumes context)
+      Toolbar.tsx        — vertical tool picker
     graph/
       types.ts           — GraphNode, GraphEdge, PhysicsParams, DEFAULT_PHYSICS
       parsing.ts         — text → nodes + edges (n-gram extraction)
@@ -193,27 +199,27 @@ Camera zoom and navigation are now controlled via mouse/trackpad interaction (Or
 ## 5. Data Flow & State Architecture
 
 ```
-App.tsx (React state owner)
+WortnetzContext.tsx (Single Source of Truth)
   ├── inputText, parseMode         → Network3D: triggers full scene rebuild
-  ├── physicsParams                → Network3D: blended transition (60-frame ease)
-  ├── physicsKeyframes             → Network3D: per-frame interpolation during playback
-  ├── cameraKeyframes              → Network3D: Hermite interpolation during playback
+  ├── physicsParams                → Network3D: blended transition
+  ├── physicsKeyframes             → Network3D: per-frame interpolation
+  ├── cameraKeyframes              → Network3D: Hermite interpolation
   ├── gradientSettings             → Network3D: triggers texture cache rebuild
-   ├── styleSettings                → Network3D: edge opacity/width, node scale/shape
-   ├── visualSettings               → Network3D: radial bias, mesh gradients, glitch paint, path animation
-   ├── nodeAppearance               → Network3D: fill/border/text color overrides
+  ├── styleSettings                → Network3D: edge opacity/width, node scale/shape
+  ├── visualSettings               → Network3D: radial bias, mesh gradients, glitch paint
+  ├── nodeAppearance               → Network3D: fill/border/text color overrides
   ├── edgeAppearance               → Network3D: edge color override
   ├── renderMode ('edit'|'render') → Network3D: scene background + node color mode
   ├── viewMode ('2D'|'3D')        → Network3D: full scene rebuild
   └── themeMode                    → CSS class on <html> + isDark prop
 
-All Network3D props are mirrored into refs inside the component to avoid stale closures
-inside the RAF loop (e.g., physicsParamsRef, gradientSettingsRef, etc.).
+Components (Inspector, Timeline, TopBar, etc.) consume this context via the `useWortnetz` hook.
+All Network3D props are mirrored into refs inside the component to avoid stale closures.
 ```
 
-**🔒 App.tsx is the single source of truth.** Network3D does not hold React state for
-anything that needs to persist beyond a scene rebuild. If you need to surface data from
-Network3D to App, use the `Network3DHandle` imperative handle (`useImperativeHandle`).
+**🔒 WortnetzContext.tsx is the single source of truth.** App.tsx is a composer.
+Network3D does not hold React state for anything that needs to persist beyond a scene rebuild.
+If you need to surface data from Network3D, use the `network3DRef` imperative handle.
 
 ### 5.1 Undo/Redo
 
@@ -273,11 +279,11 @@ Every numeric slider **must** have click-to-type on the value display:
 
 ### 7.3 Theme System
 
-Three modes (set on `<html>`): `light`, `dark`, `theme-hybrid`.
+**themeMode**: `light` | `dark`.
 - `light`: white UI + light 3D background (`#f8fafc`).
 - `dark`: dark UI + dark 3D background (`#09090b`).
-- `hybrid`: dark UI + dark 3D background, but the UI uses dark theme while the
-  network renders dark. The `previewIsDark` flag in App.tsx tracks this.
+
+The `previewIsDark` flag in `WortnetzContext` tracks this based on the active `themeMode`.
 
 **Never hardcode background colors in UI components.** Use `hsl(var(--background))`,
 `hsl(var(--foreground))`, etc. 3D scene colors go through `networkTheme.ts`.
@@ -425,8 +431,9 @@ Additional engine-specific constraints:
 8. **Hardcode version strings** — version is injected by Vite from git history.
 9. **Add `renderOrder` values below 0 to sprites or above 0 to lines** without understanding
    the z-ordering contract in §4.3.
-10. **Make App.tsx hold 3D scene state** (camera position, node positions) in React state —
-    these belong in `useRef` inside `Network3D.tsx`.
+10. **Make App.tsx hold state** — state belongs in `WortnetzContext.tsx`.
+    Scene-local transient state (camera position, node positions) belongs in `useRef`
+    inside `Network3D.tsx`.
 11. **Change the text parsing logic** (n-gram extraction, edge building) without an explicit
     request — the parsing is the conceptual core of the art project.
 

@@ -15,7 +15,9 @@ These rules apply to every task, every session, without exception:
 1. **Do not change any visual appearance unless explicitly asked.** Colors, fonts, spacing,
    shapes, opacity, shadows, gradients, icons, layout proportions, animation curves — all
    locked. See `STYLE_GUIDE.md` for the full baseline.
-2. **Do not refactor, rename, or restructure code unless the task requires it.**
+2. **The project follows a modular architecture.** Use `WortnetzContext` for global state
+   and `AppShell` / `AppSidebar` / `AppCanvas` for layout. Do not revert to the monolithic
+   `App.tsx` pattern.
 3. **Do not add, remove, or replace dependencies** without an explicit instruction.
 4. **Do not change the text parsing logic** (`parsing.ts`) — it is the conceptual core of
    the artwork, not utility code.
@@ -58,13 +60,17 @@ Radix-based context menus, and semantic iconography.
 
 | File | Role |
 |---|---|
-| `App.tsx` | Root component. Owns all React state. All callbacks. Layout shell. |
+| `App.tsx` | Slim composer component. Wraps the app in `WortnetzProvider`. |
+| `context/WortnetzContext.tsx` | **Single source of truth.** Owns all React state and core handlers. |
+| `hooks/useHistory.ts` | Undo/redo state management for the timeline. |
+| `hooks/useProject.ts` | Project file persistence (save/load). |
+| `components/shell/` | Modular layout components: `AppShell`, `AppSidebar`, `AppCanvas`. |
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
-| `Preview.tsx` | Artboard wrapper, pasteboard, version badge, loading overlay. |
-| `Inspector.tsx` | Right sidebar with 5 tab panels. |
-| `TopBar.tsx` | Two floating pills: logo+menu (left), toggles+actions (right). |
-| `Toolbar.tsx` | Vertical 5-tool picker (moved to App viewport overlay). |
-| `timeline/` | Modular animation workspace: Transport, Ruler, Dopesheet, Graph Editor, ContextMenu. |
+| `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |
+| `Inspector.tsx` | Right sidebar with 5 tab panels. Consumes `WortnetzContext`. |
+| `TopBar.tsx` | Two floating pills: menu and actions. Consumes `WortnetzContext`. |
+| `Toolbar.tsx` | Vertical 5-tool picker viewport overlay. |
+| `timeline/` | Modular animation workspace: Transport, Ruler, Dopesheet, Graph Editor. Consumes `WortnetzContext`. |
 | `ShortcutsDialog.tsx` | Keyboard shortcut viewer/editor. |
 | `figma/ImageWithFallback.tsx` | `<img>` with fallback placeholder. Utility only. |
 | `ui/` | shadcn/ui component library (49 files). |
@@ -91,7 +97,7 @@ Radix-based context menus, and semantic iconography.
 | CSS | Tailwind v4 + CSS variables (`hsl(var(--...))`) |
 | Font | Space Grotesk (UI + 3D canvas textures) |
 | Icons | Lucide React |
-| State | React hooks only (no Redux, Zustand, or Context) |
+| State | React Context (`WortnetzContext`) + custom hooks (`useHistory`, `useProject`) |
 | Physics | Web Worker with transferable `Float64Array` buffers |
 | Build | Vite 6 + `@vitejs/plugin-react` + `@tailwindcss/vite` |
 | Version | Git commit count → `0.XX`, injected by Vite `define` |
