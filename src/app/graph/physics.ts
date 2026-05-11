@@ -181,6 +181,8 @@ export function applyPhysics(
   }
 
   // Spring attraction along edges with rest-length
+  // Use critical damping factor to prevent oscillation at high springK values
+  const springForceCap = 15 + springK * 30; // Scale cap with spring strength: 15-39
   edges.forEach(edge => {
     const dx = edge.b.x - edge.a.x;
     const dy = edge.b.y - edge.a.y;
@@ -189,11 +191,23 @@ export function applyPhysics(
 
     // Displacement from rest length
     const displacement = dist - linkDistance;
-    const forceMag = displacement * springK;
-
-    const fx = (dx / dist) * forceMag;
-    const fy = (dy / dist) * forceMag;
-    const fz = (dz / dist) * forceMag;
+    
+    // Cap the force magnitude to prevent oscillation/wobble at extreme values
+    const rawForceMag = displacement * springK;
+    const forceMag = Math.sign(rawForceMag) * Math.min(Math.abs(rawForceMag), springForceCap);
+    
+    // Apply velocity-based damping to reduce oscillation (critical damping)
+    const relVx = edge.b.vx - edge.a.vx;
+    const relVy = edge.b.vy - edge.a.vy;
+    const relVz = edge.b.vz - edge.a.vz;
+    const relVelAlongSpring = (relVx * dx + relVy * dy + relVz * dz) / dist;
+    const springDamping = 2 * Math.sqrt(springK) * 0.5; // Critical damping coefficient
+    const dampingForce = relVelAlongSpring * springDamping;
+    
+    const totalForce = forceMag + dampingForce;
+    const fx = (dx / dist) * totalForce;
+    const fy = (dy / dist) * totalForce;
+    const fz = (dz / dist) * totalForce;
 
     edge.a.vx += fx;
     edge.a.vy += fy;

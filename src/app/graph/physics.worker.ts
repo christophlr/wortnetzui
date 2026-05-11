@@ -177,6 +177,8 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   }
 
   // Spring attraction along edges with rest-length
+  // Use critical damping factor to prevent oscillation at high springK values
+  const springForceCap = 15 + springK * 30; // Scale cap with spring strength: 15-39
   const edgeCount = edgeIndices.length >> 1;
   for (let e = 0; e < edgeCount; e++) {
     const ai = edgeIndices[e * 2];
@@ -187,10 +189,24 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
     const dy = posVel[bb + 1] - posVel[ba + 1];
     const dz = posVel[bb + 2] - posVel[ba + 2];
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
-    const forceMag = (dist - linkDistance) * springK;
-    const fx = (dx / dist) * forceMag;
-    const fy = (dy / dist) * forceMag;
-    const fz = (dz / dist) * forceMag;
+    const displacement = dist - linkDistance;
+    
+    // Cap the force magnitude to prevent oscillation/wobble at extreme values
+    const rawForceMag = displacement * springK;
+    const forceMag = Math.sign(rawForceMag) * Math.min(Math.abs(rawForceMag), springForceCap);
+    
+    // Apply velocity-based damping to reduce oscillation (critical damping)
+    const relVx = posVel[bb + 3] - posVel[ba + 3];
+    const relVy = posVel[bb + 4] - posVel[ba + 4];
+    const relVz = posVel[bb + 5] - posVel[ba + 5];
+    const relVelAlongSpring = (relVx * dx + relVy * dy + relVz * dz) / dist;
+    const springDamping = 2 * Math.sqrt(springK) * 0.5; // Critical damping coefficient
+    const dampingForce = relVelAlongSpring * springDamping;
+    
+    const totalForce = forceMag + dampingForce;
+    const fx = (dx / dist) * totalForce;
+    const fy = (dy / dist) * totalForce;
+    const fz = (dz / dist) * totalForce;
 
     posVel[ba + 3] += fx;  posVel[ba + 4] += fy;  posVel[ba + 5] += fz;
     posVel[bb + 3] -= fx;  posVel[bb + 4] -= fy;  posVel[bb + 5] -= fz;
