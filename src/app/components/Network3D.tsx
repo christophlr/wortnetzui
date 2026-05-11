@@ -203,7 +203,15 @@ export interface Network3DHandle {
   fitToView: (instant?: boolean) => void;
   setZoom: (val: number) => void;
   getZoom: () => number;
+  exportPNG: () => void;
+  getCameraState: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
 }
+
+// Global cache for WebGL support and singleton renderer to avoid context limits
+let globalRenderer: THREE.WebGLRenderer | null = null;
+let globalWebGLSupported: boolean | null = null;
+// Persistent canvas for texture generation to avoid thousands of DOM elements
+let sharedTextureCanvas: HTMLCanvasElement | null = null;
 
 export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref) => {
   const {
@@ -301,6 +309,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }>({ isDragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0, hasMoved: false });
   const gizmoHoverRef = useRef<string | null>(null);
   const gizmoActiveRef = useRef<string | null>(null);
+  const viewModeRef = useRef(viewMode);
+  const renderModeRef = useRef(renderMode);
+  const isDarkRef = useRef(isDark);
+  const onReadyRef = useRef(onReady);
+  const onCameraChangeRef = useRef(onCameraChange);
+  const onNodeSelectRef = useRef(onNodeSelect);
+  const physicsKeyframesRef = useRef(physicsKeyframes || {});
+  const gradientSettingsRef = useRef(gradientSettings);
+  const styleSettingsRef = useRef(styleSettings);
+  const nodeAppearanceRef = useRef(nodeAppearance);
+  const edgeAppearanceRef = useRef(edgeAppearance);
+  const visualSettingsRef = useRef(visualSettings);
+
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
   const mousePosRef = useRef(new THREE.Vector2(0, 0));
@@ -310,25 +331,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gradientRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appearanceRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gradientSettingsRef = useRef(gradientSettings);
-  const styleSettingsRef = useRef(styleSettings);
-  const isDarkRef = useRef(isDark);
-  const onReadyRef = useRef(onReady);
-  const onNodeSelectRef = useRef(onNodeSelect);
-  useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
-  const renderModeRef = useRef(renderMode);
-  const nodeAppearanceRef = useRef(nodeAppearance);
-  const edgeAppearanceRef = useRef(edgeAppearance);
-  const onCameraChangeRef = useRef(onCameraChange);
-  const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
-  const visualSettingsRef = useRef(visualSettings);
-  useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
-  useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
-  useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
-  useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
-  useEffect(() => { renderModeRef.current = renderMode; }, [renderMode]);
-  useEffect(() => { nodeAppearanceRef.current = nodeAppearance; }, [nodeAppearance]);
-  useEffect(() => { edgeAppearanceRef.current = edgeAppearance; }, [edgeAppearance]);
+
+  // Sync refs with props
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+    renderModeRef.current = renderMode;
+    isDarkRef.current = isDark;
+    onReadyRef.current = onReady;
+    onCameraChangeRef.current = onCameraChange;
+    onNodeSelectRef.current = onNodeSelect;
+    physicsKeyframesRef.current = physicsKeyframes || {};
+    gradientSettingsRef.current = gradientSettings;
+    styleSettingsRef.current = styleSettings;
+    nodeAppearanceRef.current = nodeAppearance;
+    edgeAppearanceRef.current = edgeAppearance;
+    visualSettingsRef.current = visualSettings;
+  }, [viewMode, renderMode, isDark, onReady, onCameraChange, onNodeSelect, physicsKeyframes, gradientSettings, styleSettings, nodeAppearance, edgeAppearance, visualSettings]);
   useEffect(() => {
     playheadRef.current = playheadPosition;
     // When scrubbing (not playing) and keyframes exist, re-enable physics so it responds
@@ -488,6 +506,33 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       } else {
         return (cameraRef.current as THREE.OrthographicCamera).zoom * 10;
       }
+    },
+    exportPNG: () => {
+      if (!rendererRef.current) return;
+      // Force a render before export to ensure we don't get a blank image if alpha:true or other issues
+      if (sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+      const dataUrl = rendererRef.current.domElement.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `wortnetz-export-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    },
+    getCameraState: () => {
+      if (!cameraRef.current || !controlsRef.current) return null;
+      return {
+        position: {
+          x: cameraRef.current.position.x,
+          y: cameraRef.current.position.y,
+          z: cameraRef.current.position.z,
+        },
+        target: {
+          x: controlsRef.current.target.x,
+          y: controlsRef.current.target.y,
+          z: controlsRef.current.target.z,
+        },
+      };
     }
   }));
 
@@ -605,6 +650,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const arr = nodeArr ?? Array.from(nodes.values());
     const vs = vsOverride ?? visualSettingsRef.current;
     const ss = ssOverride ?? styleSettingsRef.current;
+    const na = nodeAppearanceRef.current;
+    const ea = edgeAppearanceRef.current;
+    const isEditMode = renderModeRef.current === 'edit';
     
     // Preparation for uDistMap (conceptual for now as requested)
     const uDistMap = {
@@ -626,8 +674,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dist = Math.sqrt(node.x * node.x + node.y * node.y + node.z * node.z);
         const normDist = Math.min(1.0, dist / 1000); // Normalize to typical graph spread
         
-        // Scale Radial Bias
-        const baseScale = node.textSprite.userData.baseScale * ss.nodeScale;
+        // Scale Radial Bias & Weight Mapping
+        const weightMapping = vs.labelWeightMapping ?? 0.5;
+        const weightFactor = 1.0 + (weightMapping * (node.wordCount / (maxWordsRef.current || 10)));
+        const baseScale = node.textSprite.userData.baseScale * ss.nodeScale * weightFactor;
         const scaleIntensity = 1.0 + (vs.radialBiasScale * normDist);
         const aspectRatio = node.textSprite.userData.aspectRatio;
         
@@ -649,11 +699,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         
         // MESH GRADIENT (uDistMap simulation)
         // Interpolate between Origin and Periphery based on distance
-        const nodeColor = new THREE.Color().lerpColors(uDistMap.origin, uDistMap.periphery, normDist);
-        // Apply color - since we use textures, we might need to adjust the sprite's material color
-        // if the texture itself is white/grayscale, or swap textures if they are color-baked.
-        // For now, let's tint the sprite material.
-        node.textSprite.material.color.copy(nodeColor);
+        const baseColor = new THREE.Color().lerpColors(uDistMap.origin, uDistMap.periphery, normDist);
+        
+        // Apply nodeAppearance overrides
+        const finalColor = (!isEditMode && na.fillColor !== 'auto') 
+          ? new THREE.Color(na.fillColor) 
+          : baseColor;
+          
+        node.textSprite.material.color.copy(finalColor);
 
         // GLITCH PAINT LOGIC (Reveal by distance from mouse)
         if (vs.glitchActive) {
@@ -731,14 +784,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
     const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
     
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+    if (!sharedTextureCanvas) {
+      sharedTextureCanvas = document.createElement('canvas');
+    }
+    const canvas = sharedTextureCanvas;
+    const context = canvas.getContext('2d', { alpha: true, desynchronized: true }) as CanvasRenderingContext2D;
 
     const words = text.split(' ');
     const fontSize = 28;
     const lineHeight = fontSize * 1.2;
     const padding = 14;
-    const pixelRatio = 3;
+    const pixelRatio = 2;
 
     context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
     const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
@@ -827,12 +883,23 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       context.fillText(word, OUTLINE_MARGIN + logicalWidth / 2, y);
     });
 
-    // Use CanvasTexture, which asynchronously uploads the DOM canvas to the GPU during rendering.
-    // This is much faster than DataTexture + getImageData, avoiding synchronous CPU/GPU stalls.
-    const texture = new THREE.CanvasTexture(canvas);
+    // Use Texture instead of CanvasTexture to allow immediate canvas reuse.
+    // We upload the current canvas state to the GPU and then we can clear the canvas for the next node.
+    
+    // Check if renderer/context is valid before attempting texture upload
+    if (globalRenderer && globalRenderer.getContext().isContextLost()) {
+      return { 
+        texture: new THREE.Texture(), // Dummy
+        baseScale: 1, 
+        aspectRatio: 1 
+      };
+    }
+
+    const texture = new THREE.Texture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false; // Save memory
     texture.needsUpdate = true;
 
     const wordCount = words.length;
@@ -884,21 +951,33 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   };
 
   /** Build (or rebuild) the 3-state texture cache for all nodes. */
-  const buildTextureCache = (nodes: Map<string, GraphNode>, minW: number, maxW: number, gs: GradientSettings) => {
+  const buildTextureCache = async (nodes: Map<string, GraphNode>, minW: number, maxW: number, gs: GradientSettings) => {
+    // Cleanup old textures
     textureCacheRef.current.forEach(entry => {
       entry.normal.dispose();
       entry.highlighted?.dispose();
       entry.selected?.dispose();
     });
+    textureCacheRef.current.clear();
+
     const cache = new Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>();
-    nodes.forEach(node => {
+    const nodeArray = Array.from(nodes.values());
+    
+    // Process in chunks to avoid blocking the main thread and allow the browser to breathe
+    for (let i = 0; i < nodeArray.length; i++) {
+      const node = nodeArray[i];
       const color = getColorFromWordCount(node.wordCount, minW, maxW, gs);
       const n = createCanvasTexture(node.label, color, false, false);
       cache.set(node.label, {
         normal: n.texture,
         baseScale: n.baseScale, aspectRatio: n.aspectRatio,
       });
-    });
+
+      // Yield every 40 nodes
+      if (i > 0 && i % 40 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
     textureCacheRef.current = cache;
   };
 
@@ -1050,29 +1129,50 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   };
 
   /* ── SETUP & ANIMATION ── */
+  /* ── RENDERER & CAMERA INITIALIZATION (Run Once) ── */
   useEffect(() => {
     if (!containerRef.current) return;
 
-    let isCancelled = false;
-    let localCleanup: (() => void) | null = null;
+    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    const useAntialias = pixelRatio < 2;
     let animFrame: number;
-    let timerId: ReturnType<typeof setTimeout>;
 
-    // Setup scene
-    const scene = new THREE.Scene();
-    if (renderMode !== 'edit') {
-      const bgColors = getNetworkThemeBackground(isDarkRef.current);
-      scene.background = new THREE.Color(bgColors.threeColor);
-    } else {
-      scene.background = null;
+    // Ensure any dead renderer is cleared
+    if (globalRenderer) {
+      const gl = globalRenderer.getContext();
+      if (!gl || gl.isContextLost()) {
+        console.warn('Network3D: Existing global renderer has lost context. Disposing...');
+        globalRenderer.dispose();
+        globalRenderer = null;
+      }
     }
-    sceneRef.current = scene;
 
-    const is2D = viewMode === '2D';
+    if (!globalRenderer) {
+      try {
+        globalRenderer = new THREE.WebGLRenderer({ 
+          antialias: useAntialias,
+          alpha: true,
+          powerPreference: 'high-performance',
+          failIfMajorPerformanceCaveat: false, // Be more lenient
+          stencil: false,
+          depth: true
+          // Let Three.js choose the best precision automatically
+        });
+        globalWebGLSupported = true;
+      } catch (err) {
+        globalWebGLSupported = false;
+        console.error('WebGL Initialization Error:', err);
+        // Fallback or notify user
+        return;
+      }
+    }
+
+    const renderer = globalRenderer;
     const cw = containerRef.current.clientWidth;
     const ch = containerRef.current.clientHeight;
 
-    // Camera — orthographic for 2D (1 world unit = 1 CSS px at zoom=1), perspective for 3D
+    // Camera setup
+    const is2D = viewModeRef.current === '2D';
     let camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
     if (is2D) {
       camera = new THREE.OrthographicCamera(-cw / 2, cw / 2, ch / 2, -ch / 2, -10000, 10000);
@@ -1082,52 +1182,139 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       camera.position.set(1200, 800, 1500);
       camera.lookAt(0, 400, 0);
     }
+    
+    const scene = new THREE.Scene();
+    rendererRef.current = renderer;
+    sceneRef.current = scene;
     cameraRef.current = camera;
 
-    // Setup renderer
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      alpha: true
-    });
     renderer.setClearColor(0x000000, 0);
-    renderer.setSize(cw || 1000, ch || 800);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.domElement.style.opacity = '0'; // Prevent Safari WebGL compositing flash before CSS mask
+    renderer.setSize(cw, ch);
+    renderer.setPixelRatio(pixelRatio);
     containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
 
-
-    // OrbitControls — pan+zoom only in 2D, full orbit in 3D
+    // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    if (is2D) {
-      controls.enableRotate = false;
-      controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-      controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
-    } else {
-      controls.minDistance = 10;
-      controls.maxDistance = 50000;
-      controls.target.set(0, 400, 0);
-    }
-    controls.update();
+    controls.dampingFactor = 0.15;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 1.2;
     controlsRef.current = controls;
-    controls.addEventListener('start', () => {
-      lockedNodeRef.current = null;
-      setCameraLockedRef.current(false);
-    });
-    let applyingKeyframe = false;
-    const handleCameraChange = () => {
-      if (!applyingKeyframe) {
-        onCameraChangeRef.current?.();
-        if (!is2D && zoomSliderRef.current) {
-          zoomSliderRef.current.value = distToSliderVal(
-            camera.position.distanceTo(controls.target)
-          ).toString();
-        }
+
+    // Handle resize
+    const handleResize = () => {
+      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
+      const nw = containerRef.current.clientWidth;
+      const nh = containerRef.current.clientHeight;
+      if (nw === 0 || nh === 0) return;
+      if (viewModeRef.current === '2D') {
+        const cam = cameraRef.current as THREE.OrthographicCamera;
+        cam.left = -nw / 2; cam.right = nw / 2;
+        cam.top = nh / 2;   cam.bottom = -nh / 2;
+      } else {
+        (cameraRef.current as THREE.PerspectiveCamera).aspect = nw / nh;
+      }
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(nw, nh);
+    };
+
+    const ro = new ResizeObserver(handleResize);
+    if (containerRef.current) ro.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+
+    const animate = () => {
+      animFrame = requestAnimationFrame(animate);
+      if (controlsRef.current) controlsRef.current.update();
+      if (renderer && sceneRef.current && cameraRef.current) {
+        renderer.render(sceneRef.current, cameraRef.current);
       }
     };
-    controls.addEventListener('change', handleCameraChange);
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animFrame);
+      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement);
+      }
+      ro.disconnect();
+      window.removeEventListener('resize', handleResize);
+      controls.dispose();
+    };
+  }, []); // Run once on mount
+
+  /* ── SCENE CONTENT UPDATES (Nodes, Edges, Physics) ── */
+  useEffect(() => {
+    if (!sceneRef.current || !containerRef.current) return;
+    let isCancelled = false;
+    let applyingKeyframe = false;
+
+    const rebuildGraph = async () => {
+      const scene = sceneRef.current!;
+      const renderer = rendererRef.current!;
+      const camera = cameraRef.current!;
+      const cw = containerRef.current!.clientWidth;
+      const ch = containerRef.current!.clientHeight;
+      const is2D = viewMode === '2D';
+
+      // Clear old content
+      while(scene.children.length > 0){ 
+        const child = scene.children[0];
+        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite || child instanceof THREE.LineSegments) {
+          child.geometry?.dispose();
+          if (child.material instanceof THREE.Material) child.material.dispose();
+          else if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+        }
+        scene.remove(child); 
+      }
+
+      // Add background to scene if needed
+      if (renderMode !== 'edit') {
+        const bgColors = getNetworkThemeBackground(isDarkRef.current);
+        scene.background = new THREE.Color(bgColors.threeColor);
+      } else {
+        scene.background = null;
+      }
+
+      const handleContextLost = (event: Event) => {
+        event.preventDefault();
+        console.warn('Network3D: WebGL context lost.');
+      };
+
+      const handleContextRestored = () => {
+        console.log('Network3D: WebGL context restored. Re-initializing textures...');
+        textureCacheRef.current.clear(); // Force texture rebuild on next sync
+      };
+
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
+
+
+      const controls = controlsRef.current!;
+      controls.removeEventListener('change', handleCameraChange);
+      if (is2D) {
+        controls.enableRotate = false;
+        controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+        controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+      } else {
+        controls.enableRotate = true;
+        controls.minDistance = 10;
+        controls.maxDistance = 50000;
+        controls.target.set(0, 400, 0);
+        controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+      }
+      controls.update();
+      
+      const handleCameraChange = () => {
+        if (!applyingKeyframe) {
+          onCameraChangeRef.current?.();
+          if (!is2D && zoomSliderRef.current) {
+            zoomSliderRef.current.value = distToSliderVal(
+              camera.position.distanceTo(controls.target)
+            ).toString();
+          }
+        }
+      };
+      controls.addEventListener('change', handleCameraChange);
 
     // Build network
     const { nodes, edges, minWords, maxWords } = buildNetworkFromText(inputText, parseMode);
@@ -1277,12 +1464,27 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const edgeColor = edgeAppearance.color !== 'auto' 
       ? new THREE.Color(edgeAppearance.color) 
       : new THREE.Color(isDark ? 0xe4e4e7 : 0x94a3b8); // Zinc-200 on dark, Zinc-400 on light
-    const edgeMaterial = new THREE.LineBasicMaterial({
+    const edgeMaterial = new THREE.LineDashedMaterial({
       color: edgeColor,
       opacity: styleSettings.edgeOpacity,
       transparent: true,
-      linewidth: styleSettings.edgeWidth
+      linewidth: styleSettings.edgeWidth,
+      dashSize: 10,
+      gapSize: 0,
     });
+    
+    // Add support for dashOffset via shader modification to enable "Edge Flow" animation
+    edgeMaterial.onBeforeCompile = (shader) => {
+      shader.uniforms.dashOffset = { value: 0 };
+      shader.vertexShader = `
+        uniform float dashOffset;
+        ${shader.vertexShader}
+      `.replace(
+        'vLineDistance = lineDistance;',
+        'vLineDistance = lineDistance + dashOffset;'
+      );
+      edgeMaterial.userData.shader = shader;
+    };
 
     const edgePositions = new Float32Array(edges.length * 2 * 3);
     for (let i = 0; i < edges.length; i++) {
@@ -1297,24 +1499,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     scene.add(edgeLineSegments);
     edgeLinesRef.current = edgeLineSegments;
 
-    // Build 3-state texture cache for all nodes (normal, highlighted, selected)
-    buildTextureCache(nodes, minWords, maxWords, gradientSettings);
+    // Build 3-state texture cache and sprites asynchronously
+    const buildAll = async () => {
+      await buildTextureCache(nodes, minWords, maxWords, gradientSettings);
+      if (isCancelled) return;
 
-    // Create nodes with billboarded text from cached normal textures
-    nodes.forEach(node => {
-      const cached = textureCacheRef.current.get(node.label)!;
-      const sprite = createSpriteFromTexture(
-        cached.normal, node.label, cached.baseScale, cached.aspectRatio, styleSettings.nodeScale
-      );
-      sprite.position.set(node.x, node.y, node.z);
-      scene.add(sprite);
-      node.textSprite = sprite;
-    });
+      // Create nodes with billboarded text from cached normal textures
+      nodes.forEach(node => {
+        const cached = textureCacheRef.current.get(node.label);
+        if (!cached) return;
+        const sprite = createSpriteFromTexture(
+          cached.normal, node.label, cached.baseScale, cached.aspectRatio, styleSettings.nodeScale
+        );
+        sprite.position.set(node.x, node.y, node.z);
+        scene.add(sprite);
+        node.textSprite = sprite;
+      });
 
-    // Cache sprite list for raycasting — only rebuilt here and on structural changes (text change)
-    spritesArrayRef.current = graphNodeArrayRef.current
-      .map(n => n.textSprite)
-      .filter(Boolean) as THREE.Object3D[];
+      // Cache sprite list for raycasting
+      spritesArrayRef.current = graphNodeArrayRef.current
+        .map(n => n.textSprite)
+        .filter(Boolean) as THREE.Object3D[];
+    };
+    buildAll();
 
     // Hover detection via raycasting (throttled to ~30fps)
     const raycaster = new THREE.Raycaster();
@@ -1615,13 +1822,27 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
       applyingKeyframe = false;
 
-      renderer.render(scene, camera);
-
-      /* Gizmo deactivated per user request
-      if (!is2D && gizmoCanvasRef.current) {
-        drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current, gizmoHoverRef.current, gizmoActiveRef.current);
+      // Update edge flow animation
+      if (edgeLinesRef.current && visualSettingsRef.current.edgeFlowAnimation) {
+        const mat = edgeLinesRef.current.material as THREE.LineDashedMaterial;
+        mat.dashSize = 10;
+        mat.gapSize = 5;
+        const shader = mat.userData?.shader;
+        if (shader) {
+          shader.uniforms.dashOffset.value -= 0.2;
+        }
+        mat.needsUpdate = true;
+      } else if (edgeLinesRef.current) {
+        const mat = edgeLinesRef.current.material as THREE.LineDashedMaterial;
+        mat.gapSize = 0;
+        mat.needsUpdate = true;
       }
-      */
+
+      if (!renderer.getContext().isContextLost()) {
+        renderer.render(scene, camera);
+      }
+
+
     };
     animate();
     // 2D: reveal immediately after the first frame.
@@ -1631,68 +1852,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
       requestAnimationFrame(() => onReadyRef.current?.());
     }
+  }; // End of rebuildGraph
 
-    // Handle resize
-    const handleResize = () => {
-      if (!containerRef.current || !camera || !renderer) return;
-      const nw = containerRef.current.clientWidth;
-      const nh = containerRef.current.clientHeight;
-      if (nw === 0 || nh === 0) return;
-      if (is2D) {
-        const cam = camera as THREE.OrthographicCamera;
-        cam.left = -nw / 2; cam.right = nw / 2;
-        cam.top = nh / 2;   cam.bottom = -nh / 2;
-      } else {
-        (camera as THREE.PerspectiveCamera).aspect = nw / nh;
-      }
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    };
+    rebuildGraph();
 
-    const ro = new ResizeObserver(handleResize);
-    if (containerRef.current) ro.observe(containerRef.current);
-    window.addEventListener('resize', handleResize);
-
-    localCleanup = () => {
-      ro.disconnect();
-      renderer.domElement.removeEventListener('mousemove', handleHoverMove);
-      renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
-      renderer.domElement.removeEventListener('click', handleClick);
-      renderer.domElement.removeEventListener('dblclick', handleDblClick);
-      window.removeEventListener('resize', handleResize);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (controlsRef.current) {
-        controlsRef.current.removeEventListener('change', handleCameraChange);
-        controlsRef.current.dispose();
-      }
-      graphNodesRef.current.forEach(node => {
-        if (node.textSprite) {
-          node.textSprite.material.map?.dispose();
-          node.textSprite.material.dispose();
-        }
-      });
-      if (edgeLinesRef.current) {
-        edgeLinesRef.current.geometry.dispose();
-        (edgeLinesRef.current.material as THREE.Material).dispose();
-        edgeLinesRef.current = null;
-      }
-      if (rendererRef.current && containerRef.current) {
-        if (rendererRef.current.domElement.parentNode === containerRef.current) {
-          containerRef.current.removeChild(rendererRef.current.domElement);
-        }
-        rendererRef.current.dispose();
-      }
-      physicsWorkerRef.current?.terminate();
-      physicsWorkerRef.current = null;
-      workerBusyRef.current = false;
-    };
-    // Cleanup
     return () => {
       isCancelled = true;
-      if (localCleanup) {
-        localCleanup();
+      if (physicsWorkerRef.current) {
+        physicsWorkerRef.current.terminate();
+        physicsWorkerRef.current = null;
       }
     };
 
@@ -1721,8 +1889,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (gradientRebuildTimerRef.current) clearTimeout(gradientRebuildTimerRef.current);
     gradientRebuildTimerRef.current = setTimeout(() => {
       if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-      refreshAllSpriteTextures();
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current)
+        .then(() => refreshAllSpriteTextures());
       gradientRebuildTimerRef.current = null;
     }, 80);
   }, [gradientSettings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1730,8 +1898,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Rebuild textures when render mode switches (edit vs render colors)
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-    refreshAllSpriteTextures();
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current)
+      .then(() => refreshAllSpriteTextures());
   }, [renderMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node scale (and depth-size) when relevant style settings change
@@ -1759,8 +1927,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (textureRebuildTimerRef.current) clearTimeout(textureRebuildTimerRef.current);
     textureRebuildTimerRef.current = setTimeout(() => {
       if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-      refreshAllSpriteTextures();
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current)
+        .then(() => refreshAllSpriteTextures());
       textureRebuildTimerRef.current = null;
     }, 80);
   }, [styleSettings.nodeShape, styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1789,8 +1957,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (appearanceRebuildTimerRef.current) clearTimeout(appearanceRebuildTimerRef.current);
     appearanceRebuildTimerRef.current = setTimeout(() => {
       if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-      refreshAllSpriteTextures();
+      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current)
+        .then(() => refreshAllSpriteTextures());
       appearanceRebuildTimerRef.current = null;
     }, 80);
   }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1806,8 +1974,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
 
     if (graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-    refreshAllSpriteTextures();
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current)
+      .then(() => refreshAllSpriteTextures());
   }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleViewportContextMenu = useCallback((e: React.MouseEvent) => {

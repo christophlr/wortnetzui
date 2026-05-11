@@ -170,6 +170,9 @@ export function applyPhysics(
   }
 
   // Spring attraction along edges with rest-length
+  const springDamping = Math.sqrt(springK) * 0.5; // Critical damping factor
+  const maxSpringForce = 15 + springK * 30; // Dynamic cap based on stiffness
+
   edges.forEach(edge => {
     const dx = edge.b.x - edge.a.x;
     const dy = edge.b.y - edge.a.y;
@@ -178,11 +181,36 @@ export function applyPhysics(
 
     // Displacement from rest length
     const displacement = dist - linkDistance;
-    const forceMag = displacement * springK;
+    let forceMag = displacement * springK;
 
-    const fx = (dx / dist) * forceMag;
-    const fy = (dy / dist) * forceMag;
-    const fz = (dz / dist) * forceMag;
+    // 1. Spring force capping
+    if (Math.abs(forceMag) > maxSpringForce) {
+      forceMag = Math.sign(forceMag) * maxSpringForce;
+    }
+
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const uz = dz / dist;
+
+    let fx = ux * forceMag;
+    let fy = uy * forceMag;
+    let fz = uz * forceMag;
+
+    // 2. Critical Damping along the spring axis
+    if (springK > 0) {
+      // Relative velocity
+      const rvx = edge.b.vx - edge.a.vx;
+      const rvy = edge.b.vy - edge.a.vy;
+      const rvz = edge.b.vz - edge.a.vz;
+
+      // Project relative velocity onto spring unit vector
+      const vSpring = rvx * ux + rvy * uy + rvz * uz;
+      const dampingForce = vSpring * springDamping;
+
+      fx += ux * dampingForce;
+      fy += uy * dampingForce;
+      fz += uz * dampingForce;
+    }
 
     edge.a.vx += fx;
     edge.a.vy += fy;

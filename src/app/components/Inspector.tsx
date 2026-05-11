@@ -61,7 +61,12 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarProvider,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from './ui/sidebar';
+import { ColorPicker } from './ui/color-picker';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { cn } from './ui/utils';
@@ -401,7 +406,7 @@ export function Inspector() {
                         <span className="font-mono text-[10px] text-zinc-400">{(styleSettings.nodeScale ?? 1).toFixed(1)}x</span>
                       </div>
                       <Slider 
-                        value={[styleSettings.nodeScale * 100 ?? 100]} 
+                        value={[(styleSettings.nodeScale ?? 1) * 100]} 
                         max={250} 
                         step={5} 
                         onValueChange={([val]) => setStyleSettings((prev: any) => ({ ...prev, nodeScale: val / 100 }))}
@@ -488,6 +493,149 @@ export function Inspector() {
                         className="py-2"
                       />
                     </div>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+
+                <Separator className="bg-zinc-100 mx-4" />
+
+                <SidebarGroup className="py-4 pb-6 mt-2">
+                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Styling</SidebarGroupLabel>
+                  <SidebarGroupContent className="px-3 space-y-5">
+                    
+                    {/* Node Styling Stack */}
+                    <div className="space-y-4">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Knoten (Nodes)</span>
+                      
+                      <div className="space-y-3">
+                        {/* Fill Property Stack */}
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="size-4 rounded-sm border border-zinc-200 bg-zinc-50 flex items-center justify-center">
+                                <div className="size-2.5 rounded-full bg-zinc-400" />
+                              </div>
+                              <span className="text-[12px] font-medium text-zinc-700">Füllung</span>
+                            </div>
+                            <div className="flex bg-zinc-100 rounded-md p-0.5 border border-zinc-200">
+                              {[
+                                { id: 'solid', label: 'Solid' },
+                                { id: 'gradient', label: 'Gradient' }
+                              ].map((m) => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => setGradientSettings({ ...gradientSettings, mode: m.id as any })}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded-[4px] text-[9px] font-bold transition-all",
+                                    gradientSettings.mode === m.id 
+                                      ? "bg-white text-zinc-900 shadow-sm" 
+                                      : "text-zinc-400 hover:text-zinc-600"
+                                  )}
+                                >
+                                  {m.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {gradientSettings.mode === 'gradient' ? (
+                            <div className="space-y-2 ml-6">
+                              <div className="flex items-center justify-between group">
+                                <span className="text-[11px] text-zinc-500">Innen (Inner)</span>
+                                <ColorPicker 
+                                  color={gradientSettings.innerColor} 
+                                  onChange={(c) => setGradientSettings({ ...gradientSettings, innerColor: c })}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between group">
+                                <span className="text-[11px] text-zinc-500">Außen (Outer)</span>
+                                <ColorPicker 
+                                  color={gradientSettings.outerColor} 
+                                  onChange={(c) => setGradientSettings({ ...gradientSettings, outerColor: c })}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between group ml-6">
+                              <span className="text-[11px] text-zinc-500">Farbe</span>
+                              <ColorPicker 
+                                color={nodeAppearance.fillColor} 
+                                onChange={(c) => setNodeAppearance({ ...nodeAppearance, fillColor: c })}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <Separator className="bg-zinc-100/50" />
+
+                        {/* Stroke & Text Stack */}
+                        <div className="flex items-center justify-between group">
+                          <div className="flex items-center gap-2">
+                            <div className="size-4 rounded-sm border-2 border-zinc-400 bg-transparent" />
+                            <span className="text-[12px] font-medium text-zinc-700">Kontur</span>
+                          </div>
+                          <ColorPicker 
+                            color={nodeAppearance.borderColor} 
+                            onChange={(c) => setNodeAppearance({ ...nodeAppearance, borderColor: c })}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between group">
+                          <div className="flex items-center gap-2">
+                            <Type size={14} className="text-zinc-400" />
+                            <span className="text-[12px] font-medium text-zinc-700">Text</span>
+                          </div>
+                          <ColorPicker 
+                            color={nodeAppearance.textColor} 
+                            onChange={(c) => setNodeAppearance({ ...nodeAppearance, textColor: c })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-zinc-100/50" />
+
+                    {/* Edge Styling Stack */}
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Verbindungen (Edges)</span>
+                      
+                      <div className="flex items-center justify-between group">
+                        <div className="flex items-center gap-2">
+                          <Link size={14} className="text-zinc-400" />
+                          <span className="text-[12px] font-medium text-zinc-700">Farbe</span>
+                        </div>
+                        <ColorPicker 
+                          color={edgeAppearance.color} 
+                          onChange={(c) => setEdgeAppearance({ ...edgeAppearance, color: c })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <div className="flex flex-wrap gap-2">
+                         {['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6'].map(c => (
+                           <ColorPicker
+                             key={c}
+                             color={c}
+                             onChange={(newC) => {
+                               if (gradientSettings.mode === 'gradient') {
+                                 setGradientSettings({ ...gradientSettings, innerColor: newC, outerColor: '#ffffff' });
+                               } else {
+                                 setNodeAppearance({ ...nodeAppearance, fillColor: newC, borderColor: 'auto' });
+                               }
+                               setEdgeAppearance({ color: newC });
+                             }}
+                             trigger={
+                               <button 
+                                 className="size-6 rounded-md border border-zinc-200 hover:scale-110 transition-transform shadow-sm"
+                                 style={{ backgroundColor: c }}
+                               />
+                             }
+                           />
+                         ))}
+                      </div>
+                      <p className="text-[9px] text-zinc-400 mt-2 italic">Schnellauswahl für das gesamte Thema</p>
+                    </div>
+
                   </SidebarGroupContent>
                 </SidebarGroup>
               </div>

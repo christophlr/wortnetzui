@@ -63,7 +63,7 @@ function AppContent() {
     const frame = (now: number) => {
       const dt = (now - lastTime) / 1000;
       lastTime = now;
-      setPlayheadPosition(prev => {
+      setPlayheadPosition((prev: number) => {
         const next = prev + dt;
         if (next >= TIMELINE_DURATION) {
           setIsPlaying(false);

@@ -138,7 +138,7 @@ export interface WortnetzContextType {
   isRecording: boolean;
   setIsRecording: (val: boolean | ((p: boolean) => boolean)) => void;
   playheadPosition: number;
-  setPlayheadPosition: (val: number) => void;
+  setPlayheadPosition: React.Dispatch<React.SetStateAction<number>>;
   timecode: string;
   setTimecode: (val: string) => void;
   
@@ -152,7 +152,7 @@ export interface WortnetzContextType {
   setSelectedKeyframes: React.Dispatch<React.SetStateAction<{ track: string; time: number }[]>>;
 
   // Refs
-  network3DRef: React.RefObject<Network3DHandle>;
+  network3DRef: React.RefObject<Network3DHandle | null>;
   cameraKeyframesRef: React.MutableRefObject<Keyframe[]>;
   physicsKeyframesRef: React.MutableRefObject<Record<string, PhysicsKeyframe[]>>;
   sceneMarkersRef: React.MutableRefObject<SceneMarker[]>;
@@ -309,7 +309,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const cam = network3DRef.current?.getCameraState();
     if (cam) {
       setCameraKeyframes(prevKfs => {
-        const next = [...prevKfs.filter(k => Math.abs(k.time - time) > 0.01), { time, ...cam, mode: 'aligned' }].sort((a, b) => a.time - b.time);
+        const next = [...prevKfs.filter(k => Math.abs(k.time - time) > 0.01), { time, ...cam, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
         return next;
       });
@@ -320,7 +320,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       const next = { ...prevKfs };
       for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
         const val = (physicsParams as any)[param];
-        next[trackId] = [...(prevKfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.01), { time, value: val, mode: 'aligned' }].sort((a, b) => a.time - b.time);
+        next[trackId] = [...(prevKfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.01), { time, value: val, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
       }
       physicsKeyframesRef.current = next;
       return next;

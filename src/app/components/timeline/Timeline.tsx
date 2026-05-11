@@ -133,6 +133,18 @@ export function Timeline() {
       setContextMenuTarget({ mode: 'background', time: t });
     }
   }, [timeFromClientX, sceneMarkers]);
+  
+  const handleSelectKeyframe = useCallback((track: string, time: number, additive: boolean) => {
+    if (additive) {
+      setSelectedKeyframes(prev => {
+        const exists = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
+        if (exists) return prev.filter(s => !(s.track === track && Math.abs(s.time - time) < 0.01));
+        return [...prev, { track, time }];
+      });
+    } else {
+      setSelectedKeyframes([{ track, time }]);
+    }
+  }, [setSelectedKeyframes]);
 
   const handleSetEasing = useCallback((type: EasingType) => {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
@@ -298,10 +310,10 @@ export function Timeline() {
                 markers={sceneMarkers}
                 viewWindow={viewWindow}
                 selectedKeyframes={selectedKeyframes}
-                onAddMarker={(t, l) => setSceneMarkers(prev => [...prev, { time: t, label: l }].sort((a, b) => a.time - b.time))}
+                onAddMarker={(t: number) => setSceneMarkers(prev => [...prev, { time: t, label: 'Marker' }].sort((a, b) => a.time - b.time))}
                 onMoveMarker={(oldT, newT) => handleMoveKeyframe('scene-markers', oldT, newT)}
                 onDeleteMarker={(t) => setSceneMarkers(prev => prev.filter(m => Math.abs(m.time - t) > 0.01))}
-                onSelect={setSelectedKeyframes}
+                onSelect={handleSelectKeyframe}
                 onContextMenu={handleMarkerContextMenu}
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
@@ -315,7 +327,7 @@ export function Timeline() {
                   keyframeData={cameraKeyframes}
                   viewWindow={viewWindow}
                   selectedKeyframes={selectedKeyframes}
-                  onSelect={setSelectedKeyframes}
+                  onSelect={handleSelectKeyframe}
                   onMoveKeyframe={handleMoveKeyframe}
                   onContextMenu={handleKeyframeContextMenu}
                   timeFromClientX={timeFromClientX}
@@ -333,7 +345,7 @@ export function Timeline() {
                     keyframeData={physicsKeyframes[track.id] ?? []}
                     viewWindow={viewWindow}
                     selectedKeyframes={selectedKeyframes}
-                    onSelect={setSelectedKeyframes}
+                    onSelect={handleSelectKeyframe}
                     onMoveKeyframe={handleMoveKeyframe}
                     onContextMenu={handleKeyframeContextMenu}
                     timeFromClientX={timeFromClientX}

@@ -16,6 +16,10 @@ export interface GraphNode {
   width?: number;
   height?: number;
   instanceId?: number;
+  unlinkedScale?: boolean;
+  scaleOverride?: number;
+  unlinkedOpacity?: boolean;
+  opacityOverride?: number;
 }
 
 export interface GraphEdge {
