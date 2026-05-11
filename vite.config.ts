@@ -105,6 +105,12 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    host: true,
+    allowedHosts: 'all',
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss',
+    },
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
