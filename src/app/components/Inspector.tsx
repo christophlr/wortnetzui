@@ -43,7 +43,8 @@ import {
   Sparkles,
   Camera,
   CornerUpRight,
-  Activity
+  Activity,
+  Palette
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -438,6 +439,53 @@ export function Inspector({
                           className="py-2"
                         />
                         <p className="text-[9px] text-zinc-400 mt-0.5 leading-tight pr-2">Scale = Basis + (Bias × Dist)</p>
+                      </div>
+
+                      {/* COLOR MODE - Gradient vs Cluster */}
+                      <div className="space-y-3 pl-2 pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-4">
+                        <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">Farbmodus</span>
+                        <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 border border-zinc-200 dark:border-zinc-700">
+                          {[
+                            { id: 'gradient', label: 'Gradient' },
+                            { id: 'cluster', label: 'Cluster' }
+                          ].map((mode) => (
+                            <button
+                              key={mode.id}
+                              onClick={() => onVisualSettingsChange?.({ ...visualSettings, colorMode: mode.id as 'gradient' | 'cluster' })}
+                              className={cn(
+                                "flex-1 flex flex-col items-center justify-center px-2 py-1.5 rounded-md transition-all text-[9px] font-medium",
+                                visualSettings.colorMode === mode.id
+                                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50"
+                              )}
+                            >
+                              <span>{mode.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[9px] text-zinc-400 leading-tight pr-2">
+                          {visualSettings.colorMode === 'cluster' 
+                            ? 'Knoten werden nach Satzzugehörigkeit eingefärbt. Überlappende Knoten erhalten gemischte Farben.'
+                            : 'Knoten werden nach Abstand zum Zentrum eingefärbt (Origin → Periphery).'
+                          }
+                        </p>
+                        
+                        {/* Cluster Palette Preview - only show in cluster mode */}
+                        {visualSettings.colorMode === 'cluster' && (
+                          <div className="pt-2">
+                            <span className="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase font-medium tracking-wide">Cluster-Palette</span>
+                            <div className="flex gap-1 mt-2 flex-wrap">
+                              {(visualSettings.clusterPalette || ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']).map((color, i) => (
+                                <div 
+                                  key={i}
+                                  className="size-5 rounded-md border-2 border-zinc-300 dark:border-zinc-600 shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                                  style={{ backgroundColor: color }}
+                                  title={`Cluster ${i + 1}: ${color}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </AccordionContent>
                   </AccordionItem>

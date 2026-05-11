@@ -132,6 +132,8 @@ export default function App() {
     radialBiasOpacity: 0.5,
     gradientOrigin: '#4f46e5',
     gradientPeriphery: '#10b981',
+    colorMode: 'gradient' as const,
+    clusterPalette: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'],
     labelWeightMapping: 0.5,
     edgeFlowAnimation: false,
     envAtmosphereSeed: 123,
