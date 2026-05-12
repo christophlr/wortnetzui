@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle } from 'lucide-react';
+import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle, Square } from 'lucide-react';
 import { Button } from '../ui/button';
 import { TIMELINE_DURATION } from '../../constants';
 import { useTimelineView } from './useTimelineView';
@@ -297,7 +297,8 @@ export function Timeline(props: TimelineProps) {
 
               {/* Center: Timecode + Transport */}
               <div className="flex-1 flex items-center justify-center gap-2">
-                <TBtn onClick={onStop} title="Stop"><SkipBack className="w-3 h-3" /></TBtn>
+                <TBtn onClick={onStop} title="Stop"><Square className="w-3 h-3 fill-current" /></TBtn>
+                <TBtn onClick={() => setPlayheadPosition(0)} title="Gehe zum Anfang"><SkipBack className="w-3 h-3" /></TBtn>
                 <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
                   <ChevronLeft className="w-3 h-3" />
                 </TBtn>

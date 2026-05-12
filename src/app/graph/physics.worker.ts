@@ -232,21 +232,38 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage>) =>
   if (msg.type === 'settle') {
     const { posVel, params, maxIterations } = msg;
     let stillCount = 0;
-    for (let i = 0; i < maxIterations; i++) {
-      const avgMovement = runStep(posVel, params, false);
-      if (avgMovement < 0.5) {
-        if (++stillCount >= 10) break;
-      } else {
-        stillCount = 0;
+    let currentIter = 0;
+
+    const settleChunk = () => {
+      const chunkEnd = Math.min(currentIter + 50, maxIterations);
+      for (; currentIter < chunkEnd; currentIter++) {
+        const avgMovement = runStep(posVel, params, false);
+        if (avgMovement < 0.5) {
+          if (++stillCount >= 10) {
+            currentIter = maxIterations; // Force finish
+            break;
+          }
+        } else {
+          stillCount = 0;
+        }
       }
-    }
-    // Zero velocities for a clean handoff
-    for (let i = 0; i < nodeCount; i++) {
-      posVel[i * 6 + 3] = 0;
-      posVel[i * 6 + 4] = 0;
-      posVel[i * 6 + 5] = 0;
-    }
-    (self as unknown as Worker).postMessage({ type: 'settled', posVel }, [posVel.buffer]);
+
+      if (currentIter >= maxIterations) {
+        // Zero velocities for a clean handoff
+        for (let i = 0; i < nodeCount; i++) {
+          posVel[i * 6 + 3] = 0;
+          posVel[i * 6 + 4] = 0;
+          posVel[i * 6 + 5] = 0;
+        }
+        (self as unknown as Worker).postMessage({ type: 'settled', posVel }, [posVel.buffer]);
+      } else {
+        // Report progress back without transferring the buffer
+        (self as unknown as Worker).postMessage({ type: 'settle_progress', progress: currentIter / maxIterations });
+        setTimeout(settleChunk, 0); // Yield
+      }
+    };
+
+    settleChunk();
     return;
   }
 

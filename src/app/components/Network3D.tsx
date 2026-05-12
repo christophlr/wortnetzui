@@ -41,6 +41,7 @@ interface Network3DProps {
   onCameraChange?: () => void;
   isDark?: boolean;
   onReady?: () => void;
+  onProgress?: (progress: number) => void;
   renderMode?: 'edit' | 'render';
   edgeAppearance?: { color: 'auto' | string };
   timelineHeight?: number;
@@ -203,6 +204,7 @@ export interface Network3DHandle {
   fitToView: (instant?: boolean) => void;
   setZoom: (val: number) => void;
   getZoom: () => number;
+  getCameraState: () => { position: [number, number, number], rotation: [number, number, number] } | null;
 }
 
 export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref) => {
@@ -220,6 +222,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     onCameraChange,
     isDark,
     onReady,
+    onProgress,
     renderMode = 'edit',
     nodeAppearance = defaultNodeAppearance,
     edgeAppearance = { color: 'auto' },
@@ -314,6 +317,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(isDark);
   const onReadyRef = useRef(onReady);
+  const onProgressRef = useRef(onProgress);
   const onNodeSelectRef = useRef(onNodeSelect);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
   const renderModeRef = useRef(renderMode);
@@ -325,6 +329,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
+  useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
   useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
   useEffect(() => { renderModeRef.current = renderMode; }, [renderMode]);
   useEffect(() => { nodeAppearanceRef.current = nodeAppearance; }, [nodeAppearance]);
@@ -488,6 +493,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       } else {
         return (cameraRef.current as THREE.OrthographicCamera).zoom * 10;
       }
+    },
+    getCameraState: () => {
+      const cam = cameraRef.current;
+      if (!cam) return null;
+      return {
+        position: [cam.position.x, cam.position.y, cam.position.z],
+        rotation: [Math.round(THREE.MathUtils.radToDeg(cam.rotation.x)), Math.round(THREE.MathUtils.radToDeg(cam.rotation.y)), Math.round(THREE.MathUtils.radToDeg(cam.rotation.z))]
+      };
     }
   }));
 
@@ -1200,11 +1213,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       );
     }
 
-    worker.onmessage = (e: MessageEvent<{ type: string; posVel: Float64Array; avgMovement?: number }>) => {
-      const { posVel } = e.data;
-      const arr = graphNodeArrayRef.current;
+    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number }>) => {
+      if (e.data.type === 'settle_progress') {
+        const { progress } = e.data;
+        if (progress !== undefined) {
+          onProgressRef.current?.(progress);
+        }
+        return;
+      }
 
       if (e.data.type === 'settled') {
+        const { posVel } = e.data;
+        if (!posVel) return;
+        const arr = graphNodeArrayRef.current;
         // Write settled positions back and reveal the scene
         for (let i = 0; i < arr.length; i++) {
           const b = i * 6;
@@ -1220,9 +1241,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
 
       // ── STEP response ──
-      const avgMovement = e.data.avgMovement!;
-
-      // Write positions back to node objects
+      const { posVel, avgMovement } = e.data;
+      if (!posVel || avgMovement === undefined) return;
+      const arr = graphNodeArrayRef.current;
       for (let i = 0; i < arr.length; i++) {
         const b = i * 6;
         arr[i].x = posVel[b];     arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];

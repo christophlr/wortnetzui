@@ -67,7 +67,8 @@ Radix-based context menus, and semantic iconography.
 | `timeline/` | Modular animation workspace: Transport, Ruler, Dopesheet, Graph Editor, ContextMenu. |
 | `ShortcutsDialog.tsx` | Keyboard shortcut viewer/editor. |
 | `figma/ImageWithFallback.tsx` | `<img>` with fallback placeholder. Utility only. |
-| `ui/` | shadcn/ui component library (49 files). |
+| `ui/` | shadcn/ui component library (49 files, plus the local Dice-style `ColorPicker`). |
+| `ui/color-picker.tsx` | Dice-style color picker popover used by the Inspector gradient fields. |
 | `graph/parsing.ts` | N-gram extraction. **Do not change without explicit request.** |
 | `graph/physics.ts` | Main-thread physics reference (not in hot path). |
 | `graph/physics.worker.ts` | Off-thread physics with transferable buffers. |

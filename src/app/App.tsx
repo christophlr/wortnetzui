@@ -11,6 +11,9 @@ import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar, type ToolId } from './components/Toolbar';
 import { PathAnimatorUI } from './components/PathAnimatorUI';
+import useTimelineHistory from './hooks/useTimelineHistory';
+import useWorkspaceIO from './hooks/useWorkspaceIO';
+import { useShortcuts } from './hooks/useShortcuts';
 
 type Keyframe = {
   time: number;
@@ -164,18 +167,11 @@ export default function App() {
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
   // Undo/redo history — tracks the full timeline state
-  const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS, sceneMarkers: [] }]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  // history state managed by useTimelineHistory
 
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [shortcuts, setShortcuts] = useState([
-    { id: '1', command: 'Speichern', key: 's' },
-    { id: '2', command: 'Laden', key: 'o' },
-    { id: '3', command: 'Rückgängig', key: 'z' },
-    { id: '4', command: 'Wiederholen', key: 'Z' }, // shift+z
-    { id: '5', command: 'Abspielen/Pause', key: ' ' },
-    { id: '6', command: 'Aufnahme', key: 'r' },
-  ]);
+  
+  const cameraKeyframesRef = useRef(cameraKeyframes);
+  useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
 
   const physicsKeyframesRef = useRef(physicsKeyframes);
   useEffect(() => { physicsKeyframesRef.current = physicsKeyframes; }, [physicsKeyframes]);
@@ -199,35 +195,13 @@ export default function App() {
 
   const preRecordStateRef = useRef<TimelineState | null>(null);
 
-  const pushHistory = useCallback((next: TimelineState) => {
-    setKeyframeHistory(h => {
-      const newHistory = [...h.slice(0, historyIndex + 1), next].slice(-50);
-      return newHistory;
-    });
-    setHistoryIndex(i => {
-      const nextIndex = Math.min(i + 1, 49);
-      return nextIndex;
-    });
-  }, [historyIndex]);
-
-  const handleUndo = useCallback(() => {
-    if (historyIndex <= 0) return;
-    const entry = keyframeHistory[historyIndex - 1];
+  const { pushHistory, undo: handleUndo, redo: handleRedo, history: keyframeHistory, index: historyIndex } = useTimelineHistory(getTimelineState, (entry: TimelineState) => {
     setCameraKeyframes(entry.cameraKeyframes ?? []);
     setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
     setSceneMarkers(entry.sceneMarkers ?? []);
-    setHistoryIndex(i => i - 1);
-  }, [historyIndex, keyframeHistory]);
+  });
 
-  const handleRedo = useCallback(() => {
-    if (historyIndex >= keyframeHistory.length - 1) return;
-    const entry = keyframeHistory[historyIndex + 1];
-    setCameraKeyframes(entry.cameraKeyframes ?? []);
-    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
-    setSceneMarkers(entry.sceneMarkers ?? []);
-    setHistoryIndex(i => i + 1);
-  }, [historyIndex, keyframeHistory]);
-
+  
   // Drag-bracket callbacks: snapshot before drag, push history after
   const handleDragStart = useCallback(() => {
     preDragStateRef.current = getTimelineState();
@@ -241,9 +215,7 @@ export default function App() {
 
   const network3DRef = useRef<Network3DHandle>(null);
   const playheadRef = useRef(playheadPosition);
-  const cameraKeyframesRef = useRef(cameraKeyframes);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
-  useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
 
   const animationRef = useRef<number | undefined>(undefined);
   const startTimeRef = useRef(0);
@@ -271,39 +243,20 @@ export default function App() {
     };
   }, [timelineHeight]);
 
-  const handleSave = useCallback(() => {
-    const state = { inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers };
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
-    URL.revokeObjectURL(url);
-  }, [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]);
-
-  const handleLoad = useCallback(() => {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          try {
-            const s = JSON.parse(ev.target?.result as string);
-            if (s.inputText) setInputText(s.inputText);
-            if (s.parseMode) setParseMode(s.parseMode);
-            if (s.gradientSettings) setGradientSettings(s.gradientSettings);
-            if (s.styleSettings) setStyleSettings(s.styleSettings);
-            if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
-            if (s.viewMode) setViewMode(s.viewMode);
-            if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
-            if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
-            if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
-          } catch (err) { console.error('Failed to load state:', err); }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  }, []);
+  const { handleSave, handleLoad } = useWorkspaceIO(
+    useCallback(() => ({ inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers }), [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
+    useCallback((s) => {
+      if (s.inputText) setInputText(s.inputText);
+      if (s.parseMode) setParseMode(s.parseMode);
+      if (s.gradientSettings) setGradientSettings(s.gradientSettings);
+      if (s.styleSettings) setStyleSettings(s.styleSettings);
+      if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
+      if (s.viewMode) setViewMode(s.viewMode);
+      if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
+      if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
+      if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+    }, [])
+  );
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -330,47 +283,15 @@ export default function App() {
   const uiIsDark = themeMode === 'dark';
   const previewIsDark = themeMode === 'dark' || themeMode === 'hybrid';
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-      if (isInput) return;
-
-      const isMod = e.metaKey || e.ctrlKey;
-      
-      // Find matching shortcut
-      const match = shortcuts.find(s => {
-        if (s.key === ' ' && e.code === 'Space') return true;
-        if (s.key.toLowerCase() === 'r' && e.key.toLowerCase() === 'r' && !isMod) return true;
-        
-        // Exact match for Shift+Z to prevent it being caught by Cmd+Z
-        if (s.key === 'Z' && e.key === 'Z' && isMod && e.shiftKey) return true;
-        if (s.key === 'z' && e.key === 'z' && isMod && !e.shiftKey) return true;
-        
-        // General case for other shortcuts
-        return isMod && e.key.toLowerCase() === s.key.toLowerCase() && !e.shiftKey;
-      });
-
-      if (match) {
-        e.preventDefault();
-        switch (match.command) {
-          case 'Speichern': handleSave(); break;
-          case 'Laden': handleLoad(); break;
-          case 'Rückgängig': handleUndo(); break;
-          case 'Wiederholen': handleRedo(); break;
-          case 'Abspielen/Pause': setIsPlaying(p => !p); break;
-          case 'Aufnahme': setIsRecording(p => !p); break;
-          case 'Sidebar umschalten': setIsSidebarOpen(p => !p); break;
-          default: 
-            console.log('Action not implemented:', match.command);
-        }
-      } else if (isMod && e.key === 'y') {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleSave, handleLoad, handleUndo, handleRedo, shortcuts]);
+  const { isShortcutsOpen, setIsShortcutsOpen, shortcuts, addShortcut, removeShortcut } = useShortcuts(useMemo(() => ({
+    onSave: handleSave,
+    onLoad: handleLoad,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onTogglePlay: () => setIsPlaying(p => !p),
+    onToggleRecord: () => setIsRecording(p => !p),
+    onToggleSidebar: () => setIsSidebarOpen(p => !p),
+  }), [handleSave, handleLoad, handleUndo, handleRedo]));
 
   useEffect(() => {
     if (isPlaying) {
@@ -1129,8 +1050,8 @@ export default function App() {
             isOpen={isShortcutsOpen}
             onOpenChange={setIsShortcutsOpen}
             shortcuts={shortcuts}
-            onAddShortcut={(command, key) => setShortcuts(prev => [...prev, { id: Date.now().toString(), command, key }])}
-            onRemoveShortcut={(id) => setShortcuts(prev => prev.filter(s => s.id !== id))}
+            onAddShortcut={addShortcut}
+            onRemoveShortcut={removeShortcut}
           />
 
           {/* Floating Timeline - stays absolute to viewport bottom as per STYLE_GUIDE */}

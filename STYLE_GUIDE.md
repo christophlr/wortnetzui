@@ -1,4 +1,4 @@
-# Wortnetze — Style Guide
+ # Wortnetze — Style Guide
 
 > **Read this file only when your task involves UI components or visual appearance.**
 > For engine/physics/rendering detail, read `ARCHITECTURE.md` instead.
@@ -43,10 +43,12 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
   absolute positioning requirement.
 
 ### Property Stack UI Pattern (Inspector)
-- **Accordion Density**: Visual inspector accordion content uses tighter padding (`px-3 py-2`) and reduced vertical gaps.
-- **Knoten Inset**: The Knoten accordion block keeps an even tighter horizontal inset (`px-2` / `pl-2`) for the form and slider groups.
-- **Helper Text**: Secondary captions should use the same muted descriptive treatment as physics rows (`text-[9px] text-zinc-400 leading-tight`).
-- **Accordion Headers**: Section headers use a vertically centered chevron at the left, with visibility controls pinned to the far right and no filled background on the eye button.
+- **Hierarchy Spacing**: In the Visual tab's full-width property stack, each section uses wider vertical rhythm and deeper indented control rows (`pl-5`) so headers, groups, and control values read as a clear parent-child hierarchy.
+- **Legibility Contrast**: Section titles use stronger contrast, labels sit one step below, and value chips use bordered surfaces to separate readings from labels in a Figma-like property panel flow.
+
+### Sidebar Activity Tabs
+- In the Inspector's left activity bar, inactive tab buttons use the same subtle rounded hover rectangle as the toolbar buttons.
+- The active tab indicator and selection styling stay unchanged; only the hover affordance is shared.
 
 
 ### Version Display Rule

@@ -29,11 +29,13 @@ interface PreviewProps {
   isDark?: boolean;
   isNetworkReady?: boolean;
   onNetworkReady?: () => void;
+  onNetworkProgress?: (progress: number) => void;
   renderMode?: 'edit' | 'render';
   nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
   edgeAppearance?: { color: 'auto' | string };
   canvasAspectRatio?: string;
   initProgress?: number;
+  cameraInfo?: { pos: number[], rot: number[], zoom: number };
   visualSettings?: {
     nodesVisible: boolean;
     labelsVisible: boolean;
@@ -63,11 +65,13 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   isDark,
   isNetworkReady,
   onNetworkReady,
+  onNetworkProgress,
   renderMode,
   nodeAppearance,
   edgeAppearance,
   canvasAspectRatio = 'full',
   initProgress,
+  cameraInfo,
   visualSettings,
   onNodeSelect,
 }: PreviewProps, ref) {
@@ -156,6 +160,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
                 onCameraChange={onCameraChange}
                 isDark={isDark}
                 onReady={onNetworkReady}
+                onProgress={onNetworkProgress}
                 renderMode={renderMode}
                 nodeAppearance={nodeAppearance}
                 edgeAppearance={edgeAppearance}
@@ -181,9 +186,9 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
             {/* Camera info overlay (bottom-right) - now inside artboard */}
             <div className="absolute right-3 bottom-3 z-50 pointer-events-none">
               <div className="flex flex-col items-end gap-0.5">
-                <span className="text-[9px] font-mono text-muted-foreground">CAM · POS 0 / 0 / 500</span>
-                <span className="text-[9px] font-mono text-muted-foreground">ROT 0° / 0° / 0°</span>
-                <span className="text-[9px] font-mono text-muted-foreground">ZOOM 800px</span>
+                <span className="text-[9px] font-mono text-muted-foreground">CAM · POS {cameraInfo?.pos.join(' / ') ?? '0 / 0 / 0'}</span>
+                <span className="text-[9px] font-mono text-muted-foreground">ROT {cameraInfo?.rot.join('° / ') ?? '0° / 0° / 0'}°</span>
+                <span className="text-[9px] font-mono text-muted-foreground">ZOOM {cameraInfo?.zoom ?? 0}px</span>
               </div>
             </div>
 

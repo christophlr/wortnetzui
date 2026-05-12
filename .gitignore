@@ -1,3 +1,4 @@
 node_modules/
 dist/
 .version-build-state.json
+pnpm-lock.yaml
