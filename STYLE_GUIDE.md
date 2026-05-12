@@ -1,21 +1,25 @@
 # Wortnetze — Style Guide
 
-> **Read this file only when your task involves UI components or visual appearance.**
-> For engine/physics/rendering detail, read `ARCHITECTURE.md` instead.
+> **🤖 AI INSTRUCTION:** Read this file only when your task involves UI components or visual appearance.
 
 ---
 
 ## UI Language
 - **The UI must be German by default.** Labels, tooltips, and descriptions should be in German. 
-- If easily feasible, detect system language and offer English, but the primary target is German.
 
 ---
 
 ## UI Conventions
 
+### Canonical Code References (Golden Examples)
+When generating new components, strictly reference the following files for the current architectural standard:
+- **UI Toolbars:** Reference `@src/components/Toolbar.tsx`
+- **Numeric Sliders:** Reference `@src/components/ui/SliderParamTemplate.tsx`
+- **Inspector Panels:** Reference `@src/components/Inspector.tsx`
+- **Context Menus:** Reference the Shadcn/Radix implementation in `@src/components/timeline/`
+
 ### Scale Baseline
-- `h-6` (24px) = maximum height for all **inline** controls: toggle buttons, icon buttons,
-  label buttons, accordion headers, inline inputs.
+- `h-6` (24px) = maximum height for all **inline** controls (toggle buttons, icon buttons, label buttons, accordion headers, inline inputs).
 - Exception: primary full-width action buttons (e.g. "Aktualisieren") may be taller.
 - Text: `text-[11px]` labels/captions · `text-xs` accordion content · `text-sm` body copy only.
 

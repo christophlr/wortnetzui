@@ -5,56 +5,16 @@ import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import { evaluateHermite, computeCatmullRomTangent } from '../easing';
 import type { Network3DHandle } from '../components/Network3D';
 
-export type Keyframe = {
-  time: number;
-  position: { x: number; y: number; z: number };
-  target: { x: number; y: number; z: number };
-  handleInPos?: { x: number; y: number; z: number };
-  handleOutPos?: { x: number; y: number; z: number };
-  handleInTgt?: { x: number; y: number; z: number };
-  handleOutTgt?: { x: number; y: number; z: number };
-  mode?: 'aligned' | 'broken';
-  tension?: number;
-  tensionHandleIn?: number;
-  tensionHandleOut?: number;
-  tensionHandleInTime?: number;
-  tensionHandleOutTime?: number;
-};
-export type PhysicsKeyframe = {
-  time: number;
-  value: number;
-  handleIn?: number;
-  handleOut?: number;
-  handleInTime?: number;
-  handleOutTime?: number;
-  mode?: 'aligned' | 'broken';
-};
-export type SceneMarker = { time: number; label: string };
-export type TimelineState = { cameraKeyframes: Keyframe[]; physicsKeyframes: Record<string, PhysicsKeyframe[]>; sceneMarkers: SceneMarker[] };
+import { 
+  Keyframe, 
+  PhysicsKeyframe, 
+  SceneMarker, 
+  TimelineState, 
+  WortnetzContextType 
+} from './WortnetzContextTypes';
 
-export const EMPTY_PHYSICS_KFS = { 
-  'phys-rep': [] as PhysicsKeyframe[], 
-  'phys-spk': [] as PhysicsKeyframe[], 
-  'phys-dmp': [] as PhysicsKeyframe[],
-  'phys-min': [] as PhysicsKeyframe[],
-  'phys-lnk': [] as PhysicsKeyframe[],
-  'phys-grv': [] as PhysicsKeyframe[],
-  'phys-trb': [] as PhysicsKeyframe[],
-  'phys-vto': [] as PhysicsKeyframe[],
-  'phys-pls': [] as PhysicsKeyframe[]
-};
-
-export const PHYS_TRACK_PARAM: Record<string, string> = { 
-  'phys-rep': 'repulsion', 
-  'phys-spk': 'springK', 
-  'phys-dmp': 'damping',
-  'phys-min': 'minSpeed',
-  'phys-lnk': 'linkDistance',
-  'phys-grv': 'gravity',
-  'phys-trb': 'turbulence',
-  'phys-vto': 'verticalOrder',
-  'phys-pls': 'pulse'
-};
+import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
+import useWorkspaceIO from '../hooks/useWorkspaceIO';
 
 export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number, trackId?: string): number | null {
   if (sorted.length === 0) return null;
@@ -84,107 +44,6 @@ export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number,
   return null;
 }
 
-export interface WortnetzContextType {
-  // App State
-  viewMode: '2D' | '3D';
-  setViewMode: (mode: '2D' | '3D') => void;
-  themeMode: 'light' | 'dark';
-  setThemeMode: (mode: 'light' | 'dark') => void;
-  renderMode: 'edit' | 'render';
-  setRenderMode: (mode: 'edit' | 'render') => void;
-  
-  activeTool: ToolId;
-  setActiveTool: (tool: ToolId) => void;
-  canvasAspectRatio: string;
-  setCanvasAspectRatio: (ratio: string) => void;
-  zoomValue: number;
-  setZoomValue: (val: number) => void;
-  
-  isSidebarOpen: boolean;
-  setIsSidebarOpen: (open: boolean) => void;
-  inspectorWidth: number;
-  setInspectorWidth: (width: number) => void;
-  timelineHeight: number;
-  setTimelineHeight: (height: number) => void;
-  
-  isNetworkReady: boolean;
-  setIsNetworkReady: (ready: boolean) => void;
-  initProgress: number;
-  setInitProgress: (prog: number | ((p: number) => number)) => void;
-
-  // Project State
-  inputText: string;
-  setInputText: (text: string) => void;
-  parseMode: 'sentence' | 'word' | 'both';
-  setParseMode: (mode: 'sentence' | 'word' | 'both') => void;
-  gradientSettings: GradientSettings;
-  setGradientSettings: (settings: GradientSettings) => void;
-  styleSettings: any;
-  setStyleSettings: (updater: any) => void;
-  physicsParams: any;
-  setPhysicsParams: (updater: any) => void;
-  visualSettings: any;
-  setVisualSettings: (settings: any) => void;
-  nodeAppearance: NodeAppearanceSettings;
-  setNodeAppearance: (app: NodeAppearanceSettings) => void;
-  edgeAppearance: EdgeAppearanceSettings;
-  setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
-  lastAppliedPreset: 'outline'|'filled'|null;
-  setLastAppliedPreset: (preset: 'outline'|'filled'|null) => void;
-
-  // Timeline / Playback
-  isPlaying: boolean;
-  setIsPlaying: (val: boolean | ((p: boolean) => boolean)) => void;
-  isRecording: boolean;
-  setIsRecording: (val: boolean | ((p: boolean) => boolean)) => void;
-  playheadPosition: number;
-  setPlayheadPosition: React.Dispatch<React.SetStateAction<number>>;
-  timecode: string;
-  setTimecode: (val: string) => void;
-  
-  cameraKeyframes: Keyframe[];
-  setCameraKeyframes: React.Dispatch<React.SetStateAction<Keyframe[]>>;
-  physicsKeyframes: Record<string, PhysicsKeyframe[]>;
-  setPhysicsKeyframes: React.Dispatch<React.SetStateAction<Record<string, PhysicsKeyframe[]>>>;
-  sceneMarkers: SceneMarker[];
-  setSceneMarkers: React.Dispatch<React.SetStateAction<SceneMarker[]>>;
-  selectedKeyframes: { track: string; time: number }[];
-  setSelectedKeyframes: React.Dispatch<React.SetStateAction<{ track: string; time: number }[]>>;
-
-  // Refs
-  network3DRef: React.RefObject<Network3DHandle | null>;
-  cameraKeyframesRef: React.MutableRefObject<Keyframe[]>;
-  physicsKeyframesRef: React.MutableRefObject<Record<string, PhysicsKeyframe[]>>;
-  sceneMarkersRef: React.MutableRefObject<SceneMarker[]>;
-  selectedKeyframesRef: React.MutableRefObject<{ track: string; time: number }[]>;
-  playheadRef: React.MutableRefObject<number>;
-  isRecordingRef: React.MutableRefObject<boolean>;
-
-  selectedNode: any;
-  setSelectedNode: (node: any) => void;
-  
-  // Derived
-  effectivePhysicsParams: any;
-  previewIsDark: boolean;
-  uiIsDark: boolean;
-  handleCaptureKeyframe: () => void;
-  handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
-  handleDeleteKeyframe: (trackId: string, time: number) => void;
-  handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
-  handleClearHandle: (trackId: string, time: number) => void;
-  handleSetInterpolation: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
-  handleDuplicateKeyframe: (trackId: string, srcTime: number, destTime: number) => void;
-  handleAddSceneMarker: (time: number, label: string) => void;
-  handleRenameSceneMarker: (time: number, label: string) => void;
-  handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
-  pushHistory: (next: TimelineState) => void;
-  getTimelineState: () => TimelineState;
-  undo: () => void;
-  redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-}
-
 const WortnetzContext = createContext<WortnetzContextType | undefined>(undefined);
 
 export function WortnetzProvider({ children }: { children: ReactNode }) {
@@ -194,7 +53,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [timecode, setTimecode] = useState('00:00:00:00');
   const [selectedKeyframes, setSelectedKeyframes] = useState<{ track: string; time: number }[]>([]);
   const [sceneMarkers, setSceneMarkers] = useState<SceneMarker[]>([]);
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
+  const [themeMode, setThemeMode] = useState<'light' | 'hybrid' | 'dark'>('light');
   const [inputText, setInputText] = useState(DEFAULT_TEXT);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('sentence');
   const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
@@ -300,83 +159,187 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const uiIsDark = themeMode === 'dark';
   const previewIsDark = themeMode === 'dark';
 
+  const { handleSave: ioSave, handleLoad: ioLoad } = useWorkspaceIO(
+    useCallback(() => ({ 
+      inputText, parseMode, gradientSettings, styleSettings, physicsParams, 
+      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers 
+    }), [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
+    useCallback((s) => {
+      if (s.inputText) setInputText(s.inputText);
+      if (s.parseMode) setParseMode(s.parseMode);
+      if (s.gradientSettings) setGradientSettings(s.gradientSettings);
+      if (s.styleSettings) setStyleSettings(s.styleSettings);
+      if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
+      if (s.viewMode) setViewMode(s.viewMode);
+      if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
+      if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
+      if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+    }, [])
+  );
+
+  const handleSave = useCallback(() => ioSave(), [ioSave]);
+  const handleLoad = useCallback(() => ioLoad(), [ioLoad]);
+
   // Handlers
   const handleCaptureKeyframe = useCallback(() => {
-    const time = playheadRef.current;
-    const prev = { cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current, sceneMarkers: sceneMarkersRef.current };
-    
-    // Capture camera
-    const cam = network3DRef.current?.getCameraState();
-    if (cam) {
-      setCameraKeyframes(prevKfs => {
-        const next = [...prevKfs.filter(k => Math.abs(k.time - time) > 0.01), { time, ...cam, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
-        cameraKeyframesRef.current = next;
-        return next;
-      });
+    const prev = getTimelineState();
+    const currentTime = playheadRef.current;
+    const effectivePhysics = network3DRef.current?.getEffectivePhysicsParams() ?? physicsParams;
+
+    const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
+    for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
+      const param = PHYS_TRACK_PARAM[trackId] as keyof typeof effectivePhysics;
+      const existingK = (nextPhysKfs[trackId] ?? []).find(k => Math.abs(k.time - currentTime) <= 0.1);
+      const filtered = (nextPhysKfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
+      const easingProps = existingK
+        ? { handleOut: existingK.handleOut, handleIn: existingK.handleIn, handleOutTime: existingK.handleOutTime, handleInTime: existingK.handleInTime, mode: existingK.mode }
+        : { mode: 'aligned' as const };
+      nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: effectivePhysics[param], ...easingProps }]
+        .sort((a, b) => a.time - b.time);
+    }
+    physicsKeyframesRef.current = nextPhysKfs;
+    setPhysicsKeyframes(nextPhysKfs);
+
+    if (viewMode !== '3D') {
+      let nextMarkers2D = sceneMarkersRef.current;
+      const markerExists2D = nextMarkers2D.some(m => Math.abs(m.time - currentTime) <= 0.1);
+      if (!markerExists2D) {
+        const label = `Scene ${nextMarkers2D.length + 1}`;
+        nextMarkers2D = [...nextMarkers2D, { time: currentTime, label }].sort((a, b) => a.time - b.time);
+        sceneMarkersRef.current = nextMarkers2D;
+        setSceneMarkers(nextMarkers2D);
+      }
+      pushHistory({ ...prev, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers2D });
+      return;
     }
 
-    // Capture all physics
-    setPhysicsKeyframes(prevKfs => {
-      const next = { ...prevKfs };
-      for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
-        const val = (physicsParams as any)[param];
-        next[trackId] = [...(prevKfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.01), { time, value: val, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
-      }
-      physicsKeyframesRef.current = next;
+    const keyframe = network3DRef.current?.getCameraKeyframe();
+    if (!keyframe) {
+      pushHistory({ ...prev, physicsKeyframes: nextPhysKfs });
+      return;
+    }
+
+    const existingCK = cameraKeyframesRef.current.find(s => Math.abs(s.time - currentTime) <= 0.1);
+    const filteredCkfs = cameraKeyframesRef.current.filter(s => Math.abs(s.time - currentTime) > 0.1);
+    const cameraEasingProps = existingCK
+      ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut, tensionHandleInTime: existingCK.tensionHandleInTime, tensionHandleOutTime: existingCK.tensionHandleOutTime }
+      : { mode: 'aligned' as const };
+    const nextCkfs = [...filteredCkfs, { ...keyframe, ...cameraEasingProps, time: currentTime }]
+      .sort((a, b) => a.time - b.time);
+    cameraKeyframesRef.current = nextCkfs;
+    setCameraKeyframes(nextCkfs);
+
+    let nextMarkers = sceneMarkersRef.current;
+    const markerExists = nextMarkers.some(m => Math.abs(m.time - currentTime) <= 0.1);
+    if (!markerExists) {
+      const label = `Scene ${nextMarkers.length + 1}`;
+      nextMarkers = [...nextMarkers, { time: currentTime, label }].sort((a, b) => a.time - b.time);
+      sceneMarkersRef.current = nextMarkers;
+      setSceneMarkers(nextMarkers);
+    }
+    setSelectedKeyframes([]);
+    pushHistory({ cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
+  }, [viewMode, pushHistory, getTimelineState, physicsParams]);
+
+  const handleCameraChange = useCallback(() => {
+    if (viewMode !== '3D') return;
+    const currentTime = playheadRef.current;
+    if (!cameraKeyframesRef.current.some(s => Math.abs(s.time - currentTime) < 0.1)) return;
+    const keyframe = network3DRef.current?.getCameraKeyframe();
+    if (!keyframe) return;
+    setCameraKeyframes(prev => {
+      const existingCK = prev.find(s => Math.abs(s.time - currentTime) < 0.1);
+      const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
+      const easingProps = existingCK
+        ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut }
+        : { mode: 'aligned' as const };
+      const next = [...filtered, { ...keyframe, ...easingProps, time: currentTime }].sort((a, b) => a.time - b.time);
+      cameraKeyframesRef.current = next;
       return next;
     });
-
-    pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current });
-  }, [physicsParams, pushHistory]);
+    
+    const zoom = network3DRef.current?.getZoom();
+    if (zoom !== undefined) setZoomValue(zoom);
+  }, [viewMode]);
 
   const handleMoveKeyframe = useCallback((trackId: string, oldTime: number, newTime: number) => {
-    const prev = { cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current, sceneMarkers: sceneMarkersRef.current };
-    if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prevKfs => {
-        const kf = prevKfs.find(k => Math.abs(k.time - oldTime) < 0.01);
-        if (!kf) return prevKfs;
-        const next = [...prevKfs.filter(k => Math.abs(k.time - oldTime) > 0.01), { ...kf, time: newTime }].sort((a, b) => a.time - b.time);
+    const delta = newTime - oldTime;
+    const sel = selectedKeyframesRef.current;
+    const isMultiDrag = sel.length > 1 && sel.some(s => s.track === trackId && Math.abs(s.time - oldTime) < 0.01);
+
+    if (isMultiDrag) {
+      setCameraKeyframes(prev => {
+        const selectedTimes = new Set(sel.filter(s => s.track === 'camera-keyframes').map(s => s.time));
+        const next = prev.map(s => selectedTimes.has(s.time)
+          ? { ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)) }
+          : s
+        ).sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
         return next;
       });
-    } else if (trackId === 'scene-markers') {
-      setSceneMarkers(prevMarkers => {
-        const m = prevMarkers.find(k => Math.abs(k.time - oldTime) < 0.01);
-        if (!m) return prevMarkers;
-        const next = [...prevMarkers.filter(k => Math.abs(k.time - oldTime) > 0.01), { ...m, time: newTime }].sort((a, b) => a.time - b.time);
+      setPhysicsKeyframes(prev => {
+        const nextKfs: Record<string, PhysicsKeyframe[]> = { ...prev };
+        for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
+          const selectedTimes = new Set(sel.filter(s => s.track === tid).map(s => s.time));
+          nextKfs[tid] = (prev[tid] ?? []).map(k => selectedTimes.has(k.time)
+            ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
+            : k
+          ).sort((a, b) => a.time - b.time);
+        }
+        physicsKeyframesRef.current = nextKfs;
+        return nextKfs;
+      });
+      setSceneMarkers(prev => {
+        const selectedTimes = new Set(sel.filter(s => s.track === 'scene-markers').map(s => s.time));
+        const next = prev.map(m => selectedTimes.has(m.time)
+          ? { ...m, time: Math.max(0, Math.min(TIMELINE_DURATION, m.time + delta)) }
+          : m
+        ).sort((a, b) => a.time - b.time);
         sceneMarkersRef.current = next;
         return next;
       });
+      setSelectedKeyframes(prev => prev.map(s => ({
+        ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)),
+      })));
     } else {
-      setPhysicsKeyframes(prevKfs => {
-        const track = prevKfs[trackId] ?? [];
-        const kf = track.find(k => Math.abs(k.time - oldTime) < 0.01);
-        if (!kf) return prevKfs;
-        const next = { ...prevKfs, [trackId]: [...track.filter(k => Math.abs(k.time - oldTime) > 0.01), { ...kf, time: newTime }].sort((a, b) => a.time - b.time) };
-        physicsKeyframesRef.current = next;
-        return next;
-      });
+      if (trackId === 'camera-keyframes') {
+        setCameraKeyframes(prev => {
+          const next = prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
+          cameraKeyframesRef.current = next;
+          return next;
+        });
+      } else if (trackId in PHYS_TRACK_PARAM) {
+        setPhysicsKeyframes(prev => {
+          const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - oldTime) < 0.01 ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
+          const next = { ...prev, [trackId]: kfs };
+          physicsKeyframesRef.current = next;
+          return next;
+        });
+      }
     }
-    pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current, sceneMarkers: sceneMarkersRef.current });
-  }, [pushHistory]);
+  }, []);
 
   const handleDeleteKeyframe = useCallback((trackId: string, time: number) => {
-    const prev = { cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current, sceneMarkers: sceneMarkersRef.current };
+    const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prevKfs => {
-        const next = prevKfs.filter(k => Math.abs(k.time - time) > 0.01);
+      setCameraKeyframes(prevCkfs => {
+        const next = prevCkfs.filter(s => Math.abs(s.time - time) > 0.1);
         cameraKeyframesRef.current = next;
         return next;
       });
-    } else {
-      setPhysicsKeyframes(prevKfs => {
-        const next = { ...prevKfs, [trackId]: (prevKfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.01) };
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const kfs = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.1);
+        const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
         return next;
       });
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
-    pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current, physicsKeyframes: physicsKeyframesRef.current });
-  }, [pushHistory]);
+  }, [getTimelineState, pushHistory]);
 
   const handleSetHandle = useCallback((trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset = 0.33) => {
     if (trackId === 'camera-keyframes') {
@@ -505,7 +468,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     }
   }, [getTimelineState, pushHistory]);
 
-  const handleAddSceneMarker = useCallback((time: number, label: string) => {
+  const handleAddSceneMarker = useCallback((time: number, label: string = 'Marker') => {
     const prev = getTimelineState();
     const next = [...sceneMarkersRef.current, { time, label }].sort((a, b) => a.time - b.time);
     sceneMarkersRef.current = next;
@@ -513,7 +476,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     pushHistory({ ...prev, sceneMarkers: next });
   }, [getTimelineState, pushHistory]);
 
-  const handleRenameSceneMarker = useCallback((time: number, label: string) => {
+  const handleRenameSceneMarker = useCallback((time: number, label?: string) => {
+    if (!label) return;
     const prev = getTimelineState();
     const next = sceneMarkersRef.current.map(m => Math.abs(m.time - time) < 0.01 ? { ...m, label } : m);
     sceneMarkersRef.current = next;
@@ -524,6 +488,131 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
     setSceneMarkers(prev => prev.map(m => Math.abs(m.time - oldTime) < 0.01 ? { ...m, time: newTime } : m).sort((a, b) => a.time - b.time));
   }, []);
+
+  const handleSetValue = useCallback((trackId: string, time: number, value: number) => {
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prev => {
+        const next = prev.map(s => Math.abs(s.time - time) >= 0.01 ? s : { ...s, tension: Math.max(0, value) });
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+    }
+  }, []);
+
+  const handleTogglePhysicsKeyframe = useCallback((trackId: string, value: number) => {
+    const prev = getTimelineState();
+    const currentTime = playheadRef.current;
+    setPhysicsKeyframes(prevKfs => {
+      const track = prevKfs[trackId] ?? [];
+      const hasKf = track.some(k => Math.abs(k.time - currentTime) <= 0.1);
+      const next = hasKf
+        ? { ...prevKfs, [trackId]: track.filter(k => Math.abs(k.time - currentTime) > 0.1) }
+        : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, mode: 'aligned' as const }].sort((a, b) => a.time - b.time) };
+      physicsKeyframesRef.current = next;
+      pushHistory({ ...prev, physicsKeyframes: next });
+      return next;
+    });
+  }, [getTimelineState, pushHistory]);
+
+  const handleSetHandle2D = handleSetHandle; // Map for compatibility
+
+  // color helper to derive light fill
+  const hexToRgb = (hex: string) => {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const bigint = parseInt(full, 16);
+    return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+  };
+  const lightenHex = (hex: string, percent: number) => {
+    const { r, g, b } = hexToRgb(hex);
+    const p = Math.max(0, Math.min(100, percent)) / 100;
+    const nr = Math.round(r + (255 - r) * p);
+    const ng = Math.round(g + (255 - g) * p);
+    const nb = Math.round(b + (255 - b) * p);
+    const toHex = (n: number) => n.toString(16).padStart(2, '0');
+    return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
+  };
+
+  const handleKeyframeSelect = useCallback((track: string, time: number, additive: boolean) => {
+    setSelectedKeyframes(prev => {
+      const already = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
+      if (additive) {
+        return already
+          ? prev.filter(s => !(s.track === track && Math.abs(s.time - time) < 0.01))
+          : [...prev, { track, time }];
+      } else {
+        return already ? prev : [{ track, time }];
+      }
+    });
+  }, []);
+
+  const handleSelectKeyframes = useCallback((kfs: { track: string; time: number }[]) => {
+    setSelectedKeyframes(kfs);
+  }, []);
+
+  const handlePhysicsChange = useCallback((params: Partial<typeof physicsParams>) => {
+    setPhysicsParams(prev => ({ ...prev, ...params }));
+    
+    const currentTime = playheadRef.current;
+    setPhysicsKeyframes(prevKfs => {
+      let changed = false;
+      const nextKfs = { ...prevKfs };
+      
+      for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
+        const newVal = (params as Record<string, number>)[paramName];
+        if (newVal === undefined) continue;
+
+        const track = prevKfs[trackId] ?? [];
+        const isRecordingLocal = isRecordingRef.current;
+        if (track.length === 0 && !isRecordingLocal) continue;
+        
+        const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
+        if (kfIdx >= 0) {
+          if (newVal !== track[kfIdx].value) {
+            nextKfs[trackId] = track.map((k, i) => i === kfIdx ? { ...k, value: newVal } : k);
+            changed = true;
+          }
+        } else {
+          const nextTrack = [...track, { time: currentTime, value: newVal, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
+          nextKfs[trackId] = nextTrack;
+          changed = true;
+        }
+      }
+      
+      if (!changed) return prevKfs;
+      physicsKeyframesRef.current = nextKfs;
+      return nextKfs;
+    });
+  }, []);
+
+  const handleApplyNodeStylePreset = useCallback((preset: 'outline' | 'filled' | 'reset') => {
+    if (preset === 'reset') {
+      setNodeAppearance(defaultNodeAppearance);
+      setLastAppliedPreset(null);
+      return;
+    }
+    const inner = gradientSettings.innerColor ?? defaultGradientSettings.innerColor;
+    if (preset === 'outline') {
+      setNodeAppearance({ borderColor: inner, fillColor: lightenHex(inner, 0.8), textColor: inner });
+      setLastAppliedPreset('outline');
+    } else if (preset === 'filled') {
+      setNodeAppearance({ borderColor: '#FFFFFFCC', fillColor: inner, textColor: '#ffffff' });
+      setLastAppliedPreset('filled');
+    }
+  }, [gradientSettings]);
+
+  const preDragStateRef = useRef<TimelineState | null>(null);
+
+  const handleDragStart = useCallback(() => {
+    preDragStateRef.current = getTimelineState();
+  }, [getTimelineState]);
+
+  const handleDragEnd = useCallback(() => {
+    if (preDragStateRef.current) {
+      pushHistory(preDragStateRef.current);
+      preDragStateRef.current = null;
+    }
+  }, [pushHistory]);
 
   return (
     <WortnetzContext.Provider value={{
@@ -542,7 +631,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       handleCaptureKeyframe, handleMoveKeyframe, handleDeleteKeyframe,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
-      pushHistory, getTimelineState, undo, redo, canUndo, canRedo
+      handleSetValue, handleSetHandle2D, handleCameraChange,
+      handleApplyNodeStylePreset, handleTogglePhysicsKeyframe,
+      handleKeyframeSelect, handleSelectKeyframes, handlePhysicsChange,
+      handleDragStart, handleDragEnd,
+      pushHistory, getTimelineState, undo, redo, canUndo, canRedo,
+      handleSave, handleLoad
     }}>
       {children}
     </WortnetzContext.Provider>

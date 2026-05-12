@@ -14,6 +14,7 @@ export function GraphEditor({
   onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
   onDragStart, onDragEnd,
   selectedKeyframes,
+  onContextMenu,
 }: {
   trackId: string;
   color: 'cyan' | 'orange';
@@ -29,13 +30,14 @@ export function GraphEditor({
   }>;
   viewWindow: ViewWindow;
   onSetHandle?: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
-  onSetHandle2D?: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset: number) => void;
+  onSetHandle2D?: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   onSetValue?: (trackId: string, time: number, value: number) => void;
   onClearHandle?: (trackId: string, time: number) => void;
   onSetInterpolation?: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   selectedKeyframes?: { track: string; time: number }[];
+  onContextMenu?: (trackId: string, time: number) => void;
 }) {
   const visibleDuration = viewWindow.end - viewWindow.start;
   const trackRef = useRef<HTMLDivElement>(null);

@@ -108,7 +108,7 @@ interface InspectorProps {
   onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
   onGradientChange: (gs: any) => void;
   onStyleChange: (s: any) => void;
-  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
+  styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   onNodeAppearanceChange: (na: NodeAppearanceSettings) => void;
   onEdgeAppearanceChange: (ea: any) => void;
   nodeAppearance: NodeAppearanceSettings;
@@ -331,10 +331,6 @@ export function Inspector({
             <div className="h-20" />
           </SidebarContent>
 
-          <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
-            <p className="text-[9px] text-zinc-400 font-bold tracking-widest uppercase">Workspace Properties</p>
-            <p className="text-[9px] text-zinc-400 font-mono">v0.8.5</p>
-          </div>
         </div>
       </div>
     </SidebarProvider>

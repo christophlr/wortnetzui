@@ -1,0 +1,227 @@
+import { GradientSettings, NodeAppearanceSettings, EdgeAppearanceSettings, NodeShape } from '../networkTheme';
+import { ToolId } from '../components/Toolbar';
+import type { Network3DHandle } from '../components/Network3D';
+
+export type Keyframe = {
+  time: number;
+  position: { x: number; y: number; z: number };
+  target: { x: number; y: number; z: number };
+  handleInPos?: { x: number; y: number; z: number };
+  handleOutPos?: { x: number; y: number; z: number };
+  handleInTgt?: { x: number; y: number; z: number };
+  handleOutTgt?: { x: number; y: number; z: number };
+  mode?: 'aligned' | 'broken';
+  tension?: number;
+  tensionHandleIn?: number;
+  tensionHandleOut?: number;
+  tensionHandleInTime?: number;
+  tensionHandleOutTime?: number;
+};
+
+export type PhysicsKeyframe = {
+  time: number;
+  value: number;
+  handleIn?: number;
+  handleOut?: number;
+  handleInTime?: number;
+  handleOutTime?: number;
+  mode?: 'aligned' | 'broken';
+};
+
+export type SceneMarker = { time: number; label: string };
+
+export type TimelineState = {
+  cameraKeyframes: Keyframe[];
+  physicsKeyframes: Record<string, PhysicsKeyframe[]>;
+  sceneMarkers: SceneMarker[];
+};
+
+export interface WortnetzContextType {
+  // App State
+  viewMode: '2D' | '3D';
+  setViewMode: (mode: '2D' | '3D') => void;
+  themeMode: 'light' | 'hybrid' | 'dark';
+  setThemeMode: (mode: 'light' | 'hybrid' | 'dark') => void;
+  renderMode: 'edit' | 'render';
+  setRenderMode: (mode: 'edit' | 'render') => void;
+  
+  activeTool: ToolId;
+  setActiveTool: (tool: ToolId) => void;
+  canvasAspectRatio: string;
+  setCanvasAspectRatio: (ratio: string) => void;
+  zoomValue: number;
+  setZoomValue: (val: number) => void;
+  
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  inspectorWidth: number;
+  setInspectorWidth: (width: number) => void;
+  timelineHeight: number;
+  setTimelineHeight: (height: number) => void;
+  
+  isNetworkReady: boolean;
+  setIsNetworkReady: (ready: boolean) => void;
+  initProgress: number;
+  setInitProgress: (prog: number | ((p: number) => number)) => void;
+
+  // Project State
+  inputText: string;
+  setInputText: (text: string) => void;
+  parseMode: 'sentence' | 'word' | 'both';
+  setParseMode: (mode: 'sentence' | 'word' | 'both') => void;
+  gradientSettings: GradientSettings;
+  setGradientSettings: (settings: GradientSettings) => void;
+  styleSettings: {
+    edgeOpacity: number;
+    edgeWidth: number;
+    nodeScale: number;
+    nodeShape: NodeShape;
+    nodeBorderWidth: number;
+    depthSizeEnabled: boolean;
+    depthSizeStrength: number;
+  };
+  setStyleSettings: React.Dispatch<React.SetStateAction<{
+    edgeOpacity: number;
+    edgeWidth: number;
+    nodeScale: number;
+    nodeShape: NodeShape;
+    nodeBorderWidth: number;
+    depthSizeEnabled: boolean;
+    depthSizeStrength: number;
+  }>>;
+  physicsParams: {
+    repulsion: number;
+    springK: number;
+    damping: number;
+    minSpeed: number;
+    linkDistance: number;
+    gravity: number;
+    turbulence: number;
+    verticalOrder: number;
+    pulse: number;
+  };
+  setPhysicsParams: React.Dispatch<React.SetStateAction<{
+    repulsion: number;
+    springK: number;
+    damping: number;
+    minSpeed: number;
+    linkDistance: number;
+    gravity: number;
+    turbulence: number;
+    verticalOrder: number;
+    pulse: number;
+  }>>;
+  visualSettings: {
+    nodesVisible: boolean;
+    labelsVisible: boolean;
+    edgesVisible: boolean;
+    envVisible: boolean;
+    radialBiasScale: number;
+    radialBiasOpacity: number;
+    gradientOrigin: string;
+    gradientPeriphery: string;
+    labelWeightMapping: number;
+    edgeFlowAnimation: boolean;
+    envAtmosphereSeed: number;
+    glitchActive: boolean;
+    glitchBrushRadius: number;
+    glitchFeather: number;
+    pathSmoothness: number;
+    pathCameraFollow: boolean;
+  };
+  setVisualSettings: React.Dispatch<React.SetStateAction<{
+    nodesVisible: boolean;
+    labelsVisible: boolean;
+    edgesVisible: boolean;
+    envVisible: boolean;
+    radialBiasScale: number;
+    radialBiasOpacity: number;
+    gradientOrigin: string;
+    gradientPeriphery: string;
+    labelWeightMapping: number;
+    edgeFlowAnimation: boolean;
+    envAtmosphereSeed: number;
+    glitchActive: boolean;
+    glitchBrushRadius: number;
+    glitchFeather: number;
+    pathSmoothness: number;
+    pathCameraFollow: boolean;
+  }>>;
+  nodeAppearance: NodeAppearanceSettings;
+  setNodeAppearance: (app: NodeAppearanceSettings) => void;
+  edgeAppearance: EdgeAppearanceSettings;
+  setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
+  lastAppliedPreset: 'outline'|'filled'|null;
+  setLastAppliedPreset: (preset: 'outline'|'filled'|null) => void;
+
+  // Timeline / Playback
+  isPlaying: boolean;
+  setIsPlaying: (val: boolean | ((p: boolean) => boolean)) => void;
+  isRecording: boolean;
+  setIsRecording: (val: boolean | ((p: boolean) => boolean)) => void;
+  playheadPosition: number;
+  setPlayheadPosition: React.Dispatch<React.SetStateAction<number>>;
+  timecode: string;
+  setTimecode: (val: string) => void;
+  
+  cameraKeyframes: Keyframe[];
+  setCameraKeyframes: React.Dispatch<React.SetStateAction<Keyframe[]>>;
+  physicsKeyframes: Record<string, PhysicsKeyframe[]>;
+  setPhysicsKeyframes: React.Dispatch<React.SetStateAction<Record<string, PhysicsKeyframe[]>>>;
+  sceneMarkers: SceneMarker[];
+  setSceneMarkers: React.Dispatch<React.SetStateAction<SceneMarker[]>>;
+  selectedKeyframes: { track: string; time: number }[];
+  setSelectedKeyframes: React.Dispatch<React.SetStateAction<{ track: string; time: number }[]>>;
+
+  // Refs
+  network3DRef: React.RefObject<Network3DHandle | null>;
+  cameraKeyframesRef: React.MutableRefObject<Keyframe[]>;
+  physicsKeyframesRef: React.MutableRefObject<Record<string, PhysicsKeyframe[]>>;
+  sceneMarkersRef: React.MutableRefObject<SceneMarker[]>;
+  selectedKeyframesRef: React.MutableRefObject<{ track: string; time: number }[]>;
+  playheadRef: React.MutableRefObject<number>;
+  isRecordingRef: React.MutableRefObject<boolean>;
+
+  selectedNode: any;
+  setSelectedNode: (node: any) => void;
+  
+  // Derived
+  effectivePhysicsParams: any;
+  previewIsDark: boolean;
+  uiIsDark: boolean;
+  
+  // Actions
+  handleCaptureKeyframe: () => void;
+  handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
+  handleDeleteKeyframe: (trackId: string, time: number) => void;
+  handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
+  handleClearHandle: (trackId: string, time: number) => void;
+  handleSetInterpolation: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
+  handleDuplicateKeyframe: (trackId: string, srcTime: number, destTime: number) => void;
+  handleAddSceneMarker: (time: number, label?: string) => void;
+  handleRenameSceneMarker: (time: number, label?: string) => void;
+  handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
+  
+  handleSetValue: (trackId: string, time: number, value: number) => void;
+  handleSetHandle2D: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
+  handleCameraChange: () => void;
+  handleApplyNodeStylePreset: (preset: 'outline' | 'filled' | 'reset') => void;
+  handleTogglePhysicsKeyframe: (trackId: string, value: number) => void;
+  handleKeyframeSelect: (track: string, time: number, additive: boolean) => void;
+  handleSelectKeyframes: (kfs: { track: string; time: number }[]) => void;
+  handlePhysicsChange: (params: Partial<WortnetzContextType['physicsParams']>) => void;
+  handleDragStart: () => void;
+  handleDragEnd: () => void;
+  
+  // History
+  pushHistory: (next: TimelineState) => void;
+  getTimelineState: () => TimelineState;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  
+  // Workspace
+  handleSave: () => void;
+  handleLoad: () => void;
+}

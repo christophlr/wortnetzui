@@ -298,7 +298,7 @@ export function Timeline(props: TimelineProps) {
               {/* Center: Timecode + Transport */}
               <div className="flex-1 flex items-center justify-center gap-2">
                 <TBtn onClick={onStop} title="Stop"><Square className="w-3 h-3 fill-current" /></TBtn>
-                <TBtn onClick={() => setPlayheadPosition(0)} title="Gehe zum Anfang"><SkipBack className="w-3 h-3" /></TBtn>
+                <TBtn onClick={() => onPlayheadChange(0)} title="Gehe zum Anfang"><SkipBack className="w-3 h-3" /></TBtn>
                 <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
                   <ChevronLeft className="w-3 h-3" />
                 </TBtn>

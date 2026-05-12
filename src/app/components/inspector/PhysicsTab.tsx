@@ -3,6 +3,7 @@ import { Input } from '../ui/input';
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '../ui/sidebar';
 
 import { Slider } from '../ui/slider';
+import { Diamond } from 'lucide-react';
 
 function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -95,8 +96,11 @@ export function PhysicsTab({
                 />
                 <button 
                   onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                  className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
-                />
+                  className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200 shadow-sm' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
+                  title={physKfActive[p.id] ? "Keyframe entfernen" : "Keyframe setzen"}
+                >
+                  <Diamond className={`size-2.5 ${physKfActive[p.id] ? 'fill-current' : ''}`} />
+                </button>
               </div>
             </div>
             <Slider

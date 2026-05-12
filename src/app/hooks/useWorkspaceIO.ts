@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { TimelineState } from './useTimelineHistory';
+import type { TimelineState } from '../context/WortnetzContextTypes';
 import type { GradientSettings, NodeAppearanceSettings, EdgeAppearanceSettings } from '../networkTheme';
 
 type WorkspaceState = {

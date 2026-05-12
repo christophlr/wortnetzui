@@ -143,7 +143,7 @@ export interface TimelineProps {
   onCaptureKeyframe?: () => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onSetHandle?: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
-  onSetHandle2D?: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset: number) => void;
+  onSetHandle2D?: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   onClearHandle?: (trackId: string, time: number) => void;
   onSetValue?: (trackId: string, time: number, value: number) => void;
   onSetInterpolation?: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
@@ -162,7 +162,7 @@ export interface TimelineProps {
   onMoveSceneMarker?: (oldTime: number, newTime: number) => void;
   onDropSceneMarker?: (fromTime: number, toTime: number) => void;
   onDeleteSceneMarker?: (time: number) => void;
-  onRenameSceneMarker?: (time: number, label: string) => void;
+  onRenameSceneMarker?: (time: number, label?: string) => void;
   isRecording?: boolean;
   onToggleRecording?: () => void;
 }

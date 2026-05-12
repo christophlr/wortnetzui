@@ -2,28 +2,21 @@ import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef, useState, useEffect, useRef } from 'react';
 import { VERSION, BUILD_DATE, BUILD_NUMBER, LAST_COMMIT_HASH, LAST_COMMIT_DATE } from '../../version';
 import { Progress } from './ui/progress';
-
-type PhysicsKeyframe = { time: number; value: number; outWeight?: number; inWeight?: number; interpolation?: 'auto' | 'manual' };
+import { type PhysicsKeyframe, type SceneMarker, type TimelineState } from '../context/WortnetzContextTypes';
+import { type NodeAppearanceSettings, type GradientSettings, type EdgeAppearanceSettings } from '../networkTheme';
+import { type PhysicsParams } from '../graph';
 
 interface PreviewProps {
   viewMode: '2D' | '3D';
   physicsEnabled: boolean;
   isPlaying: boolean;
   playheadPosition: number;
-  physicsParams?: {
-    repulsion: number;
-    springK: number;
-    damping: number;
-    minSpeed: number;
-    linkDistance: number;
-    gravity: number;
-    turbulence: number;
-  };
+  physicsParams?: PhysicsParams;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   inputText?: string;
   parseMode?: 'sentence' | 'word' | 'both';
-  gradientSettings?: { mode: 'solid' | 'gradient'; innerColor: string; outerColor: string };
-  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: string; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
+  gradientSettings?: GradientSettings;
+  styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: any; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onCameraChange?: () => void;
   isDark?: boolean;
@@ -31,21 +24,12 @@ interface PreviewProps {
   onNetworkReady?: () => void;
   onNetworkProgress?: (progress: number) => void;
   renderMode?: 'edit' | 'render';
-  nodeAppearance?: { borderColor: 'auto' | string; fillColor: 'auto' | string; textColor: 'auto' | string };
-  edgeAppearance?: { color: 'auto' | string };
+  nodeAppearance?: NodeAppearanceSettings;
+  edgeAppearance?: EdgeAppearanceSettings;
   canvasAspectRatio?: string;
   initProgress?: number;
   cameraInfo?: { pos: number[], rot: number[], zoom: number };
-  visualSettings?: {
-    nodesVisible: boolean;
-    labelsVisible: boolean;
-    edgesVisible: boolean;
-    envVisible: boolean;
-    radialBiasScale: number;
-    radialBiasOpacity: number;
-    gradientOrigin: string;
-    gradientPeriphery: string;
-  };
+  visualSettings?: any;
   onNodeSelect?: (node: any) => void;
 }
 
