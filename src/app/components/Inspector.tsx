@@ -105,6 +105,7 @@ interface InspectorProps {
   onPhysicsChange: (p: any) => void;
   onTextChange: (t: string) => void;
   inputText?: string;
+  parseMode: 'sentence' | 'word' | 'both';
   onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
   onGradientChange: (gs: any) => void;
   onStyleChange: (s: any) => void;
@@ -156,7 +157,7 @@ interface InspectorProps {
 }
 
 export function Inspector({
-  onPhysicsChange, onTextChange, inputText = "", onParsingChange, onGradientChange,
+  onPhysicsChange, onTextChange, inputText = "", parseMode, onParsingChange, onGradientChange,
   onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
   nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
@@ -186,12 +187,12 @@ export function Inspector({
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
 
-  // Sync local text with default input text on load
+  // Sync local text with default input text on load and when context changes (e.g. workspace load)
   useEffect(() => {
-    if (inputText && !localText) {
+    if (inputText !== undefined && inputText !== localText) {
       setLocalText(inputText);
     }
-  }, [inputText]);
+  }, [inputText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync physics keyframe states
   const physKfActive = useMemo(() => {
@@ -286,6 +287,7 @@ export function Inspector({
                 localText={localText}
                 setLocalText={setLocalText}
                 onTextChange={onTextChange}
+                parseMode={parseMode}
                 onParsingChange={onParsingChange}
               />
             )}

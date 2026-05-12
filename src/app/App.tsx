@@ -336,6 +336,7 @@ export default function App() {
           <Inspector
             onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
             inputText={inputText}
+            parseMode={parseMode}
             onParsingChange={setParseMode}
             onGradientChange={setGradientSettings}
             onStyleChange={setStyleSettings}

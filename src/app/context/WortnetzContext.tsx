@@ -55,7 +55,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [sceneMarkers, setSceneMarkers] = useState<SceneMarker[]>([]);
   const [themeMode, setThemeMode] = useState<'light' | 'hybrid' | 'dark'>('light');
   const [inputText, setInputText] = useState(DEFAULT_TEXT);
-  const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('sentence');
+  const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('word');
   const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
   const [styleSettings, setStyleSettings] = useState({
     edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1,

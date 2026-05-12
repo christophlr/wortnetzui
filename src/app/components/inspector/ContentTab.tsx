@@ -13,11 +13,13 @@ export function ContentTab({
   localText,
   setLocalText,
   onTextChange,
+  parseMode,
   onParsingChange,
 }: {
   localText: string;
   setLocalText: (text: string) => void;
   onTextChange: (text: string) => void;
+  parseMode: 'sentence' | 'word' | 'both';
   onParsingChange: (mode: 'sentence' | 'word' | 'both') => void;
 }) {
   return (
@@ -50,7 +52,7 @@ export function ContentTab({
           Parse Modus
         </SidebarGroupLabel>
         <SidebarGroupContent className="px-3">
-          <RadioGroup defaultValue="word" onValueChange={onParsingChange} className="gap-4">
+          <RadioGroup value={parseMode} onValueChange={onParsingChange} className="gap-4">
             {[
               { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
               { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },

@@ -213,7 +213,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     playheadPosition,
     inputText = DEFAULT_TEXT,
     viewMode = '3D',
-    parseMode = 'sentence',
+    parseMode = 'word',
     physicsParams = DEFAULT_PHYSICS,
     physicsKeyframes,
     gradientSettings = defaultGradientSettings,
@@ -1064,10 +1064,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   /* ── SETUP & ANIMATION ── */
   useEffect(() => {
+    console.log('[Network3D] Effect triggered', { inputText: inputText.substring(0, 20) + '...', viewMode, parseMode });
     if (!containerRef.current) return;
 
     let isCancelled = false;
-    let localCleanup: (() => void) | null = null;
     let animFrame: number;
     let timerId: ReturnType<typeof setTimeout>;
 
@@ -1674,47 +1674,42 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (containerRef.current) ro.observe(containerRef.current);
     window.addEventListener('resize', handleResize);
 
-    localCleanup = () => {
+    return () => {
+      isCancelled = true;
+      console.log('[Network3D] Effect cleanup running', { inputText: inputText.substring(0, 20) + '...' });
+      
       ro.disconnect();
+      window.removeEventListener('resize', handleResize);
+      if (timerId) clearTimeout(timerId);
+      if (animFrame) cancelAnimationFrame(animFrame);
+      
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
       renderer.domElement.removeEventListener('click', handleClick);
       renderer.domElement.removeEventListener('dblclick', handleDblClick);
-      window.removeEventListener('resize', handleResize);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      
+      if (renderer.domElement.parentNode === containerRef.current) {
+        containerRef.current?.removeChild(renderer.domElement);
       }
-      if (controlsRef.current) {
-        controlsRef.current.removeEventListener('change', handleCameraChange);
-        controlsRef.current.dispose();
-      }
-      graphNodesRef.current.forEach(node => {
-        if (node.textSprite) {
-          node.textSprite.material.map?.dispose();
-          node.textSprite.material.dispose();
+      
+      controls.dispose();
+      renderer.dispose();
+      
+      worker.terminate();
+      workerBusyRef.current = false;
+      
+      // Cleanup Three.js scene
+      scene.traverse((object) => {
+        if ((object as THREE.Mesh).isMesh || (object as THREE.Sprite).isSprite) {
+          const mesh = object as THREE.Mesh | THREE.Sprite;
+          mesh.geometry.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => m.dispose());
+          } else {
+            mesh.material.dispose();
+          }
         }
       });
-      if (edgeLinesRef.current) {
-        edgeLinesRef.current.geometry.dispose();
-        (edgeLinesRef.current.material as THREE.Material).dispose();
-        edgeLinesRef.current = null;
-      }
-      if (rendererRef.current && containerRef.current) {
-        if (rendererRef.current.domElement.parentNode === containerRef.current) {
-          containerRef.current.removeChild(rendererRef.current.domElement);
-        }
-        rendererRef.current.dispose();
-      }
-      physicsWorkerRef.current?.terminate();
-      physicsWorkerRef.current = null;
-      workerBusyRef.current = false;
-    };
-    // Cleanup
-    return () => {
-      isCancelled = true;
-      if (localCleanup) {
-        localCleanup();
-      }
     };
 
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
