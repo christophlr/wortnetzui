@@ -85,7 +85,7 @@ const MAX_ZOOM_DIST = 8000;
 function distToSliderVal(d: number): number {
   const clamped = Math.max(MIN_ZOOM_DIST, Math.min(MAX_ZOOM_DIST, d));
   return (Math.log(MAX_ZOOM_DIST) - Math.log(clamped)) /
-    (Math.log(MAX_ZOOM_DIST) - Math.log(MIN_ZOOM_DIST)) * 100;
+         (Math.log(MAX_ZOOM_DIST) - Math.log(MIN_ZOOM_DIST)) * 100;
 }
 
 function sliderValToDist(s: number): number {
@@ -122,7 +122,7 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   segs.forEach(({ x, y, color, label }) => {
     const isHovered = label && label === hoveredLabel;
     const isActive = label && label === activeLabel;
-
+    
     ctx.beginPath();
     ctx.moveTo(c, c);
     ctx.lineTo(x, y);
@@ -144,12 +144,12 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
       let rad = 9;
       if (isActive) rad = 10.5;
       else if (isHovered) rad = 9.5;
-
+      
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-
+      
       ctx.font = 'bold 11px system-ui,sans-serif';
       ctx.fillStyle = 'white';
       ctx.textAlign = 'center';
@@ -362,7 +362,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
   }, [physicsParams]);
-
+  
   const fitToView = (instant = false) => {
     if (!cameraRef.current || !controlsRef.current || graphNodeArrayRef.current.length === 0) return;
 
@@ -378,12 +378,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     box.getSize(size);
 
     const maxDim = Math.max(size.x, size.y, size.z);
-
+    
     if (viewMode === '3D') {
       const cam = cameraRef.current as THREE.PerspectiveCamera;
       const fov = cam.fov * (Math.PI / 180);
       // Determine distance based on FOV to fit the max dimension with padding
-      let distance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+      let distance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5; 
       distance = Math.max(distance, 800); // Minimum comfortable distance
 
       // Standard isometric-ish angle for the reset/initial view
@@ -411,7 +411,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (!containerRef.current) return;
       const nw = containerRef.current.clientWidth;
       const nh = containerRef.current.clientHeight;
-
+      
       const zoomX = nw / (size.x || 1);
       const zoomY = nh / (size.y || 1);
       const targetZoom = Math.min(zoomX, zoomY) * 0.8;
@@ -513,17 +513,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (!controlsRef.current || !cameraRef.current) return;
     const cam = cameraRef.current;
     const target = controlsRef.current.target;
-
+    
     const distance = cam.position.distanceTo(target);
     const speed = distance * 0.001;
-
+    
     const left = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
-
+    
     const panVector = new THREE.Vector3()
       .addScaledVector(left, -deltaX * speed)
       .addScaledVector(up, deltaY * speed);
-
+      
     cam.position.add(panVector);
     target.add(panVector);
     controlsRef.current.update();
@@ -533,13 +533,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't pan if typing in an input
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-
+      
       const step = e.shiftKey ? 40 : 15;
       switch (e.key) {
-        case 'ArrowLeft': panView(-step, 0); break;
+        case 'ArrowLeft':  panView(-step, 0); break;
         case 'ArrowRight': panView(step, 0); break;
-        case 'ArrowUp': panView(0, step); break;
-        case 'ArrowDown': panView(0, -step); break;
+        case 'ArrowUp':    panView(0, step); break;
+        case 'ArrowDown':  panView(0, -step); break;
         default: return;
       }
       e.preventDefault();
@@ -618,7 +618,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const arr = nodeArr ?? Array.from(nodes.values());
     const vs = vsOverride ?? visualSettingsRef.current;
     const ss = ssOverride ?? styleSettingsRef.current;
-
+    
     // Preparation for uDistMap (conceptual for now as requested)
     const uDistMap = {
       origin: new THREE.Color(vs.gradientOrigin),
@@ -629,29 +629,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const node = arr[i];
       if (node.textSprite) {
         node.textSprite.position.set(node.x, node.y, node.z);
-
+        
         // Visibility
         node.textSprite.visible = vs.nodesVisible;
-
+        
         // RADIAL BIAS LOGIC
         // Intensity = BaseValue + (RadialBias * DistanceFromCenter)
         // Note: Distance is normalized relative to a "viewport center" or global origin
         const dist = Math.sqrt(node.x * node.x + node.y * node.y + node.z * node.z);
         const normDist = Math.min(1.0, dist / 1000); // Normalize to typical graph spread
-
+        
         // Scale Radial Bias
         const baseScale = node.textSprite.userData.baseScale * ss.nodeScale;
         const scaleIntensity = 1.0 + (vs.radialBiasScale * normDist);
         const aspectRatio = node.textSprite.userData.aspectRatio;
-
+        
         let finalScale = baseScale * scaleIntensity;
         // Instance Override
         if (node.unlinkedScale && node.scaleOverride !== undefined) {
           finalScale = node.textSprite.userData.baseScale * node.scaleOverride;
         }
-
+        
         node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
-
+        
         // Opacity Radial Bias
         let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDist));
         // Instance Override
@@ -659,7 +659,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           finalOpacity = node.opacityOverride;
         }
         node.textSprite.material.opacity = finalOpacity;
-
+        
         // MESH GRADIENT (uDistMap simulation)
         // Interpolate between Origin and Periphery based on distance
         const nodeColor = new THREE.Color().lerpColors(uDistMap.origin, uDistMap.periphery, normDist);
@@ -674,15 +674,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           // This is a simplified JS version of the shader logic requested
           const spritePos = node.textSprite.position.clone().project(cameraRef.current!);
           const mouseDist = spritePos.distanceTo(new THREE.Vector3(mousePosRef.current.x, mousePosRef.current.y, spritePos.z));
-
+          
           // Revealed radius based on brush size (normalized)
-          const brushRadiusNorm = vs.glitchBrushRadius / 500;
+          const brushRadiusNorm = vs.glitchBrushRadius / 500; 
           const feather = vs.glitchFeather;
-
+          
           const reveal = 1.0 - THREE.MathUtils.smoothstep(mouseDist, brushRadiusNorm * (1 - feather), brushRadiusNorm);
           node.textSprite.material.opacity *= reveal;
         }
-
+        
         // Label Visibility
         if (!vs.labelsVisible) {
           node.textSprite.material.opacity *= 0.2;
@@ -702,14 +702,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         pos.setXYZ(idx + 1, edge.b.x, edge.b.y, edge.b.z);
       }
       pos.needsUpdate = true;
-
+      
       // Handle flow animation (conceptual for now)
       if (vs.edgeFlowAnimation) {
         // This would typically involve a shader update or texture offset
         // For now we just keep the flag in mind
       }
     }
-
+    
     // GLITCH PAINT TOOL revealed by distance (conceptual uniform update)
     if (vs.glitchActive) {
       // In a real implementation, we would pass uMousePos and vs.glitchBrushRadius/glitchFeather
@@ -743,7 +743,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
     const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
     const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
-
+    
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;
 
@@ -860,9 +860,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const createSpriteFromTexture = (
     texture: THREE.Texture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
   ): THREE.Sprite => {
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
+    const spriteMaterial = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true, 
       depthTest: true,
       depthWrite: true,
       alphaTest: 0.1
@@ -885,7 +885,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const r = Math.round(ca[0] + (cb[0] - ca[0]) * t);
     const g = Math.round(ca[1] + (cb[1] - ca[1]) * t);
     const bl = Math.round(ca[2] + (cb[2] - ca[2]) * t);
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
   };
 
   const getColorFromWordCount = (wordCount: number, min: number, max: number, gs: GradientSettings): string => {
@@ -920,7 +920,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (!node.textSprite) return;
     const cached = textureCacheRef.current.get(node.label);
     if (!cached) return;
-
+    
     let tex = cached.normal;
     if (selected) {
       if (!cached.selected) {
@@ -937,7 +937,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
       tex = cached.highlighted;
     }
-
+    
     node.textSprite.material.map = tex;
     node.textSprite.material.needsUpdate = true;
   };
@@ -960,7 +960,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (!cached) return;
       const isHovered = hoveredNodeRef.current?.label === node.label;
       const isSelected = selectedNodeRef.current?.label === node.label;
-
+      
       let tex = cached.normal;
       if (isSelected) {
         if (!cached.selected) {
@@ -977,7 +977,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
         tex = cached.highlighted;
       }
-
+      
       node.textSprite.material.map = tex;
       node.textSprite.material.needsUpdate = true;
       node.textSprite.userData.baseScale = cached.baseScale;
@@ -1046,7 +1046,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const hermite = (pPrev: number | null, tPrev: number | null, p0: number, p1: number, pNext: number | null, tNext: number | null, mOut: number | undefined, mIn: number | undefined): number => {
       // Boundary fix: clamp to 0 at first/last keyframe to prevent overshoot
       const m0 = (mOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, pPrev, prev.time, p0, next.time, p1))) * t0;
-      const m1 = (mIn ?? (tNext === null ? 0 : computeCatmullRomTangent(prev.time, p0, next.time, p1, tNext, pNext))) * t1;
+      const m1 = (mIn  ?? (tNext === null ? 0 : computeCatmullRomTangent(prev.time, p0, next.time, p1, tNext, pNext))) * t1;
       return evaluateHermite(tRaw, p0, m0, p1, m1, segDur);
     };
 
@@ -1098,7 +1098,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     cameraRef.current = camera;
 
     // Setup renderer
-    const renderer = new THREE.WebGLRenderer({
+    const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
       alpha: true
     });
@@ -1179,7 +1179,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     const edgeIdxArr = new Int32Array(edges.length * 2);
     edges.forEach((edge, ei) => {
-      edgeIdxArr[ei * 2] = labelToIdx.get(edge.a.label)!;
+      edgeIdxArr[ei * 2]     = labelToIdx.get(edge.a.label)!;
       edgeIdxArr[ei * 2 + 1] = labelToIdx.get(edge.b.label)!;
     });
 
@@ -1202,7 +1202,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       // unsettled state until the worker reports back.
       const settleBuffer = new Float64Array(nodeCount * 6);
       nodeArr.forEach((node, i) => {
-        settleBuffer[i * 6] = node.x;
+        settleBuffer[i * 6]     = node.x;
         settleBuffer[i * 6 + 1] = node.y;
         settleBuffer[i * 6 + 2] = node.z;
         // vx/vy/vz stay 0
@@ -1246,7 +1246,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const arr = graphNodeArrayRef.current;
       for (let i = 0; i < arr.length; i++) {
         const b = i * 6;
-        arr[i].x = posVel[b]; arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
+        arr[i].x = posVel[b];     arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
         arr[i].vx = posVel[b + 3]; arr[i].vy = posVel[b + 4]; arr[i].vz = posVel[b + 5];
       }
 
@@ -1270,8 +1270,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
                 const overlap = minSep - distSep;
                 if (overlap > maxOverlap) maxOverlap = overlap;
                 const push = overlap * 0.5 / distSep;
-                a.x += dx * push; a.y += dy * push;
-                b2.x -= dx * push; b2.y -= dy * push;
+                a.x += dx * push;   a.y += dy * push;
+                b2.x -= dx * push;  b2.y -= dy * push;
               }
             }
           }
@@ -1295,8 +1295,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     };
 
     // Create edges — single merged LineSegments (1 draw call for all edges)
-    const edgeColor = edgeAppearance.color !== 'auto'
-      ? new THREE.Color(edgeAppearance.color)
+    const edgeColor = edgeAppearance.color !== 'auto' 
+      ? new THREE.Color(edgeAppearance.color) 
       : new THREE.Color(isDark ? 0xe4e4e7 : 0x94a3b8); // Zinc-200 on dark, Zinc-400 on light
     const edgeMaterial = new THREE.LineBasicMaterial({
       color: edgeColor,
@@ -1309,7 +1309,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     for (let i = 0; i < edges.length; i++) {
       const edge = edges[i];
       const idx = i * 6;
-      edgePositions[idx] = edge.a.x; edgePositions[idx + 1] = edge.a.y; edgePositions[idx + 2] = edge.a.z;
+      edgePositions[idx]     = edge.a.x; edgePositions[idx + 1] = edge.a.y; edgePositions[idx + 2] = edge.a.z;
       edgePositions[idx + 3] = edge.b.x; edgePositions[idx + 4] = edge.b.y; edgePositions[idx + 5] = edge.b.z;
     }
     const edgeGeometry = new THREE.BufferGeometry();
@@ -1397,7 +1397,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const selecting = hit.label !== prev?.label;
       selectedNodeRef.current = selecting ? hit : null;
       swapSpriteTexture(hit, hit.label === hoveredNodeRef.current?.label, selecting);
-
+      
       // Notify parent
       onNodeSelectRef.current?.(selecting ? hit : null);
     };
@@ -1462,15 +1462,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           const to = physicsBlendToRef.current;
 
           // Reuse a scratch object to avoid per-frame allocation during blend
-          physicsBlendScratchRef.current.repulsion = from.repulsion + (to.repulsion - from.repulsion) * t;
-          physicsBlendScratchRef.current.springK = from.springK + (to.springK - from.springK) * t;
-          physicsBlendScratchRef.current.damping = from.damping + (to.damping - from.damping) * t;
-          physicsBlendScratchRef.current.minSpeed = from.minSpeed + (to.minSpeed - from.minSpeed) * t;
-          physicsBlendScratchRef.current.linkDistance = from.linkDistance + (to.linkDistance - from.linkDistance) * t;
-          physicsBlendScratchRef.current.gravity = from.gravity + (to.gravity - from.gravity) * t;
-          physicsBlendScratchRef.current.turbulence = from.turbulence + (to.turbulence - from.turbulence) * t;
+          physicsBlendScratchRef.current.repulsion   = from.repulsion   + (to.repulsion   - from.repulsion)   * t;
+          physicsBlendScratchRef.current.springK     = from.springK     + (to.springK     - from.springK)     * t;
+          physicsBlendScratchRef.current.damping     = from.damping     + (to.damping     - from.damping)     * t;
+          physicsBlendScratchRef.current.minSpeed    = from.minSpeed    + (to.minSpeed    - from.minSpeed)    * t;
+          physicsBlendScratchRef.current.linkDistance= from.linkDistance+ (to.linkDistance- from.linkDistance)* t;
+          physicsBlendScratchRef.current.gravity     = from.gravity     + (to.gravity     - from.gravity)     * t;
+          physicsBlendScratchRef.current.turbulence  = from.turbulence  + (to.turbulence  - from.turbulence)  * t;
           physicsBlendScratchRef.current.verticalOrder = from.verticalOrder + (to.verticalOrder - from.verticalOrder) * t;
-          physicsBlendScratchRef.current.pulse = from.pulse + (to.pulse - from.pulse) * t;
+          physicsBlendScratchRef.current.pulse       = from.pulse       + (to.pulse       - from.pulse)       * t;
           paramsForFrame = physicsBlendScratchRef.current;
 
           if (tRaw >= 1) {
@@ -1490,15 +1490,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
             const val = interpolatePhysicsParam(pkfs[trackId] ?? [], t);
             if (val !== null) {
               if (!overridden) {
-                scratch.repulsion = paramsForFrame.repulsion;
-                scratch.springK = paramsForFrame.springK;
-                scratch.damping = paramsForFrame.damping;
-                scratch.minSpeed = paramsForFrame.minSpeed;
+                scratch.repulsion    = paramsForFrame.repulsion;
+                scratch.springK      = paramsForFrame.springK;
+                scratch.damping      = paramsForFrame.damping;
+                scratch.minSpeed     = paramsForFrame.minSpeed;
                 scratch.linkDistance = paramsForFrame.linkDistance;
-                scratch.gravity = paramsForFrame.gravity;
-                scratch.turbulence = paramsForFrame.turbulence;
+                scratch.gravity      = paramsForFrame.gravity;
+                scratch.turbulence   = paramsForFrame.turbulence;
                 scratch.verticalOrder = paramsForFrame.verticalOrder;
-                scratch.pulse = paramsForFrame.pulse;
+                scratch.pulse        = paramsForFrame.pulse;
                 overridden = true;
               }
               (scratch as Record<string, number>)[param] = val;
@@ -1515,7 +1515,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const now = performance.now();
         const dt = Math.max(1, now - lastParamsTimeRef.current);
         const prev = lastParamsValuesRef.current;
-
+        
         // Sum up the magnitude of changes across all parameters
         const dRep = Math.abs(paramsForFrame.repulsion - prev.repulsion) / 1000;
         const dSpr = Math.abs(paramsForFrame.springK - prev.springK) * 20;
@@ -1526,16 +1526,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dTrb = Math.abs((paramsForFrame.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
         const dVto = Math.abs((paramsForFrame.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
         const dPls = Math.abs((paramsForFrame.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
-
+        
         const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dt;
-
+        
         // Suppress jolt if timeline is driving the animation or we are playing
         if (!isDrivenByTimeline && !isPlayingRef.current) {
           physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
         } else {
           physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8; // Fast decay
         }
-
+        
         lastParamsTimeRef.current = now;
         lastParamsValuesRef.current = { ...paramsForFrame };
 
@@ -1543,13 +1543,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
         let sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
         if ((physicsVelocityRef.current || 0) > 0.01 || sentParams.pulse > 0) {
-
+          
           if (sentParams.pulse > 0) {
-            const pulseTime = performance.now() * 0.002;
-            const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
-            const pulseFactor = Math.sin(pulseTime) * sentParams.pulse * 0.15 * joltSuppression;
-            sentParams.repulsion = sentParams.repulsion * (1 + pulseFactor);
-            sentParams.linkDistance = sentParams.linkDistance * (1 + pulseFactor * 0.2);
+             const pulseTime = performance.now() * 0.002;
+             const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
+             const pulseFactor = Math.sin(pulseTime) * sentParams.pulse * 0.15 * joltSuppression;
+             sentParams.repulsion = sentParams.repulsion * (1 + pulseFactor);
+             sentParams.linkDistance = sentParams.linkDistance * (1 + pulseFactor * 0.2);
           }
 
           if ((physicsVelocityRef.current || 0) > 0.01) {
@@ -1566,7 +1566,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dispArr = graphNodeArrayRef.current;
         for (let i = 0; i < dispArr.length; i++) {
           const b = i * 6;
-          pv[b] = dispArr[i].x; pv[b + 1] = dispArr[i].y; pv[b + 2] = dispArr[i].z;
+          pv[b]     = dispArr[i].x;  pv[b + 1] = dispArr[i].y;  pv[b + 2] = dispArr[i].z;
           pv[b + 3] = dispArr[i].vx; pv[b + 4] = dispArr[i].vy; pv[b + 5] = dispArr[i].vz;
         }
         workerBusyRef.current = true;
@@ -1662,7 +1662,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (is2D) {
         const cam = camera as THREE.OrthographicCamera;
         cam.left = -nw / 2; cam.right = nw / 2;
-        cam.top = nh / 2; cam.bottom = -nh / 2;
+        cam.top = nh / 2;   cam.bottom = -nh / 2;
       } else {
         (camera as THREE.PerspectiveCamera).aspect = nw / nh;
       }
@@ -1833,15 +1833,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   const handleViewportContextMenu = useCallback((e: React.MouseEvent) => {
     if (!rendererRef.current || !cameraRef.current || !containerRef.current) return;
-
+    
     const rect = containerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
+    
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
     const intersects = raycaster.intersectObjects(spritesArrayRef.current);
-
+    
     if (intersects.length > 0) {
       const sprite = intersects[0].object;
       const node = graphNodesRef.current.get(sprite.userData.label);
@@ -1850,7 +1850,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         return;
       }
     }
-
+    
     // If no node clicked, don't open menu
     setContextMenuNode(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1876,7 +1876,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const c = size / 2;
     const r = size * 0.42;
     const invQ = cameraRef.current.quaternion.clone().invert();
-
+    
     const axes = [
       { dir: new THREE.Vector3(1, 0, 0), label: 'X' },
       { dir: new THREE.Vector3(0, 1, 0), label: 'Y' },
@@ -1891,7 +1891,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const px = c + pos.x * r;
       const py = c - pos.y * r;
       const dist = Math.sqrt(Math.pow(mx - px, 2) + Math.pow(my - py, 2));
-
+      
       if (dist <= 12 && pos.z > maxZ) {
         maxZ = pos.z;
         closestHit = { dir, label };
@@ -1973,12 +1973,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   return (
     <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuNode(null); }}>
-      <div
-        ref={containerRef}
+      <div 
+        ref={containerRef} 
         className="w-full h-full relative outline-none select-none bg-transparent"
         style={{ touchAction: 'none' }}
       >
-        <ContextMenuTrigger
+        <ContextMenuTrigger 
           className="w-full h-full"
           onContextMenu={handleViewportContextMenu}
         >
@@ -2020,7 +2020,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           <div className="absolute top-4 right-4 z-20 bg-blue-500/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
             <Lock className="w-3 h-3" />
             CAMERA LOCKED
-            <button
+            <button 
               className="ml-1 hover:bg-white/20 rounded px-1 transition-colors"
               onClick={() => {
                 setCameraLocked(false);

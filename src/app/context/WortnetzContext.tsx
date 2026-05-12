@@ -5,12 +5,12 @@ import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import { evaluateHermite, computeCatmullRomTangent } from '../easing';
 import type { Network3DHandle } from '../components/Network3D';
 
-import {
-  Keyframe,
-  PhysicsKeyframe,
-  SceneMarker,
-  TimelineState,
-  WortnetzContextType
+import { 
+  Keyframe, 
+  PhysicsKeyframe, 
+  SceneMarker, 
+  TimelineState, 
+  WortnetzContextType 
 } from './WortnetzContextTypes';
 
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
@@ -27,7 +27,7 @@ export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number,
       const segDur = b.time - a.time;
       if (segDur === 0) return a.value;
       const tRaw = (time - a.time) / segDur;
-
+      
       const prevTime = i > 0 ? sorted[i - 1].time : null;
       const prevVal = i > 0 ? sorted[i - 1].value : null;
       const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
@@ -37,7 +37,7 @@ export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number,
       const m1 = b.handleIn ?? (nextTime === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal));
 
       const val = evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
-
+      
       return trackId === 'phys-grv' ? val : Math.max(0, val);
     }
   }
@@ -86,7 +86,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
   const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
   const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);
-  const [lastAppliedPreset, setLastAppliedPreset] = useState<'outline' | 'filled' | null>(null);
+  const [lastAppliedPreset, setLastAppliedPreset] = useState<'outline'|'filled'|null>(null);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
   const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS, sceneMarkers: [] }]);
@@ -135,7 +135,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const selectedKeyframesRef = useRef(selectedKeyframes);
   useEffect(() => { selectedKeyframesRef.current = selectedKeyframes; }, [selectedKeyframes]);
-
+  
   const isRecordingRef = useRef(isRecording);
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
 
@@ -160,9 +160,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const previewIsDark = themeMode === 'dark';
 
   const { handleSave: ioSave, handleLoad: ioLoad } = useWorkspaceIO(
-    useCallback(() => ({
-      inputText, parseMode, gradientSettings, styleSettings, physicsParams,
-      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers
+    useCallback(() => ({ 
+      inputText, parseMode, gradientSettings, styleSettings, physicsParams, 
+      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers 
     }), [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
     useCallback((s) => {
       if (s.inputText) setInputText(s.inputText);
@@ -257,7 +257,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       cameraKeyframesRef.current = next;
       return next;
     });
-
+    
     const zoom = network3DRef.current?.getZoom();
     if (zoom !== undefined) setZoomValue(zoom);
   }, [viewMode]);
@@ -552,12 +552,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const handlePhysicsChange = useCallback((params: Partial<typeof physicsParams>) => {
     setPhysicsParams(prev => ({ ...prev, ...params }));
-
+    
     const currentTime = playheadRef.current;
     setPhysicsKeyframes(prevKfs => {
       let changed = false;
       const nextKfs = { ...prevKfs };
-
+      
       for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
         const newVal = (params as Record<string, number>)[paramName];
         if (newVal === undefined) continue;
@@ -565,7 +565,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         const track = prevKfs[trackId] ?? [];
         const isRecordingLocal = isRecordingRef.current;
         if (track.length === 0 && !isRecordingLocal) continue;
-
+        
         const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
         if (kfIdx >= 0) {
           if (newVal !== track[kfIdx].value) {
@@ -578,7 +578,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           changed = true;
         }
       }
-
+      
       if (!changed) return prevKfs;
       physicsKeyframesRef.current = nextKfs;
       return nextKfs;
