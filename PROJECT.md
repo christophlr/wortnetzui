@@ -60,14 +60,14 @@ Radix-based context menus, and semantic iconography.
 
 | File | Role |
 |---|---|
-| `App.tsx` | Slim composer component. Wraps the app in `WortnetzProvider`. |
+| `App.tsx` | Composer component. In transition from monolithic state-holder to slim composer. |
 | `context/WortnetzContext.tsx` | **Single source of truth.** Owns all React state and core handlers. |
 | `hooks/useHistory.ts` | Undo/redo state management for the timeline. |
 | `hooks/useProject.ts` | Project file persistence (save/load). |
 | `components/shell/` | Modular layout components: `AppShell`, `AppSidebar`, `AppCanvas`. |
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
 | `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |
-| `Inspector.tsx` | Right sidebar with 5 tab panels. Consumes `WortnetzContext`. |
+| `Inspector.tsx` | Right sidebar with 5 tab panels. In transition to consuming `WortnetzContext`. |
 | `TopBar.tsx` | Two floating pills: menu and actions. Consumes `WortnetzContext`. |
 | `Toolbar.tsx` | Vertical 5-tool picker viewport overlay. |
 | `timeline/` | Modular animation workspace: Transport, Ruler, Dopesheet, Graph Editor. Consumes `WortnetzContext`. |

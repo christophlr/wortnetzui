@@ -29,4 +29,4 @@
 - **Timeline Refactor**: Modularized architecture, visual easing icons, and Shadcn context menus.
 - **Timeline Improvements**: Implemented multi-selection dragging for keyframes and markers, and interactive snapping to scene markers.
 - **3D Viewport Context Menu**: Standardized with Shadcn/Radix components.
-- **Modular Architecture Refactor**: Transitioned from monolithic `App.tsx` to a context-driven modular architecture (`WortnetzContext`, `AppShell`, `AppSidebar`, `AppCanvas`). Resolved state sync bugs (e.g., parse mode default mismatch) and wired up transport controls (e.g., Stop button).
+- **Modular Architecture Refactor**: Phase 3 (Inspector Modularization) is complete. `Inspector.tsx` is now composed of specialized tab components. Phase 4 (Network3D Breakdown & App.tsx Slimming) is next to finalize the context-driven architecture.
