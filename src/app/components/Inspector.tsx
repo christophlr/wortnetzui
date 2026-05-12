@@ -3,44 +3,14 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Diamond, 
   Type, 
   PaintRoller, 
-  Zap, 
-  RefreshCw,
-  MoreHorizontal,
   PanelRight,
   PanelRightClose,
   X,
-  Plus,
-  Minus,
   Video,
   Atom,
-  Monitor,
   Proportions,
-  Fullscreen,
-  MonitorPlay,
-  Tv,
-  Image,
-  FileText,
-  Move,
-  Eye,
-  EyeOff,
-  Link,
-  Link2Off,
-  Wand2,
-  Route,
-  Target,
-  CircleDot,
-  Layers,
-  Globe,
-  MousePointer2,
-  Dices,
-  Square,
-  Circle,
-  RectangleHorizontal,
-  MousePointerClick,
-  Sparkles,
   Camera,
   CornerUpRight,
   Activity
@@ -215,12 +185,6 @@ export function Inspector({
 }: InspectorProps) {
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
-  const [puckPos, setPuckPos] = useState({ x: 0, y: 0 });
-  const [isDraggingPuck, setIsDraggingPuck] = useState(false);
-  const [panPuckPos, setPanPuckPos] = useState({ x: 0, y: 0 });
-  const [isDraggingPanPuck, setIsDraggingPanPuck] = useState(false);
-  const [zoomPuckPos, setZoomPuckPos] = useState({ x: 0, y: 0 });
-  const [isDraggingZoomPuck, setIsDraggingZoomPuck] = useState(false);
 
   // Sync local text with default input text on load
   useEffect(() => {
@@ -318,49 +282,12 @@ export function Inspector({
             
             {/* CONTENT TAB */}
             {activeTab === 'content' && (
-              <div>
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Eingabetext</SidebarGroupLabel>
-                  <SidebarGroupContent className="px-3 space-y-4">
-                    <Textarea 
-                      className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans" 
-                      placeholder="Text hier einfügen..."
-                      value={localText}
-                      onChange={(e) => setLocalText(e.target.value)}
-                    />
-                    <Button 
-                      className="w-full h-9 text-xs gap-2 bg-zinc-900 hover:bg-zinc-800 text-white shadow-md active:scale-[0.98] transition-transform"
-                      onClick={() => onTextChange(localText)}
-                    >
-                      <RefreshCw size={14} />
-                      Aktualisieren
-                    </Button>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-
-                <Separator className="bg-zinc-200/60 mx-4" />
-
-                <SidebarGroup className="py-4 pb-6 mt-2">
-                  <SidebarGroupLabel className="text-zinc-400 font-bold uppercase tracking-widest text-[9px] px-2 mb-3">Parse Modus</SidebarGroupLabel>
-                  <SidebarGroupContent className="px-3">
-                    <RadioGroup defaultValue="word" onValueChange={(v) => onParsingChange(v as any)} className="gap-4">
-                      {[
-                        { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
-                        { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
-                        { id: 'both', label: 'Beides', desc: 'Wörter als Brücke' },
-                      ].map((item) => (
-                        <div key={item.id} className="flex items-start space-x-3 group cursor-pointer">
-                          <RadioGroupItem value={item.id} id={item.id} className="mt-0.5 border-zinc-300 text-zinc-900" />
-                          <label htmlFor={item.id} className="text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-800 transition-colors">
-                            {item.label}
-                            <p className="text-[10px] text-zinc-400 font-normal mt-1">{item.desc}</p>
-                          </label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </div>
+              <ContentTab
+                localText={localText}
+                setLocalText={setLocalText}
+                onTextChange={onTextChange}
+                onParsingChange={onParsingChange}
+              />
             )}
 
             {/* VISUAL TAB (Accordion-based Property Stack) */}
@@ -406,7 +333,7 @@ export function Inspector({
 
           <div className="p-3 bg-zinc-100/80 border-t border-zinc-200 flex items-center justify-between">
             <p className="text-[9px] text-zinc-400 font-bold tracking-widest uppercase">Workspace Properties</p>
-            <p className="text-[9px] text-zinc-400 font-mono">v0.8.2</p>
+            <p className="text-[9px] text-zinc-400 font-mono">v0.8.5</p>
           </div>
         </div>
       </div>

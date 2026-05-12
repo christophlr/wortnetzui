@@ -4,9 +4,16 @@
   import { ErrorBoundary } from "./app/components/ErrorBoundary.tsx";
   import "./styles/index.css";
 
+  import { WortnetzProvider } from "./app/context/WortnetzContext.tsx";
+  import { AppShell } from "./app/components/shell/AppShell.tsx";
+
   createRoot(document.getElementById("root")!).render(
     <ErrorBoundary>
-      <App />
+      <WortnetzProvider>
+        <AppShell>
+          <App />
+        </AppShell>
+      </WortnetzProvider>
     </ErrorBoundary>
   );
   

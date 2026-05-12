@@ -18,7 +18,7 @@ export function ContentTab({
   localText: string;
   setLocalText: (text: string) => void;
   onTextChange: (text: string) => void;
-  onParsingChange: (mode: string) => void;
+  onParsingChange: (mode: 'sentence' | 'word' | 'both') => void;
 }) {
   return (
     <div>

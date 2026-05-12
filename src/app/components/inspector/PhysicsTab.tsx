@@ -2,6 +2,8 @@ import * as React from 'react';
 import { Input } from '../ui/input';
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '../ui/sidebar';
 
+import { Slider } from '../ui/slider';
+
 function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [localValue, setLocalValue] = React.useState(value.toString());
@@ -97,9 +99,18 @@ export function PhysicsTab({
                 />
               </div>
             </div>
+            <Slider
+              value={[p.value]}
+              min={p.min ?? 0}
+              max={p.max}
+              step={p.step}
+              onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
+              className="py-1"
+            />
           </div>
         ))}
       </SidebarGroupContent>
     </SidebarGroup>
   );
 }
+

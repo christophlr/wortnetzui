@@ -8,7 +8,7 @@ export function CanvasTab({
   onCanvasAspectRatioChange,
 }: {
   canvasAspectRatio: string;
-  onCanvasAspectRatioChange: (ratio: string) => void;
+  onCanvasAspectRatioChange?: (ratio: string) => void;
 }) {
   return (
     <div>
@@ -20,7 +20,7 @@ export function CanvasTab({
               <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200 mb-3 block">Seitenverhältnis</span>
               <RadioGroup 
                 value={canvasAspectRatio} 
-                onValueChange={onCanvasAspectRatioChange}
+                onValueChange={(v) => onCanvasAspectRatioChange?.(v)}
                 className="grid grid-cols-2 gap-2"
               >
                 {[
