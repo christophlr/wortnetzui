@@ -44,21 +44,21 @@ export interface WortnetzContextType {
   setThemeMode: (mode: 'light' | 'hybrid' | 'dark') => void;
   renderMode: 'edit' | 'render';
   setRenderMode: (mode: 'edit' | 'render') => void;
-  
+
   activeTool: ToolId;
   setActiveTool: (tool: ToolId) => void;
   canvasAspectRatio: string;
   setCanvasAspectRatio: (ratio: string) => void;
   zoomValue: number;
   setZoomValue: (val: number) => void;
-  
+
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
   inspectorWidth: number;
   setInspectorWidth: (width: number) => void;
   timelineHeight: number;
   setTimelineHeight: (height: number) => void;
-  
+
   isNetworkReady: boolean;
   setIsNetworkReady: (ready: boolean) => void;
   initProgress: number;
@@ -151,8 +151,8 @@ export interface WortnetzContextType {
   setNodeAppearance: (app: NodeAppearanceSettings) => void;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
-  lastAppliedPreset: 'outline'|'filled'|null;
-  setLastAppliedPreset: (preset: 'outline'|'filled'|null) => void;
+  lastAppliedPreset: 'outline' | 'filled' | null;
+  setLastAppliedPreset: (preset: 'outline' | 'filled' | null) => void;
 
   // Timeline / Playback
   isPlaying: boolean;
@@ -163,7 +163,7 @@ export interface WortnetzContextType {
   setPlayheadPosition: React.Dispatch<React.SetStateAction<number>>;
   timecode: string;
   setTimecode: (val: string) => void;
-  
+
   cameraKeyframes: Keyframe[];
   setCameraKeyframes: React.Dispatch<React.SetStateAction<Keyframe[]>>;
   physicsKeyframes: Record<string, PhysicsKeyframe[]>;
@@ -184,12 +184,12 @@ export interface WortnetzContextType {
 
   selectedNode: any;
   setSelectedNode: (node: any) => void;
-  
+
   // Derived
   effectivePhysicsParams: any;
   previewIsDark: boolean;
   uiIsDark: boolean;
-  
+
   // Actions
   handleCaptureKeyframe: () => void;
   handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
@@ -201,7 +201,7 @@ export interface WortnetzContextType {
   handleAddSceneMarker: (time: number, label?: string) => void;
   handleRenameSceneMarker: (time: number, label?: string) => void;
   handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
-  
+
   handleSetValue: (trackId: string, time: number, value: number) => void;
   handleSetHandle2D: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleCameraChange: () => void;
@@ -212,7 +212,7 @@ export interface WortnetzContextType {
   handlePhysicsChange: (params: Partial<WortnetzContextType['physicsParams']>) => void;
   handleDragStart: () => void;
   handleDragEnd: () => void;
-  
+
   // History
   pushHistory: (next: TimelineState) => void;
   getTimelineState: () => TimelineState;
@@ -220,7 +220,7 @@ export interface WortnetzContextType {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  
+
   // Workspace
   handleSave: () => void;
   handleLoad: () => void;

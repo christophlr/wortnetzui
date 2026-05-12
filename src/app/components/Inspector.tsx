@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Type, 
-  PaintRoller, 
+import {
+  Type,
+  PaintRoller,
   PanelRight,
   PanelRightClose,
   X,
@@ -89,7 +89,7 @@ function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFi
   }
 
   return (
-    <button 
+    <button
       onClick={() => {
         setIsEditing(true);
         setLocalValue(value.toString());
@@ -230,7 +230,7 @@ export function Inspector({
     return (
       <div className="flex h-full w-12 bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
-          <button 
+          <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar einblenden"
@@ -250,10 +250,10 @@ export function Inspector({
   return (
     <SidebarProvider className="h-full w-full">
       <div className="flex h-full w-full bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
-        
+
         {/* VS Code Style Activity Bar (Icons) */}
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
-          <button 
+          <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar ausblenden"
@@ -279,7 +279,7 @@ export function Inspector({
           </SidebarHeader>
 
           <SidebarContent className="flex-1 overflow-y-auto overflow-x-hidden p-0">
-            
+
             {/* CONTENT TAB */}
             {activeTab === 'content' && (
               <ContentTab
