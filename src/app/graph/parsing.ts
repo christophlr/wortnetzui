@@ -1,5 +1,9 @@
 import type { GraphNode, GraphEdge } from './types';
 
+export const MAX_NGRAM_WORDS = 4;
+export const MAX_NGRAM_CHARS = 10;
+export const MAX_TOTAL_NODES = 300;
+
 export function normalizeText(text: string): string {
   return text
     .replace(/[,!?;:()""\"]/g, '')
@@ -15,9 +19,11 @@ export function splitSentences(text: string): string[] {
 export function buildSubstrings(words: string[], sentenceId: number, nodes: Map<string, GraphNode>): void {
   const n = words.length;
 
-  // Create all possible substrings
+  // Create all possible substrings up to MAX_NGRAM_WORDS
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j <= n; j++) {
+    const maxJ = Math.min(n, i + MAX_NGRAM_WORDS);
+    for (let j = i + 1; j <= maxJ; j++) {
+      if (nodes.size >= MAX_TOTAL_NODES) return;
       const sub = words.slice(i, j).join(' ');
       if (!nodes.has(sub)) {
         nodes.set(sub, {
@@ -56,7 +62,8 @@ export function buildInclusionEdges(
   const n = words.length;
 
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j <= n; j++) {
+    const maxJ = Math.min(n, i + MAX_NGRAM_WORDS);
+    for (let j = i + 1; j <= maxJ; j++) {
       if (j - i <= 1) continue; // Need at least 2 words to create sub-edges
 
       const curLabel = words.slice(i, j).join(' ');
@@ -81,7 +88,9 @@ export function buildInclusionEdges(
 export function buildCharSubstrings(word: string, nodes: Map<string, GraphNode>): void {
   const n = word.length;
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j <= n; j++) {
+    const maxJ = Math.min(n, i + MAX_NGRAM_CHARS);
+    for (let j = i + 1; j <= maxJ; j++) {
+      if (nodes.size >= MAX_TOTAL_NODES) return;
       const sub = word.slice(i, j);
       if (!nodes.has(sub)) {
         nodes.set(sub, {
@@ -104,7 +113,8 @@ export function buildCharInclusionEdges(
 ): void {
   const n = word.length;
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j <= n; j++) {
+    const maxJ = Math.min(n, i + MAX_NGRAM_CHARS);
+    for (let j = i + 1; j <= maxJ; j++) {
       if (j - i <= 1) continue;
       const cur = nodes.get(word.slice(i, j));
       if (!cur) continue;
@@ -131,10 +141,11 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
 
   // Word n-gram layer (Satzebene)
   if (mode === 'sentence' || mode === 'both') {
-    sentences.forEach((sentence, sentenceId) => {
-      const words = sentence.split(/\s+/).filter(Boolean);
-      buildSubstrings(words, sentenceId, nodes);
-    });
+    for (let i = 0; i < sentences.length; i++) {
+      if (nodes.size >= MAX_TOTAL_NODES) break;
+      const words = sentences[i].split(/\s+/).filter(Boolean);
+      buildSubstrings(words, i, nodes);
+    }
     sentences.forEach((sentence) => {
       const words = sentence.split(/\s+/).filter(Boolean);
       buildInclusionEdges(words, nodes, edges, edgeSet);
@@ -147,7 +158,10 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
     sentences.forEach(sentence =>
       sentence.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w))
     );
-    allWords.forEach(word => buildCharSubstrings(word, nodes));
+    for (const word of allWords) {
+      if (nodes.size >= MAX_TOTAL_NODES) break;
+      buildCharSubstrings(word, nodes);
+    }
     allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges, edgeSet));
   }
 
@@ -158,5 +172,5 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
     maxW = Math.max(maxW, node.wordCount);
   });
 
-  return { nodes, edges, minWords: minW, maxWords: maxW };
+  return { nodes, edges, minWords: minW === Infinity ? 0 : minW, maxWords: maxW === -Infinity ? 0 : maxW };
 }

@@ -509,7 +509,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     lastAppliedTimeRef.current = null;
   }, [cameraKeyframes]);
 
-  const panView = (deltaX: number, deltaY: number) => {
+  const panView = useCallback((deltaX: number, deltaY: number) => {
     if (!controlsRef.current || !cameraRef.current) return;
     const cam = cameraRef.current;
     const target = controlsRef.current.target;
@@ -527,7 +527,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     cam.position.add(panVector);
     target.add(panVector);
     controlsRef.current.update();
-  };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -546,7 +546,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [panView]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {

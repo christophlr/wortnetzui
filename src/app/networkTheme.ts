@@ -62,7 +62,7 @@ export function getVividColor(color: string, isDarkWorkspace: boolean): string {
 }
 
 export function getNetworkThemeBackground(isDark?: boolean): NetworkThemeBackground {
-  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('theme-hybrid');
+  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark');
   if (dark) {
     return { hex: '#09090b', threeColor: 0x09090b };
   }
@@ -71,7 +71,7 @@ export function getNetworkThemeBackground(isDark?: boolean): NetworkThemeBackgro
 }
 
 export function getNetworkLabelStyle(isDark?: boolean): NetworkLabelStyle {
-  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('theme-hybrid');
+  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark');
   if (dark) {
     return { backgroundHex: '#18181b' }; // Zinc-900 for labels
   }

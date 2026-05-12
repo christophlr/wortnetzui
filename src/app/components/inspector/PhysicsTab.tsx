@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Input } from '../ui/input';
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '../ui/sidebar';
-import { Slider } from '../ui/slider';
 
 function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -84,33 +83,18 @@ export function PhysicsTab({
                 <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">{p.label}</span>
                 <span className="text-[9px] text-zinc-400 mt-0.5 leading-tight pr-2">{p.desc}</span>
               </div>
-              <div className="flex flex-col w-full">
-                <div className="flex items-center justify-between">
-                  <div />
-                  <div className="flex items-center gap-2 shrink-0">
-                    <SliderValue
-                      value={p.value}
-                      min={p.min ?? 0}
-                      max={p.max}
-                      onCommit={(val) => onPhysicsChange({ [p.key]: val })}
-                      format={(v) => typeof v === 'number' ? v.toFixed(2) : v}
-                    />
-                    <button
-                      onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                      className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
-                    />
-                  </div>
-                </div>
-
-                <div className="pl-1 mt-2">
-                  <Slider
-                    value={[p.value]}
-                    max={p.max ?? 100}
-                    step={p.step ?? 1}
-                    onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
-                    className="py-1"
-                  />
-                </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <SliderValue 
+                  value={p.value} 
+                  min={p.min ?? 0}
+                  max={p.max}
+                  onCommit={(val) => onPhysicsChange({ [p.key]: val })} 
+                  format={(v) => typeof v === 'number' ? v.toFixed(2) : v} 
+                />
+                <button 
+                  onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                  className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
+                />
               </div>
             </div>
           </div>

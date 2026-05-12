@@ -163,20 +163,52 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   }
 
   // Spring attraction along edges with rest-length
+  const springDamping = Math.sqrt(springK) * 0.5; // Critical damping factor
+  const maxSpringForce = 15 + springK * 30; // Dynamic cap based on stiffness
   const edgeCount = edgeIndices.length >> 1;
+
   for (let e = 0; e < edgeCount; e++) {
     const ai = edgeIndices[e * 2];
     const bi = edgeIndices[e * 2 + 1];
     const ba = ai * 6;
     const bb = bi * 6;
+
     const dx = posVel[bb]     - posVel[ba];
     const dy = posVel[bb + 1] - posVel[ba + 1];
     const dz = posVel[bb + 2] - posVel[ba + 2];
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
-    const forceMag = (dist - linkDistance) * springK;
-    const fx = (dx / dist) * forceMag;
-    const fy = (dy / dist) * forceMag;
-    const fz = (dz / dist) * forceMag;
+
+    const displacement = dist - linkDistance;
+    let forceMag = displacement * springK;
+
+    // 1. Spring force capping
+    if (Math.abs(forceMag) > maxSpringForce) {
+      forceMag = Math.sign(forceMag) * maxSpringForce;
+    }
+
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const uz = dz / dist;
+
+    let fx = ux * forceMag;
+    let fy = uy * forceMag;
+    let fz = uz * forceMag;
+
+    // 2. Critical Damping along the spring axis
+    if (springK > 0) {
+      // Relative velocity
+      const rvx = posVel[bb + 3] - posVel[ba + 3];
+      const rvy = posVel[bb + 4] - posVel[ba + 4];
+      const rvz = posVel[bb + 5] - posVel[ba + 5];
+
+      // Project relative velocity onto spring unit vector
+      const vSpring = rvx * ux + rvy * uy + rvz * uz;
+      const dampingForce = vSpring * springDamping;
+
+      fx += ux * dampingForce;
+      fy += uy * dampingForce;
+      fz += uz * dampingForce;
+    }
 
     posVel[ba + 3] += fx;  posVel[ba + 4] += fy;  posVel[ba + 5] += fz;
     posVel[bb + 3] -= fx;  posVel[bb + 4] -= fy;  posVel[bb + 5] -= fz;

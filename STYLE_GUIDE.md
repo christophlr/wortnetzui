@@ -13,6 +13,11 @@
 
 ## UI Conventions
 
+### Theme Modes
+- **Light**: White UI + light 3D background.
+- **Dark**: Dark UI + dark 3D background.
+- Managed via the `themeMode` state in `WortnetzContext` and the `.dark` class on the `<html>` element.
+
 ### Scale Baseline
 - `h-6` (24px) = maximum height for all **inline** controls: toggle buttons, icon buttons,
   label buttons, accordion headers, inline inputs.
@@ -32,15 +37,12 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
   behaviour in one mode, check that the intent carries to the other.
 
 ### Layout Rule
-- Inspector = docked right sidebar. Never floating.
-- Toolbar = floating left, inside artboard, not fixed to browser window.
-- Overlay elements (loading, dialogs) = positioned relative to Preview viewport, not window.
-- TopBar = absolute top-0 inside main viewport div, `pointer-events-none` shell with
-  `pointer-events-auto` on the pills.
-- Timeline = absolute bottom-0 inside main viewport div.
-- **Dynamic Offsets**: The `Preview` area is constrained by `top` and `bottom` offsets 
-  calculated from the absolute UI bands. This prevents overlap while respecting the 
-  absolute positioning requirement.
+- **AppShell Architecture**: The layout is managed as a set of structural siblings: `AppSidebar` (right), `Timeline` (bottom), and `AppCanvas` (center/background).
+- **Inspector**: A docked right sidebar. Never floating. Resizable via handle.
+- **Timeline**: A docked bottom panel. Never floating. Resizable via handle.
+- **Toolbar**: Floating left, inside artboard, not fixed to browser window.
+- **Overlay Elements**: Loading spinners, version badges, etc., must be positioned relative to the `AppCanvas` / `Preview` viewport, not the full browser window.
+- **Visual Parity**: The `Preview` component handles the 3D network rendering within the artboard. The model remains in the space *between* panels (not under them), especially for the timeline and sidebar.
 
 ### Property Stack UI Pattern (Inspector)
 - **Hierarchy Spacing**: In the Visual tab's full-width property stack, each section uses wider vertical rhythm and deeper indented control rows (`pl-5`) so headers, groups, and control values read as a clear parent-child hierarchy.
