@@ -31,7 +31,7 @@ Nodes are rendered as **`THREE.Sprite`** objects. This is a deliberate, locked c
 - The sprite texture is a `THREE.CanvasTexture` from a standard `HTMLCanvasElement` for perfect anti-aliased text.
 
 ### 1.3 Edge Rendering
-All edges are rendered as a **single `THREE.LineSegments`** object with `renderOrder: 0`. 1 draw call for all edges.
+All edges are rendered as a **single `THREE.LineSegments`** object with `renderOrder: 0`. Edge materials keep `depthTest: true` but must use `depthWrite: false` so they never win over node sprites in the depth buffer. 1 draw call for all edges.
 
 ### 1.4 Texture Cache — 3-State per Node
 Each node label has 3 cached `THREE.CanvasTexture` entries: `normal`, `highlighted`, `selected`. `swapSpriteTexture()` swaps them.

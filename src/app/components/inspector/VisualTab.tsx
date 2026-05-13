@@ -4,6 +4,14 @@ import type { NodeShape } from '../../networkTheme';
 import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
 import { cn } from '../ui/utils';
+import {
+  InspectorControlLabel,
+  InspectorPanelSection,
+  InspectorSectionHeader,
+  InspectorSubgroup,
+  InspectorSubgroupTitle,
+  InspectorValueChip,
+} from './InspectorAtoms';
 
 // Placeholder component for gradient color field
 function GradientColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
@@ -35,9 +43,10 @@ export function VisualTab({
 
   return (
     <div className="divide-y divide-zinc-300/80 dark:divide-zinc-800">
-      <section className="px-5 py-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">Knoten</span>
+      <InspectorPanelSection>
+        <InspectorSectionHeader
+          title="Knoten"
+          actions={
           <button
             className={cn(
               "ml-auto p-0 transition-colors",
@@ -47,10 +56,11 @@ export function VisualTab({
           >
             {visualSettings.nodesVisible ? <Eye size={13} /> : <EyeOff size={13} />}
           </button>
-        </div>
+          }
+        />
 
-        <div className="space-y-3.5 pl-5">
-          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">Form</span>
+        <InspectorSubgroup className="space-y-3.5">
+          <InspectorSubgroupTitle>Form</InspectorSubgroupTitle>
           <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 border border-zinc-300 dark:border-zinc-700">
             {[
               { id: 'rectangle', icon: Square, label: 'Rect' },
@@ -73,14 +83,14 @@ export function VisualTab({
               </button>
             ))}
           </div>
-        </div>
+        </InspectorSubgroup>
 
-        <div className="space-y-3 pl-5">
+        <InspectorSubgroup>
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Basis-Skalierung</span>
-            <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
+            <InspectorControlLabel>Basis-Skalierung</InspectorControlLabel>
+            <InspectorValueChip>
               {(styleSettings.nodeScale ?? 1).toFixed(1)}x
-            </span>
+            </InspectorValueChip>
           </div>
           <Slider
             value={[(styleSettings.nodeScale ?? 1) * 100]}
@@ -89,14 +99,14 @@ export function VisualTab({
             onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
             className="py-2"
           />
-        </div>
+        </InspectorSubgroup>
 
-        <div className="space-y-3 pl-5 pt-1">
+        <InspectorSubgroup className="pt-1">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Radialer Bias</span>
-            <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
+            <InspectorControlLabel>Radialer Bias</InspectorControlLabel>
+            <InspectorValueChip>
               {visualSettings.radialBiasScale.toFixed(2)}
-            </span>
+            </InspectorValueChip>
           </div>
           <Slider
             value={[visualSettings.radialBiasScale * 100]}
@@ -106,12 +116,13 @@ export function VisualTab({
             className="py-2"
           />
           <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight">Scale = Basis + (Bias × Dist)</p>
-        </div>
-      </section>
+        </InspectorSubgroup>
+      </InspectorPanelSection>
 
-      <section className="px-5 py-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">Beschriftung</span>
+      <InspectorPanelSection>
+        <InspectorSectionHeader
+          title="Beschriftung"
+          actions={
           <button
             className={cn(
               "ml-auto p-0 transition-colors",
@@ -121,14 +132,15 @@ export function VisualTab({
           >
             {visualSettings.labelsVisible ? <Eye size={13} /> : <EyeOff size={13} />}
           </button>
-        </div>
+          }
+        />
 
-        <div className="space-y-3 pl-5">
+        <InspectorSubgroup>
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Weight-Mapping</span>
-            <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
+            <InspectorControlLabel>Weight-Mapping</InspectorControlLabel>
+            <InspectorValueChip>
               {visualSettings.labelWeightMapping.toFixed(2)}
-            </span>
+            </InspectorValueChip>
           </div>
           <Slider
             value={[visualSettings.labelWeightMapping * 100]}
@@ -137,12 +149,13 @@ export function VisualTab({
             onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
             className="py-2"
           />
-        </div>
-      </section>
+        </InspectorSubgroup>
+      </InspectorPanelSection>
 
-      <section className="px-5 py-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">Verbindungen</span>
+      <InspectorPanelSection>
+        <InspectorSectionHeader
+          title="Verbindungen"
+          actions={
           <button
             className={cn(
               "ml-auto p-0 transition-colors",
@@ -152,23 +165,26 @@ export function VisualTab({
           >
             {visualSettings.edgesVisible ? <Eye size={13} /> : <EyeOff size={13} />}
           </button>
-        </div>
+          }
+        />
 
-        <div className="flex items-center justify-between pl-5">
-          <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Flow Animation</span>
-          <Switch
-            checked={visualSettings.edgeFlowAnimation}
-            onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
-            className="scale-90 data-[state=checked]:bg-zinc-900"
-          />
-        </div>
-
-        <div className="space-y-3 pl-5">
+        <InspectorSubgroup>
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Global Opacity</span>
-            <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
+            <InspectorControlLabel>Flow Animation</InspectorControlLabel>
+            <Switch
+              checked={visualSettings.edgeFlowAnimation}
+              onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, edgeFlowAnimation: checked })}
+              className="scale-90 data-[state=checked]:bg-zinc-900"
+            />
+          </div>
+        </InspectorSubgroup>
+
+        <InspectorSubgroup>
+          <div className="flex items-center justify-between">
+            <InspectorControlLabel>Global Opacity</InspectorControlLabel>
+            <InspectorValueChip>
               {Math.round(styleSettings.edgeOpacity * 100)}%
-            </span>
+            </InspectorValueChip>
           </div>
           <Slider
             value={[styleSettings.edgeOpacity * 100]}
@@ -177,12 +193,14 @@ export function VisualTab({
             onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
             className="py-2"
           />
-        </div>
-      </section>
+        </InspectorSubgroup>
+      </InspectorPanelSection>
 
-      <section className="px-5 py-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">Umgebung</span>
+      <InspectorPanelSection>
+        <InspectorSectionHeader
+          title="Umgebung"
+          actions={
+          <>
           <button
             onClick={() => onVisualSettingsChange?.({ ...visualSettings, envAtmosphereSeed: Math.random() * 1000 })}
             className="ml-auto p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
@@ -201,10 +219,12 @@ export function VisualTab({
           >
             {visualSettings.envVisible ? <Eye size={13} /> : <EyeOff size={13} />}
           </button>
-        </div>
+          </>
+          }
+        />
 
-        <div className="space-y-3.5 pl-5">
-          <span className="text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold tracking-[0.03em]">Atmosphäre-Gradient</span>
+        <InspectorSubgroup className="space-y-3.5">
+          <InspectorSubgroupTitle className="text-zinc-700 dark:text-zinc-300 text-[11px]">Atmosphäre-Gradient</InspectorSubgroupTitle>
           <div className="grid gap-4 md:grid-cols-2">
             <GradientColorField
               label="Origin"
@@ -217,10 +237,10 @@ export function VisualTab({
               onChange={(value) => onVisualSettingsChange?.({ ...visualSettings, gradientPeriphery: value })}
             />
           </div>
-        </div>
-      </section>
+        </InspectorSubgroup>
+      </InspectorPanelSection>
 
-      <section className="px-5 py-5 space-y-5">
+      <InspectorPanelSection>
         <button
           type="button"
           className="flex w-full items-center gap-2 text-left"
@@ -233,7 +253,7 @@ export function VisualTab({
 
         {(isFxExpanded || visualSettings.glitchActive) && (
           <div className="space-y-4 rounded-lg border border-zinc-300/80 bg-zinc-50/85 p-3.5 dark:border-zinc-700 dark:bg-zinc-900/20">
-            <div className="flex items-center justify-between pl-2">
+            <div className="flex items-center justify-between">
               <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Glitch Paint</span>
               <Switch
                 className="scale-90 data-[state=checked]:bg-indigo-600"
@@ -244,7 +264,7 @@ export function VisualTab({
 
             {visualSettings.glitchActive && (
               <>
-                <div className="space-y-3 pl-2">
+                <InspectorSubgroup>
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Brush Radius</span>
                     <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
@@ -258,9 +278,9 @@ export function VisualTab({
                     onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
                     className="py-2"
                   />
-                </div>
+                </InspectorSubgroup>
 
-                <div className="space-y-3 pl-2">
+                <InspectorSubgroup>
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Feather</span>
                     <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
@@ -274,33 +294,35 @@ export function VisualTab({
                     onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
                     className="py-2"
                   />
-                </div>
+                </InspectorSubgroup>
               </>
             )}
           </div>
         )}
-      </section>
+      </InspectorPanelSection>
 
-      <section className="px-5 py-5 space-y-5">
+      <InspectorPanelSection>
         <div className="flex items-center gap-2">
           <span className="text-zinc-800 dark:text-zinc-200 font-bold uppercase tracking-[0.08em] text-[11px]">Path Animator</span>
         </div>
 
-        <div className="flex items-center justify-between pl-5">
-          <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Camera Follow</span>
-          <Switch
-            checked={visualSettings.pathCameraFollow}
-            onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
-            className="scale-90 data-[state=checked]:bg-emerald-600"
-          />
-        </div>
-
-        <div className="space-y-3 pl-5">
+        <InspectorSubgroup>
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Smoothness</span>
-            <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
+            <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Camera Follow</span>
+            <Switch
+              checked={visualSettings.pathCameraFollow}
+              onCheckedChange={(checked) => onVisualSettingsChange?.({ ...visualSettings, pathCameraFollow: checked })}
+              className="scale-90 data-[state=checked]:bg-emerald-600"
+            />
+          </div>
+        </InspectorSubgroup>
+
+        <InspectorSubgroup>
+          <div className="flex items-center justify-between">
+            <InspectorControlLabel>Smoothness</InspectorControlLabel>
+            <InspectorValueChip>
               {visualSettings.pathSmoothness.toFixed(2)}
-            </span>
+            </InspectorValueChip>
           </div>
           <Slider
             value={[visualSettings.pathSmoothness * 100]}
@@ -309,8 +331,8 @@ export function VisualTab({
             onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
             className="py-2"
           />
-        </div>
-      </section>
+        </InspectorSubgroup>
+      </InspectorPanelSection>
     </div>
   );
 }

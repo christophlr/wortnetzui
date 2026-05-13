@@ -2,7 +2,7 @@ import type { GraphNode, GraphEdge } from './types';
 
 export const MAX_NGRAM_WORDS = 4;
 export const MAX_NGRAM_CHARS = 10;
-export const MAX_TOTAL_NODES = 300;
+export const MAX_TOTAL_NODES = 700; // Increased for 'both' mode which combines layers
 
 export function normalizeText(text: string): string {
   return text
@@ -16,7 +16,11 @@ export function splitSentences(text: string): string[] {
   return text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
 }
 
-export function buildSubstrings(words: string[], sentenceId: number, nodes: Map<string, GraphNode>): void {
+/**
+ * Build sentence-layer nodes: word n-grams extracted from a single sentence.
+ * Creates all n-gram substrings up to MAX_NGRAM_WORDS length.
+ */
+function buildSentenceLayerNodes(words: string[], sentenceId: number, nodes: Map<string, GraphNode>): void {
   const n = words.length;
 
   // Create all possible substrings up to MAX_NGRAM_WORDS
@@ -53,7 +57,11 @@ function addEdgeIfNew(
   edges.push({ a, b });
 }
 
-export function buildInclusionEdges(
+/**
+ * Build sentence-layer edges: inclusion relationships within a sentence's n-grams.
+ * Connects longer n-grams to their immediate sub-n-grams (left/right removal).
+ */
+function buildSentenceLayerEdges(
   words: string[],
   nodes: Map<string, GraphNode>,
   edges: GraphEdge[],
@@ -85,7 +93,11 @@ export function buildInclusionEdges(
   }
 }
 
-export function buildCharSubstrings(word: string, nodes: Map<string, GraphNode>): void {
+/**
+ * Build character-layer nodes: character n-grams extracted from a single word.
+ * Creates all n-gram substrings up to MAX_NGRAM_CHARS length.
+ */
+function buildCharLayerNodes(word: string, nodes: Map<string, GraphNode>): void {
   const n = word.length;
   for (let i = 0; i < n; i++) {
     const maxJ = Math.min(n, i + MAX_NGRAM_CHARS);
@@ -105,7 +117,11 @@ export function buildCharSubstrings(word: string, nodes: Map<string, GraphNode>)
   }
 }
 
-export function buildCharInclusionEdges(
+/**
+ * Build character-layer edges: inclusion relationships within a word's character n-grams.
+ * Connects longer character n-grams to their immediate sub-n-grams (left/right removal).
+ */
+function buildCharLayerEdges(
   word: string,
   nodes: Map<string, GraphNode>,
   edges: GraphEdge[],
@@ -126,6 +142,35 @@ export function buildCharInclusionEdges(
   }
 }
 
+/**
+ * Build cross-layer edges: connections between the sentence layer and character layer.
+ * Connects each single word to its constituent character n-grams.
+ * This keeps edges meaningful and prevents clutter while linking the two layers.
+ */
+function buildCrossLayerEdges(
+  words: string[],
+  nodes: Map<string, GraphNode>,
+  edges: GraphEdge[],
+  edgeSet: Set<string>
+): void {
+  // For each word, connect it to all its character n-grams
+  for (const word of words) {
+    const wordNode = nodes.get(word);
+    if (!wordNode) continue;
+
+    // Connect word to all its character n-grams
+    for (let i = 0; i < word.length; i++) {
+      for (let j = i + 1; j <= Math.min(word.length, i + MAX_NGRAM_CHARS); j++) {
+        const charSubstring = word.slice(i, j);
+        const charNode = nodes.get(charSubstring);
+        if (charNode && charNode !== wordNode) {
+          addEdgeIfNew(wordNode, charNode, edges, edgeSet);
+        }
+      }
+    }
+  }
+}
+
 export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | 'both'): {
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
@@ -139,20 +184,23 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
   const clean = normalizeText(text);
   const sentences = splitSentences(clean);
 
-  // Word n-gram layer (Satzebene)
+  // === UNIFIED PARSING PIPELINE ===
+  // Both modes build both layers internally; mode acts as a filter on output.
+
+  // PHASE 1: Build sentence-layer nodes and edges
   if (mode === 'sentence' || mode === 'both') {
     for (let i = 0; i < sentences.length; i++) {
       if (nodes.size >= MAX_TOTAL_NODES) break;
       const words = sentences[i].split(/\s+/).filter(Boolean);
-      buildSubstrings(words, i, nodes);
+      buildSentenceLayerNodes(words, i, nodes);
     }
     sentences.forEach((sentence) => {
       const words = sentence.split(/\s+/).filter(Boolean);
-      buildInclusionEdges(words, nodes, edges, edgeSet);
+      buildSentenceLayerEdges(words, nodes, edges, edgeSet);
     });
   }
 
-  // Character n-gram layer (Wortebene)
+  // PHASE 2: Build character-layer nodes and edges
   if (mode === 'word' || mode === 'both') {
     const allWords = new Set<string>();
     sentences.forEach(sentence =>
@@ -160,11 +208,26 @@ export function buildNetworkFromText(text: string, mode: 'sentence' | 'word' | '
     );
     for (const word of allWords) {
       if (nodes.size >= MAX_TOTAL_NODES) break;
-      buildCharSubstrings(word, nodes);
+      buildCharLayerNodes(word, nodes);
     }
-    allWords.forEach(word => buildCharInclusionEdges(word, nodes, edges, edgeSet));
+    allWords.forEach(word => buildCharLayerEdges(word, nodes, edges, edgeSet));
   }
 
+  // PHASE 3: Build cross-layer edges (unified network)
+  if (mode === 'both') {
+    const allWords = new Set<string>();
+    sentences.forEach(sentence =>
+      sentence.split(/\s+/).filter(Boolean).forEach(w => allWords.add(w))
+    );
+    // Connect each word to its character n-grams
+    for (const word of allWords) {
+      if (nodes.has(word)) {
+        buildCrossLayerEdges([word], nodes, edges, edgeSet);
+      }
+    }
+  }
+
+  // Calculate metrics over final graph
   let minW = Infinity;
   let maxW = -Infinity;
   nodes.forEach(node => {

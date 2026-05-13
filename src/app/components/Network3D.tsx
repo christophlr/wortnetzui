@@ -1302,6 +1302,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       color: edgeColor,
       opacity: styleSettings.edgeOpacity,
       transparent: true,
+      depthTest: true,
+      depthWrite: false,
       linewidth: styleSettings.edgeWidth
     });
 
@@ -1315,6 +1317,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const edgeGeometry = new THREE.BufferGeometry();
     edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
     const edgeLineSegments = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+    edgeLineSegments.renderOrder = 0;
     scene.add(edgeLineSegments);
     edgeLinesRef.current = edgeLineSegments;
 

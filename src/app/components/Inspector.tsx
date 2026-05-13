@@ -271,9 +271,9 @@ export function Inspector({
         {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
           <SidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
-            <h2 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
-              {activeTab === 'content' ? 'Eigenschaften' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik Engine' : activeTab === 'camera' ? 'Kamera Steuerung' : 'Canvas Layout'}
-            </h2>
+            <h1 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
+              {activeTab === 'content' ? 'Text' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik' : activeTab === 'camera' ? 'Kamera' : 'Canvas Layout'}
+            </h1>
             <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
               <X size={16} />
             </button>

@@ -21,6 +21,7 @@ The aesthetic target is a professional creative application (Figma / After Effec
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
 | `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |
 | `Inspector.tsx` | Right sidebar with 5 tab panels. |
+| `components/inspector/InspectorAtoms.tsx` | Shared atomic building blocks for inspector tab groups, subgroup headers, labels, and value chips. |
 | `TopBar.tsx` & `Toolbar.tsx` | Floating UI overlays (menu, actions, tool picker). |
 | `timeline/` | Modular animation workspace (Transport, Ruler, Dopesheet, Graph Editor). |
 | `ui/` | shadcn/ui component library + local `color-picker.tsx`. |

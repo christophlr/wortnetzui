@@ -50,6 +50,15 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - **Hierarchy Spacing**: In the Visual tab's full-width property stack, each section uses wider vertical rhythm and deeper indented control rows (`pl-5`) so headers, groups, and control values read as a clear parent-child hierarchy.
 - **Legibility Contrast**: Section titles use stronger contrast, labels sit one step below, and value chips use bordered surfaces to separate readings from labels in a Figma-like property panel flow.
 
+### Inspector Hierarchy Atoms
+- Inspector subgroup UI is composed from shared atoms in `src/app/components/inspector/InspectorAtoms.tsx`.
+- Required hierarchy is: `Sidebar` -> `Tab` -> `Subgroup` -> `Control row`.
+- Canonical reference for subgroup behavior and rhythm is `Visualisierung`: `Knoten`, `Beschriftung`, `Verbindungen`, `Umgebung`.
+- Canonical subgroup heading typography is: `text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]`.
+- `Kamera` tab uses the same hierarchy logic, even when the control content is custom (orbit/pan/zoom widgets).
+- New tabs or subgroups must reuse shared inspector atoms first; do not hand-roll fresh spacing, heading, or value-chip class stacks unless a shared atom is missing.
+- Typography should stay minimal and coherent: prefer shared atom defaults and override text classes only for explicit semantic differences.
+
 ### Sidebar Activity Tabs
 - In the Inspector's left activity bar, inactive tab buttons use the same subtle rounded hover rectangle as the toolbar buttons.
 - The active tab indicator and selection styling stay unchanged; only the hover affordance is shared.

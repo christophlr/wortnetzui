@@ -1,9 +1,8 @@
 import * as React from 'react';
 import { MoreHorizontal, Move } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Separator } from '../ui/separator';
-import { SidebarGroup, SidebarGroupContent } from '../ui/sidebar';
 import { cn } from '../ui/utils';
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle, InspectorValueChip } from './InspectorAtoms';
 
 export function CameraTab({
   onSetRotation,
@@ -26,14 +25,11 @@ export function CameraTab({
   const [isDraggingZoomPuck, setIsDraggingZoomPuck] = React.useState(false);
 
   return (
-    <SidebarGroup className="py-4 pb-6 mt-2">
-      <SidebarGroupContent className="px-3 space-y-6">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Rotation (Orbit)</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
+    <div className="divide-y divide-zinc-300/80 dark:divide-zinc-800">
+      <InspectorPanelSection>
+        <InspectorSectionHeader title="Rotation (Orbit)" />
+        
+        <div className="flex flex-col items-center gap-2">
             <div 
               className="relative w-full h-40 bg-zinc-50 rounded-2xl border border-zinc-200 shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden"
               onMouseDown={(e) => {
@@ -136,14 +132,10 @@ export function CameraTab({
                </button>
             </div>
           </div>
-        </div>
+        </InspectorPanelSection>
 
-        <Separator className="bg-zinc-200/40" />
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Ansicht verschieben (Pan)</span>
-          </div>
+        <InspectorPanelSection>
+          <InspectorSectionHeader title="Ansicht verschieben (Pan)" />
           
           <div className="flex flex-col items-center gap-2">
             <div 
@@ -211,13 +203,10 @@ export function CameraTab({
             </div>
             <span className="text-[9px] text-zinc-400 italic">Ziehen zum Verschieben</span>
           </div>
-        </div>
+        </InspectorPanelSection>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Zoom</span>
-            <span className="text-[10px] font-mono text-zinc-400">{zoomValue.toFixed(1)}%</span>
-          </div>
+        <InspectorPanelSection>
+          <InspectorSectionHeader title="Zoom" />
           
           <div className="relative h-6 flex items-center px-1 group">
             <div className="absolute inset-x-1 h-1.5 bg-zinc-200 rounded-full" />
@@ -265,25 +254,26 @@ export function CameraTab({
               <div className="size-1 rounded-full bg-zinc-300" />
             </div>
           </div>
-          <div className="flex justify-between px-1">
+          <div className="flex justify-between mt-2">
             <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">-</span>
             <span className="text-[9px] text-zinc-400 italic">Schieben zum Zoomen (Relativ)</span>
             <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">+</span>
           </div>
-        </div>
+        </InspectorPanelSection>
 
-        <Button 
-          variant="outline" 
-          className="w-full h-8 text-[11px] bg-white border-zinc-200 mt-4"
-          onClick={() => {
-            onResetView();
-            setPanPuckPos({ x: 0, y: 0 });
-            onZoomChange(50);
-          }}
-        >
-          Kamera zurücksetzen
-        </Button>
-      </SidebarGroupContent>
-    </SidebarGroup>
+        <div className="px-5 py-5">
+          <Button 
+            variant="outline" 
+            className="w-full h-8 text-[11px] bg-white border-zinc-200"
+            onClick={() => {
+              onResetView();
+              setPanPuckPos({ x: 0, y: 0 });
+              onZoomChange(50);
+            }}
+          >
+            Kamera zurücksetzen
+          </Button>
+        </div>
+    </div>
   );
 }
