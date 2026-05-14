@@ -1,16 +1,16 @@
 import * as React from 'react';
 import { Eye, EyeOff, Plus, Minus, Dices, Square, RectangleHorizontal, Circle } from 'lucide-react';
 import type { NodeShape } from '../../networkTheme';
-import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
 import { cn } from '../ui/utils';
 import {
   InspectorControlLabel,
   InspectorPanelSection,
   InspectorSectionHeader,
+  InspectorSliderControl,
+  InspectorSliderTrack,
   InspectorSubgroup,
   InspectorSubgroupTitle,
-  InspectorValueChip,
 } from './InspectorAtoms';
 
 // Placeholder component for gradient color field
@@ -86,36 +86,34 @@ export function VisualTab({
         </InspectorSubgroup>
 
         <InspectorSubgroup>
-          <div className="flex items-center justify-between">
-            <InspectorControlLabel>Basis-Skalierung</InspectorControlLabel>
-            <InspectorValueChip>
-              {(styleSettings.nodeScale ?? 1).toFixed(1)}x
-            </InspectorValueChip>
-          </div>
-          <Slider
-            value={[(styleSettings.nodeScale ?? 1) * 100]}
-            max={250}
-            step={5}
-            onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
-            className="py-2"
+          <InspectorSliderControl
+            label="Basis-Skalierung"
+            value={`${(styleSettings.nodeScale ?? 1).toFixed(1)}x`}
+            slider={
+              <InspectorSliderTrack
+                value={[(styleSettings.nodeScale ?? 1) * 100]}
+                max={250}
+                step={5}
+                onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+              />
+            }
           />
         </InspectorSubgroup>
 
         <InspectorSubgroup className="pt-1">
-          <div className="flex items-center justify-between">
-            <InspectorControlLabel>Radialer Bias</InspectorControlLabel>
-            <InspectorValueChip>
-              {visualSettings.radialBiasScale.toFixed(2)}
-            </InspectorValueChip>
-          </div>
-          <Slider
-            value={[visualSettings.radialBiasScale * 100]}
-            max={100}
-            step={1}
-            onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
-            className="py-2"
+          <InspectorSliderControl
+            label="Radialer Bias"
+            value={visualSettings.radialBiasScale.toFixed(2)}
+            slider={
+              <InspectorSliderTrack
+                value={[visualSettings.radialBiasScale * 100]}
+                max={100}
+                step={1}
+                onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, radialBiasScale: val / 100 })}
+              />
+            }
+            description="Scale = Basis + (Bias × Dist)"
           />
-          <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight">Scale = Basis + (Bias × Dist)</p>
         </InspectorSubgroup>
       </InspectorPanelSection>
 
@@ -136,18 +134,17 @@ export function VisualTab({
         />
 
         <InspectorSubgroup>
-          <div className="flex items-center justify-between">
-            <InspectorControlLabel>Weight-Mapping</InspectorControlLabel>
-            <InspectorValueChip>
-              {visualSettings.labelWeightMapping.toFixed(2)}
-            </InspectorValueChip>
-          </div>
-          <Slider
-            value={[visualSettings.labelWeightMapping * 100]}
-            max={100}
-            step={1}
-            onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
-            className="py-2"
+          <InspectorSliderControl
+            label="Weight-Mapping"
+            value={visualSettings.labelWeightMapping.toFixed(2)}
+            slider={
+              <InspectorSliderTrack
+                value={[visualSettings.labelWeightMapping * 100]}
+                max={100}
+                step={1}
+                onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, labelWeightMapping: val / 100 })}
+              />
+            }
           />
         </InspectorSubgroup>
       </InspectorPanelSection>
@@ -180,18 +177,17 @@ export function VisualTab({
         </InspectorSubgroup>
 
         <InspectorSubgroup>
-          <div className="flex items-center justify-between">
-            <InspectorControlLabel>Global Opacity</InspectorControlLabel>
-            <InspectorValueChip>
-              {Math.round(styleSettings.edgeOpacity * 100)}%
-            </InspectorValueChip>
-          </div>
-          <Slider
-            value={[styleSettings.edgeOpacity * 100]}
-            max={100}
-            step={1}
-            onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
-            className="py-2"
+          <InspectorSliderControl
+            label="Global Opacity"
+            value={`${Math.round(((styleSettings.edgeOpacity ?? 0) * 100))}%`}
+            slider={
+              <InspectorSliderTrack
+                value={[(styleSettings.edgeOpacity ?? 0) * 100]}
+                max={100}
+                step={1}
+                onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
+              />
+            }
           />
         </InspectorSubgroup>
       </InspectorPanelSection>
@@ -265,34 +261,32 @@ export function VisualTab({
             {visualSettings.glitchActive && (
               <>
                 <InspectorSubgroup>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Brush Radius</span>
-                    <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
-                      {visualSettings.glitchBrushRadius}px
-                    </span>
-                  </div>
-                  <Slider
-                    value={[visualSettings.glitchBrushRadius]}
-                    max={500}
-                    step={5}
-                    onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
-                    className="py-2"
+                  <InspectorSliderControl
+                    label="Brush Radius"
+                    value={`${visualSettings.glitchBrushRadius}px`}
+                    slider={
+                      <InspectorSliderTrack
+                        value={[visualSettings.glitchBrushRadius]}
+                        max={500}
+                        step={5}
+                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchBrushRadius: val })}
+                      />
+                    }
                   />
                 </InspectorSubgroup>
 
                 <InspectorSubgroup>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-medium text-zinc-800 dark:text-zinc-200">Feather</span>
-                    <span className="font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded">
-                      {visualSettings.glitchFeather.toFixed(2)}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[visualSettings.glitchFeather * 100]}
-                    max={100}
-                    step={1}
-                    onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
-                    className="py-2"
+                  <InspectorSliderControl
+                    label="Feather"
+                    value={visualSettings.glitchFeather.toFixed(2)}
+                    slider={
+                      <InspectorSliderTrack
+                        value={[visualSettings.glitchFeather * 100]}
+                        max={100}
+                        step={1}
+                        onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, glitchFeather: val / 100 })}
+                      />
+                    }
                   />
                 </InspectorSubgroup>
               </>
@@ -302,9 +296,7 @@ export function VisualTab({
       </InspectorPanelSection>
 
       <InspectorPanelSection>
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-800 dark:text-zinc-200 font-bold uppercase tracking-[0.08em] text-[11px]">Path Animator</span>
-        </div>
+        <InspectorSectionHeader title="Path Animator" />
 
         <InspectorSubgroup>
           <div className="flex items-center justify-between">
@@ -318,18 +310,17 @@ export function VisualTab({
         </InspectorSubgroup>
 
         <InspectorSubgroup>
-          <div className="flex items-center justify-between">
-            <InspectorControlLabel>Smoothness</InspectorControlLabel>
-            <InspectorValueChip>
-              {visualSettings.pathSmoothness.toFixed(2)}
-            </InspectorValueChip>
-          </div>
-          <Slider
-            value={[visualSettings.pathSmoothness * 100]}
-            max={100}
-            step={1}
-            onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
-            className="py-2"
+          <InspectorSliderControl
+            label="Smoothness"
+            value={visualSettings.pathSmoothness.toFixed(2)}
+            slider={
+              <InspectorSliderTrack
+                value={[visualSettings.pathSmoothness * 100]}
+                max={100}
+                step={1}
+                onValueChange={([val]) => onVisualSettingsChange?.({ ...visualSettings, pathSmoothness: val / 100 })}
+              />
+            }
           />
         </InspectorSubgroup>
       </InspectorPanelSection>

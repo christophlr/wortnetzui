@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { SidebarGroup, SidebarGroupContent } from '../ui/sidebar';
 import { cn } from '../ui/utils';
+import { Slider } from '../ui/slider';
 
 type DivProps = React.ComponentProps<'div'>;
 
@@ -52,7 +53,7 @@ export function InspectorSubgroup({ className, ...props }: DivProps) {
   return <div className={cn('space-y-3', className)} {...props} />;
 }
 
-export function InspectorSubgroupTitle({ className, ...props }: React.ComponentProps<'span'>) {
+export function InspectorSubgroupTitle({ className, ...props }: React.ComponentProps<'h3'>) {
   return <h3 className={cn('text-[12px] font-semibold text-zinc-800 dark:text-zinc-100', className)} {...props} />;
 }
 
@@ -69,5 +70,39 @@ export function InspectorValueChip({ className, ...props }: React.ComponentProps
       )}
       {...props}
     />
+  );
+}
+
+export function InspectorSliderTrack({ className, ...props }: React.ComponentProps<typeof Slider>) {
+  return <Slider className={cn('py-2', className)} {...props} />;
+}
+
+export function InspectorSliderControl({
+  label,
+  value,
+  accessory,
+  slider,
+  description,
+  className,
+}: {
+  label?: React.ReactNode;
+  value: React.ReactNode;
+  accessory?: React.ReactNode;
+  slider: React.ReactNode;
+  description?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-2.5', className)}>
+      <div className="flex items-center justify-between gap-2">
+        {label ? <InspectorSubgroupTitle className="flex-1">{label}</InspectorSubgroupTitle> : <div className="flex-1" />}
+        <div className="flex items-center gap-2 shrink-0">
+          <InspectorValueChip>{value}</InspectorValueChip>
+          {accessory}
+        </div>
+      </div>
+      {slider}
+      {description ? <p className="text-[10px] text-zinc-500 leading-tight">{description}</p> : null}
+    </div>
   );
 }

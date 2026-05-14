@@ -1,57 +1,6 @@
 import * as React from 'react';
-import { Input } from '../ui/input';
-
-import { Slider } from '../ui/slider';
 import { Diamond } from 'lucide-react';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle } from './InspectorAtoms';
-
-function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [localValue, setLocalValue] = React.useState(value.toString());
-
-  const commitValue = (valStr: string) => {
-    let val = parseFloat(valStr);
-    if (!isNaN(val)) {
-      if (min !== undefined) val = Math.max(min, val);
-      if (max !== undefined) val = Math.min(max, val);
-      onCommit(val);
-    }
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
-    return (
-      <Input
-        type="number"
-        autoFocus
-        className="w-12 h-6 text-[10px] px-1 py-0 text-center border-zinc-200"
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            commitValue(localValue);
-          } else if (e.key === 'Escape') {
-            setIsEditing(false);
-            setLocalValue(value.toString());
-          }
-        }}
-        onBlur={() => commitValue(localValue)}
-      />
-    );
-  }
-
-  return (
-    <button 
-      onClick={() => {
-        setIsEditing(true);
-        setLocalValue(value.toString());
-      }}
-      className="text-[10px] font-mono text-zinc-400 hover:text-zinc-900 transition-colors"
-    >
-      {format(value)}
-    </button>
-  );
-}
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSliderControl, InspectorSliderTrack } from './InspectorAtoms';
 
 export function PhysicsTab({
   effectivePhysicsParams,
@@ -96,36 +45,30 @@ export function PhysicsTab({
         <InspectorPanelSection key={group.title} className="space-y-4">
           <InspectorSectionHeader title={group.title} />
           {group.params.map((p) => (
-            <InspectorSubgroup key={p.id} className="space-y-2.5">
-              <InspectorSubgroupTitle>{p.label}</InspectorSubgroupTitle>
-              <div className="text-[9px] text-zinc-400 leading-tight pr-2">{p.desc}</div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 shrink-0">
-                  <SliderValue
-                    value={p.value}
-                    min={p.min ?? 0}
-                    max={p.max}
-                    onCommit={(val) => onPhysicsChange({ [p.key]: val })}
-                    format={(v) => typeof v === 'number' ? v.toFixed(2) : v}
-                  />
-                  <button
-                    onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                    className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200 shadow-sm' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
-                    title={physKfActive[p.id] ? 'Keyframe entfernen' : 'Keyframe setzen'}
-                  >
-                    <Diamond className={`size-2.5 ${physKfActive[p.id] ? 'fill-current' : ''}`} />
-                  </button>
-                </div>
-                <Slider
+            <InspectorSliderControl
+              key={p.id}
+              label={p.label}
+              value={typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+              description={p.desc}
+              accessory={
+                <button
+                  onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                  className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200 shadow-sm' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
+                  title={physKfActive[p.id] ? 'Keyframe entfernen' : 'Keyframe setzen'}
+                >
+                  <Diamond className={`size-2.5 ${physKfActive[p.id] ? 'fill-current' : ''}`} />
+                </button>
+              }
+              slider={
+                <InspectorSliderTrack
                   value={[p.value]}
                   min={p.min ?? 0}
                   max={p.max}
                   step={p.step}
                   onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
-                  className="flex-1 py-1"
                 />
-              </div>
-            </InspectorSubgroup>
+              }
+            />
           ))}
         </InspectorPanelSection>
       ))}

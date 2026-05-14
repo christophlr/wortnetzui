@@ -53,8 +53,10 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 ### Inspector Hierarchy Atoms
 - Inspector subgroup UI is composed from shared atoms in `src/app/components/inspector/InspectorAtoms.tsx`.
 - Required hierarchy is: `Sidebar` -> `Tab` -> `Subgroup` -> `Control row`.
+- Canonical slider composition uses shared atoms: `InspectorSliderControl` (h3 header row with label left, value/accessory right, slider below, optional description after the slider) and `InspectorSliderTrack` (shared slider baseline with `py-2`).
 - Canonical reference for subgroup behavior and rhythm is `Visualisierung`: `Knoten`, `Beschriftung`, `Verbindungen`, `Umgebung`.
 - Canonical subgroup heading typography is: `text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]`.
+- Numeric slider readings in inspector tabs should render with `InspectorValueChip`; when editable, wrap the chip in a button rather than replacing it with ad-hoc text styling.
 - `Kamera` tab uses the same hierarchy logic, even when the control content is custom (orbit/pan/zoom widgets).
 - New tabs or subgroups must reuse shared inspector atoms first; do not hand-roll fresh spacing, heading, or value-chip class stacks unless a shared atom is missing.
 - Typography should stay minimal and coherent: prefer shared atom defaults and override text classes only for explicit semantic differences.
