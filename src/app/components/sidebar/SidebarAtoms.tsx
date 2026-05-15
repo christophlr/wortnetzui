@@ -623,10 +623,50 @@ export function SidebarCollapsiblePanel({
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Deferred: SidebarDragPuck
-// CameraTab's orbit / pan / zoom widgets each have a distinct interaction
-// model (axis-snap orbit, free pan, horizontal zoom). The shared chrome
-// (box + grid + crosshair + draggable puck) is extracted in Phase 2.O,
-// when CameraTab is refactored. Adding it here without a tab consumer
-// would over-fit the API to one of the three current shapes.
+// SidebarDragPuck — shared chrome for CameraTab's orbit / pan / zoom
+// widgets. The wrapper provides the zinc background, border, grid + cross-
+// hair overlay, and drag-active border switch (--wn-accent). Each consumer
+// supplies its own mouse handlers and puck so the per-widget interaction
+// logic stays in the tab.
 // ──────────────────────────────────────────────────────────────────────────
+
+export type SidebarDragPuckAspect = 'square' | 'wide';
+
+const DRAG_PUCK_ASPECT: Record<SidebarDragPuckAspect, string> = {
+  square: 'h-40',
+  wide: 'h-32',
+};
+
+export function SidebarDragPuck({
+  aspect,
+  isDragging,
+  onMouseDown,
+  onDoubleClick,
+  overlay,
+  children,
+  className,
+}: {
+  aspect: SidebarDragPuckAspect;
+  isDragging?: boolean;
+  onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onDoubleClick?: () => void;
+  overlay?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
+      className={cn(
+        'relative w-full bg-zinc-50 rounded-2xl border shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden',
+        DRAG_PUCK_ASPECT[aspect],
+        isDragging ? 'border-wn-accent' : 'border-zinc-200',
+        className,
+      )}
+    >
+      {overlay}
+      {children}
+    </div>
+  );
+}
