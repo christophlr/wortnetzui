@@ -376,11 +376,9 @@ export function SidebarToggleRow({
   className?: string;
 }) {
   const toneClass =
-    tone === 'accent'
-      ? 'data-[state=checked]:bg-indigo-600'
-      : tone === 'positive'
-        ? 'data-[state=checked]:bg-emerald-600'
-        : 'data-[state=checked]:bg-zinc-900';
+    tone === 'accent' || tone === 'positive'
+      ? 'data-[state=checked]:bg-wn-accent'
+      : 'data-[state=checked]:bg-zinc-900';
 
   return (
     <div className={cn('space-y-2', className)}>
