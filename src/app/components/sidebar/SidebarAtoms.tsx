@@ -1,6 +1,5 @@
 /**
- * SidebarAtoms — canonical atomic primitives for the right sidebar (renamed
- * from the legacy InspectorAtoms.tsx).
+ * SidebarAtoms — canonical atomic primitives for the right sidebar.
  *
  * Hierarchy (see plan: Atomic hierarchy correction):
  *   1  SidebarTabHeader            <h1>  uppercased tab title
@@ -214,9 +213,8 @@ export function SidebarKeyframeToggle({
 }
 
 /**
- * SidebarEditableNumber — click-to-type numeric value button.
- * Replaces the orphaned `SliderValue` component in Inspector.tsx 56–102.
- * Commits on Enter / Tab / blur; cancels on Escape. Always clamps to [min, max].
+ * SidebarEditableNumber — click-to-type numeric value button. Commits on
+ * Enter / Tab / blur; cancels on Escape. Always clamps to [min, max].
  */
 export function SidebarEditableNumber({
   value,
