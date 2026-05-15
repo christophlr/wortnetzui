@@ -1,6 +1,10 @@
-import * as React from 'react';
-import { Diamond } from 'lucide-react';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSliderControl, InspectorSliderTrack } from '../../inspector/InspectorAtoms';
+import {
+  SidebarKeyframeToggle,
+  SidebarSection,
+  SidebarSliderRow,
+  SidebarSliderTrack,
+  SidebarTabContent,
+} from '../SidebarAtoms';
 
 export function PhysicsTab({
   effectivePhysicsParams,
@@ -40,39 +44,38 @@ export function PhysicsTab({
   ];
 
   return (
-    <div className="divide-y divide-zinc-300/80 dark:divide-zinc-800">
+    <SidebarTabContent>
       {groups.map((group) => (
-        <InspectorPanelSection key={group.title} className="space-y-4">
-          <InspectorSectionHeader title={group.title} />
-          {group.params.map((p) => (
-            <InspectorSliderControl
-              key={p.id}
-              label={p.label}
-              value={typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
-              description={p.desc}
-              accessory={
-                <button
-                  onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                  className={`size-5 rounded-full flex items-center justify-center transition-colors ${physKfActive[p.id] ? 'text-indigo-500 bg-indigo-50 border border-indigo-200 shadow-sm' : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100'}`}
-                  title={physKfActive[p.id] ? 'Keyframe entfernen' : 'Keyframe setzen'}
-                >
-                  <Diamond className={`size-2.5 ${physKfActive[p.id] ? 'fill-current' : ''}`} />
-                </button>
-              }
-              slider={
-                <InspectorSliderTrack
-                  value={[p.value]}
-                  min={p.min ?? 0}
-                  max={p.max}
-                  step={p.step}
-                  onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
-                />
-              }
-            />
-          ))}
-        </InspectorPanelSection>
+        <SidebarSection key={group.title} title={group.title} className="space-y-4">
+          {group.params.map((p) => {
+            const active = physKfActive[p.id] ?? false;
+            return (
+              <SidebarSliderRow
+                key={p.id}
+                label={p.label}
+                value={typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+                description={p.desc}
+                accessory={
+                  <SidebarKeyframeToggle
+                    active={active}
+                    onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                    title={active ? 'Keyframe entfernen' : 'Keyframe setzen'}
+                  />
+                }
+                slider={
+                  <SidebarSliderTrack
+                    value={[p.value]}
+                    min={p.min ?? 0}
+                    max={p.max}
+                    step={p.step}
+                    onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
+                  />
+                }
+              />
+            );
+          })}
+        </SidebarSection>
       ))}
-    </div>
+    </SidebarTabContent>
   );
 }
-

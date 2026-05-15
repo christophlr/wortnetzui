@@ -204,7 +204,7 @@ export function SidebarKeyframeToggle({
       className={cn(
         'size-5 rounded-full flex items-center justify-center transition-colors',
         active
-          ? 'text-indigo-500 bg-indigo-50 border border-indigo-200 shadow-sm'
+          ? 'text-wn-keyframe-active bg-wn-accent-soft border border-wn-accent/40 shadow-sm'
           : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100',
       )}
     >
