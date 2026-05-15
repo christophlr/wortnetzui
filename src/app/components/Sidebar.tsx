@@ -30,12 +30,12 @@ import {
   AccordionTrigger,
 } from './ui/accordion';
 import {
-  SidebarContent,
-  SidebarHeader,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarProvider,
+  SidebarContent as ShadSidebarContent,
+  SidebarHeader as ShadSidebarHeader,
+  SidebarGroup as ShadSidebarGroup,
+  SidebarGroupContent as ShadSidebarGroupContent,
+  SidebarGroupLabel as ShadSidebarGroupLabel,
+  SidebarProvider as ShadSidebarProvider,
 } from './ui/sidebar';
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
@@ -249,7 +249,7 @@ export function Sidebar({
   }
 
   return (
-    <SidebarProvider className="h-full w-full">
+    <ShadSidebarProvider className="h-full w-full">
       <div className="flex h-full w-full bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
         
         {/* VS Code Style Activity Bar (Icons) */}
@@ -270,16 +270,16 @@ export function Sidebar({
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <SidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
+          <ShadSidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
             <h1 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
               {activeTab === 'content' ? 'Text' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik' : activeTab === 'camera' ? 'Kamera' : 'Canvas Layout'}
             </h1>
             <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
               <X size={16} />
             </button>
-          </SidebarHeader>
+          </ShadSidebarHeader>
 
-          <SidebarContent className="flex-1 overflow-y-auto overflow-x-hidden p-0">
+          <ShadSidebarContent className="flex-1 overflow-y-auto overflow-x-hidden p-0">
             
             {/* CONTENT TAB */}
             {activeTab === 'content' && (
@@ -331,10 +331,10 @@ export function Sidebar({
             )}
 
             <div className="h-20" />
-          </SidebarContent>
+          </ShadSidebarContent>
 
         </div>
       </div>
-    </SidebarProvider>
+    </ShadSidebarProvider>
   );
 }
