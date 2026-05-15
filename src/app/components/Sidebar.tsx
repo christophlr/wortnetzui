@@ -1,50 +1,33 @@
 "use client";
 
-import * as React from 'react';
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Type, 
-  PaintRoller, 
+import { useState, useEffect, useMemo } from 'react';
+import {
   PanelRight,
   PanelRightClose,
   X,
-  Video,
-  Atom,
-  Proportions,
-  Camera,
-  CornerUpRight,
-  Activity
 } from 'lucide-react';
 
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Switch } from './ui/switch';
-import { Separator } from './ui/separator';
-import { Slider } from './ui/slider';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from './ui/accordion';
 import {
   SidebarContent as ShadSidebarContent,
   SidebarHeader as ShadSidebarHeader,
-  SidebarGroup as ShadSidebarGroup,
-  SidebarGroupContent as ShadSidebarGroupContent,
-  SidebarGroupLabel as ShadSidebarGroupLabel,
   SidebarProvider as ShadSidebarProvider,
 } from './ui/sidebar';
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
-import { cn } from './ui/utils';
 import { ContentTab } from './sidebar/tabs/ContentTab';
 import { VisualTab } from './sidebar/tabs/VisualTab';
 import { PhysicsTab } from './sidebar/tabs/PhysicsTab';
 import { CameraTab } from './sidebar/tabs/CameraTab';
 import { CanvasTab } from './sidebar/tabs/CanvasTab';
+import {
+  SidebarActivityButton,
+  SidebarTabHeader,
+} from './sidebar/SidebarAtoms';
+import {
+  SIDEBAR_TABS,
+  getSidebarTab,
+  type SidebarTabId,
+} from './sidebar/sidebarConfig';
 
 const GRADIENT_PRESETS = [
   { name: 'Indigo → Violett', inner: '#4f46e5', outer: '#7c3aed' },
@@ -52,54 +35,6 @@ const GRADIENT_PRESETS = [
   { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
   { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
 ];
-
-function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFixed(2) }: { value: number; onCommit: (v: number) => void; min?: number; max?: number; format?: (v: number) => string }) {
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [localValue, setLocalValue] = React.useState(value.toString());
-
-  const commitValue = (valStr: string) => {
-    let val = parseFloat(valStr);
-    if (!isNaN(val)) {
-      if (min !== undefined) val = Math.max(min, val);
-      if (max !== undefined) val = Math.min(max, val);
-      onCommit(val);
-    }
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
-    return (
-      <Input
-        type="number"
-        autoFocus
-        className="w-12 h-6 text-[10px] px-1 py-0 text-center border-zinc-200"
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            commitValue(localValue);
-          } else if (e.key === 'Escape') {
-            setIsEditing(false);
-            setLocalValue(value.toString());
-          }
-        }}
-        onBlur={() => commitValue(localValue)}
-      />
-    );
-  }
-
-  return (
-    <button 
-      onClick={() => {
-        setIsEditing(true);
-        setLocalValue(value.toString());
-      }}
-      className="text-[10px] font-mono text-zinc-400 hover:text-zinc-900 transition-colors"
-    >
-      {format(value)}
-    </button>
-  );
-}
 
 interface SidebarProps {
   onPhysicsChange: (p: any) => void;
@@ -185,7 +120,7 @@ export function Sidebar({
   onVisualSettingsChange
 }: SidebarProps) {
   const [localText, setLocalText] = useState(inputText);
-  const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
+  const [activeTab, setActiveTab] = useState<SidebarTabId>('content');
 
   // Sync local text with default input text on load and when context changes (e.g. workspace load)
   useEffect(() => {
@@ -204,76 +139,62 @@ export function Sidebar({
     return result;
   }, [physicsKeyframes, currentTime]);
 
-  const handleTabClick = (id: typeof activeTab) => {
+  const handleTabClick = (id: SidebarTabId) => {
     setActiveTab(id);
     if (!isSidebarOpen && onToggleSidebar) {
       onToggleSidebar();
     }
   };
 
-  const SidebarTab = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
-    <button
-      onClick={() => handleTabClick(id)}
-      className={cn(
-        "group relative flex h-10 w-10 items-center justify-center",
-        activeTab === id ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-      )}
-      title={label}
-    >
-      <Icon size={20} className={cn(activeTab === id ? "scale-110" : "scale-100 group-hover:scale-105")} />
-      {activeTab === id && (
-        <div className="absolute left-0 h-5 w-0.5 bg-zinc-900 dark:bg-zinc-100 rounded-r-full" />
-      )}
-    </button>
-  );
+  const activityButtons = SIDEBAR_TABS.map((tab) => (
+    <SidebarActivityButton
+      key={tab.id}
+      active={activeTab === tab.id}
+      icon={tab.icon}
+      label={tab.titleDe}
+      onClick={() => handleTabClick(tab.id)}
+    />
+  ));
 
   if (!isSidebarOpen) {
     return (
       <div className="flex h-full w-12 bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
-          <button 
+          <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar einblenden"
           >
             <PanelRight size={18} />
           </button>
-          <SidebarTab id="content" icon={Type} label="Inhalt" />
-          <SidebarTab id="visual" icon={PaintRoller} label="Visualisierung" />
-          <SidebarTab id="physics" icon={Atom} label="Physik" />
-          <SidebarTab id="camera" icon={Video} label="Kamera" />
-          <SidebarTab id="canvas" icon={Proportions} label="Canvas" />
+          {activityButtons}
         </div>
       </div>
     );
   }
 
+  const headerTitle = getSidebarTab(activeTab).titleDe.toUpperCase();
+
   return (
     <ShadSidebarProvider className="h-full w-full">
       <div className="flex h-full w-full bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl overflow-hidden pointer-events-auto">
-        
+
         {/* VS Code Style Activity Bar (Icons) */}
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
-          <button 
+          <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
             title="Sidebar ausblenden"
           >
             <PanelRightClose size={18} />
           </button>
-          <SidebarTab id="content" icon={Type} label="Inhalt" />
-          <SidebarTab id="visual" icon={PaintRoller} label="Visualisierung" />
-          <SidebarTab id="physics" icon={Atom} label="Physik" />
-          <SidebarTab id="camera" icon={Video} label="Kamera" />
-          <SidebarTab id="canvas" icon={Proportions} label="Canvas" />
+          {activityButtons}
         </div>
 
         {/* Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
           <ShadSidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
-            <h1 className="text-[13px] font-bold text-zinc-500 uppercase tracking-wider">
-              {activeTab === 'content' ? 'Text' : activeTab === 'visual' ? 'Visualisierung' : activeTab === 'physics' ? 'Physik' : activeTab === 'camera' ? 'Kamera' : 'Canvas Layout'}
-            </h1>
+            <SidebarTabHeader>{headerTitle}</SidebarTabHeader>
             <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
               <X size={16} />
             </button>
