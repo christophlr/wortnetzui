@@ -1,8 +1,13 @@
 import { RefreshCw } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Textarea } from '../../ui/textarea';
-import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup } from '../../inspector/InspectorAtoms';
+import { RadioGroup } from '../../ui/radio-group';
+import {
+  SidebarGroup,
+  SidebarRadioRow,
+  SidebarSection,
+  SidebarTabContent,
+} from '../SidebarAtoms';
 
 export function ContentTab({
   localText,
@@ -17,11 +22,16 @@ export function ContentTab({
   parseMode: 'sentence' | 'word' | 'both';
   onParsingChange: (mode: 'sentence' | 'word' | 'both') => void;
 }) {
+  const parseOptions: Array<{ id: typeof parseMode; label: string; desc: string }> = [
+    { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
+    { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
+    { id: 'both', label: 'Beides', desc: 'Wörter als Brücke' },
+  ];
+
   return (
-    <div className="divide-y divide-zinc-300/80 dark:divide-zinc-800">
-      <InspectorPanelSection>
-        <InspectorSectionHeader title="Text" />
-        <InspectorSubgroup className="space-y-4">
+    <SidebarTabContent>
+      <SidebarSection title="Text">
+        <SidebarGroup className="space-y-4">
           <Textarea
             className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans"
             placeholder="Text hier einfügen..."
@@ -35,36 +45,24 @@ export function ContentTab({
             <RefreshCw size={14} />
             Aktualisieren
           </Button>
-        </InspectorSubgroup>
-      </InspectorPanelSection>
+        </SidebarGroup>
+      </SidebarSection>
 
-      <InspectorPanelSection>
-        <InspectorSectionHeader title="Parse-Modus" />
-        <InspectorSubgroup className="space-y-4">
+      <SidebarSection title="Parse-Modus">
+        <SidebarGroup className="space-y-4">
           <RadioGroup value={parseMode} onValueChange={onParsingChange} className="gap-4">
-            {[
-              { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
-              { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
-              { id: 'both', label: 'Beides', desc: 'Wörter als Brücke' },
-            ].map((item) => (
-              <div key={item.id} className="flex items-start space-x-3 group cursor-pointer">
-                <RadioGroupItem
-                  value={item.id}
-                  id={item.id}
-                  className="mt-0.5 border-zinc-300 text-zinc-900"
-                />
-                <label
-                  htmlFor={item.id}
-                  className="text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-800 transition-colors"
-                >
-                  {item.label}
-                  <p className="text-[10px] text-zinc-400 font-normal mt-1">{item.desc}</p>
-                </label>
-              </div>
+            {parseOptions.map((item) => (
+              <SidebarRadioRow
+                key={item.id}
+                id={item.id}
+                value={item.id}
+                label={item.label}
+                description={item.desc}
+              />
             ))}
           </RadioGroup>
-        </InspectorSubgroup>
-      </InspectorPanelSection>
-    </div>
+        </SidebarGroup>
+      </SidebarSection>
+    </SidebarTabContent>
   );
 }
