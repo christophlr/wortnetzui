@@ -1,8 +1,8 @@
 import { RefreshCw } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup } from './InspectorAtoms';
+import { Button } from '../../ui/button';
+import { Textarea } from '../../ui/textarea';
+import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup } from '../../inspector/InspectorAtoms';
 
 export function ContentTab({
   localText,

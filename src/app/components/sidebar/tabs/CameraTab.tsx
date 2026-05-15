@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { MoreHorizontal, Move } from 'lucide-react';
-import { Button } from '../ui/button';
-import { cn } from '../ui/utils';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle, InspectorValueChip } from './InspectorAtoms';
+import { Button } from '../../ui/button';
+import { cn } from '../../ui/utils';
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle, InspectorValueChip } from '../../inspector/InspectorAtoms';
 
 export function CameraTab({
   onSetRotation,

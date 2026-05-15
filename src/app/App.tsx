@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { TopBar } from './components/TopBar';
-import { Inspector } from './components/Inspector';
+import { Inspector } from './components/Sidebar';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/timeline/Timeline';
 import { Progress } from './components/ui/progress';

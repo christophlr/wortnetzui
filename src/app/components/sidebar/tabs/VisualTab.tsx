@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Eye, EyeOff, Plus, Minus, Dices, Square, RectangleHorizontal, Circle } from 'lucide-react';
-import type { NodeShape } from '../../networkTheme';
-import { Switch } from '../ui/switch';
-import { cn } from '../ui/utils';
+import type { NodeShape } from '../../../networkTheme';
+import { Switch } from '../../ui/switch';
+import { cn } from '../../ui/utils';
 import {
   InspectorControlLabel,
   InspectorPanelSection,
@@ -11,7 +11,7 @@ import {
   InspectorSliderTrack,
   InspectorSubgroup,
   InspectorSubgroupTitle,
-} from './InspectorAtoms';
+} from '../../inspector/InspectorAtoms';
 
 // Placeholder component for gradient color field
 function GradientColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {

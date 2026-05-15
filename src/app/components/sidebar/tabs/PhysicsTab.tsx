@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Diamond } from 'lucide-react';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSliderControl, InspectorSliderTrack } from './InspectorAtoms';
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSliderControl, InspectorSliderTrack } from '../../inspector/InspectorAtoms';
 
 export function PhysicsTab({
   effectivePhysicsParams,

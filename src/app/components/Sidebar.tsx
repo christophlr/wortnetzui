@@ -40,11 +40,11 @@ import {
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
 import { cn } from './ui/utils';
-import { ContentTab } from './inspector/ContentTab';
-import { VisualTab } from './inspector/VisualTab';
-import { PhysicsTab } from './inspector/PhysicsTab';
-import { CameraTab } from './inspector/CameraTab';
-import { CanvasTab } from './inspector/CanvasTab';
+import { ContentTab } from './sidebar/tabs/ContentTab';
+import { VisualTab } from './sidebar/tabs/VisualTab';
+import { PhysicsTab } from './sidebar/tabs/PhysicsTab';
+import { CameraTab } from './sidebar/tabs/CameraTab';
+import { CanvasTab } from './sidebar/tabs/CanvasTab';
 
 const GRADIENT_PRESETS = [
   { name: 'Indigo → Violett', inner: '#4f46e5', outer: '#7c3aed' },

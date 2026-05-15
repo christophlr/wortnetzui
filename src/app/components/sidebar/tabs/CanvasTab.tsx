@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Fullscreen, MonitorPlay, Tv, Image, FileText } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle } from './InspectorAtoms';
+import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
+import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle } from '../../inspector/InspectorAtoms';
 
 export function CanvasTab({
   canvasAspectRatio,
