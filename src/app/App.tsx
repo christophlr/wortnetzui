@@ -1,12 +1,12 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { TopBar } from './components/TopBar';
-import { Inspector } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/timeline/Timeline';
 import { Progress } from './components/ui/progress';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
-import { TIMELINE_DURATION, DEFAULT_INSPECTOR_WIDTH, DEFAULT_TIMELINE_HEIGHT } from './constants';
+import { TIMELINE_DURATION, DEFAULT_SIDEBAR_WIDTH, DEFAULT_TIMELINE_HEIGHT } from './constants';
 import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar, type ToolId } from './components/Toolbar';
@@ -35,7 +35,7 @@ export default function App() {
     physicsParams, setPhysicsParams,
     cameraKeyframes, setCameraKeyframes,
     physicsKeyframes, setPhysicsKeyframes,
-    inspectorWidth, setInspectorWidth,
+    sidebarWidth, setSidebarWidth,
     timelineHeight, setTimelineHeight,
     isSidebarOpen, setIsSidebarOpen,
     isNetworkReady, setIsNetworkReady,
@@ -207,15 +207,15 @@ export default function App() {
   /* ── Selection ── */
 
 
-  const startInspectorResize = useCallback((e: React.MouseEvent) => {
+  const startSidebarResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = inspectorWidth;
-    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(DEFAULT_INSPECTOR_WIDTH, Math.min(600, startWidth + (startX - ev.clientX))));
+    const startWidth = sidebarWidth;
+    const onMove = (ev: MouseEvent) => setSidebarWidth(Math.max(DEFAULT_SIDEBAR_WIDTH, Math.min(600, startWidth + (startX - ev.clientX))));
     const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [inspectorWidth, setInspectorWidth]);
+  }, [sidebarWidth, setSidebarWidth]);
 
   const startTimelineResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -323,17 +323,17 @@ export default function App() {
 
         <div 
           className="relative h-full flex flex-row border-l border-border bg-card z-40 transition-all duration-300 ease-in-out shadow-2xl"
-          style={{ width: isSidebarOpen ? inspectorWidth : 48 }}
+          style={{ width: isSidebarOpen ? sidebarWidth : 48 }}
         >
           {isSidebarOpen && (
             <div 
               className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-50"
-              onMouseDown={startInspectorResize}
-              onDoubleClick={() => setInspectorWidth(DEFAULT_INSPECTOR_WIDTH)}
+              onMouseDown={startSidebarResize}
+              onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
             />
           )}
 
-          <Inspector
+          <Sidebar
             onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
             inputText={inputText}
             parseMode={parseMode}
@@ -349,7 +349,7 @@ export default function App() {
             currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
             physicsKeyframes={physicsKeyframes}
             onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
-            width={inspectorWidth} viewMode={viewMode}
+            width={sidebarWidth} viewMode={viewMode}
             onDeleteKeyframe={(time) => handleDeleteKeyframe('camera-keyframes', time)}
             onCollapse={() => setIsSidebarOpen(!isSidebarOpen)}
             isSidebarOpen={isSidebarOpen}

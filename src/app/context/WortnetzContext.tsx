@@ -67,7 +67,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
-  const [inspectorWidth, setInspectorWidth] = useState(360);
+  const [sidebarWidth, setSidebarWidth] = useState(360);
   const [timelineHeight, setTimelineHeight] = useState(320);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNetworkReady, setIsNetworkReady] = useState(false);
@@ -618,7 +618,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     <WortnetzContext.Provider value={{
       viewMode, setViewMode, themeMode, setThemeMode, renderMode, setRenderMode,
       activeTool, setActiveTool, canvasAspectRatio, setCanvasAspectRatio, zoomValue, setZoomValue,
-      isSidebarOpen, setIsSidebarOpen, inspectorWidth, setInspectorWidth, timelineHeight, setTimelineHeight,
+      isSidebarOpen, setIsSidebarOpen, sidebarWidth, setSidebarWidth, timelineHeight, setTimelineHeight,
       isNetworkReady, setIsNetworkReady, initProgress, setInitProgress,
       inputText, setInputText, parseMode, setParseMode, gradientSettings, setGradientSettings,
       styleSettings, setStyleSettings, physicsParams, setPhysicsParams, visualSettings, setVisualSettings,

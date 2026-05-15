@@ -101,7 +101,7 @@ function SliderValue({ value, onCommit, min, max, format = (v: number) => v.toFi
   );
 }
 
-interface InspectorProps {
+interface SidebarProps {
   onPhysicsChange: (p: any) => void;
   onTextChange: (t: string) => void;
   inputText?: string;
@@ -156,7 +156,7 @@ interface InspectorProps {
   onVisualSettingsChange?: (vs: any) => void;
 }
 
-export function Inspector({
+export function Sidebar({
   onPhysicsChange, onTextChange, inputText = "", parseMode, onParsingChange, onGradientChange,
   onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
   nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
@@ -183,7 +183,7 @@ export function Inspector({
     pathCameraFollow: true
   },
   onVisualSettingsChange
-}: InspectorProps) {
+}: SidebarProps) {
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<'content' | 'visual' | 'physics' | 'camera' | 'canvas'>('content');
 

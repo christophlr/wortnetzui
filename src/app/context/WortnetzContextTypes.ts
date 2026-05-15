@@ -54,8 +54,8 @@ export interface WortnetzContextType {
   
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
-  inspectorWidth: number;
-  setInspectorWidth: (width: number) => void;
+  sidebarWidth: number;
+  setSidebarWidth: (width: number) => void;
   timelineHeight: number;
   setTimelineHeight: (height: number) => void;
   
