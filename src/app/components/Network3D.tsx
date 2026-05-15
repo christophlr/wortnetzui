@@ -1772,7 +1772,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     });
   }, [styleSettings.nodeScale, styleSettings.depthSizeEnabled, styleSettings.depthSizeStrength]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures when node shape or border width changes — debounced for smooth slider
+  // Rebuild textures immediately when node shape changes (discrete button event — no debounce)
+  useEffect(() => {
+    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    if (textureRebuildTimerRef.current) {
+      clearTimeout(textureRebuildTimerRef.current);
+      textureRebuildTimerRef.current = null;
+    }
+    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+    refreshAllSpriteTextures();
+  }, [styleSettings.nodeShape]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rebuild textures debounced when border width changes (potentially slider-driven)
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
     if (textureRebuildTimerRef.current) clearTimeout(textureRebuildTimerRef.current);
@@ -1782,7 +1793,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       refreshAllSpriteTextures();
       textureRebuildTimerRef.current = null;
     }, 80);
-  }, [styleSettings.nodeShape, styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update edge material when style settings change
   useEffect(() => {
