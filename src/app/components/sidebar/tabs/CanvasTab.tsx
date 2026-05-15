@@ -1,7 +1,19 @@
-import * as React from 'react';
 import { Fullscreen, MonitorPlay, Tv, Image, FileText } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
-import { InspectorPanelSection, InspectorSectionHeader, InspectorSubgroup, InspectorSubgroupTitle } from '../../inspector/InspectorAtoms';
+import { RadioGroup } from '../../ui/radio-group';
+import {
+  SidebarInfoBox,
+  SidebarRadioCard,
+  SidebarSection,
+  SidebarTabContent,
+} from '../SidebarAtoms';
+
+const ASPECT_RATIOS = [
+  { id: 'full', label: 'Vollbild', icon: Fullscreen },
+  { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
+  { id: '4:3', label: '4:3 Standard', icon: Tv },
+  { id: '3:2', label: '3:2 Classic', icon: Image },
+  { id: 'din', label: 'DIN Landscape', icon: FileText },
+] as const;
 
 export function CanvasTab({
   canvasAspectRatio,
@@ -11,49 +23,29 @@ export function CanvasTab({
   onCanvasAspectRatioChange?: (ratio: string) => void;
 }) {
   return (
-    <div className="divide-y divide-zinc-300/80 dark:divide-zinc-800">
-      <InspectorPanelSection>
-        <InspectorSectionHeader title="Seitenverhältnis" />
-        <RadioGroup 
-          value={canvasAspectRatio} 
+    <SidebarTabContent>
+      <SidebarSection title="Seitenverhältnis">
+        <RadioGroup
+          value={canvasAspectRatio}
           onValueChange={(v) => onCanvasAspectRatioChange?.(v)}
           className="grid grid-cols-2 gap-2"
         >
-          {[
-            { id: 'full', label: 'Vollbild', icon: Fullscreen },
-            { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
-            { id: '4:3', label: '4:3 Standard', icon: Tv },
-            { id: '3:2', label: '3:2 Classic', icon: Image },
-            { id: 'din', label: 'DIN Landscape', icon: FileText },
-          ].map((ratio) => {
-            const IconComponent = ratio.icon;
-            return (
-            <div key={ratio.id}>
-              <RadioGroupItem
-                value={ratio.id}
-                id={`ratio-${ratio.id}`}
-                className="peer sr-only"
-              />
-              <label
-                htmlFor={`ratio-${ratio.id}`}
-                className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50/50 cursor-pointer transition-all"
-              >
-                <span className="mb-1 flex h-4 items-center justify-center">
-                  <IconComponent size={16} className="text-zinc-600" />
-                </span>
-                <span className="text-[10px] font-medium">{ratio.label}</span>
-              </label>
-            </div>
-          );
-          })}
+          {ASPECT_RATIOS.map((ratio) => (
+            <SidebarRadioCard
+              key={ratio.id}
+              id={`ratio-${ratio.id}`}
+              value={ratio.id}
+              label={ratio.label}
+              icon={ratio.icon}
+            />
+          ))}
         </RadioGroup>
-      </InspectorPanelSection>
+      </SidebarSection>
 
-      <div className="px-5 py-5 border-t border-zinc-300/80 dark:border-zinc-800">
-        <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-          Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport an, um Komposition und Bildausschnitt zu steuern.
-        </p>
-      </div>
-    </div>
+      <SidebarInfoBox>
+        Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport
+        an, um Komposition und Bildausschnitt zu steuern.
+      </SidebarInfoBox>
+    </SidebarTabContent>
   );
 }

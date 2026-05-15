@@ -486,7 +486,7 @@ export function SidebarRadioCard({
       <RadioGroupItem value={value} id={id} className="peer sr-only" />
       <label
         htmlFor={id}
-        className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50/50 cursor-pointer transition-all"
+        className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-wn-accent peer-data-[state=checked]:bg-wn-accent-soft cursor-pointer transition-all"
       >
         <span className="mb-1 flex h-4 items-center justify-center">
           <Icon size={16} className="text-zinc-600" />
