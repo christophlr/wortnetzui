@@ -339,7 +339,7 @@ export default function App() {
             parseMode={parseMode}
             onParsingChange={setParseMode}
             onGradientChange={setGradientSettings}
-            onStyleChange={setStyleSettings}
+            onStyleChange={(patch) => setStyleSettings(prev => ({ ...prev, ...patch }))}
             styleSettings={styleSettings}
             onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
             nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
