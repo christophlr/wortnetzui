@@ -6,7 +6,9 @@ import { Timeline } from './components/timeline/Timeline';
 import { Progress } from './components/ui/progress';
 import type { Network3DHandle } from './components/Network3D';
 import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
-import { TIMELINE_DURATION, DEFAULT_SIDEBAR_WIDTH, DEFAULT_TIMELINE_HEIGHT } from './constants';
+import { TIMELINE_DURATION, DEFAULT_TIMELINE_HEIGHT } from './constants';
+import { AppCanvas } from './components/shell/AppCanvas';
+import { AppSidebar } from './components/shell/AppSidebar';
 import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar, type ToolId } from './components/Toolbar';
@@ -207,16 +209,6 @@ export default function App() {
   /* ── Selection ── */
 
 
-  const startSidebarResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = sidebarWidth;
-    const onMove = (ev: MouseEvent) => setSidebarWidth(Math.max(DEFAULT_SIDEBAR_WIDTH, Math.min(600, startWidth + (startX - ev.clientX))));
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [sidebarWidth, setSidebarWidth]);
-
   const startTimelineResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startY = e.clientY;
@@ -228,18 +220,10 @@ export default function App() {
   }, [timelineHeight, setTimelineHeight]);
 
   return (
-    <div 
-      className="app-shell flex flex-col h-screen w-screen bg-background text-foreground overflow-hidden select-none"
-      style={{ 
-        cursor: activeTool === 'pan' ? 'grab' : 
-                activeTool === 'paint' ? 'crosshair' : 
-                activeTool === 'zoom' ? 'zoom-in' : 
-                activeTool === 'scale' ? 'nwse-resize' : 'default' 
-      }}
-    >
+    <>
       <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
-        <div className="flex-1 relative overflow-hidden h-full">
-          <div 
+        <AppCanvas>
+          <div
             className="absolute left-0 right-0 z-0"
             style={{ top: overlayBandOffsets.top, bottom: overlayBandOffsets.bottom }}
           >
@@ -319,20 +303,9 @@ export default function App() {
               />
             </div>
           </div>
-        </div>
+        </AppCanvas>
 
-        <div 
-          className="relative h-full flex flex-row border-l border-border bg-card z-40 transition-all duration-300 ease-in-out shadow-2xl"
-          style={{ width: isSidebarOpen ? sidebarWidth : 48 }}
-        >
-          {isSidebarOpen && (
-            <div 
-              className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-50"
-              onMouseDown={startSidebarResize}
-              onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
-            />
-          )}
-
+        <AppSidebar>
           <Sidebar
             onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
             inputText={inputText}
@@ -364,17 +337,17 @@ export default function App() {
             onVisualSettingsChange={setVisualSettings}
             selectedNode={selectedNode}
           />
-        </div>
+        </AppSidebar>
       </div>
 
-      <ShortcutsDialog 
-        isOpen={isShortcutsVisible} 
-        onOpenChange={setIsShortcutsVisible} 
+      <ShortcutsDialog
+        isOpen={isShortcutsVisible}
+        onOpenChange={setIsShortcutsVisible}
         shortcuts={appShortcutsList}
         onAddShortcut={addAppShortcut}
         onRemoveShortcut={removeAppShortcut}
       />
-    </div>
+    </>
   );
 }
 
