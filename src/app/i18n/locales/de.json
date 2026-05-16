@@ -113,7 +113,28 @@
           "radialBias": "Scale = Basis + (Bias × Dist)"
         }
       },
-      "physics": { "title": "Physik" },
+      "physics": {
+        "title": "Physik",
+        "section": {
+          "forces":   "Kräfte",
+          "dynamics": "Dynamik",
+          "order":    "Ordnung"
+        },
+        "param": {
+          "repulsion":    { "name": "Streuung",          "hint": "Abstoßung",  "desc": "Wie stark Elemente sich gegenseitig verdrängen." },
+          "springK":      { "name": "Spannung",          "hint": "Tension",    "desc": "Wie straff Verbindungen die Elemente zusammenziehen. Höher = snappier." },
+          "damping":      { "name": "Reibung",           "hint": "Friction",   "desc": "Wie schnell Bewegungen abbremsen. Niedriger = bouncier." },
+          "linkDistance": { "name": "Abstand",           "hint": "Distance",   "desc": "Die gewünschte Grundlänge aller Verbindungen." },
+          "gravity":      { "name": "Schwerkraft",       "hint": "Gravity",    "desc": "Zieht alle Elemente zur Mitte des Canvas." },
+          "turbulence":   { "name": "Bewegung",          "hint": "Wobble",     "desc": "Erzeugt eine stetige, organische Unruhe." },
+          "pulse":        { "name": "Lebendigkeit",      "hint": "Pulse",      "desc": "Organisches Atmen der Knotenabstände." },
+          "verticalOrder":{ "name": "Vertikale Ordnung", "hint": "",           "desc": "Sortiert Knoten nach Textlänge (kurz oben, lang unten)." }
+        },
+        "keyframe": {
+          "set":    "Keyframe setzen",
+          "remove": "Keyframe entfernen"
+        }
+      },
       "camera":  {
         "title": "Kamera",
         "section": {

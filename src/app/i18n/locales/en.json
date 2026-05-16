@@ -113,7 +113,28 @@
           "radialBias": "Scale = base + (bias × dist)"
         }
       },
-      "physics": { "title": "Physics" },
+      "physics": {
+        "title": "Physics",
+        "section": {
+          "forces":   "Forces",
+          "dynamics": "Dynamics",
+          "order":    "Order"
+        },
+        "param": {
+          "repulsion":    { "name": "Spread",          "hint": "Repulsion", "desc": "How strongly elements push each other away." },
+          "springK":      { "name": "Tension",         "hint": "Spring K",  "desc": "How tightly links pull elements together. Higher = snappier." },
+          "damping":      { "name": "Friction",        "hint": "Damping",   "desc": "How quickly motion decays. Lower = bouncier." },
+          "linkDistance": { "name": "Distance",        "hint": "Link",      "desc": "The target rest length of every link." },
+          "gravity":      { "name": "Gravity",         "hint": "",          "desc": "Pulls every element toward the canvas centre." },
+          "turbulence":   { "name": "Wobble",          "hint": "Turbulence","desc": "Creates a steady, organic restlessness." },
+          "pulse":        { "name": "Pulse",           "hint": "Liveness",  "desc": "Organic breathing of node spacing." },
+          "verticalOrder":{ "name": "Vertical order",  "hint": "",          "desc": "Sorts nodes by text length (short top, long bottom)." }
+        },
+        "keyframe": {
+          "set":    "Add keyframe",
+          "remove": "Remove keyframe"
+        }
+      },
       "camera":  {
         "title": "Camera",
         "section": {
