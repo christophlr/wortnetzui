@@ -7,6 +7,7 @@ import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easin
 import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape, type NodeAppearanceSettings, GIZMO_COLORS, SCENE_COLORS } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
+import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -159,17 +160,6 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   });
 }
 
-const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
-  'phys-rep': 'repulsion',
-  'phys-spk': 'springK',
-  'phys-dmp': 'damping',
-  'phys-min': 'minSpeed',
-  'phys-lnk': 'linkDistance',
-  'phys-grv': 'gravity',
-  'phys-trb': 'turbulence',
-  'phys-vto': 'verticalOrder',
-  'phys-pls': 'pulse',
-};
 
 /** Interpolate a physics param from pre-sorted keyframes using Cubic Hermite splines. */
 function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {

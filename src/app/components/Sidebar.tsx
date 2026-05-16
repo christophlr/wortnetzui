@@ -128,7 +128,7 @@ export function Sidebar({
   // Sync physics keyframe states
   const physKfActive = useMemo(() => {
     const result: Record<string, boolean> = {};
-    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-min', 'phys-lnk', 'phys-grv', 'phys-trb', 'phys-vto', 'phys-pls'];
+    const tracks = ['phys-rep', 'phys-spk', 'phys-dmp', 'phys-lnk', 'phys-grv', 'phys-trb', 'phys-vto', 'phys-pls'];
     tracks.forEach(trackId => {
       result[trackId] = (physicsKeyframes?.[trackId] ?? []).some(kf => Math.abs(kf.time - currentTime) < 0.1);
     });
