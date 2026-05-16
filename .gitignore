@@ -4,4 +4,3 @@ dist/
 pnpm-lock.yaml
 .DS_Store
 **/.DS_Store
-Thumb.db
