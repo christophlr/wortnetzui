@@ -1,5 +1,37 @@
 {
-  "topbar": {},
+  "topbar": {
+    "menu": {
+      "file": { "label": "File" },
+      "edit": { "label": "Edit" },
+      "view": { "label": "View" }
+    },
+    "item": {
+      "save":         "Save",
+      "load":         "Open",
+      "undo":         "Undo",
+      "redo":         "Redo",
+      "shortcuts":    "Shortcuts...",
+      "preview":      "Preview",
+      "themeLight":   "Light",
+      "themeDark":    "Dark"
+    },
+    "label": {
+      "mode":  "Mode",
+      "theme": "Theme"
+    },
+    "state": {
+      "on":  "ON",
+      "off": "OFF"
+    },
+    "view": {
+      "twoD":   "2D view",
+      "threeD": "3D view"
+    },
+    "action": {
+      "preview":   "Preview",
+      "export":    "Export"
+    }
+  },
   "toolbar": {
     "tool": {
       "pointer": "Select",

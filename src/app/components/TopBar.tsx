@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
 import { TopBarActionButton, TopBarMenuTrigger, TopBarPill } from './topbar/TopBarAtoms';
+import { useT } from '../i18n/useT';
 
 function NetworkLogo() {
   return (
@@ -47,6 +48,7 @@ export function TopBar({
   } = useWortnetz();
   
   const { handleSave, handleLoad } = useProject();
+  const { t } = useT();
 
   const handleViewModeChange = (mode: '2D' | '3D') => {
     setViewMode(mode);
@@ -70,17 +72,17 @@ export function TopBar({
         <div className="flex items-center shrink-0">
           <Menubar className="bg-transparent border-none shadow-none h-auto p-0">
             <MenubarMenu>
-              <TopBarMenuTrigger>Datei</TopBarMenuTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.file.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
                   <MenubarItem onSelect={handleSave}>
                     <Save size={12} />
-                    Speichern
+                    {t('topbar.item.save')}
                     <MenubarShortcut>⌘S</MenubarShortcut>
                   </MenubarItem>
                   <MenubarItem onSelect={handleLoad}>
                     <FolderOpen size={12} />
-                    Laden
+                    {t('topbar.item.load')}
                     <MenubarShortcut>⌘O</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
@@ -88,17 +90,17 @@ export function TopBar({
             </MenubarMenu>
 
             <MenubarMenu>
-              <TopBarMenuTrigger>Bearbeiten</TopBarMenuTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.edit.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
                   <MenubarItem onSelect={undo} disabled={!canUndo}>
                     <Undo2 size={12} />
-                    Rückgängig
+                    {t('topbar.item.undo')}
                     <MenubarShortcut>⌘Z</MenubarShortcut>
                   </MenubarItem>
                   <MenubarItem onSelect={redo} disabled={!canRedo}>
                     <Redo2 size={12} />
-                    Wiederholen
+                    {t('topbar.item.redo')}
                     <MenubarShortcut>⌘⇧Z</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
@@ -106,29 +108,29 @@ export function TopBar({
                 <MenubarGroup>
                   <MenubarItem onSelect={onOpenShortcuts}>
                     <Keyboard size={12} />
-                    Tastaturkürzel...
+                    {t('topbar.item.shortcuts')}
                   </MenubarItem>
                 </MenubarGroup>
               </MenubarContent>
             </MenubarMenu>
 
             <MenubarMenu>
-              <TopBarMenuTrigger>Ansicht</TopBarMenuTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.view.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
-                  <MenubarLabel>Modus</MenubarLabel>
+                  <MenubarLabel>{t('topbar.label.mode')}</MenubarLabel>
                   <MenubarItem onSelect={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}>
                     <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-wn-topbar-toggle-text' : 'text-muted-foreground'} />
-                    Preview
-                    <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
+                    {t('topbar.item.preview')}
+                    <MenubarShortcut>{renderMode === 'render' ? t('topbar.state.on') : t('topbar.state.off')}</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
                 <MenubarSeparator />
                 <MenubarGroup>
-                  <MenubarLabel>Design</MenubarLabel>
+                  <MenubarLabel>{t('topbar.label.theme')}</MenubarLabel>
                   <MenubarRadioGroup value={themeMode} onValueChange={(v) => setThemeMode(v as any)}>
-                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />Hell</MenubarRadioItem>
-                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />Dunkel</MenubarRadioItem>
+                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />{t('topbar.item.themeLight')}</MenubarRadioItem>
+                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />{t('topbar.item.themeDark')}</MenubarRadioItem>
                   </MenubarRadioGroup>
                 </MenubarGroup>
               </MenubarContent>
@@ -145,10 +147,10 @@ export function TopBar({
           onValueChange={(v) => v && handleViewModeChange(v as '2D' | '3D')}
           className="h-7 gap-0 border border-border rounded-md overflow-hidden bg-background/50"
         >
-          <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
+          <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title={t('topbar.view.twoD')}>
             <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
+          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border hover:bg-accent/50 data-[state=on]:bg-primary/10" title={t('topbar.view.threeD')}>
             <Box size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
         </ToggleGroup>
@@ -162,12 +164,12 @@ export function TopBar({
             strokeWidth={2.5}
             className={`mr-1.5 transition-transform duration-300 ${renderMode === 'render' ? 'scale-110' : 'opacity-70'}`}
           />
-          Vorschau
+          {t('topbar.action.preview')}
         </TopBarActionButton>
 
         <TopBarActionButton onClick={onExport}>
           <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
-          Exportieren
+          {t('topbar.action.export')}
         </TopBarActionButton>
       </TopBarPill>
     </div>

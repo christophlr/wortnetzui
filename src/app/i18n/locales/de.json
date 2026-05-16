@@ -1,5 +1,37 @@
 {
-  "topbar": {},
+  "topbar": {
+    "menu": {
+      "file": { "label": "Datei" },
+      "edit": { "label": "Bearbeiten" },
+      "view": { "label": "Ansicht" }
+    },
+    "item": {
+      "save":         "Speichern",
+      "load":         "Laden",
+      "undo":         "Rückgängig",
+      "redo":         "Wiederholen",
+      "shortcuts":    "Tastaturkürzel...",
+      "preview":      "Preview",
+      "themeLight":   "Hell",
+      "themeDark":    "Dunkel"
+    },
+    "label": {
+      "mode":  "Modus",
+      "theme": "Design"
+    },
+    "state": {
+      "on":  "AN",
+      "off": "AUS"
+    },
+    "view": {
+      "twoD":   "2D Ansicht",
+      "threeD": "3D Ansicht"
+    },
+    "action": {
+      "preview":   "Vorschau",
+      "export":    "Exportieren"
+    }
+  },
   "toolbar": {
     "tool": {
       "pointer": "Auswahl",
