@@ -22,7 +22,17 @@
   },
   "sidebar": {
     "tab": {
-      "content": { "title": "Content" },
+      "content": {
+        "title": "Content",
+        "section": { "text": "Text", "parseMode": "Parse mode" },
+        "textarea": { "placeholder": "Paste text here..." },
+        "refresh": "Update",
+        "parse": {
+          "sentence": { "label": "Sentence", "desc": "Sentences → word n-grams" },
+          "word":     { "label": "Word",     "desc": "Words → character n-grams" },
+          "both":     { "label": "Both",     "desc": "Words as bridge" }
+        }
+      },
       "visual":  { "title": "Visual" },
       "physics": { "title": "Physics" },
       "camera":  { "title": "Camera" },

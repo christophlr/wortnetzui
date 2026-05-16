@@ -8,6 +8,13 @@ import {
   SidebarSection,
   SidebarTabContent,
 } from '../SidebarAtoms';
+import { useT } from '../../../i18n/useT';
+
+const PARSE_OPTIONS: Array<{ id: 'sentence' | 'word' | 'both' }> = [
+  { id: 'sentence' },
+  { id: 'word' },
+  { id: 'both' },
+];
 
 export function ContentTab({
   localText,
@@ -22,19 +29,14 @@ export function ContentTab({
   parseMode: 'sentence' | 'word' | 'both';
   onParsingChange: (mode: 'sentence' | 'word' | 'both') => void;
 }) {
-  const parseOptions: Array<{ id: typeof parseMode; label: string; desc: string }> = [
-    { id: 'sentence', label: 'Satzebene', desc: 'Sätze → Wort-N-Gramme' },
-    { id: 'word', label: 'Wortebene', desc: 'Wörter → Zeichen-N-Gramme' },
-    { id: 'both', label: 'Beides', desc: 'Wörter als Brücke' },
-  ];
-
+  const { t } = useT();
   return (
     <SidebarTabContent>
-      <SidebarSection title="Text">
+      <SidebarSection title={t('sidebar.tab.content.section.text')}>
         <SidebarGroup stack="loose">
           <Textarea
             className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans"
-            placeholder="Text hier einfügen..."
+            placeholder={t('sidebar.tab.content.textarea.placeholder')}
             value={localText}
             onChange={(e) => setLocalText(e.target.value)}
           />
@@ -43,21 +45,21 @@ export function ContentTab({
             onClick={() => onTextChange(localText)}
           >
             <RefreshCw size={14} />
-            Aktualisieren
+            {t('sidebar.tab.content.refresh')}
           </Button>
         </SidebarGroup>
       </SidebarSection>
 
-      <SidebarSection title="Parse-Modus">
+      <SidebarSection title={t('sidebar.tab.content.section.parseMode')}>
         <SidebarGroup stack="loose">
           <RadioGroup value={parseMode} onValueChange={onParsingChange} className="gap-4">
-            {parseOptions.map((item) => (
+            {PARSE_OPTIONS.map((item) => (
               <SidebarRadioRow
                 key={item.id}
                 id={item.id}
                 value={item.id}
-                label={item.label}
-                description={item.desc}
+                label={t(`sidebar.tab.content.parse.${item.id}.label`)}
+                description={t(`sidebar.tab.content.parse.${item.id}.desc`)}
               />
             ))}
           </RadioGroup>

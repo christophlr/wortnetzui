@@ -22,7 +22,17 @@
   },
   "sidebar": {
     "tab": {
-      "content": { "title": "Inhalt" },
+      "content": {
+        "title": "Inhalt",
+        "section": { "text": "Text", "parseMode": "Parse-Modus" },
+        "textarea": { "placeholder": "Text hier einfügen..." },
+        "refresh": "Aktualisieren",
+        "parse": {
+          "sentence": { "label": "Satzebene", "desc": "Sätze → Wort-N-Gramme" },
+          "word":     { "label": "Wortebene", "desc": "Wörter → Zeichen-N-Gramme" },
+          "both":     { "label": "Beides",    "desc": "Wörter als Brücke" }
+        }
+      },
       "visual":  { "title": "Visualisierung" },
       "physics": { "title": "Physik" },
       "camera":  { "title": "Kamera" },
