@@ -167,10 +167,10 @@
   "timeline": {
     "label": "Timeline",
     "track": {
-      "sceneMarkers": "Scene Markers",
-      "camera":       "Camera",
+      "sceneMarkers": "Szenen-Marker",
+      "camera":       "Kamera",
       "keyframes":    "Keyframes",
-      "physics":      "Physics"
+      "physics":      "Physik"
     },
     "action": {
       "deleteSelected":   "Auswahl löschen",

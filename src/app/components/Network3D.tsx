@@ -1068,8 +1068,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (!containerRef.current) return;
 
     let isCancelled = false;
-    let animFrame: number;
-    let timerId: ReturnType<typeof setTimeout>;
+    let animFrame: number | undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
 
     // Setup scene
     const scene = new THREE.Scene();
@@ -1683,8 +1683,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       
       ro.disconnect();
       window.removeEventListener('resize', handleResize);
-      if (timerId) clearTimeout(timerId);
-      if (animFrame) cancelAnimationFrame(animFrame);
+      if (timerId !== undefined) clearTimeout(timerId);
+      if (animFrame !== undefined) cancelAnimationFrame(animFrame);
       
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);

@@ -5,6 +5,7 @@ import { type PhysicsKeyframe, type SceneMarker, type TimelineState } from '../c
 import { type NodeAppearanceSettings, type GradientSettings, type EdgeAppearanceSettings } from '../networkTheme';
 import { type PhysicsParams } from '../graph';
 import { Artboard, LoadingOverlay, OverlayBadge } from './preview/PreviewAtoms';
+import { useT } from '../i18n/useT';
 
 interface PreviewProps {
   viewMode: '2D' | '3D';
@@ -59,6 +60,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   visualSettings,
   onNodeSelect,
 }: PreviewProps, ref) {
+  const { language } = useT();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [lastHmr, setLastHmr] = useState<Date>(() => new Date(BUILD_DATE));
@@ -68,8 +70,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
       setLastHmr(new Date(payload.updates?.[0]?.timestamp ?? Date.now()));
     };
 
-    import.meta.hot?.on('vite:afterUpdate', handler);
-    return () => { import.meta.hot?.off('vite:afterUpdate', handler); };
+    (import.meta as any).hot?.on('vite:afterUpdate', handler);
+    return () => { (import.meta as any).hot?.off('vite:afterUpdate', handler); };
   }, []);
 
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -145,8 +147,8 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
           <OverlayBadge position="bottom-left">
             <span className="text-[10px] font-mono text-muted-foreground/80">v{BUILD_NUMBER}</span>
             <span className="text-[10px] font-mono text-muted-foreground/60">
-              {new Date(LAST_COMMIT_DATE).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })}{' '}
-              {new Date(LAST_COMMIT_DATE).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+              {new Date(LAST_COMMIT_DATE).toLocaleDateString(language === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short' })}{' '}
+              {new Date(LAST_COMMIT_DATE).toLocaleTimeString(language === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </OverlayBadge>
 
