@@ -14,8 +14,11 @@
  *      SidebarEditableNumber / SidebarDescription
  *                                  inline pieces that fill the slots of a level-4 row
  *
- * Visual rules currently use the existing zinc-* baseline so parity holds
- * during the migration; Phase 2.A swaps these for CSS-variable tokens.
+ * Visual rules are sourced from the `--wn-*` and shadcn semantic tokens
+ * (`text-foreground`, `text-muted-foreground`, `border-border`,
+ * `bg-wn-control-bg`, `bg-wn-info-bg`, `border-wn-divider`). Raw
+ * `zinc-*` palette classes must not be reintroduced here — the tokens
+ * carry both light and dark values.
  */
 
 import * as React from 'react';
@@ -41,7 +44,7 @@ export function SidebarTabHeader({
   return (
     <h1
       className={cn(
-        'text-[13px] font-bold text-zinc-500 uppercase tracking-wider',
+        'text-[13px] font-bold text-muted-foreground uppercase tracking-wider',
         className,
       )}
       {...props}
@@ -70,8 +73,8 @@ export function SidebarActivityButton({
       className={cn(
         'group relative flex h-10 w-10 items-center justify-center',
         active
-          ? 'text-zinc-900 dark:text-zinc-100'
-          : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300',
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
       )}
     >
       <Icon
@@ -79,7 +82,7 @@ export function SidebarActivityButton({
         className={cn(active ? 'scale-110' : 'scale-100 group-hover:scale-105')}
       />
       {active ? (
-        <div className="absolute left-0 h-5 w-0.5 bg-zinc-900 dark:bg-zinc-100 rounded-r-full" />
+        <div className="absolute left-0 h-5 w-0.5 bg-foreground rounded-r-full" />
       ) : null}
     </button>
   );
@@ -135,7 +138,7 @@ export function SidebarSection({
       {title || actions ? (
         <div className="flex items-center gap-2">
           {title ? (
-            <h2 className="flex-1 text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">
+            <h2 className="flex-1 text-foreground text-[12px] font-semibold tracking-[0.03em]">
               {title}
             </h2>
           ) : (
@@ -165,7 +168,7 @@ export function SidebarGroup({
   return (
     <div className={stackClass}>
       {title ? (
-        <h3 className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
+        <h3 className="text-[12px] font-semibold text-foreground">
           {title}
         </h3>
       ) : null}
@@ -185,7 +188,7 @@ export function SidebarValueChip({
   return (
     <span
       className={cn(
-        'font-mono text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300/70 dark:border-zinc-700 px-2 py-0.5 rounded',
+        'font-mono text-[12px] font-semibold text-foreground bg-wn-control-bg border border-wn-divider px-2 py-0.5 rounded',
         className,
       )}
       {...props}
@@ -206,7 +209,7 @@ export function SidebarDescription({
 }: React.ComponentProps<'p'>) {
   return (
     <p
-      className={cn('text-[10px] text-zinc-500 leading-tight', className)}
+      className={cn('text-[10px] text-muted-foreground leading-tight', className)}
       {...props}
     />
   );
@@ -230,7 +233,7 @@ export function SidebarKeyframeToggle({
         'size-5 rounded-full flex items-center justify-center transition-colors',
         active
           ? 'text-wn-keyframe-active bg-wn-accent-soft border border-wn-accent/40 shadow-sm'
-          : 'text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100',
+          : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-bg',
       )}
     >
       <Diamond className={cn('size-2.5', active && 'fill-current')} />
@@ -278,7 +281,7 @@ export function SidebarEditableNumber({
         type="number"
         autoFocus
         className={cn(
-          'w-14 h-6 text-[10px] px-1 py-0 text-center border-zinc-200',
+          'w-14 h-6 text-[10px] px-1 py-0 text-center border-border',
           className,
         )}
         value={localValue}
@@ -304,7 +307,7 @@ export function SidebarEditableNumber({
         setLocalValue(value.toString());
       }}
       className={cn(
-        'text-[10px] font-mono text-zinc-400 hover:text-zinc-900 transition-colors',
+        'text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors',
         className,
       )}
     >
@@ -334,7 +337,7 @@ function RowHeader({
   return (
     <div className="flex items-center justify-between gap-2">
       {label ? (
-        <span className="flex-1 text-[12px] font-medium text-zinc-800 dark:text-zinc-200">
+        <span className="flex-1 text-[12px] font-medium text-foreground">
           {label}
         </span>
       ) : (
@@ -431,12 +434,12 @@ export function SidebarToggleRow({
   const toneClass =
     tone === 'accent' || tone === 'positive'
       ? 'data-[state=checked]:bg-wn-accent'
-      : 'data-[state=checked]:bg-zinc-900';
+      : 'data-[state=checked]:bg-foreground';
 
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="flex-1 text-[12px] font-medium text-zinc-800 dark:text-zinc-200">
+        <span className="flex-1 text-[12px] font-medium text-foreground">
           {label}
         </span>
         <Switch
@@ -467,7 +470,7 @@ export function SidebarColorRow({
 }) {
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <label className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-300">
+      <label className="text-[10px] font-semibold text-muted-foreground">
         {label}
       </label>
       <input
@@ -501,15 +504,15 @@ export function SidebarRadioRow({
       <RadioGroupItem
         value={value}
         id={id}
-        className="mt-0.5 border-zinc-300 text-zinc-900"
+        className="mt-0.5 border-border text-foreground"
       />
       <label
         htmlFor={id}
-        className="text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-zinc-900 text-zinc-800 transition-colors"
+        className="text-[12px] font-semibold leading-tight cursor-pointer group-hover:text-foreground text-foreground transition-colors"
       >
         {label}
         {description ? (
-          <p className="text-[10px] text-zinc-400 font-normal mt-1">{description}</p>
+          <p className="text-[10px] text-muted-foreground font-normal mt-1">{description}</p>
         ) : null}
       </label>
     </div>
@@ -537,10 +540,10 @@ export function SidebarRadioCard({
       <RadioGroupItem value={value} id={id} className="peer sr-only" />
       <label
         htmlFor={id}
-        className="flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-zinc-50/50 p-2 hover:bg-zinc-100 peer-data-[state=checked]:border-wn-accent peer-data-[state=checked]:bg-wn-accent-soft cursor-pointer transition-all"
+        className="flex flex-col items-center justify-center rounded-md border border-border bg-wn-info-bg p-2 hover:bg-wn-control-bg peer-data-[state=checked]:border-wn-accent peer-data-[state=checked]:bg-wn-accent-soft cursor-pointer transition-all"
       >
         <span className="mb-1 flex h-4 items-center justify-center">
-          <Icon size={16} className="text-zinc-600" />
+          <Icon size={16} className="text-muted-foreground" />
         </span>
         <span className="text-[10px] font-medium">{label}</span>
       </label>
@@ -571,7 +574,7 @@ export function SidebarButtonGroupRow<T extends string>({
   return (
     <div
       className={cn(
-        'flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 border border-zinc-300 dark:border-zinc-700',
+        'flex bg-wn-control-bg rounded-lg p-1 border border-wn-divider',
         className,
       )}
     >
@@ -587,8 +590,8 @@ export function SidebarButtonGroupRow<T extends string>({
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md transition-all text-[9px] font-medium',
               active
-                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50',
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-bg/60',
             )}
           >
             <Icon size={12} />
@@ -618,7 +621,7 @@ export function SidebarInfoBox({
 }) {
   return (
     <div className={cn(pad.section, className)}>
-      <p className="text-[10px] text-zinc-400 leading-relaxed italic">{children}</p>
+      <p className="text-[10px] text-muted-foreground leading-relaxed italic">{children}</p>
     </div>
   );
 }
@@ -653,18 +656,18 @@ export function SidebarCollapsiblePanel({
         className="flex w-full items-center gap-2 text-left"
         onClick={onToggle}
       >
-        <span className="text-zinc-800 dark:text-zinc-200 text-[12px] font-semibold tracking-[0.03em]">
+        <span className="text-foreground text-[12px] font-semibold tracking-[0.03em]">
           {title}
         </span>
-        {status ? <span className="text-[10px] text-zinc-500">{status}</span> : null}
-        <span className="ml-auto text-zinc-500">
+        {status ? <span className="text-[10px] text-muted-foreground">{status}</span> : null}
+        <span className="ml-auto text-muted-foreground">
           {isOpen ? <Minus size={13} /> : <Plus size={13} />}
         </span>
       </button>
       {isOpen ? (
         <div
           className={cn(
-            'space-y-4 rounded-lg border border-zinc-300/80 bg-zinc-50/85 p-3.5 dark:border-zinc-700 dark:bg-zinc-900/20',
+            'space-y-4 rounded-lg border border-wn-divider bg-wn-info-bg p-3.5',
             bodyClassName,
           )}
         >
@@ -708,8 +711,8 @@ export function SidebarViewPresetButton({
 }) {
   const base =
     variant === 'axis'
-      ? 'pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors'
-      : 'pointer-events-auto size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all';
+      ? 'pointer-events-auto size-5 rounded-full bg-wn-control-bg border border-border shadow-sm flex items-center justify-center text-[8px] font-bold text-muted-foreground hover:bg-card hover:text-foreground transition-colors'
+      : 'pointer-events-auto size-4 rounded bg-wn-control-bg/60 hover:bg-card border border-transparent hover:border-border transition-all';
   return (
     <button
       type="button"
@@ -751,9 +754,9 @@ export function SidebarDragPuck({
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'relative w-full bg-zinc-50 rounded-2xl border shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden',
+        'relative w-full bg-wn-info-bg rounded-2xl border shadow-inner flex items-center justify-center group cursor-grab active:cursor-grabbing overflow-hidden',
         DRAG_PUCK_ASPECT[aspect],
-        isDragging ? 'border-wn-accent' : 'border-zinc-200',
+        isDragging ? 'border-wn-accent' : 'border-border',
         className,
       )}
     >

@@ -35,13 +35,13 @@ export function ContentTab({
       <SidebarSection title={t('sidebar.tab.content.section.text')}>
         <SidebarGroup stack="loose">
           <Textarea
-            className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans"
+            className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-card border-border focus-visible:ring-ring shadow-sm font-sans"
             placeholder={t('sidebar.tab.content.textarea.placeholder')}
             value={localText}
             onChange={(e) => setLocalText(e.target.value)}
           />
           <Button
-            className="w-full h-9 text-xs gap-2 bg-zinc-900 hover:bg-zinc-800 text-white shadow-md active:scale-[0.98] transition-transform"
+            className="w-full h-9 text-xs gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md active:scale-[0.98] transition-transform"
             onClick={() => onTextChange(localText)}
           >
             <RefreshCw size={14} />

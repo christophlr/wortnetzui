@@ -23,7 +23,7 @@ function GridOverlay({ cols, rows }: { cols: number; rows: number }) {
       }}
     >
       {Array.from({ length: cols * rows }).map((_, i) => (
-        <div key={i} className="border-[0.5px] border-zinc-900" />
+        <div key={i} className="border-[0.5px] border-foreground" />
       ))}
     </div>
   );
@@ -111,10 +111,10 @@ export function CameraTab({
     <>
       <GridOverlay cols={12} rows={6} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-full h-[1px] bg-zinc-300" />
-        <div className="h-full w-[1px] bg-zinc-300" />
-        <div className="absolute w-full h-[1px] bg-zinc-300/20 rotate-[31deg]" />
-        <div className="absolute w-full h-[1px] bg-zinc-300/20 -rotate-[31deg]" />
+        <div className="w-full h-[1px] bg-wn-divider" />
+        <div className="h-full w-[1px] bg-wn-divider" />
+        <div className="absolute w-full h-[1px] bg-wn-divider/25 rotate-[31deg]" />
+        <div className="absolute w-full h-[1px] bg-wn-divider/25 -rotate-[31deg]" />
       </div>
     </>
   );
@@ -123,8 +123,8 @@ export function CameraTab({
     <>
       <GridOverlay cols={8} rows={3} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-full h-[1px] bg-zinc-300" />
-        <div className="h-full w-[1px] bg-zinc-300" />
+        <div className="w-full h-[1px] bg-wn-divider" />
+        <div className="h-full w-[1px] bg-wn-divider" />
       </div>
     </>
   );
@@ -158,7 +158,7 @@ export function CameraTab({
 
                 <div
                   className={cn(
-                    'size-8 rounded-full bg-white border border-zinc-300 shadow-md flex items-center justify-center text-zinc-400 z-10',
+                    'size-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground z-10',
                     !isDraggingPuck && 'transition-transform duration-300 ease-out',
                   )}
                   style={{ transform: `translate(${puckPos.x}px, ${puckPos.y}px)` }}
@@ -208,12 +208,12 @@ export function CameraTab({
           </SidebarDragPuck>
 
           <div className="flex justify-between w-full px-1">
-            <span className="text-[10px] text-zinc-400 italic">
+            <span className="text-[10px] text-muted-foreground italic">
               {t('sidebar.tab.camera.hint.orbit')}
             </span>
             <button
               onClick={() => onResetView()}
-              className="text-[10px] text-zinc-500 hover:text-zinc-900 font-medium underline-offset-2 hover:underline"
+              className="text-[10px] text-muted-foreground hover:text-foreground font-medium underline-offset-2 hover:underline"
             >
               {t('sidebar.tab.camera.reset')}
             </button>
@@ -235,10 +235,10 @@ export function CameraTab({
           >
             <div
               className={cn(
-                'size-8 rounded-lg bg-white border shadow-sm flex items-center justify-center z-10 transition-colors',
+                'size-8 rounded-lg bg-card border shadow-sm flex items-center justify-center z-10 transition-colors',
                 isDraggingPanPuck
                   ? 'border-wn-accent text-wn-accent shadow-md'
-                  : 'border-zinc-300 text-zinc-400 group-hover:border-zinc-400',
+                  : 'border-border text-muted-foreground group-hover:border-muted-foreground',
                 !isDraggingPanPuck && 'transition-transform duration-300 ease-out',
               )}
               style={{ transform: `translate(${panPuckPos.x}px, ${panPuckPos.y}px)` }}
@@ -246,7 +246,7 @@ export function CameraTab({
               <Move size={14} />
             </div>
           </SidebarDragPuck>
-          <span className="text-[9px] text-zinc-400 italic">{t('sidebar.tab.camera.hint.pan')}</span>
+          <span className="text-[9px] text-muted-foreground italic">{t('sidebar.tab.camera.hint.pan')}</span>
         </div>
       </SidebarSection>
 
@@ -273,7 +273,7 @@ export function CameraTab({
       <SidebarSection>
         <Button
           variant="outline"
-          className="w-full h-8 text-[11px] bg-white border-zinc-200"
+          className="w-full h-8 text-[11px] bg-card border-border"
           onClick={() => {
             onResetView();
             setPanPuckPos({ x: 0, y: 0 });

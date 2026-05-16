@@ -36,8 +36,8 @@ function VisibilityToggle({
       className={cn(
         'p-0 transition-colors',
         visible
-          ? 'text-zinc-900 dark:text-zinc-100'
-          : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300',
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {visible ? <Eye size={13} /> : <EyeOff size={13} />}
@@ -189,7 +189,7 @@ export function VisualTab({
             <button
               type="button"
               onClick={() => setVisual({ envAtmosphereSeed: Math.random() * 1000 })}
-              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-bg transition-all"
               title={t('sidebar.tab.visual.action.shuffleAtmosphere')}
             >
               <Dices size={13} />
