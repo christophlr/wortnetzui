@@ -6,14 +6,17 @@ import {
   SidebarSection,
   SidebarTabContent,
 } from '../SidebarAtoms';
+import { useT } from '../../../i18n/useT';
 
-const ASPECT_RATIOS = [
-  { id: 'full', label: 'Vollbild', icon: Fullscreen },
-  { id: '16:9', label: '16:9 Cinema', icon: MonitorPlay },
-  { id: '4:3', label: '4:3 Standard', icon: Tv },
-  { id: '3:2', label: '3:2 Classic', icon: Image },
-  { id: 'din', label: 'DIN Landscape', icon: FileText },
-] as const;
+type AspectRatioId = 'full' | '16x9' | '4x3' | '3x2' | 'din';
+
+const ASPECT_RATIOS: Array<{ id: AspectRatioId; value: string; icon: typeof Fullscreen }> = [
+  { id: 'full', value: 'full', icon: Fullscreen },
+  { id: '16x9', value: '16:9', icon: MonitorPlay },
+  { id: '4x3',  value: '4:3',  icon: Tv },
+  { id: '3x2',  value: '3:2',  icon: Image },
+  { id: 'din',  value: 'din',  icon: FileText },
+];
 
 export function CanvasTab({
   canvasAspectRatio,
@@ -22,9 +25,10 @@ export function CanvasTab({
   canvasAspectRatio: string;
   onCanvasAspectRatioChange?: (ratio: string) => void;
 }) {
+  const { t } = useT();
   return (
     <SidebarTabContent>
-      <SidebarSection title="Seitenverhältnis">
+      <SidebarSection title={t('sidebar.tab.canvas.section.aspectRatio')}>
         <RadioGroup
           value={canvasAspectRatio}
           onValueChange={(v) => onCanvasAspectRatioChange?.(v)}
@@ -34,18 +38,15 @@ export function CanvasTab({
             <SidebarRadioCard
               key={ratio.id}
               id={`ratio-${ratio.id}`}
-              value={ratio.id}
-              label={ratio.label}
+              value={ratio.value}
+              label={t(`sidebar.tab.canvas.aspect.${ratio.id}`)}
               icon={ratio.icon}
             />
           ))}
         </RadioGroup>
       </SidebarSection>
 
-      <SidebarInfoBox>
-        Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport
-        an, um Komposition und Bildausschnitt zu steuern.
-      </SidebarInfoBox>
+      <SidebarInfoBox>{t('sidebar.tab.canvas.hint')}</SidebarInfoBox>
     </SidebarTabContent>
   );
 }
