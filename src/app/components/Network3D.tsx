@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape, type NodeAppearanceSettings } from '../networkTheme';
+import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape, type NodeAppearanceSettings, GIZMO_COLORS, SCENE_COLORS } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import {
@@ -104,9 +104,9 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
 
   const invQ = camera.quaternion.clone().invert();
   const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: 'rgba(239,68,68,0.38)', label: 'X' },
-    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: 'rgba(34,197,94,0.38)', label: 'Y' },
-    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: 'rgba(96,165,250,0.38)', label: 'Z' },
+    { dir: new THREE.Vector3(1, 0, 0), posColor: GIZMO_COLORS.x.pos, negColor: GIZMO_COLORS.x.neg, label: 'X' },
+    { dir: new THREE.Vector3(0, 1, 0), posColor: GIZMO_COLORS.y.pos, negColor: GIZMO_COLORS.y.neg, label: 'Y' },
+    { dir: new THREE.Vector3(0, 0, 1), posColor: GIZMO_COLORS.z.pos, negColor: GIZMO_COLORS.z.neg, label: 'Z' },
   ];
 
   const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
@@ -234,8 +234,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       envVisible: true,
       radialBiasScale: 0.5,
       radialBiasOpacity: 0.5,
-      gradientOrigin: '#4f46e5',
-      gradientPeriphery: '#10b981',
+      gradientOrigin: defaultGradientSettings.innerColor,
+      gradientPeriphery: defaultGradientSettings.outerColor,
       labelWeightMapping: 0.5,
       edgeFlowAnimation: false,
       envAtmosphereSeed: 123,
@@ -725,7 +725,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── CANVAS TEXTURE CREATION (fixed dimensions for all states) ── */
-  const EDIT_NODE_COLOR = '#6b7280'; // neutral gray for edit mode
+  const EDIT_NODE_COLOR = SCENE_COLORS.editNodeColor; // neutral gray for edit mode
   // Fixed outline margin — always allocated so all 3 state textures share identical canvas size
   const OUTLINE_STROKE = 3;
   const OUTLINE_GAP = 2;
@@ -742,7 +742,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const effectiveColor = isEditMode ? EDIT_NODE_COLOR : color;
     const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
     const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
-    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
+    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? SCENE_COLORS.defaultTextColor : effectiveColor);
     
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -818,7 +818,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
       const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
       const pathH = logicalHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
-      context.strokeStyle = '#2563eb';
+      context.strokeStyle = SCENE_COLORS.selectionOutline;
       context.lineWidth = OUTLINE_STROKE;
       context.beginPath();
       if (nodeShape === 'ellipse') {

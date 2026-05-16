@@ -41,6 +41,20 @@ export const defaultEdgeAppearance: EdgeAppearanceSettings = {
   color: 'auto',
 };
 
+export interface GizmoAxisColors { pos: string; neg: string }
+
+export const GIZMO_COLORS: Record<'x' | 'y' | 'z', GizmoAxisColors> = {
+  x: { pos: '#ef4444', neg: 'rgba(239,68,68,0.38)' },
+  y: { pos: '#22c55e', neg: 'rgba(34,197,94,0.38)' },
+  z: { pos: '#60a5fa', neg: 'rgba(96,165,250,0.38)' },
+};
+
+export const SCENE_COLORS = {
+  editNodeColor: '#6b7280',
+  defaultTextColor: '#ffffff',
+  selectionOutline: '#2563eb',
+};
+
 /**
  * Ensures vivid colors have at least 4.5:1 contrast on dark anthracite backgrounds (#111827).
  * Adjusts saturation and brightness for optimal data visualization.
