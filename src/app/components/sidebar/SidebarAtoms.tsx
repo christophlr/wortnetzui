@@ -88,7 +88,25 @@ export function SidebarActivityButton({
 export function SidebarTabContent({ className, ...props }: DivProps) {
   return (
     <div
-      className={cn('divide-y divide-zinc-300/80 dark:divide-zinc-800', className)}
+      className={cn('divide-y divide-wn-divider', className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * SidebarDivider — single horizontal divider for use inside a section that
+ * cannot rely on a parent `divide-y` (e.g. between two unrelated control
+ * blocks in the same SidebarSection). Uses the same `--wn-divider` token
+ * as SidebarTabContent so light/dark theming stays unified.
+ */
+export function SidebarDivider({
+  className,
+  ...props
+}: React.ComponentProps<'hr'>) {
+  return (
+    <hr
+      className={cn('border-0 border-t border-wn-divider', className)}
       {...props}
     />
   );
