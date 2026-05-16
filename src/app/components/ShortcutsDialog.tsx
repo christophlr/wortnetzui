@@ -8,8 +8,8 @@ import {
   DialogFooter,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Plus, Trash2, Command } from 'lucide-react';
+import { DialogFieldRow } from './dialogs/DialogAtoms';
 
 interface Shortcut {
   id: string;
@@ -76,24 +76,20 @@ export function ShortcutsDialog({
           </div>
 
           <div className="grid grid-cols-7 gap-2 items-end pt-2 border-t">
-            <div className="col-span-3 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Aktion</span>
-              <Input 
-                placeholder="z.B. Speichern" 
-                value={newCommand} 
-                onChange={(e) => setNewCommand(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="col-span-3 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Taste</span>
-              <Input 
-                placeholder="z.B. s" 
-                value={newKey} 
-                onChange={(e) => setNewKey(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
+            <DialogFieldRow
+              label="Aktion"
+              placeholder="z.B. Speichern"
+              value={newCommand}
+              onChange={setNewCommand}
+              className="col-span-3 space-y-1"
+            />
+            <DialogFieldRow
+              label="Taste"
+              placeholder="z.B. s"
+              value={newKey}
+              onChange={setNewKey}
+              className="col-span-3 space-y-1"
+            />
             <Button size="icon" className="h-8 w-8" onClick={handleAdd} disabled={!newCommand || !newKey}>
               <Plus size={16} />
             </Button>
