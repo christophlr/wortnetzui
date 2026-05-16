@@ -80,11 +80,15 @@ export function PhysicsTab({
         >
           {group.params.map((p) => {
             const active = physKfActive[p.id] ?? false;
+            const min = p.min ?? 0;
             return (
               <SidebarSliderRow
                 key={p.id}
                 label={paramLabel(p.paramKey)}
-                value={typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+                value={p.value}
+                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
+                min={min}
+                max={p.max}
                 description={t(`sidebar.tab.physics.param.${p.paramKey}.desc`)}
                 accessory={
                   <SidebarKeyframeToggle
@@ -96,7 +100,7 @@ export function PhysicsTab({
                 slider={
                   <SidebarSliderTrack
                     value={[p.value]}
-                    min={p.min ?? 0}
+                    min={min}
                     max={p.max}
                     step={p.step}
                     onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
