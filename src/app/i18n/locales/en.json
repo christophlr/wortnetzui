@@ -21,9 +21,9 @@
       "language": "Language"
     },
     "language": {
-      "de": "Deutsch",
+      "de": "German",
       "en": "English",
-      "auto": "Auto-Detect"
+      "auto": "Auto-detect"
     },
     "state": {
       "on":  "ON",

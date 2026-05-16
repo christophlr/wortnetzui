@@ -11,7 +11,7 @@
       "undo":         "Rückgängig",
       "redo":         "Wiederholen",
       "shortcuts":    "Tastaturkürzel...",
-      "preview":      "Preview",
+      "preview":      "Vorschau",
       "themeLight":   "Hell",
       "themeDark":    "Dunkel"
     },
@@ -23,7 +23,7 @@
     "language": {
       "de": "Deutsch",
       "en": "English",
-      "auto": "Auto-Detect"
+      "auto": "Automatisch"
     },
     "state": {
       "on":  "AN",
@@ -93,15 +93,15 @@
           "baseScale":     "Basis-Skalierung",
           "radialBias":    "Radialer Bias",
           "weightMapping": "Weight-Mapping",
-          "globalOpacity": "Global Opacity",
-          "brushRadius":   "Brush Radius",
-          "feather":       "Feather",
-          "smoothness":    "Smoothness"
+          "globalOpacity": "Globale Deckkraft",
+          "brushRadius":   "Pinselradius",
+          "feather":       "Weiche Kante",
+          "smoothness":    "Glättung"
         },
         "toggle": {
-          "flowAnimation": "Flow Animation",
-          "glitchPaint":   "Glitch Paint",
-          "cameraFollow":  "Camera Follow"
+          "flowAnimation": "Fluss-Animation",
+          "glitchPaint":   "Glitch-Pinsel",
+          "cameraFollow":  "Kamera folgen"
         },
         "color": {
           "origin":    "Origin",
