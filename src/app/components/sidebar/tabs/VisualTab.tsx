@@ -89,7 +89,11 @@ export function VisualTab({
 
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.baseScale')}
-          value={`${(styleSettings.nodeScale ?? 1).toFixed(1)}x`}
+          value={styleSettings.nodeScale ?? 1}
+          onCommit={(val) => onStyleChange({ nodeScale: val })}
+          min={0}
+          max={2.5}
+          format={(v) => `${v.toFixed(1)}x`}
           slider={
             <SidebarSliderTrack
               value={[(styleSettings.nodeScale ?? 1) * 100]}
@@ -102,7 +106,10 @@ export function VisualTab({
 
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.radialBias')}
-          value={visualSettings.radialBiasScale.toFixed(2)}
+          value={visualSettings.radialBiasScale}
+          onCommit={(val) => setVisual({ radialBiasScale: val })}
+          min={0}
+          max={1}
           slider={
             <SidebarSliderTrack
               value={[visualSettings.radialBiasScale * 100]}
@@ -126,7 +133,10 @@ export function VisualTab({
       >
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.weightMapping')}
-          value={visualSettings.labelWeightMapping.toFixed(2)}
+          value={visualSettings.labelWeightMapping}
+          onCommit={(val) => setVisual({ labelWeightMapping: val })}
+          min={0}
+          max={1}
           slider={
             <SidebarSliderTrack
               value={[visualSettings.labelWeightMapping * 100]}
@@ -156,7 +166,11 @@ export function VisualTab({
 
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.globalOpacity')}
-          value={`${Math.round((styleSettings.edgeOpacity ?? 0) * 100)}%`}
+          value={(styleSettings.edgeOpacity ?? 0) * 100}
+          onCommit={(val) => onStyleChange({ edgeOpacity: val / 100 })}
+          min={0}
+          max={100}
+          format={(v) => `${Math.round(v)}%`}
           slider={
             <SidebarSliderTrack
               value={[(styleSettings.edgeOpacity ?? 0) * 100]}
@@ -222,7 +236,11 @@ export function VisualTab({
             <>
               <SidebarSliderRow
                 label={t('sidebar.tab.visual.slider.brushRadius')}
-                value={`${visualSettings.glitchBrushRadius}px`}
+                value={visualSettings.glitchBrushRadius}
+                onCommit={(val) => setVisual({ glitchBrushRadius: Math.round(val) })}
+                min={0}
+                max={500}
+                format={(v) => `${Math.round(v)}px`}
                 slider={
                   <SidebarSliderTrack
                     value={[visualSettings.glitchBrushRadius]}
@@ -234,7 +252,10 @@ export function VisualTab({
               />
               <SidebarSliderRow
                 label={t('sidebar.tab.visual.slider.feather')}
-                value={visualSettings.glitchFeather.toFixed(2)}
+                value={visualSettings.glitchFeather}
+                onCommit={(val) => setVisual({ glitchFeather: val })}
+                min={0}
+                max={1}
                 slider={
                   <SidebarSliderTrack
                     value={[visualSettings.glitchFeather * 100]}
@@ -259,7 +280,10 @@ export function VisualTab({
 
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.smoothness')}
-          value={visualSettings.pathSmoothness.toFixed(2)}
+          value={visualSettings.pathSmoothness}
+          onCommit={(val) => setVisual({ pathSmoothness: val })}
+          min={0}
+          max={1}
           slider={
             <SidebarSliderTrack
               value={[visualSettings.pathSmoothness * 100]}
