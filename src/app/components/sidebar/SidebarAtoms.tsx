@@ -22,7 +22,7 @@
  */
 
 import * as React from 'react';
-import { Diamond, Minus, Plus } from 'lucide-react';
+import { Diamond, Eye, EyeOff, Minus, Plus } from 'lucide-react';
 import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
@@ -600,6 +600,59 @@ export function SidebarButtonGroupRow<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Section action atoms — small icon buttons used in a SidebarSection's
+// `actions` slot. Replace per-tab hand-rolled visibility eyes and shuffle
+// dice so the click target, hover styling, and token use stay unified.
+// ──────────────────────────────────────────────────────────────────────────
+
+export function SidebarVisibilityToggle({
+  visible,
+  onToggle,
+  title,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={title}
+      className={cn(
+        'p-0 transition-colors',
+        visible
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+    </button>
+  );
+}
+
+export function SidebarSectionActionButton({
+  icon: Icon,
+  title,
+  onClick,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-bg transition-all"
+    >
+      <Icon size={13} />
+    </button>
   );
 }
 

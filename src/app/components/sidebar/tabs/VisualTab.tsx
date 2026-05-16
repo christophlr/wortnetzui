@@ -1,17 +1,18 @@
 import * as React from 'react';
-import { Circle, Dices, Eye, EyeOff, RectangleHorizontal, Square } from 'lucide-react';
+import { Circle, Dices, RectangleHorizontal, Square } from 'lucide-react';
 import type { NodeShape } from '../../../networkTheme';
-import { cn } from '../../ui/utils';
 import {
   SidebarButtonGroupRow,
   SidebarCollapsiblePanel,
   SidebarColorRow,
   SidebarGroup,
   SidebarSection,
+  SidebarSectionActionButton,
   SidebarSliderRow,
   SidebarSliderTrack,
   SidebarTabContent,
   SidebarToggleRow,
+  SidebarVisibilityToggle,
 } from '../SidebarAtoms';
 import { useT } from '../../../i18n/useT';
 
@@ -21,29 +22,6 @@ const SHAPE_ICONS: Record<NodeShape, React.ComponentType<{ size?: number; classN
   'rounded-rectangle': RectangleHorizontal,
   ellipse: Circle,
 };
-
-function VisibilityToggle({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        'p-0 transition-colors',
-        visible
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground',
-      )}
-    >
-      {visible ? <Eye size={13} /> : <EyeOff size={13} />}
-    </button>
-  );
-}
 
 export function VisualTab({
   styleSettings,
@@ -73,7 +51,7 @@ export function VisualTab({
       <SidebarSection
         title={t('sidebar.tab.visual.section.nodes')}
         actions={
-          <VisibilityToggle
+          <SidebarVisibilityToggle
             visible={visualSettings.nodesVisible}
             onToggle={() => setVisual({ nodesVisible: !visualSettings.nodesVisible })}
           />
@@ -125,7 +103,7 @@ export function VisualTab({
       <SidebarSection
         title={t('sidebar.tab.visual.section.labels')}
         actions={
-          <VisibilityToggle
+          <SidebarVisibilityToggle
             visible={visualSettings.labelsVisible}
             onToggle={() => setVisual({ labelsVisible: !visualSettings.labelsVisible })}
           />
@@ -151,7 +129,7 @@ export function VisualTab({
       <SidebarSection
         title={t('sidebar.tab.visual.section.edges')}
         actions={
-          <VisibilityToggle
+          <SidebarVisibilityToggle
             visible={visualSettings.edgesVisible}
             onToggle={() => setVisual({ edgesVisible: !visualSettings.edgesVisible })}
           />
@@ -186,15 +164,12 @@ export function VisualTab({
         title={t('sidebar.tab.visual.section.environment')}
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => setVisual({ envAtmosphereSeed: Math.random() * 1000 })}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-bg transition-all"
+            <SidebarSectionActionButton
+              icon={Dices}
               title={t('sidebar.tab.visual.action.shuffleAtmosphere')}
-            >
-              <Dices size={13} />
-            </button>
-            <VisibilityToggle
+              onClick={() => setVisual({ envAtmosphereSeed: Math.random() * 1000 })}
+            />
+            <SidebarVisibilityToggle
               visible={visualSettings.envVisible}
               onToggle={() => setVisual({ envVisible: !visualSettings.envVisible })}
             />
