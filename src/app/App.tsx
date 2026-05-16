@@ -37,7 +37,6 @@ export default function App() {
     physicsParams, setPhysicsParams,
     cameraKeyframes, setCameraKeyframes,
     physicsKeyframes, setPhysicsKeyframes,
-    sidebarWidth, setSidebarWidth,
     timelineHeight, setTimelineHeight,
     isSidebarOpen, setIsSidebarOpen,
     isNetworkReady, setIsNetworkReady,
@@ -322,7 +321,7 @@ export default function App() {
             currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
             physicsKeyframes={physicsKeyframes}
             onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
-            width={sidebarWidth} viewMode={viewMode}
+            viewMode={viewMode}
             onDeleteKeyframe={(time) => handleDeleteKeyframe('camera-keyframes', time)}
             onCollapse={() => setIsSidebarOpen(!isSidebarOpen)}
             isSidebarOpen={isSidebarOpen}

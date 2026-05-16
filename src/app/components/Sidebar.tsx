@@ -49,7 +49,6 @@ interface SidebarProps {
   cameraKeyframes: any[];
   physicsKeyframes: Record<string, any[]>;
   onTogglePhysicsKeyframe: (track: string, val: number) => void;
-  width: number;
   viewMode: '2D' | '3D';
   onDeleteKeyframe: (time: number) => void;
   onCollapse?: () => void;
@@ -91,7 +90,7 @@ export function Sidebar({
   onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
   nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
-  width, viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
+  viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
   onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
   onZoomChange, zoomValue,
   selectedNode, onOverrideChange, visualSettings = {
