@@ -10,6 +10,7 @@ import {
 import { Button } from './ui/button';
 import { Plus, Trash2, Command } from 'lucide-react';
 import { DialogFieldRow } from './dialogs/DialogAtoms';
+import { useT } from '../i18n/useT';
 
 interface Shortcut {
   id: string;
@@ -32,6 +33,7 @@ export function ShortcutsDialog({
   onAddShortcut,
   onRemoveShortcut,
 }: ShortcutsDialogProps) {
+  const { t } = useT();
   const [newCommand, setNewCommand] = useState('');
   const [newKey, setNewKey] = useState('');
 
@@ -47,10 +49,8 @@ export function ShortcutsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Tastaturkürzel verwalten</DialogTitle>
-          <DialogDescription>
-            Hier kannst du Tastaturkürzel einsehen und neue hinzufügen.
-          </DialogDescription>
+          <DialogTitle>{t('dialogs.shortcuts.title')}</DialogTitle>
+          <DialogDescription>{t('dialogs.shortcuts.description')}</DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
@@ -77,15 +77,15 @@ export function ShortcutsDialog({
 
           <div className="grid grid-cols-7 gap-2 items-end pt-2 border-t">
             <DialogFieldRow
-              label="Aktion"
-              placeholder="z.B. Speichern"
+              label={t('dialogs.shortcuts.field.action.label')}
+              placeholder={t('dialogs.shortcuts.field.action.placeholder')}
               value={newCommand}
               onChange={setNewCommand}
               className="col-span-3 space-y-1"
             />
             <DialogFieldRow
-              label="Taste"
-              placeholder="z.B. s"
+              label={t('dialogs.shortcuts.field.key.label')}
+              placeholder={t('dialogs.shortcuts.field.key.placeholder')}
               value={newKey}
               onChange={setNewKey}
               className="col-span-3 space-y-1"
@@ -97,7 +97,7 @@ export function ShortcutsDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Fertig</Button>
+          <Button onClick={() => onOpenChange(false)}>{t('dialogs.shortcuts.done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

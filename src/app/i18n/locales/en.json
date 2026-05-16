@@ -51,7 +51,17 @@
     }
   },
   "timeline": {},
-  "dialogs": {},
+  "dialogs": {
+    "shortcuts": {
+      "title": "Manage keyboard shortcuts",
+      "description": "Inspect existing shortcuts and add new ones.",
+      "field": {
+        "action": { "label": "Action", "placeholder": "e.g. Save" },
+        "key":    { "label": "Key",    "placeholder": "e.g. s" }
+      },
+      "done": "Done"
+    }
+  },
   "common": {
     "sidebar": {
       "expand":   "Open sidebar",

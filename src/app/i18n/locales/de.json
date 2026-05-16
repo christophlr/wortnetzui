@@ -51,7 +51,17 @@
     }
   },
   "timeline": {},
-  "dialogs": {},
+  "dialogs": {
+    "shortcuts": {
+      "title": "Tastaturkürzel verwalten",
+      "description": "Hier kannst du Tastaturkürzel einsehen und neue hinzufügen.",
+      "field": {
+        "action": { "label": "Aktion", "placeholder": "z.B. Speichern" },
+        "key":    { "label": "Taste",  "placeholder": "z.B. s" }
+      },
+      "done": "Fertig"
+    }
+  },
   "common": {
     "sidebar": {
       "expand":   "Sidebar einblenden",
