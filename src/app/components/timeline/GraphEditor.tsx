@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { LABEL_W, GRAPH_H, COLOR, inferEasingType, type ViewWindow, type EasingType } from './types';
+import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 
 /**
@@ -202,7 +203,7 @@ export function GraphEditor({
   return (
     <div className={`flex border-b border-border/50`} style={{ height: GRAPH_H }}>
       {/* Label column */}
-      <div className="shrink-0 flex flex-col justify-between pl-8 pr-2 border-r border-border bg-background py-1 relative z-30" style={{ width: LABEL_W }}>
+      <TrackLabel variant="stacked" padding="indent">
         <div className="flex items-center gap-1.5">
           <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
             <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
@@ -217,7 +218,7 @@ export function GraphEditor({
             <span className="text-[8px] tabular-nums text-muted-foreground/50 leading-none mt-auto">{minVal.toFixed(minVal >= 100 ? 0 : 1)}</span>
           </div>
         )}
-      </div>
+      </TrackLabel>
 
       {/* Graph area */}
       <div ref={trackRef} className="flex-1 relative overflow-visible" style={{ background: 'rgba(0,0,0,0.03)' }}>

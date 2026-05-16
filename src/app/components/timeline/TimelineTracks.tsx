@@ -7,6 +7,7 @@ import {
   COLOR, inferEasingType,
   type ViewWindow, type PhysicsKeyframe, type SceneMarker,
 } from './types';
+import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 
 /* ── Scene Marker Lane ── */
@@ -68,10 +69,10 @@ export function SceneMarkerLane({
   return (
     <div className="flex sticky top-[24px] z-20 border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: TRACK_H }}>
       {/* Label */}
-      <div className="shrink-0 flex items-center gap-1.5 px-2 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }}>
+      <TrackLabel>
         <Bookmark className="w-3 h-3 text-purple-400" fill="currentColor" />
         <span className="text-xs text-muted-foreground font-medium truncate">Scene Markers</span>
-      </div>
+      </TrackLabel>
       {/* Track area */}
       <div className="flex-1 relative" onDoubleClick={handleDoubleClick}>
         {markers.map(marker => {
@@ -215,10 +216,10 @@ export function TrackRow({
   return (
     <div className={`group flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
       {/* Label */}
-      <div className="shrink-0 flex items-center pl-8 pr-2 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }}>
+      <TrackLabel padding="indent">
         <span className="text-[11px] text-muted-foreground truncate flex-1">{name}</span>
         {onToggleGraphEditor && (
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
             className={`opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all ${isGraphEditorVisible ? 'text-blue-400 bg-blue-500/10 opacity-100' : 'text-muted-foreground hover:text-foreground'}`}
             title="Toggle Graph Editor"
@@ -226,7 +227,7 @@ export function TrackRow({
             <LineChart className="w-3.5 h-3.5" />
           </button>
         )}
-      </div>
+      </TrackLabel>
       {/* Track area */}
       <div className={`flex-1 relative ${colorMap.trackBg}`}>
         {/* Mini-curve (Ableton-style faint curve in dopesheet mode) */}
@@ -306,11 +307,11 @@ export function TrackGroup({
         style={{ height: TRACK_H }}
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="shrink-0 flex items-center gap-1.5 px-2 bg-background relative z-30" style={{ width: LABEL_W }}>
+        <TrackLabel border="none">
           <ChevronRight className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
           <div className={`w-2 h-2 rounded-full ${colorMap.dot}`} />
           <span className="text-xs font-medium text-foreground flex-1 truncate">{name}</span>
-        </div>
+        </TrackLabel>
         <div className="flex-1 border-r-0" />
       </div>
       {/* Children (track rows) */}

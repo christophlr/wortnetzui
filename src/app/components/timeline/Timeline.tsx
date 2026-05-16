@@ -9,6 +9,7 @@ import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
 import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
+import { TrackLabel } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 
 /* ── Small helper components ── */
@@ -351,7 +352,7 @@ export function Timeline(props: TimelineProps) {
             >
               {/* Ruler */}
               <div className="flex border-b border-border shrink-0 cursor-pointer sticky top-0 z-60 bg-background" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
-                <div className="shrink-0 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }} />
+                <TrackLabel />
                 <div className="flex-1 relative">
                   {/* Pass absolute zoom (zoom * 12) to ruler for tick density */}
                   <TimelineRuler zoom={zoom * 12} duration={view.duration} viewWindow={viewWindow} />
