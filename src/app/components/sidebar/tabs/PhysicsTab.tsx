@@ -46,7 +46,7 @@ export function PhysicsTab({
   return (
     <SidebarTabContent>
       {groups.map((group) => (
-        <SidebarSection key={group.title} title={group.title} className="space-y-4">
+        <SidebarSection key={group.title} title={group.title} stack="snug">
           {group.params.map((p) => {
             const active = physKfActive[p.id] ?? false;
             return (

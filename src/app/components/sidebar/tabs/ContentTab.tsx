@@ -31,7 +31,7 @@ export function ContentTab({
   return (
     <SidebarTabContent>
       <SidebarSection title="Text">
-        <SidebarGroup className="space-y-4">
+        <SidebarGroup stack="loose">
           <Textarea
             className="min-h-[260px] text-[12px] leading-relaxed resize-y bg-white border-zinc-200 focus-visible:ring-zinc-400 shadow-sm font-sans"
             placeholder="Text hier einfügen..."
@@ -49,7 +49,7 @@ export function ContentTab({
       </SidebarSection>
 
       <SidebarSection title="Parse-Modus">
-        <SidebarGroup className="space-y-4">
+        <SidebarGroup stack="loose">
           <RadioGroup value={parseMode} onValueChange={onParsingChange} className="gap-4">
             {parseOptions.map((item) => (
               <SidebarRadioRow

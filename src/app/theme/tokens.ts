@@ -30,7 +30,9 @@ export type CssVarName =
   | '--sidebar-border' | '--sidebar-ring'
   // Wortnetz action accents
   | '--wn-accent' | '--wn-accent-soft' | '--wn-keyframe-active'
-  | '--wn-divider' | '--wn-control-bg' | '--wn-info-bg';
+  | '--wn-divider' | '--wn-control-bg' | '--wn-info-bg'
+  // Chart palette (defined in .dark scope)
+  | '--chart-1' | '--chart-2' | '--chart-3' | '--chart-4' | '--chart-5';
 
 /** Helper to produce a typed `var(--…)` CSS string. */
 export const themeVar = (name: CssVarName): string => `var(${name})`;
@@ -38,8 +40,13 @@ export const themeVar = (name: CssVarName): string => `var(${name})`;
 // B. Spacing aliases — pure className constants, no runtime cost.
 export const pad = {
   section: 'px-5 py-5',
+  // Stack scales for SidebarSection: normal (default) | snug.
   sectionStack: 'space-y-5',
+  sectionStackSnug: 'space-y-4',
+  // Stack scales for SidebarGroup: tight (default) | snug | loose.
   subgroup: 'space-y-3',
+  subgroupSnug: 'space-y-3.5',
+  subgroupLoose: 'space-y-4',
 } as const;
 
 // C. Gradient presets (typed; home for the four-preset palette).

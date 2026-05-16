@@ -1864,7 +1864,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     setContextMenuNode(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Internal zoom slider deactivated in favor of Inspector control
+  /* Internal zoom slider deactivated in favor of Sidebar control
   const handleZoomSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!cameraRef.current || !controlsRef.current) return;
     const newDist = sliderValToDist(parseFloat(e.target.value));

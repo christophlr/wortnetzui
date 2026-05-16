@@ -74,7 +74,7 @@ export function VisualTab({
           />
         }
       >
-        <SidebarGroup title="Form" className="space-y-3.5">
+        <SidebarGroup title="Form" stack="snug">
           <SidebarButtonGroupRow<NodeShape>
             value={styleSettings.nodeShape}
             onChange={(id) => onStyleChange({ nodeShape: id })}
@@ -182,7 +182,7 @@ export function VisualTab({
           </>
         }
       >
-        <SidebarGroup title="Atmosphäre-Gradient" className="space-y-3.5">
+        <SidebarGroup title="Atmosphäre-Gradient" stack="snug">
           <div className="grid gap-4 md:grid-cols-2">
             <SidebarColorRow
               label="Origin"

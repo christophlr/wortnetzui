@@ -98,19 +98,22 @@ export function SidebarTabContent({ className, ...props }: DivProps) {
 // Layout atoms — compound Section (H2) and Group (H3)
 // ──────────────────────────────────────────────────────────────────────────
 
+export type SidebarSectionStack = 'normal' | 'snug';
+
 export function SidebarSection({
   title,
   actions,
-  className,
+  stack = 'normal',
   children,
 }: {
   title?: React.ReactNode;
   actions?: React.ReactNode;
-  className?: string;
+  stack?: SidebarSectionStack;
   children: React.ReactNode;
 }) {
+  const stackClass = stack === 'snug' ? pad.sectionStackSnug : pad.sectionStack;
   return (
-    <section className={cn(pad.section, pad.sectionStack, className)}>
+    <section className={cn(pad.section, stackClass)}>
       {title || actions ? (
         <div className="flex items-center gap-2">
           {title ? (
@@ -128,17 +131,21 @@ export function SidebarSection({
   );
 }
 
+export type SidebarGroupStack = 'tight' | 'snug' | 'loose';
+
 export function SidebarGroup({
   title,
-  className,
+  stack = 'tight',
   children,
 }: {
   title?: React.ReactNode;
-  className?: string;
+  stack?: SidebarGroupStack;
   children: React.ReactNode;
 }) {
+  const stackClass =
+    stack === 'loose' ? pad.subgroupLoose : stack === 'snug' ? pad.subgroupSnug : pad.subgroup;
   return (
-    <div className={cn(pad.subgroup, className)}>
+    <div className={stackClass}>
       {title ? (
         <h3 className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
           {title}
@@ -326,8 +333,8 @@ function RowHeader({
 }
 
 /**
- * SidebarSliderRow — replaces InspectorSliderControl. The label is now a
- * <span>, NOT an <h3>: a single parameter is not a subgroup.
+ * SidebarSliderRow — the label is a <span>, NOT an <h3>: a single parameter
+ * is not a subgroup.
  */
 export function SidebarSliderRow({
   label,
