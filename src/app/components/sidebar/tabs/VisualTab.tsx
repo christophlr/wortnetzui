@@ -149,7 +149,7 @@ export function VisualTab({
       >
         <SidebarToggleRow
           label={t('sidebar.tab.visual.toggle.flowAnimation')}
-          tone="neutral"
+          tone="accent"
           checked={visualSettings.edgeFlowAnimation}
           onCheckedChange={(checked) => setVisual({ edgeFlowAnimation: checked })}
         />
