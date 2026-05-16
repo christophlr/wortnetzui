@@ -221,6 +221,13 @@
     "sidebar": {
       "expand":   "Sidebar einblenden",
       "collapse": "Sidebar ausblenden"
+    },
+    "error": {
+      "title":       "Etwas ist schiefgelaufen",
+      "body":        "Die 3D-Visualisierung konnte aufgrund eines technischen Problems nicht geladen werden.",
+      "bodyFallback":"Dies kann durch einen WebGL-Fehler oder zu hohen Grafikspeicherverbrauch verursacht worden sein.",
+      "webglTip":    "Tipp: Schließen Sie andere Tabs mit 3D-Inhalten oder Grafik-Anwendungen, um WebGL-Ressourcen freizugeben.",
+      "reload":      "Anwendung neu laden"
     }
   }
 }

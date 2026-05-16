@@ -221,6 +221,13 @@
     "sidebar": {
       "expand":   "Open sidebar",
       "collapse": "Collapse sidebar"
+    },
+    "error": {
+      "title":       "Something went wrong",
+      "body":        "The 3D visualisation could not be loaded due to a technical problem.",
+      "bodyFallback":"This may have been caused by a WebGL error or excessive graphics memory usage.",
+      "webglTip":    "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
+      "reload":      "Reload application"
     }
   }
 }
