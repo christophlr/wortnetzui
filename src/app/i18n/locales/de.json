@@ -153,6 +153,16 @@
           "pan":   "Ziehen zum Verschieben",
           "zoom":  "Schieben zum Zoomen (Relativ)"
         },
+        "view": {
+          "top":    "Draufsicht (Y)",
+          "left":   "Linke Ansicht (-X)",
+          "right":  "Rechte Ansicht (X)",
+          "bottom": "Unteransicht (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
         "reset":  "Reset",
         "resetCamera": "Kamera zurücksetzen"
       },

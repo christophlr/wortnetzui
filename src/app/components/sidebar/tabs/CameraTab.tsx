@@ -145,14 +145,14 @@ export function CameraTab({
               <SidebarViewPresetButton
                 variant="axis"
                 label="Y"
-                title="Top View (Y)"
+                title={t('sidebar.tab.camera.view.top')}
                 onClick={() => onSetRotation(0, 0)}
               />
               <div className="flex justify-between w-full items-center">
                 <SidebarViewPresetButton
                   variant="axis"
                   label="-X"
-                  title="Left View (-X)"
+                  title={t('sidebar.tab.camera.view.left')}
                   onClick={() => onSetRotation(-Math.PI / 2, Math.PI / 2)}
                 />
 
@@ -169,39 +169,39 @@ export function CameraTab({
                 <SidebarViewPresetButton
                   variant="axis"
                   label="X"
-                  title="Right View (X)"
+                  title={t('sidebar.tab.camera.view.right')}
                   onClick={() => onSetRotation(Math.PI / 2, Math.PI / 2)}
                 />
               </div>
               <SidebarViewPresetButton
                 variant="axis"
                 label="-Y"
-                title="Bottom View (-Y)"
+                title={t('sidebar.tab.camera.view.bottom')}
                 onClick={() => onSetRotation(Math.PI, 0)}
               />
             </div>
 
             <SidebarViewPresetButton
               variant="iso"
-              title="ISO 1"
+              title={t('sidebar.tab.camera.view.iso1')}
               className="absolute top-2 left-2"
               onClick={() => onSetRotation(Math.PI / 4, Math.PI / 4)}
             />
             <SidebarViewPresetButton
               variant="iso"
-              title="ISO 2"
+              title={t('sidebar.tab.camera.view.iso2')}
               className="absolute top-2 right-2"
               onClick={() => onSetRotation(-Math.PI / 4, Math.PI / 4)}
             />
             <SidebarViewPresetButton
               variant="iso"
-              title="ISO 3"
+              title={t('sidebar.tab.camera.view.iso3')}
               className="absolute bottom-2 left-2"
               onClick={() => onSetRotation((3 * Math.PI) / 4, Math.PI / 4)}
             />
             <SidebarViewPresetButton
               variant="iso"
-              title="ISO 4"
+              title={t('sidebar.tab.camera.view.iso4')}
               className="absolute bottom-2 right-2"
               onClick={() => onSetRotation((-3 * Math.PI) / 4, Math.PI / 4)}
             />

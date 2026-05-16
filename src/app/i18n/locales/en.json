@@ -153,6 +153,16 @@
           "pan":   "Drag to pan",
           "zoom":  "Slide to zoom (relative)"
         },
+        "view": {
+          "top":    "Top view (Y)",
+          "left":   "Left view (-X)",
+          "right":  "Right view (X)",
+          "bottom": "Bottom view (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
         "reset":  "Reset",
         "resetCamera": "Reset camera"
       },
