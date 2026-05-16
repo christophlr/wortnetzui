@@ -3,7 +3,7 @@ import {
   Square, Box, MonitorPlay,
   Keyboard
 } from 'lucide-react';
-import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
+import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubTrigger, MenubarSubContent } from './ui/menubar';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
@@ -48,7 +48,23 @@ export function TopBar({
   } = useWortnetz();
   
   const { handleSave, handleLoad } = useProject();
-  const { t } = useT();
+  const { t, language, setLanguage } = useT();
+
+  const handleLanguageChange = (v: string) => {
+    if (v === 'auto') {
+      localStorage.setItem('wortnetze.language.auto', 'true');
+      localStorage.removeItem('wortnetze.language');
+      // trigger a page reload to apply auto-detection
+      window.location.reload();
+    } else {
+      localStorage.setItem('wortnetze.language.auto', 'false');
+      localStorage.setItem('wortnetze.language', v);
+      setLanguage(v as any);
+    }
+  };
+
+  const autoDetect = typeof window !== 'undefined' ? localStorage.getItem('wortnetze.language.auto') === 'true' : false;
+  const currentLanguageValue = autoDetect ? 'auto' : language;
 
   const handleViewModeChange = (mode: '2D' | '3D') => {
     setViewMode(mode);
@@ -132,6 +148,20 @@ export function TopBar({
                     <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />{t('topbar.item.themeLight')}</MenubarRadioItem>
                     <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />{t('topbar.item.themeDark')}</MenubarRadioItem>
                   </MenubarRadioGroup>
+                </MenubarGroup>
+                <MenubarSeparator />
+                <MenubarGroup>
+                  <MenubarSub>
+                    <MenubarSubTrigger>{t('topbar.label.language')}</MenubarSubTrigger>
+                    <MenubarSubContent>
+                      <MenubarRadioGroup value={currentLanguageValue} onValueChange={handleLanguageChange}>
+                        <MenubarRadioItem value="de">{t('topbar.language.de')}</MenubarRadioItem>
+                        <MenubarRadioItem value="en">{t('topbar.language.en')}</MenubarRadioItem>
+                        <MenubarSeparator />
+                        <MenubarRadioItem value="auto">{t('topbar.language.auto')}</MenubarRadioItem>
+                      </MenubarRadioGroup>
+                    </MenubarSubContent>
+                  </MenubarSub>
                 </MenubarGroup>
               </MenubarContent>
             </MenubarMenu>

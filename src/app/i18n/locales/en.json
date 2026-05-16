@@ -17,7 +17,13 @@
     },
     "label": {
       "mode":  "Mode",
-      "theme": "Theme"
+      "theme": "Theme",
+      "language": "Language"
+    },
+    "language": {
+      "de": "Deutsch",
+      "en": "English",
+      "auto": "Auto-Detect"
     },
     "state": {
       "on":  "ON",

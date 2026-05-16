@@ -17,7 +17,13 @@
     },
     "label": {
       "mode":  "Modus",
-      "theme": "Design"
+      "theme": "Design",
+      "language": "Sprache"
+    },
+    "language": {
+      "de": "Deutsch",
+      "en": "English",
+      "auto": "Auto-Detect"
     },
     "state": {
       "on":  "AN",
