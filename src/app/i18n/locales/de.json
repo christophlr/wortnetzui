@@ -172,6 +172,22 @@
   },
   "timeline": {
     "label": "Timeline",
+    "contextMenu": {
+      "addSceneMarker":  "Szenenmarker hinzufügen",
+      "pasteAtPlayhead": "An Abspielkopf einfügen",
+      "copy":            "Kopieren",
+      "cut":             "Ausschneiden",
+      "delete":          "Löschen",
+      "keyframeEasing":  "Keyframe-Interpolation",
+      "easing": {
+        "auto":     "Auto (Weich)",
+        "linear":   "Linear",
+        "hold":     "Halten (Stufe)",
+        "easyEase": "Easy Ease",
+        "easeIn":   "Ease In",
+        "easeOut":  "Ease Out"
+      }
+    },
     "track": {
       "sceneMarkers": "Szenen-Marker",
       "camera":       "Kamera",
