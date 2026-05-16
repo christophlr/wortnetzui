@@ -21,11 +21,9 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 void i18next.use(initReactI18next).init({
   lng: 'de',
   fallbackLng: 'en',
-  defaultNS: 'common',
-  ns: ['topbar', 'toolbar', 'sidebar', 'timeline', 'dialogs', 'common'],
   resources: {
-    de: { ...de },
-    en: { ...en },
+    de: { translation: de },
+    en: { translation: en },
   },
   interpolation: { escapeValue: false },
 });
