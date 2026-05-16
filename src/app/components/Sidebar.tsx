@@ -29,13 +29,6 @@ import {
   type SidebarTabId,
 } from './sidebar/sidebarConfig';
 
-const GRADIENT_PRESETS = [
-  { name: 'Indigo → Violett', inner: '#4f46e5', outer: '#7c3aed' },
-  { name: 'Cyan → Grün', inner: '#06b6d4', outer: '#10b981' },
-  { name: 'Lila → Pink', inner: '#a855f7', outer: '#ec4899' },
-  { name: 'Orange → Rot', inner: '#f97316', outer: '#ef4444' },
-];
-
 interface SidebarProps {
   onPhysicsChange: (p: any) => void;
   onTextChange: (t: string) => void;

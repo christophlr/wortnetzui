@@ -25,6 +25,7 @@ import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
 import { RadioGroupItem } from '../ui/radio-group';
 import { cn } from '../ui/utils';
+import { pad } from '../../theme/tokens';
 
 type DivProps = React.ComponentProps<'div'>;
 
@@ -109,7 +110,7 @@ export function SidebarSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('px-5 py-5 space-y-5', className)}>
+    <section className={cn(pad.section, pad.sectionStack, className)}>
       {title || actions ? (
         <div className="flex items-center gap-2">
           {title ? (
@@ -137,7 +138,7 @@ export function SidebarGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn(pad.subgroup, className)}>
       {title ? (
         <h3 className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
           {title}
@@ -562,7 +563,7 @@ export function SidebarInfoBox({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn('px-5 py-5', className)}>
+    <div className={cn(pad.section, className)}>
       <p className="text-[10px] text-zinc-400 leading-relaxed italic">{children}</p>
     </div>
   );
