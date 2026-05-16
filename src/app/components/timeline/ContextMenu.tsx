@@ -89,8 +89,8 @@ export function TimelineContextMenuContent({
               <KeyframeIcon 
                 type={type} 
                 size={12} 
-                fill={target.easingType === type ? 'currentColor' : '#a1a1aa'} 
-                stroke={target.easingType === type ? 'currentColor' : '#a1a1aa'} 
+                fill={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'} 
+                stroke={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'} 
               />
               <span className="flex-1 ml-1">{label}</span>
               {target.easingType === type && <span className="text-xs">✓</span>}

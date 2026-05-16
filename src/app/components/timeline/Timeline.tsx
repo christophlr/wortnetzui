@@ -365,7 +365,7 @@ export function Timeline(props: TimelineProps) {
                     >
                       <div className="absolute top-0 left-1/2 -translate-x-1/2">
                         <svg width="10" height="8" viewBox="0 0 10 8">
-                          <polygon points="0,0 10,0 5,8" fill="#ef4444" />
+                          <polygon points="0,0 10,0 5,8" fill="var(--wn-timeline-playhead)" />
                         </svg>
                       </div>
                     </div>

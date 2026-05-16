@@ -101,8 +101,8 @@ export function SceneMarkerLane({
               <svg width="12" height="14" viewBox="0 0 12 14" className="shrink-0">
                 <path
                   d="M 1 1 L 11 1 L 11 9 L 6 13 L 1 9 Z"
-                  fill={isSelected ? '#a855f7' : '#7c3aed'}
-                  stroke={isSelected ? '#2563eb' : '#7c3aed'}
+                  fill={isSelected ? 'var(--wn-timeline-marker-selected)' : 'var(--wn-timeline-marker-fill)'}
+                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-stroke)' : 'var(--wn-timeline-marker-fill)'}
                   strokeWidth={isSelected ? 2 : 1}
                 />
               </svg>
@@ -221,7 +221,7 @@ export function TrackRow({
         {onToggleGraphEditor && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
-            className={`opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all ${isGraphEditorVisible ? 'text-blue-400 bg-blue-500/10 opacity-100' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all ${isGraphEditorVisible ? 'text-wn-accent bg-wn-accent-soft opacity-100' : 'text-muted-foreground hover:text-foreground'}`}
             title="Toggle Graph Editor"
           >
             <LineChart className="w-3.5 h-3.5" />
@@ -256,7 +256,7 @@ export function TrackRow({
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing z-10 hover:scale-125 transition-transform"
               style={{
                 left: `${pct}%`,
-                filter: isSelected ? 'drop-shadow(0 0 6px rgba(37, 99, 235, 0.6))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+                filter: isSelected ? 'drop-shadow(0 0 6px color-mix(in srgb, var(--wn-timeline-kf-selected) 60%, transparent))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
               }}
               onMouseDown={(e) => handleKfMouseDown(e, kf.time)}
               onContextMenu={(e) => {
@@ -268,8 +268,8 @@ export function TrackRow({
               <KeyframeIcon
                 type={easingType}
                 size={10}
-                fill={isSelected ? '#3b82f6' : colorMap.kfFill}
-                stroke={isSelected ? '#2563eb' : colorMap.kfFill}
+                fill={isSelected ? 'var(--wn-timeline-kf-selected)' : colorMap.kfFill}
+                stroke={isSelected ? 'var(--wn-timeline-kf-selected-stroke)' : colorMap.kfFill}
                 selected={isSelected}
               />
             </button>

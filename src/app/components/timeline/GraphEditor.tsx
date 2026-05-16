@@ -325,8 +325,8 @@ export function GraphEditor({
                 {/* Keyframe dot */}
                 <circle
                   cx={`${xPct}%`} cy={y} r={isSelected ? 6 : 5}
-                  fill={isSelected ? '#3b82f6' : colorMap.graphStroke}
-                  stroke={isSelected ? '#93c5fd' : '#fff'}
+                  fill={isSelected ? 'var(--wn-timeline-kf-selected)' : colorMap.graphStroke}
+                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-outline)' : '#fff'}
                   strokeWidth={isSelected ? 2 : 1.5}
                   className={onSetValue && !isTension ? 'cursor-ns-resize' : undefined}
                   onMouseDown={onSetValue && !isTension ? (e) => startValueDrag(e, kf.time, kf.value!) : undefined}

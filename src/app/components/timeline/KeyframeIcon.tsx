@@ -32,8 +32,8 @@ export function KeyframeIcon({
   const half = size / 2;
 
   // Selection/playhead overrides
-  const effectiveFill = selected ? fill : onPlayhead ? '#3b82f6' : fill;
-  const effectiveStroke = selected ? stroke : onPlayhead ? '#3b82f6' : stroke;
+  const effectiveFill = selected ? fill : onPlayhead ? 'var(--wn-timeline-kf-selected)' : fill;
+  const effectiveStroke = selected ? stroke : onPlayhead ? 'var(--wn-timeline-kf-selected)' : stroke;
   const sw = selected || onPlayhead ? 2 : strokeWidth;
 
   return (
@@ -51,7 +51,7 @@ export function KeyframeIcon({
           cy={half}
           r={half + 3}
           fill="none"
-          stroke="#2563eb"
+          stroke="var(--wn-timeline-kf-selected-stroke)"
           strokeWidth={2}
         />
       )}
