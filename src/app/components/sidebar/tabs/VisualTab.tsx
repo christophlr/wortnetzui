@@ -13,16 +13,14 @@ import {
   SidebarTabContent,
   SidebarToggleRow,
 } from '../SidebarAtoms';
+import { useT } from '../../../i18n/useT';
 
-const SHAPE_OPTIONS: Array<{
-  id: NodeShape;
-  label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}> = [
-  { id: 'rectangle', icon: Square, label: 'Rect' },
-  { id: 'rounded-rectangle', icon: RectangleHorizontal, label: 'Rounded' },
-  { id: 'ellipse', icon: Circle, label: 'Ellipse' },
-];
+const SHAPE_IDS: NodeShape[] = ['rectangle', 'rounded-rectangle', 'ellipse'];
+const SHAPE_ICONS: Record<NodeShape, React.ComponentType<{ size?: number; className?: string }>> = {
+  rectangle: Square,
+  'rounded-rectangle': RectangleHorizontal,
+  ellipse: Circle,
+};
 
 function VisibilityToggle({
   visible,
@@ -58,15 +56,22 @@ export function VisualTab({
   onStyleChange: (settings: any) => void;
   onVisualSettingsChange?: (settings: any) => void;
 }) {
+  const { t } = useT();
   const [isFxExpanded, setIsFxExpanded] = React.useState(false);
 
   const setVisual = (patch: Record<string, unknown>) =>
     onVisualSettingsChange?.({ ...visualSettings, ...patch });
 
+  const shapeOptions = SHAPE_IDS.map((id) => ({
+    id,
+    icon: SHAPE_ICONS[id],
+    label: t(`sidebar.tab.visual.shape.${id}`),
+  }));
+
   return (
     <SidebarTabContent>
       <SidebarSection
-        title="Knoten"
+        title={t('sidebar.tab.visual.section.nodes')}
         actions={
           <VisibilityToggle
             visible={visualSettings.nodesVisible}
@@ -74,16 +79,16 @@ export function VisualTab({
           />
         }
       >
-        <SidebarGroup title="Form" stack="snug">
+        <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
           <SidebarButtonGroupRow<NodeShape>
             value={styleSettings.nodeShape}
             onChange={(id) => onStyleChange({ nodeShape: id })}
-            options={SHAPE_OPTIONS}
+            options={shapeOptions}
           />
         </SidebarGroup>
 
         <SidebarSliderRow
-          label="Basis-Skalierung"
+          label={t('sidebar.tab.visual.slider.baseScale')}
           value={`${(styleSettings.nodeScale ?? 1).toFixed(1)}x`}
           slider={
             <SidebarSliderTrack
@@ -96,7 +101,7 @@ export function VisualTab({
         />
 
         <SidebarSliderRow
-          label="Radialer Bias"
+          label={t('sidebar.tab.visual.slider.radialBias')}
           value={visualSettings.radialBiasScale.toFixed(2)}
           slider={
             <SidebarSliderTrack
@@ -106,12 +111,12 @@ export function VisualTab({
               onValueChange={([val]) => setVisual({ radialBiasScale: val / 100 })}
             />
           }
-          description="Scale = Basis + (Bias × Dist)"
+          description={t('sidebar.tab.visual.description.radialBias')}
         />
       </SidebarSection>
 
       <SidebarSection
-        title="Beschriftung"
+        title={t('sidebar.tab.visual.section.labels')}
         actions={
           <VisibilityToggle
             visible={visualSettings.labelsVisible}
@@ -120,7 +125,7 @@ export function VisualTab({
         }
       >
         <SidebarSliderRow
-          label="Weight-Mapping"
+          label={t('sidebar.tab.visual.slider.weightMapping')}
           value={visualSettings.labelWeightMapping.toFixed(2)}
           slider={
             <SidebarSliderTrack
@@ -134,7 +139,7 @@ export function VisualTab({
       </SidebarSection>
 
       <SidebarSection
-        title="Verbindungen"
+        title={t('sidebar.tab.visual.section.edges')}
         actions={
           <VisibilityToggle
             visible={visualSettings.edgesVisible}
@@ -143,14 +148,14 @@ export function VisualTab({
         }
       >
         <SidebarToggleRow
-          label="Flow Animation"
+          label={t('sidebar.tab.visual.toggle.flowAnimation')}
           tone="neutral"
           checked={visualSettings.edgeFlowAnimation}
           onCheckedChange={(checked) => setVisual({ edgeFlowAnimation: checked })}
         />
 
         <SidebarSliderRow
-          label="Global Opacity"
+          label={t('sidebar.tab.visual.slider.globalOpacity')}
           value={`${Math.round((styleSettings.edgeOpacity ?? 0) * 100)}%`}
           slider={
             <SidebarSliderTrack
@@ -164,14 +169,14 @@ export function VisualTab({
       </SidebarSection>
 
       <SidebarSection
-        title="Umgebung"
+        title={t('sidebar.tab.visual.section.environment')}
         actions={
           <>
             <button
               type="button"
               onClick={() => setVisual({ envAtmosphereSeed: Math.random() * 1000 })}
               className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
-              title="Shuffle Atmosphere"
+              title={t('sidebar.tab.visual.action.shuffleAtmosphere')}
             >
               <Dices size={13} />
             </button>
@@ -182,15 +187,15 @@ export function VisualTab({
           </>
         }
       >
-        <SidebarGroup title="Atmosphäre-Gradient" stack="snug">
+        <SidebarGroup title={t('sidebar.tab.visual.group.atmosphereGradient')} stack="snug">
           <div className="grid gap-4 md:grid-cols-2">
             <SidebarColorRow
-              label="Origin"
+              label={t('sidebar.tab.visual.color.origin')}
               value={visualSettings.gradientOrigin}
               onChange={(value) => setVisual({ gradientOrigin: value })}
             />
             <SidebarColorRow
-              label="Periphery"
+              label={t('sidebar.tab.visual.color.periphery')}
               value={visualSettings.gradientPeriphery}
               onChange={(value) => setVisual({ gradientPeriphery: value })}
             />
@@ -200,14 +205,14 @@ export function VisualTab({
 
       <SidebarSection>
         <SidebarCollapsiblePanel
-          title="Fx"
-          status={visualSettings.glitchActive ? 'Aktiv' : 'Keine Effekte'}
+          title={t('sidebar.tab.visual.fx.title')}
+          status={visualSettings.glitchActive ? t('sidebar.tab.visual.fx.active') : t('sidebar.tab.visual.fx.inactive')}
           expanded={isFxExpanded}
           forceOpen={visualSettings.glitchActive}
           onToggle={() => setIsFxExpanded((current) => !current)}
         >
           <SidebarToggleRow
-            label="Glitch Paint"
+            label={t('sidebar.tab.visual.toggle.glitchPaint')}
             tone="accent"
             checked={visualSettings.glitchActive}
             onCheckedChange={(checked) => setVisual({ glitchActive: checked })}
@@ -216,7 +221,7 @@ export function VisualTab({
           {visualSettings.glitchActive && (
             <>
               <SidebarSliderRow
-                label="Brush Radius"
+                label={t('sidebar.tab.visual.slider.brushRadius')}
                 value={`${visualSettings.glitchBrushRadius}px`}
                 slider={
                   <SidebarSliderTrack
@@ -228,7 +233,7 @@ export function VisualTab({
                 }
               />
               <SidebarSliderRow
-                label="Feather"
+                label={t('sidebar.tab.visual.slider.feather')}
                 value={visualSettings.glitchFeather.toFixed(2)}
                 slider={
                   <SidebarSliderTrack
@@ -244,16 +249,16 @@ export function VisualTab({
         </SidebarCollapsiblePanel>
       </SidebarSection>
 
-      <SidebarSection title="Path Animator">
+      <SidebarSection title={t('sidebar.tab.visual.section.pathAnimator')}>
         <SidebarToggleRow
-          label="Camera Follow"
+          label={t('sidebar.tab.visual.toggle.cameraFollow')}
           tone="accent"
           checked={visualSettings.pathCameraFollow}
           onCheckedChange={(checked) => setVisual({ pathCameraFollow: checked })}
         />
 
         <SidebarSliderRow
-          label="Smoothness"
+          label={t('sidebar.tab.visual.slider.smoothness')}
           value={visualSettings.pathSmoothness.toFixed(2)}
           slider={
             <SidebarSliderTrack

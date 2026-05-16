@@ -65,7 +65,54 @@
           "both":     { "label": "Beides",    "desc": "Wörter als Brücke" }
         }
       },
-      "visual":  { "title": "Visualisierung" },
+      "visual":  {
+        "title": "Visualisierung",
+        "section": {
+          "nodes":        "Knoten",
+          "labels":       "Beschriftung",
+          "edges":        "Verbindungen",
+          "environment":  "Umgebung",
+          "pathAnimator": "Path Animator"
+        },
+        "group": {
+          "shape":            "Form",
+          "atmosphereGradient": "Atmosphäre-Gradient"
+        },
+        "shape": {
+          "rectangle":         "Rect",
+          "rounded-rectangle": "Rounded",
+          "ellipse":           "Ellipse"
+        },
+        "slider": {
+          "baseScale":     "Basis-Skalierung",
+          "radialBias":    "Radialer Bias",
+          "weightMapping": "Weight-Mapping",
+          "globalOpacity": "Global Opacity",
+          "brushRadius":   "Brush Radius",
+          "feather":       "Feather",
+          "smoothness":    "Smoothness"
+        },
+        "toggle": {
+          "flowAnimation": "Flow Animation",
+          "glitchPaint":   "Glitch Paint",
+          "cameraFollow":  "Camera Follow"
+        },
+        "color": {
+          "origin":    "Origin",
+          "periphery": "Periphery"
+        },
+        "fx": {
+          "title":      "Fx",
+          "active":     "Aktiv",
+          "inactive":   "Keine Effekte"
+        },
+        "action": {
+          "shuffleAtmosphere": "Shuffle Atmosphere"
+        },
+        "description": {
+          "radialBias": "Scale = Basis + (Bias × Dist)"
+        }
+      },
       "physics": { "title": "Physik" },
       "camera":  {
         "title": "Kamera",
