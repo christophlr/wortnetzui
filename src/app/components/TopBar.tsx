@@ -9,6 +9,7 @@ import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
 import { TopBarActionButton, TopBarMenuTrigger, TopBarPill } from './topbar/TopBarAtoms';
 import { useT } from '../i18n/useT';
+import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
 
 function NetworkLogo() {
   return (
@@ -52,18 +53,17 @@ export function TopBar({
 
   const handleLanguageChange = (v: string) => {
     if (v === 'auto') {
-      localStorage.setItem('wortnetze.language.auto', 'true');
-      localStorage.removeItem('wortnetze.language');
-      // trigger a page reload to apply auto-detection
-      window.location.reload();
+      localStorage.setItem(LANGUAGE_AUTO_KEY, 'true');
+      localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+      setLanguage(normalizeLanguage(navigator.language));
     } else {
-      localStorage.setItem('wortnetze.language.auto', 'false');
-      localStorage.setItem('wortnetze.language', v);
-      setLanguage(v as any);
+      localStorage.setItem(LANGUAGE_AUTO_KEY, 'false');
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, v);
+      setLanguage(normalizeLanguage(v));
     }
   };
 
-  const autoDetect = typeof window !== 'undefined' ? localStorage.getItem('wortnetze.language.auto') === 'true' : false;
+  const autoDetect = localStorage.getItem(LANGUAGE_AUTO_KEY) === 'true';
   const currentLanguageValue = autoDetect ? 'auto' : language;
 
   const handleViewModeChange = (mode: '2D' | '3D') => {
