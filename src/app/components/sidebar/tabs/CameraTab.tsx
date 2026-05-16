@@ -7,6 +7,7 @@ import {
   SidebarSection,
   SidebarTabContent,
 } from '../SidebarAtoms';
+import { useT } from '../../../i18n/useT';
 
 function GridOverlay({ cols, rows }: { cols: number; rows: number }) {
   return (
@@ -154,9 +155,11 @@ export function CameraTab({
     </>
   );
 
+  const { t } = useT();
+
   return (
     <SidebarTabContent>
-      <SidebarSection title="Rotation (Orbit)">
+      <SidebarSection title={t('sidebar.tab.camera.section.rotation')}>
         <div className="flex flex-col items-center gap-2">
           <SidebarDragPuck
             aspect="square"
@@ -232,19 +235,19 @@ export function CameraTab({
 
           <div className="flex justify-between w-full px-1">
             <span className="text-[10px] text-zinc-400 italic">
-              Orbit: Ziehen / Klicken zum Einrasten
+              {t('sidebar.tab.camera.hint.orbit')}
             </span>
             <button
               onClick={() => onResetView()}
               className="text-[10px] text-zinc-500 hover:text-zinc-900 font-medium underline-offset-2 hover:underline"
             >
-              Reset
+              {t('sidebar.tab.camera.reset')}
             </button>
           </div>
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Ansicht verschieben (Pan)">
+      <SidebarSection title={t('sidebar.tab.camera.section.pan')}>
         <div className="flex flex-col items-center gap-2">
           <SidebarDragPuck
             aspect="wide"
@@ -269,11 +272,11 @@ export function CameraTab({
               <Move size={14} />
             </div>
           </SidebarDragPuck>
-          <span className="text-[9px] text-zinc-400 italic">Ziehen zum Verschieben</span>
+          <span className="text-[9px] text-zinc-400 italic">{t('sidebar.tab.camera.hint.pan')}</span>
         </div>
       </SidebarSection>
 
-      <SidebarSection title="Zoom">
+      <SidebarSection title={t('sidebar.tab.camera.section.zoom')}>
         <div className="relative h-6 flex items-center px-1 group">
           <div className="absolute inset-x-1 h-1.5 bg-zinc-200 rounded-full" />
           <div className="absolute left-1/2 -translate-x-1/2 w-0.5 h-3 bg-zinc-300 z-0" />
@@ -297,7 +300,7 @@ export function CameraTab({
         </div>
         <div className="flex justify-between mt-2">
           <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">-</span>
-          <span className="text-[9px] text-zinc-400 italic">Schieben zum Zoomen (Relativ)</span>
+          <span className="text-[9px] text-zinc-400 italic">{t('sidebar.tab.camera.hint.zoom')}</span>
           <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">+</span>
         </div>
       </SidebarSection>
@@ -312,7 +315,7 @@ export function CameraTab({
             onZoomChange(50);
           }}
         >
-          Kamera zurücksetzen
+          {t('sidebar.tab.camera.resetCamera')}
         </Button>
       </SidebarSection>
     </SidebarTabContent>

@@ -35,7 +35,21 @@
       },
       "visual":  { "title": "Visualisierung" },
       "physics": { "title": "Physik" },
-      "camera":  { "title": "Kamera" },
+      "camera":  {
+        "title": "Kamera",
+        "section": {
+          "rotation": "Rotation (Orbit)",
+          "pan":      "Ansicht verschieben (Pan)",
+          "zoom":     "Zoom"
+        },
+        "hint": {
+          "orbit": "Orbit: Ziehen / Klicken zum Einrasten",
+          "pan":   "Ziehen zum Verschieben",
+          "zoom":  "Schieben zum Zoomen (Relativ)"
+        },
+        "reset":  "Reset",
+        "resetCamera": "Kamera zurücksetzen"
+      },
       "canvas":  {
         "title": "Canvas",
         "section": { "aspectRatio": "Seitenverhältnis" },

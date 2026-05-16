@@ -35,7 +35,21 @@
       },
       "visual":  { "title": "Visual" },
       "physics": { "title": "Physics" },
-      "camera":  { "title": "Camera" },
+      "camera":  {
+        "title": "Camera",
+        "section": {
+          "rotation": "Rotation (orbit)",
+          "pan":      "Pan view",
+          "zoom":     "Zoom"
+        },
+        "hint": {
+          "orbit": "Orbit: drag / click to snap",
+          "pan":   "Drag to pan",
+          "zoom":  "Slide to zoom (relative)"
+        },
+        "reset":  "Reset",
+        "resetCamera": "Reset camera"
+      },
       "canvas":  {
         "title": "Canvas",
         "section": { "aspectRatio": "Aspect ratio" },
