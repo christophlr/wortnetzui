@@ -49,6 +49,21 @@
   --wn-divider: rgba(212, 212, 216, 0.8);  /* zinc-300/80 */
   --wn-control-bg: #f4f4f5;         /* zinc-100 — pill / button-group bg */
   --wn-info-bg: rgba(250, 250, 250, 0.5);  /* zinc-50/50 */
+
+  /* Brand + TopBar state colors (Phase 3.3). */
+  --wn-brand-blue: #3b9eff;                         /* NetworkLogo stroke/fill */
+  --wn-topbar-toggle-active: rgba(59,130,246,0.1);  /* active action button bg */
+  --wn-topbar-toggle-active-hover: rgba(59,130,246,0.2);
+  --wn-topbar-toggle-text: #2563eb;                 /* blue-600 */
+  --wn-topbar-toggle-border: #bfdbfe;               /* blue-200 */
+
+  /* Timeline keyframe + marker colors (Phase 3.3). */
+  --wn-timeline-kf-selected: #3b82f6;               /* selected keyframe fill */
+  --wn-timeline-kf-selected-stroke: #2563eb;        /* selection ring / stroke */
+  --wn-timeline-kf-selected-outline: #93c5fd;       /* graph editor dot outer stroke */
+  --wn-timeline-marker-fill: #7c3aed;               /* scene marker default */
+  --wn-timeline-marker-selected: #a855f7;           /* scene marker selected */
+  --wn-timeline-playhead: #ef4444;                  /* playhead triangle */
 }
 
 
@@ -97,6 +112,21 @@
   --wn-divider: #27272a;            /* zinc-800 */
   --wn-control-bg: #27272a;         /* zinc-800 */
   --wn-info-bg: rgba(255, 255, 255, 0.02);
+
+  /* Brand + TopBar state colors — dark counterparts. */
+  --wn-brand-blue: #3b9eff;                          /* unchanged — brand identity */
+  --wn-topbar-toggle-active: rgba(96,165,250,0.15);
+  --wn-topbar-toggle-active-hover: rgba(96,165,250,0.25);
+  --wn-topbar-toggle-text: #60a5fa;                  /* blue-400 */
+  --wn-topbar-toggle-border: rgba(96,165,250,0.3);
+
+  /* Timeline keyframe + marker colors — dark counterparts. */
+  --wn-timeline-kf-selected: #60a5fa;                /* blue-400 */
+  --wn-timeline-kf-selected-stroke: #3b82f6;         /* blue-500 */
+  --wn-timeline-kf-selected-outline: #bfdbfe;        /* blue-200 */
+  --wn-timeline-marker-fill: #a78bfa;                /* violet-400 */
+  --wn-timeline-marker-selected: #c084fc;            /* purple-400 */
+  --wn-timeline-playhead: #f87171;                   /* red-400 */
 }
 
 @theme inline {
@@ -145,6 +175,19 @@
   --color-wn-divider: var(--wn-divider);
   --color-wn-control-bg: var(--wn-control-bg);
   --color-wn-info-bg: var(--wn-info-bg);
+  /* Brand + TopBar */
+  --color-wn-brand-blue: var(--wn-brand-blue);
+  --color-wn-topbar-toggle-active: var(--wn-topbar-toggle-active);
+  --color-wn-topbar-toggle-active-hover: var(--wn-topbar-toggle-active-hover);
+  --color-wn-topbar-toggle-text: var(--wn-topbar-toggle-text);
+  --color-wn-topbar-toggle-border: var(--wn-topbar-toggle-border);
+  /* Timeline */
+  --color-wn-timeline-kf-selected: var(--wn-timeline-kf-selected);
+  --color-wn-timeline-kf-selected-stroke: var(--wn-timeline-kf-selected-stroke);
+  --color-wn-timeline-kf-selected-outline: var(--wn-timeline-kf-selected-outline);
+  --color-wn-timeline-marker-fill: var(--wn-timeline-marker-fill);
+  --color-wn-timeline-marker-selected: var(--wn-timeline-marker-selected);
+  --color-wn-timeline-playhead: var(--wn-timeline-playhead);
 }
 
 @layer base {

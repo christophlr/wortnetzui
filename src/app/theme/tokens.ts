@@ -31,6 +31,14 @@ export type CssVarName =
   // Wortnetz action accents
   | '--wn-accent' | '--wn-accent-soft' | '--wn-keyframe-active'
   | '--wn-divider' | '--wn-control-bg' | '--wn-info-bg'
+  // Brand + TopBar state (Phase 3.3)
+  | '--wn-brand-blue'
+  | '--wn-topbar-toggle-active' | '--wn-topbar-toggle-active-hover'
+  | '--wn-topbar-toggle-text' | '--wn-topbar-toggle-border'
+  // Timeline keyframe + marker (Phase 3.3)
+  | '--wn-timeline-kf-selected' | '--wn-timeline-kf-selected-stroke' | '--wn-timeline-kf-selected-outline'
+  | '--wn-timeline-marker-fill' | '--wn-timeline-marker-selected'
+  | '--wn-timeline-playhead'
   // Chart palette (defined in .dark scope)
   | '--chart-1' | '--chart-2' | '--chart-3' | '--chart-4' | '--chart-5';
 
