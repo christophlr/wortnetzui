@@ -9,6 +9,7 @@ import {
 } from './types';
 import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+import { useT } from '../../i18n/useT';
 
 /* ── Scene Marker Lane ── */
 
@@ -29,6 +30,7 @@ export function SceneMarkerLane({
   timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
 }) {
+  const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
   const [draggingMarker, setDraggingMarker] = useState<{ origTime: number; currentTime: number } | null>(null);
 
@@ -71,7 +73,7 @@ export function SceneMarkerLane({
       {/* Label */}
       <TrackLabel>
         <Bookmark className="w-3 h-3 text-purple-400" fill="currentColor" />
-        <span className="text-xs text-muted-foreground font-medium truncate">Scene Markers</span>
+        <span className="text-xs text-muted-foreground font-medium truncate">{t('timeline.track.sceneMarkers')}</span>
       </TrackLabel>
       {/* Track area */}
       <div className="flex-1 relative" onDoubleClick={handleDoubleClick}>
@@ -143,6 +145,7 @@ export function TrackRow({
   contentRef: React.RefObject<HTMLDivElement | null>;
   sceneMarkers?: SceneMarker[];
 }) {
+  const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
   const colorMap = COLOR[color];
   const keyframes = useMemo(() => [...keyframeData].sort((a, b) => a.time - b.time), [keyframeData]);
@@ -222,7 +225,7 @@ export function TrackRow({
           <button
             onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}
             className={`opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm transition-all ${isGraphEditorVisible ? 'text-wn-accent bg-wn-accent-soft opacity-100' : 'text-muted-foreground hover:text-foreground'}`}
-            title="Toggle Graph Editor"
+            title={t('timeline.action.toggleGraphEditor')}
           >
             <LineChart className="w-3.5 h-3.5" />
           </button>

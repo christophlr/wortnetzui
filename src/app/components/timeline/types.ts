@@ -84,24 +84,30 @@ export const MINI_CURVE_H = 18;  // mini-curve height inside dopesheet track
 
 /* ── Track groups ── */
 
+/**
+ * Track-group metadata. `groupKey` resolves to `timeline.track.<groupKey>`.
+ * Physics tracks carry a `paramKey` that maps to the param's display name
+ * via `sidebar.tab.physics.param.<paramKey>.name`. Camera tracks use
+ * `groupKey` directly (`timeline.track.keyframes`).
+ */
 export const TRACK_GROUPS = [
   {
-    id: 'camera', name: 'Camera', color: 'cyan' as const,
+    id: 'camera', groupKey: 'camera', color: 'cyan' as const,
     tracks: [
-      { id: 'camera-keyframes', name: 'Keyframes', kfs: [] as number[], graph: false },
+      { id: 'camera-keyframes', trackKey: 'keyframes', kfs: [] as number[], graph: false },
     ],
   },
   {
-    id: 'physics', name: 'Physics', color: 'orange' as const,
+    id: 'physics', groupKey: 'physics', color: 'orange' as const,
     tracks: [
-      { id: 'phys-rep',  name: 'Streuung',   kfs: [] as number[], graph: false },
-      { id: 'phys-spk',  name: 'Spannung',   kfs: [] as number[], graph: false },
-      { id: 'phys-dmp',  name: 'Reibung',    kfs: [] as number[], graph: false },
-      { id: 'phys-lnk',  name: 'Abstand',    kfs: [] as number[], graph: false },
-      { id: 'phys-grv',  name: 'Schwerkraft',kfs: [] as number[], graph: false },
-      { id: 'phys-trb',  name: 'Bewegung',   kfs: [] as number[], graph: false },
-      { id: 'phys-vto',  name: 'Vertikale Ordnung', kfs: [] as number[], graph: false },
-      { id: 'phys-pls',  name: 'Lebendigkeit', kfs: [] as number[], graph: false },
+      { id: 'phys-rep', paramKey: 'repulsion',    kfs: [] as number[], graph: false },
+      { id: 'phys-spk', paramKey: 'springK',      kfs: [] as number[], graph: false },
+      { id: 'phys-dmp', paramKey: 'damping',      kfs: [] as number[], graph: false },
+      { id: 'phys-lnk', paramKey: 'linkDistance', kfs: [] as number[], graph: false },
+      { id: 'phys-grv', paramKey: 'gravity',      kfs: [] as number[], graph: false },
+      { id: 'phys-trb', paramKey: 'turbulence',   kfs: [] as number[], graph: false },
+      { id: 'phys-vto', paramKey: 'verticalOrder',kfs: [] as number[], graph: false },
+      { id: 'phys-pls', paramKey: 'pulse',        kfs: [] as number[], graph: false },
     ],
   },
 ];

@@ -11,6 +11,7 @@ import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
 import { TrackLabel } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
+import { useT } from '../../i18n/useT';
 
 /* ── Small helper components ── */
 
@@ -61,6 +62,7 @@ export function Timeline(props: TimelineProps) {
     onToggleRecording,
   } = props;
 
+  const { t } = useT();
   const contentRef = useRef<HTMLDivElement>(null);
   const view = useTimelineView(TIMELINE_DURATION);
   const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration } = view;
@@ -285,42 +287,42 @@ export function Timeline(props: TimelineProps) {
             <div className="flex items-center px-4 border-b border-border bg-background shrink-0 select-none" style={{ height: 40 }}>
               {/* Left: Search/Filter */}
               <div className="w-48 flex items-center shrink-0">
-                <span className="text-sm font-semibold text-foreground">Timeline</span>
+                <span className="text-sm font-semibold text-foreground">{t('timeline.label')}</span>
               </div>
 
               {/* Right: Graph Editor + Zoom + Snap */}
-              <TBtn onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title="Delete Selected">
+              <TBtn onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title={t('timeline.action.deleteSelected')}>
                 <Trash2 className="w-3 h-3" />
               </TBtn>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={onUndo} disabled={!canUndo} title="Undo"><Undo2 className="w-3 h-3" /></TBtn>
-              <TBtn onClick={onRedo} disabled={!canRedo} title="Redo"><Redo2 className="w-3 h-3" /></TBtn>
+              <TBtn onClick={onUndo} disabled={!canUndo} title={t('timeline.action.undo')}><Undo2 className="w-3 h-3" /></TBtn>
+              <TBtn onClick={onRedo} disabled={!canRedo} title={t('timeline.action.redo')}><Redo2 className="w-3 h-3" /></TBtn>
 
               {/* Center: Timecode + Transport */}
               <div className="flex-1 flex items-center justify-center gap-2">
-                <TBtn onClick={onStop} title="Stop"><Square className="w-3 h-3 fill-current" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(0)} title="Gehe zum Anfang"><SkipBack className="w-3 h-3" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
+                <TBtn onClick={onStop} title={t('timeline.action.stop')}><Square className="w-3 h-3 fill-current" /></TBtn>
+                <TBtn onClick={() => onPlayheadChange(0)} title={t('timeline.action.gotoStart')}><SkipBack className="w-3 h-3" /></TBtn>
+                <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title={t('timeline.action.prevFrame')}>
                   <ChevronLeft className="w-3 h-3" />
                 </TBtn>
                 <TCDisplay value={timecode} />
-                <TBtn onClick={onPlayPause} title={isPlaying ? 'Pause' : 'Play'}>
+                <TBtn onClick={onPlayPause} title={isPlaying ? t('timeline.action.pause') : t('timeline.action.play')}>
                   {isPlaying ? <Pause className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
                 </TBtn>
-                <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title="Next Frame">
+                <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title={t('timeline.action.nextFrame')}>
                   <ChevronLeft className="w-3 h-3 rotate-180" />
                 </TBtn>
                 <div className="w-px h-4 bg-border mx-0.5" />
-                <TBtn 
-                  onClick={onCaptureKeyframe} 
-                  title="Capture Keyframe (All Tracks)" 
+                <TBtn
+                  onClick={onCaptureKeyframe}
+                  title={t('timeline.action.captureKeyframe')}
                   active={hasKfAtPlayhead}
                 >
                   <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-blue-400 fill-blue-400' : ''}`} />
                 </TBtn>
-                <TBtn 
-                  onClick={onToggleRecording} 
-                  title="Record (Automation)" 
+                <TBtn
+                  onClick={onToggleRecording}
+                  title={t('timeline.action.record')}
                   active={isRecording}
                 >
                   <Circle className={`w-3 h-3 ${isRecording ? 'text-red-500 fill-red-500 animate-pulse' : ''}`} />
@@ -328,17 +330,17 @@ export function Timeline(props: TimelineProps) {
               </div>
 
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={zoomOut} title="Zoom Out"><ZoomOut className="w-3 h-3" /></TBtn>
+              <TBtn onClick={zoomOut} title={t('timeline.action.zoomOut')}><ZoomOut className="w-3 h-3" /></TBtn>
               <button
                 className="text-[9px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors"
                 onClick={zoomReset}
-                title="Reset zoom"
+                title={t('timeline.action.zoomReset')}
               >
                 {zoom.toFixed(zoom >= 10 ? 0 : 1)}×
               </button>
-              <TBtn onClick={zoomIn} title="Zoom In"><ZoomIn className="w-3 h-3" /></TBtn>
+              <TBtn onClick={zoomIn} title={t('timeline.action.zoomIn')}><ZoomIn className="w-3 h-3" /></TBtn>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={() => setSnap(!snap)} active={snap} title="Snap to Frame">
+              <TBtn onClick={() => setSnap(!snap)} active={snap} title={t('timeline.action.snap')}>
                 <Magnet className="w-3 h-3" />
               </TBtn>
             </div>
@@ -405,12 +407,12 @@ export function Timeline(props: TimelineProps) {
               })()}
 
             {/* Camera track group */}
-            <TrackGroup 
-              id="camera" name="Camera" color="cyan"
+            <TrackGroup
+              id="camera" name={t('timeline.track.camera')} color="cyan"
             >
               <TrackRow
                 trackId="camera-keyframes"
-                name="Keyframes"
+                name={t('timeline.track.keyframes')}
                 color="cyan"
                 keyframeData={cameraKeyframes.map(k => ({
                   time: k.time,
@@ -461,16 +463,19 @@ export function Timeline(props: TimelineProps) {
             </TrackGroup>
 
             {/* Physics track group */}
-            <TrackGroup 
-              id="physics" name="Physics" color="orange"
+            <TrackGroup
+              id="physics" name={t('timeline.track.physics')} color="orange"
             >
               {TRACK_GROUPS[1].tracks.map(track => {
                 const kfArr = physicsKeyframes[track.id] ?? [];
+                const trackName = 'paramKey' in track && track.paramKey
+                  ? t(`sidebar.tab.physics.param.${track.paramKey}.name`)
+                  : track.id;
                 return (
                   <div key={track.id}>
                     <TrackRow
                       trackId={track.id}
-                      name={track.name}
+                      name={trackName}
                       color="orange"
                       keyframeData={kfArr}
                       viewWindow={viewWindow}

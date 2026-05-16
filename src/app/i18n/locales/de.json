@@ -164,7 +164,33 @@
       }
     }
   },
-  "timeline": {},
+  "timeline": {
+    "label": "Timeline",
+    "track": {
+      "sceneMarkers": "Scene Markers",
+      "camera":       "Camera",
+      "keyframes":    "Keyframes",
+      "physics":      "Physics"
+    },
+    "action": {
+      "deleteSelected":   "Auswahl löschen",
+      "undo":             "Rückgängig",
+      "redo":             "Wiederholen",
+      "stop":             "Stop",
+      "gotoStart":        "Gehe zum Anfang",
+      "prevFrame":        "Vorheriger Frame",
+      "nextFrame":        "Nächster Frame",
+      "play":             "Abspielen",
+      "pause":            "Pause",
+      "captureKeyframe":  "Keyframe setzen (alle Tracks)",
+      "record":           "Aufnehmen (Automation)",
+      "zoomOut":          "Verkleinern",
+      "zoomIn":           "Vergrößern",
+      "zoomReset":        "Zoom zurücksetzen",
+      "snap":             "An Frame ausrichten",
+      "toggleGraphEditor":"Graph-Editor umschalten"
+    }
+  },
   "dialogs": {
     "shortcuts": {
       "title": "Tastaturkürzel verwalten",
