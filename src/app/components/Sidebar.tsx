@@ -26,9 +26,10 @@ import {
 } from './sidebar/SidebarAtoms';
 import {
   SIDEBAR_TABS,
-  getSidebarTab,
+  sidebarTabTitleKey,
   type SidebarTabId,
 } from './sidebar/sidebarConfig';
+import { useT } from '../i18n/useT';
 
 interface SidebarProps {
   onPhysicsChange: (p: any) => void;
@@ -113,6 +114,7 @@ export function Sidebar({
   },
   onVisualSettingsChange
 }: SidebarProps) {
+  const { t } = useT();
   const [localText, setLocalText] = useState(inputText);
   const [activeTab, setActiveTab] = useState<SidebarTabId>('content');
 
@@ -145,7 +147,7 @@ export function Sidebar({
       key={tab.id}
       active={activeTab === tab.id}
       icon={tab.icon}
-      label={tab.titleDe}
+      label={t(sidebarTabTitleKey(tab.id))}
       onClick={() => handleTabClick(tab.id)}
     />
   ));
@@ -157,7 +159,7 @@ export function Sidebar({
           <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-            title="Sidebar einblenden"
+            title={t('common.sidebar.expand')}
           >
             <PanelRight size={18} />
           </button>
@@ -167,7 +169,7 @@ export function Sidebar({
     );
   }
 
-  const headerTitle = getSidebarTab(activeTab).titleDe.toUpperCase();
+  const headerTitle = t(sidebarTabTitleKey(activeTab)).toUpperCase();
 
   return (
     <ShadSidebarProvider className="h-full w-full">
@@ -178,7 +180,7 @@ export function Sidebar({
           <button
             onClick={onCollapse}
             className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
-            title="Sidebar ausblenden"
+            title={t('common.sidebar.collapse')}
           >
             <PanelRightClose size={18} />
           </button>

@@ -1,8 +1,21 @@
 {
   "topbar": {},
   "toolbar": {},
-  "sidebar": {},
+  "sidebar": {
+    "tab": {
+      "content": { "title": "Inhalt" },
+      "visual":  { "title": "Visualisierung" },
+      "physics": { "title": "Physik" },
+      "camera":  { "title": "Kamera" },
+      "canvas":  { "title": "Canvas" }
+    }
+  },
   "timeline": {},
   "dialogs": {},
-  "common": {}
+  "common": {
+    "sidebar": {
+      "expand":   "Sidebar einblenden",
+      "collapse": "Sidebar ausblenden"
+    }
+  }
 }

@@ -6,16 +6,14 @@ export type SidebarTabId = 'content' | 'visual' | 'physics' | 'camera' | 'canvas
 export interface SidebarTabMeta {
   id: SidebarTabId;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  titleDe: string;
-  titleEn: string;
 }
 
 export const SIDEBAR_TABS: readonly SidebarTabMeta[] = [
-  { id: 'content', icon: Type,        titleDe: 'Inhalt',         titleEn: 'Content' },
-  { id: 'visual',  icon: PaintRoller, titleDe: 'Visualisierung', titleEn: 'Visual'  },
-  { id: 'physics', icon: Atom,        titleDe: 'Physik',         titleEn: 'Physics' },
-  { id: 'camera',  icon: Video,       titleDe: 'Kamera',         titleEn: 'Camera'  },
-  { id: 'canvas',  icon: Proportions, titleDe: 'Canvas',         titleEn: 'Canvas'  },
+  { id: 'content', icon: Type },
+  { id: 'visual',  icon: PaintRoller },
+  { id: 'physics', icon: Atom },
+  { id: 'camera',  icon: Video },
+  { id: 'canvas',  icon: Proportions },
 ] as const;
 
 export function getSidebarTab(id: SidebarTabId): SidebarTabMeta {
@@ -23,3 +21,10 @@ export function getSidebarTab(id: SidebarTabId): SidebarTabMeta {
   if (!meta) throw new Error(`Unknown sidebar tab id: ${id}`);
   return meta;
 }
+
+/**
+ * Translation key for a tab's title — consumed by `t()`. Header H1 + the
+ * activity-rail tooltip share this key.
+ */
+export const sidebarTabTitleKey = (id: SidebarTabId): string =>
+  `sidebar.tab.${id}.title`;
