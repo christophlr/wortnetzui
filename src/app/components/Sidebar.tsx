@@ -14,6 +14,7 @@ import {
 } from './ui/sidebar';
 
 import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
+import { defaultGradientSettings } from '../networkTheme';
 import { ContentTab } from './sidebar/tabs/ContentTab';
 import { VisualTab } from './sidebar/tabs/VisualTab';
 import { PhysicsTab } from './sidebar/tabs/PhysicsTab';
@@ -99,8 +100,8 @@ export function Sidebar({
     envVisible: true,
     radialBiasScale: 0.5,
     radialBiasOpacity: 0.5,
-    gradientOrigin: '#4f46e5',
-    gradientPeriphery: '#10b981',
+    gradientOrigin: defaultGradientSettings.innerColor,
+    gradientPeriphery: defaultGradientSettings.outerColor,
     labelWeightMapping: 0.5,
     edgeFlowAnimation: false,
     envAtmosphereSeed: 123,
