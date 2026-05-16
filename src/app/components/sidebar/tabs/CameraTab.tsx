@@ -5,7 +5,10 @@ import { cn } from '../../ui/utils';
 import {
   SidebarDragPuck,
   SidebarSection,
+  SidebarSliderRow,
+  SidebarSliderTrack,
   SidebarTabContent,
+  SidebarViewPresetButton,
 } from '../SidebarAtoms';
 import { useT } from '../../../i18n/useT';
 
@@ -43,8 +46,6 @@ export function CameraTab({
   const [isDraggingPuck, setIsDraggingPuck] = React.useState(false);
   const [panPuckPos, setPanPuckPos] = React.useState({ x: 0, y: 0 });
   const [isDraggingPanPuck, setIsDraggingPanPuck] = React.useState(false);
-  const [zoomPuckPos, setZoomPuckPos] = React.useState({ x: 0, y: 0 });
-  const [isDraggingZoomPuck, setIsDraggingZoomPuck] = React.useState(false);
 
   const startOrbitDrag = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDraggingPuck(true);
@@ -106,33 +107,6 @@ export function CameraTab({
     window.addEventListener('mouseup', onUp);
   };
 
-  const startZoomDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDraggingZoomPuck(true);
-    const startX = e.clientX;
-    const startPuckX = zoomPuckPos.x;
-
-    const onMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX;
-      const newPuckX = startPuckX + dx;
-      const limit = 100;
-      const clampedX = Math.max(-limit, Math.min(limit, newPuckX));
-      setZoomPuckPos({ x: clampedX, y: 0 });
-      const scale = 0.05;
-      const delta = clampedX * scale;
-      onZoomChange(Math.max(0, Math.min(100, zoomValue + delta)));
-    };
-    const onUp = () => {
-      setIsDraggingZoomPuck(false);
-      setZoomPuckPos({ x: 0, y: 0 });
-      document.body.style.cursor = 'default';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    document.body.style.cursor = 'grabbing';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
-
   const orbitOverlay = (
     <>
       <GridOverlay cols={12} rows={6} />
@@ -168,21 +142,19 @@ export function CameraTab({
             overlay={orbitOverlay}
           >
             <div className="absolute inset-0 p-4 flex flex-col justify-between items-center pointer-events-none">
-              <button
-                className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                onClick={() => onSetRotation(0, 0)}
+              <SidebarViewPresetButton
+                variant="axis"
+                label="Y"
                 title="Top View (Y)"
-              >
-                Y
-              </button>
+                onClick={() => onSetRotation(0, 0)}
+              />
               <div className="flex justify-between w-full items-center">
-                <button
-                  className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                  onClick={() => onSetRotation(-Math.PI / 2, Math.PI / 2)}
+                <SidebarViewPresetButton
+                  variant="axis"
+                  label="-X"
                   title="Left View (-X)"
-                >
-                  -X
-                </button>
+                  onClick={() => onSetRotation(-Math.PI / 2, Math.PI / 2)}
+                />
 
                 <div
                   className={cn(
@@ -194,42 +166,44 @@ export function CameraTab({
                   <MoreHorizontal size={14} className="rotate-90" />
                 </div>
 
-                <button
-                  className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                  onClick={() => onSetRotation(Math.PI / 2, Math.PI / 2)}
+                <SidebarViewPresetButton
+                  variant="axis"
+                  label="X"
                   title="Right View (X)"
-                >
-                  X
-                </button>
+                  onClick={() => onSetRotation(Math.PI / 2, Math.PI / 2)}
+                />
               </div>
-              <button
-                className="pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors"
-                onClick={() => onSetRotation(Math.PI, 0)}
+              <SidebarViewPresetButton
+                variant="axis"
+                label="-Y"
                 title="Bottom View (-Y)"
-              >
-                -Y
-              </button>
+                onClick={() => onSetRotation(Math.PI, 0)}
+              />
             </div>
 
-            <button
-              onClick={() => onSetRotation(Math.PI / 4, Math.PI / 4)}
-              className="pointer-events-auto absolute top-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all"
+            <SidebarViewPresetButton
+              variant="iso"
               title="ISO 1"
+              className="absolute top-2 left-2"
+              onClick={() => onSetRotation(Math.PI / 4, Math.PI / 4)}
             />
-            <button
-              onClick={() => onSetRotation(-Math.PI / 4, Math.PI / 4)}
-              className="pointer-events-auto absolute top-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all"
+            <SidebarViewPresetButton
+              variant="iso"
               title="ISO 2"
+              className="absolute top-2 right-2"
+              onClick={() => onSetRotation(-Math.PI / 4, Math.PI / 4)}
             />
-            <button
-              onClick={() => onSetRotation((3 * Math.PI) / 4, Math.PI / 4)}
-              className="pointer-events-auto absolute bottom-2 left-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all"
+            <SidebarViewPresetButton
+              variant="iso"
               title="ISO 3"
+              className="absolute bottom-2 left-2"
+              onClick={() => onSetRotation((3 * Math.PI) / 4, Math.PI / 4)}
             />
-            <button
-              onClick={() => onSetRotation((-3 * Math.PI) / 4, Math.PI / 4)}
-              className="pointer-events-auto absolute bottom-2 right-2 size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all"
+            <SidebarViewPresetButton
+              variant="iso"
               title="ISO 4"
+              className="absolute bottom-2 right-2"
+              onClick={() => onSetRotation((-3 * Math.PI) / 4, Math.PI / 4)}
             />
           </SidebarDragPuck>
 
@@ -277,32 +251,23 @@ export function CameraTab({
       </SidebarSection>
 
       <SidebarSection title={t('sidebar.tab.camera.section.zoom')}>
-        <div className="relative h-6 flex items-center px-1 group">
-          <div className="absolute inset-x-1 h-1.5 bg-zinc-200 rounded-full" />
-          <div className="absolute left-1/2 -translate-x-1/2 w-0.5 h-3 bg-zinc-300 z-0" />
-
-          <div
-            className={cn(
-              'absolute size-4 rounded-full bg-white border shadow-sm z-10 cursor-grab active:cursor-grabbing transition-colors flex items-center justify-center',
-              isDraggingZoomPuck
-                ? 'border-wn-accent shadow-md'
-                : 'border-zinc-300 hover:border-zinc-400',
-              !isDraggingZoomPuck && 'transition-all duration-300 ease-out',
-            )}
-            style={{
-              left: `calc(50% + ${zoomPuckPos.x}px)`,
-              transform: 'translateX(-50%)',
-            }}
-            onMouseDown={startZoomDrag}
-          >
-            <div className="size-1 rounded-full bg-zinc-300" />
-          </div>
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">-</span>
-          <span className="text-[9px] text-zinc-400 italic">{t('sidebar.tab.camera.hint.zoom')}</span>
-          <span className="text-[8px] text-zinc-400 uppercase font-bold tracking-tight">+</span>
-        </div>
+        <SidebarSliderRow
+          value={zoomValue}
+          onCommit={(val) => onZoomChange(val)}
+          min={0}
+          max={100}
+          format={(v) => `${Math.round(v)}%`}
+          description={t('sidebar.tab.camera.hint.zoom')}
+          slider={
+            <SidebarSliderTrack
+              value={[zoomValue]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={([val]) => onZoomChange(val)}
+            />
+          }
+        />
       </SidebarSection>
 
       <SidebarSection>

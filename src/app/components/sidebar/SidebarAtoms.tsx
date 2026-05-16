@@ -683,6 +683,45 @@ export function SidebarCollapsiblePanel({
 // logic stays in the tab.
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * SidebarViewPresetButton — CameraTab orbit-puck preset button. Two visual
+ * variants share placement props (`className` controls absolute/flex
+ * positioning):
+ *   - 'axis' — round letter button on the puck face (Y / -X / X / -Y).
+ *   - 'iso'  — small rounded marker at a puck corner (ISO 1..4), label
+ *              omitted.
+ */
+export type SidebarViewPresetVariant = 'axis' | 'iso';
+
+export function SidebarViewPresetButton({
+  variant,
+  label,
+  title,
+  onClick,
+  className,
+}: {
+  variant: SidebarViewPresetVariant;
+  label?: React.ReactNode;
+  title?: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  const base =
+    variant === 'axis'
+      ? 'pointer-events-auto size-5 rounded-full bg-zinc-100 border border-zinc-200 shadow-sm flex items-center justify-center text-[8px] font-bold text-zinc-400 hover:bg-white hover:text-zinc-600 transition-colors'
+      : 'pointer-events-auto size-4 rounded bg-zinc-100/50 hover:bg-white border border-transparent hover:border-zinc-200 transition-all';
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn(base, className)}
+    >
+      {label}
+    </button>
+  );
+}
+
 export type SidebarDragPuckAspect = 'square' | 'wide';
 
 const DRAG_PUCK_ASPECT: Record<SidebarDragPuckAspect, string> = {
