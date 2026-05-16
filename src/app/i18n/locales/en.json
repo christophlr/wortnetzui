@@ -205,7 +205,16 @@
         "action": { "label": "Action", "placeholder": "e.g. Save" },
         "key":    { "label": "Key",    "placeholder": "e.g. s" }
       },
-      "done": "Done"
+      "done": "Done",
+      "command": {
+        "save":          "Save",
+        "load":          "Open",
+        "undo":          "Undo",
+        "redo":          "Redo",
+        "playPause":     "Play / Pause",
+        "record":        "Record",
+        "toggleSidebar": "Toggle sidebar"
+      }
     }
   },
   "common": {

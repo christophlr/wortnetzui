@@ -205,7 +205,16 @@
         "action": { "label": "Aktion", "placeholder": "z.B. Speichern" },
         "key":    { "label": "Taste",  "placeholder": "z.B. s" }
       },
-      "done": "Fertig"
+      "done": "Fertig",
+      "command": {
+        "save":          "Speichern",
+        "load":          "Laden",
+        "undo":          "Rückgängig",
+        "redo":          "Wiederholen",
+        "playPause":     "Abspielen / Pause",
+        "record":        "Aufnahme",
+        "toggleSidebar": "Sidebar umschalten"
+      }
     }
   },
   "common": {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ interface Shortcut {
   id: string;
   command: string;
   key: string;
+  tKey?: string;
 }
 
 interface ShortcutsDialogProps {
@@ -58,7 +59,7 @@ export function ShortcutsDialog({
             {shortcuts.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-2 rounded-md bg-accent/20 border border-border/50">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{s.command}</span>
+                  <span className="text-sm font-medium">{s.tKey ? t(s.tKey) : s.command}</span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Command size={10} /> {s.key}
                   </span>
