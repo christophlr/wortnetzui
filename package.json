@@ -1,7 +1,7 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.103",
+  "version": "0.128",
   "type": "module",
   "scripts": {
     "predev": "node ./scripts/sync-version.mjs",
