@@ -15,14 +15,14 @@ function NetworkLogo() {
       <polygon
         points="6.81 6.96 19 7 16.33 11 7 25 25 13 25 25 6.81 6.96"
         fill="none"
-        stroke="#3b9eff"
+        stroke="var(--wn-brand-blue)"
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="2"
       />
-      <circle cx="7" cy="25" r="3" fill="#3b9eff" opacity="0.5" />
-      <circle cx="7" cy="7" r="3" fill="#3b9eff" opacity="0.5" />
-      <circle cx="25" cy="25" r="3" fill="#3b9eff" opacity="0.5" />
+      <circle cx="7" cy="25" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
+      <circle cx="7" cy="7" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
+      <circle cx="25" cy="25" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
     </svg>
   );
 }
@@ -118,7 +118,7 @@ export function TopBar({
                 <MenubarGroup>
                   <MenubarLabel>Modus</MenubarLabel>
                   <MenubarItem onSelect={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}>
-                    <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-blue-600' : 'text-muted-foreground'} />
+                    <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-wn-topbar-toggle-text' : 'text-muted-foreground'} />
                     Preview
                     <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
                   </MenubarItem>
@@ -143,12 +143,12 @@ export function TopBar({
           type="single"
           value={viewMode}
           onValueChange={(v) => v && handleViewModeChange(v as '2D' | '3D')}
-          className="h-7 gap-0 border border-zinc-200 rounded-md overflow-hidden bg-background/50"
+          className="h-7 gap-0 border border-border rounded-md overflow-hidden bg-background/50"
         >
           <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
             <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-zinc-200 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
+          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
             <Box size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
           </ToggleGroupItem>
         </ToggleGroup>

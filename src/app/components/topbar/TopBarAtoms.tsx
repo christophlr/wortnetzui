@@ -1,8 +1,7 @@
 /**
  * TopBarAtoms — primitives for the top menu bar. Provides the rounded pill
- * shell, the styled menu trigger, and the right-pill action button. The
- * brand-color literals (`bg-blue-500/10`, NetworkLogo `#3b9eff`) stay as
- * pass-through values until the Phase 3.3 color sweep.
+ * shell, the styled menu trigger, and the right-pill action button.
+ * All brand/state colors reference CSS variables defined in theme.css.
  */
 
 import * as React from 'react';
@@ -66,8 +65,8 @@ export function TopBarActionButton({
       className={cn(
         'h-7 px-3 text-[11px] font-medium transition-all duration-200',
         active
-          ? 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20 hover:text-blue-700'
-          : 'text-zinc-600 hover:bg-zinc-100 border-zinc-200',
+          ? 'bg-wn-topbar-toggle-active text-wn-topbar-toggle-text border-wn-topbar-toggle-border hover:bg-wn-topbar-toggle-active-hover hover:text-wn-topbar-toggle-text'
+          : 'text-muted-foreground hover:bg-accent border-border',
       )}
     >
       {children}
