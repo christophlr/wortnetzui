@@ -335,29 +335,58 @@ function RowHeader({
 /**
  * SidebarSliderRow — the label is a <span>, NOT an <h3>: a single parameter
  * is not a subgroup.
+ *
+ * Two value-display modes:
+ *   - Editable: pass numeric `value` together with `onCommit` (+ optional
+ *     `min` / `max` / `format` / `parseInput`). The value renders as a
+ *     click-to-type `SidebarEditableNumber`.
+ *   - Display: pass `value` as any ReactNode without `onCommit`. Renders as
+ *     a static `SidebarValueChip` (legacy path; STYLE_GUIDE expects rows to
+ *     migrate to the editable form).
  */
-export function SidebarSliderRow({
-  label,
-  value,
-  accessory,
-  slider,
-  description,
-  className,
-}: {
+type SidebarSliderRowCommon = {
   label?: React.ReactNode;
-  value?: React.ReactNode;
   accessory?: React.ReactNode;
   slider: React.ReactNode;
   description?: React.ReactNode;
   className?: string;
-}) {
+};
+type SidebarSliderRowDisplay = SidebarSliderRowCommon & {
+  value?: React.ReactNode;
+  onCommit?: never;
+};
+type SidebarSliderRowEditable = SidebarSliderRowCommon & {
+  value: number;
+  onCommit: (v: number) => void;
+  min?: number;
+  max?: number;
+  format?: (v: number) => string;
+  parseInput?: (raw: string) => number;
+};
+
+export function SidebarSliderRow(
+  props: SidebarSliderRowDisplay | SidebarSliderRowEditable,
+) {
+  const { label, accessory, slider, description, className } = props;
+  let valueNode: React.ReactNode = null;
+  if ('onCommit' in props && props.onCommit) {
+    valueNode = (
+      <SidebarEditableNumber
+        value={props.value}
+        onCommit={props.onCommit}
+        min={props.min}
+        max={props.max}
+        format={props.format}
+        parseInput={props.parseInput}
+      />
+    );
+  } else if (props.value !== undefined && props.value !== null) {
+    valueNode = <SidebarValueChip>{props.value}</SidebarValueChip>;
+  }
+
   return (
     <div className={cn('space-y-2.5', className)}>
-      <RowHeader
-        label={label}
-        value={value ? <SidebarValueChip>{value}</SidebarValueChip> : null}
-        accessory={accessory}
-      />
+      <RowHeader label={label} value={valueNode} accessory={accessory} />
       {slider}
       {description ? <SidebarDescription>{description}</SidebarDescription> : null}
     </div>
