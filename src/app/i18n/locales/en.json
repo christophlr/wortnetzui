@@ -1,6 +1,25 @@
 {
   "topbar": {},
-  "toolbar": {},
+  "toolbar": {
+    "tool": {
+      "pointer": "Select",
+      "pan":     "Pan",
+      "paint":   "Brush",
+      "zoom":    "Zoom",
+      "scale":   "Scale",
+      "glitch":  "Glitch brush",
+      "path":    "Path animator"
+    },
+    "shortcut": {
+      "pointer": "V",
+      "pan":     "H",
+      "paint":   "B",
+      "zoom":    "Z",
+      "scale":   "S",
+      "glitch":  "G",
+      "path":    "P"
+    }
+  },
   "sidebar": {
     "tab": {
       "content": { "title": "Content" },
