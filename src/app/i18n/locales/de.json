@@ -115,6 +115,11 @@
         "action": {
           "shuffleAtmosphere": "Shuffle Atmosphere"
         },
+        "pathAnimator": {
+          "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
+          "playSequence":      "Sequenz abspielen",
+          "interpolationNote": "Knoten werden mittels Catmull-Rom interpoliert."
+        },
         "description": {
           "radialBias": "Scale = Basis + (Bias × Dist)"
         }

@@ -115,6 +115,11 @@
         "action": {
           "shuffleAtmosphere": "Shuffle atmosphere"
         },
+        "pathAnimator": {
+          "emptyHint":         "Click nodes in the preview to build a path.",
+          "playSequence":      "Play sequence",
+          "interpolationNote": "Nodes are interpolated using Catmull-Rom."
+        },
         "description": {
           "radialBias": "Scale = base + (bias × dist)"
         }
