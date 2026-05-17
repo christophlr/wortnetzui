@@ -15,6 +15,7 @@ import {
 
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
+import { useUndoStack } from '../hooks/useUndoStack';
 import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
 import { sameTime, differentTime } from '../components/timeline/timeUtils';
 
@@ -95,44 +96,6 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
-  const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS, sceneMarkers: [] }]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
-  const pushHistory = useCallback((next: TimelineState) => {
-    setKeyframeHistory(h => {
-      const nextH = [...h.slice(0, historyIndex + 1), next].slice(-50);
-      return nextH;
-    });
-    setHistoryIndex(i => Math.min(i + 1, 49));
-  }, [historyIndex]);
-
-  const undo = useCallback(() => {
-    if (historyIndex <= 0) return;
-    const entry = keyframeHistory[historyIndex - 1];
-    setCameraKeyframes(entry.cameraKeyframes ?? []);
-    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
-    setSceneMarkers(entry.sceneMarkers ?? []);
-    setHistoryIndex(i => i - 1);
-  }, [historyIndex, keyframeHistory]);
-
-  const redo = useCallback(() => {
-    if (historyIndex >= keyframeHistory.length - 1) return;
-    const entry = keyframeHistory[historyIndex + 1];
-    setCameraKeyframes(entry.cameraKeyframes ?? []);
-    setPhysicsKeyframes(entry.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
-    setSceneMarkers(entry.sceneMarkers ?? []);
-    setHistoryIndex(i => i + 1);
-  }, [historyIndex, keyframeHistory]);
-
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < keyframeHistory.length - 1;
-
-  const getTimelineState = useCallback(() => ({
-    cameraKeyframes: cameraKeyframesRef.current,
-    physicsKeyframes: physicsKeyframesRef.current,
-    sceneMarkers: sceneMarkersRef.current
-  }), []);
-
   const physicsKeyframesRef = useRef(physicsKeyframes);
   useEffect(() => { physicsKeyframesRef.current = physicsKeyframes; }, [physicsKeyframes]);
 
@@ -147,6 +110,24 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const cameraKeyframesRef = useRef(cameraKeyframes);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
+
+  const getTimelineState = useCallback(() => ({
+    cameraKeyframes: cameraKeyframesRef.current,
+    physicsKeyframes: physicsKeyframesRef.current,
+    sceneMarkers: sceneMarkersRef.current
+  }), []);
+
+  const applyTimelineState = useCallback((state: TimelineState) => {
+    setCameraKeyframes(state.cameraKeyframes ?? []);
+    setPhysicsKeyframes(state.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
+    setSceneMarkers(state.sceneMarkers ?? []);
+  }, []);
+
+  const { push: pushHistory, undo, redo, canUndo, canRedo } = useUndoStack<TimelineState>(
+    getTimelineState,
+    applyTimelineState,
+    { capacity: 50 }
+  );
 
   const network3DRef = useRef<Network3DHandle>(null);
   const playheadRef = useRef(playheadPosition);
@@ -389,9 +370,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleClearHandle = useCallback((trackId: string, time: number) => {
+    const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
-      setCameraKeyframes(prev => {
-        const next = prev.map(s => {
+      setCameraKeyframes(prevCkfs => {
+        const next = prevCkfs.map(s => {
           if (Math.abs(s.time - time) >= 0.01) return s;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { tensionHandleIn: _a, tensionHandleOut: _b, tensionHandleInTime: _c, tensionHandleOutTime: _d, ...rest } = s;
@@ -400,20 +382,22 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         cameraKeyframesRef.current = next;
         return next;
       });
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
-      setPhysicsKeyframes(prev => {
-        const kfs = (prev[trackId] ?? []).map(k => {
+      setPhysicsKeyframes(prevPkfs => {
+        const kfs = (prevPkfs[trackId] ?? []).map(k => {
           if (Math.abs(k.time - time) >= 0.01) return k;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { handleIn: _a, handleOut: _b, handleInTime: _c, handleOutTime: _d, ...rest } = k;
           return rest;
         });
-        const next = { ...prev, [trackId]: kfs };
+        const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
         return next;
       });
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
-  }, []);
+  }, [getTimelineState, pushHistory]);
 
   const handleSetInterpolation = useCallback((trackId: string, time: number, mode: 'aligned' | 'broken') => {
     const prev = getTimelineState();
@@ -583,10 +567,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const handleDragEnd = useCallback(() => {
     if (preDragStateRef.current) {
-      pushHistory(preDragStateRef.current);
+      pushHistory(getTimelineState());
       preDragStateRef.current = null;
     }
-  }, [pushHistory]);
+  }, [pushHistory, getTimelineState]);
 
   return (
     <WortnetzContext.Provider value={{

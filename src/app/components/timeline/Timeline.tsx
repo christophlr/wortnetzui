@@ -8,7 +8,7 @@ import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
 import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
-import { TrackLabel, TimelineTransportButton } from './TimelineAtoms';
+import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 import { useT } from '../../i18n/useT';
 
@@ -302,13 +302,11 @@ export function Timeline(props: TimelineProps) {
                 >
                   <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-wn-timeline-transport-active fill-wn-timeline-transport-active' : ''}`} />
                 </TimelineTransportButton>
-                <TimelineTransportButton
-                  onClick={onToggleRecording}
-                  title={t('timeline.action.record')}
-                  active={isRecording}
-                >
-                  <Circle className={`w-3 h-3 ${isRecording ? 'text-red-500 fill-red-500 animate-pulse' : ''}`} />
-                </TimelineTransportButton>
+                <RecordButton
+                  isRecording={isRecording}
+                  onToggleRecording={onToggleRecording}
+                  title={t('timeline.recordComingSoon')}
+                />
               </div>
 
               <div className="w-px h-4 bg-border mx-0.5" />
@@ -343,16 +341,7 @@ export function Timeline(props: TimelineProps) {
                   
                   {/* Playhead Marker (Triangle + Ruler Line segment) */}
                   {playheadVisible && (
-                    <div 
-                      className="absolute top-0 w-px h-full bg-red-500 z-20 pointer-events-none"
-                      style={{ left: `${playheadRatio * 100}%` }}
-                    >
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2">
-                        <svg width="10" height="8" viewBox="0 0 10 8">
-                          <polygon points="0,0 10,0 5,8" fill="var(--wn-timeline-playhead)" />
-                        </svg>
-                      </div>
-                    </div>
+                    <PlayheadLine ratio={playheadRatio} withTriangle />
                   )}
                 </div>
               </div>
@@ -502,10 +491,7 @@ export function Timeline(props: TimelineProps) {
                 className="absolute top-[24px] bottom-0 right-0 pointer-events-none z-50 overflow-hidden"
                 style={{ left: LABEL_W }}
               >
-                <div
-                  className="absolute top-0 bottom-0 w-px bg-red-500"
-                  style={{ left: `${playheadRatio * 100}%` }}
-                />
+                <PlayheadLine ratio={playheadRatio} />
               </div>
             )}
 

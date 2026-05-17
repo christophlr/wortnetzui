@@ -14,6 +14,7 @@ import * as React from 'react';
 import { Button } from '../ui/button';
 import { LABEL_W } from './types';
 import { cn } from '../ui/utils';
+import { Circle } from 'lucide-react';
 
 export type TrackLabelVariant = 'row' | 'stacked';
 export type TrackLabelPadding = 'header' | 'indent';
@@ -73,5 +74,73 @@ export function TrackLabel({
     >
       {children}
     </div>
+  );
+}
+
+export function PlayheadLine({ ratio, withTriangle = false }: { ratio: number; withTriangle?: boolean }) {
+  return (
+    <div
+      className="absolute top-0 w-px h-full bg-wn-timeline-playhead z-20 pointer-events-none"
+      style={{ left: `${ratio * 100}%` }}
+    >
+      {withTriangle && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2">
+          <svg width="10" height="8" viewBox="0 0 10 8">
+            <polygon points="0,0 10,0 5,8" fill="var(--wn-timeline-playhead)" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function RecordButton({ isRecording, onToggleRecording, title }: { isRecording: boolean; onToggleRecording: () => void; title: string }) {
+  return (
+    <TimelineTransportButton
+      onClick={onToggleRecording}
+      title={title}
+      active={false}
+      disabled
+    >
+      <Circle className="w-3 h-3" />
+    </TimelineTransportButton>
+  );
+}
+
+export function SceneMarkerHandle({ isSelected }: { isSelected: boolean }) {
+  return (
+    <svg width="12" height="14" viewBox="0 0 12 14" className="shrink-0">
+      <path
+        d="M 1 1 L 11 1 L 11 9 L 6 13 L 1 9 Z"
+        fill={isSelected ? 'var(--wn-timeline-marker-selected)' : 'var(--wn-timeline-marker-fill)'}
+        stroke={isSelected ? 'var(--wn-timeline-kf-selected-stroke)' : 'var(--wn-timeline-marker-fill)'}
+        strokeWidth={isSelected ? 2 : 1}
+      />
+    </svg>
+  );
+}
+
+export function TrackValueChip({ value, colorClass }: { value: number | string; colorClass?: string }) {
+  return (
+    <span className={cn("text-[9px] font-mono tabular-nums px-1 py-0.5 rounded-sm bg-wn-control-bg text-muted-foreground", colorClass)}>
+      {typeof value === 'number' ? value.toFixed(2) : value}
+    </span>
+  );
+}
+
+export function TrackEditableNumber({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+  return (
+    <span className="text-[10px] font-mono tabular-nums text-foreground cursor-ns-resize hover:text-wn-accent">
+      {value.toFixed(2)}
+    </span>
+  );
+}
+
+export function TrackKeyframeToggle({ active, onClick }: { active: boolean; onClick?: () => void }) {
+  return (
+    <button
+      className={cn("w-2 h-2 rotate-45 border transition-colors", active ? "bg-wn-keyframe-active border-wn-keyframe-active" : "border-muted-foreground hover:border-foreground")}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+    />
   );
 }

@@ -67,17 +67,7 @@ export function useInitProgressTick(isNetworkReady: boolean, setInitProgress: (v
   }, [isNetworkReady, setInitProgress]);
 }
 
-export function useRecordingHistory(isRecording: boolean, getTimelineState: () => TimelineState, pushHistory: (s: TimelineState) => void) {
-  const preRecordStateRef = useRef<TimelineState | null>(null);
-  useEffect(() => {
-    if (isRecording) {
-      preRecordStateRef.current = getTimelineState();
-    } else if (preRecordStateRef.current) {
-      pushHistory(getTimelineState());
-      preRecordStateRef.current = null;
-    }
-  }, [isRecording]); // eslint-disable-line react-hooks/exhaustive-deps
-}
+
 
 export function usePlayAnimation(
   isPlaying: boolean,

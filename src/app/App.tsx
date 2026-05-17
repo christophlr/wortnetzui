@@ -13,7 +13,7 @@ import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
 import {
   useOverlayBandOffsets, useThemeClass, useSystemThemeSync, useInitProgressTick,
-  useRecordingHistory, usePlayAnimation, useTimecode, useTimelineResize,
+  usePlayAnimation, useTimecode, useTimelineResize,
 } from './hooks/useAppEffects';
 
 export default function App() {
@@ -23,7 +23,7 @@ export default function App() {
   useThemeClass(wn.themeMode);
   useSystemThemeSync(wn.themeAuto, wn.setThemeMode);
   useInitProgressTick(wn.isNetworkReady, wn.setInitProgress);
-  useRecordingHistory(wn.isRecording, wn.getTimelineState, wn.pushHistory);
+
   usePlayAnimation(wn.isPlaying, wn.setIsPlaying, wn.setPlayheadPosition, wn.playheadRef);
   useTimecode(wn.playheadPosition, wn.setTimecode);
   const startTimelineResize = useTimelineResize(wn.timelineHeight, wn.setTimelineHeight);

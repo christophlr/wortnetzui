@@ -199,6 +199,7 @@
       "keyframes":    "Keyframes",
       "physics":      "Physik"
     },
+    "recordComingSoon": "Aufnahme wird in einer kommenden Version verfügbar sein",
     "action": {
       "deleteSelected":   "Auswahl löschen",
       "undo":             "Rückgängig",

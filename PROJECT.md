@@ -16,7 +16,7 @@ The aesthetic target is a professional creative application (Figma / After Effec
 |---|---|
 | `App.tsx` | Slim layout composer. Delegates all state and logic to `WortnetzContext`. |
 | `context/WortnetzContext.tsx` | **Single source of truth.** Owns all React state and core handlers. |
-| `hooks/` | Contains `useTimelineHistory.ts` (undo/redo) and `useWorkspaceIO.ts` (save/load). |
+| `hooks/` | Contains `useUndoStack.ts` (undo/redo) and `useWorkspaceIO.ts` (save/load). |
 | `components/shell/` | Modular layout components: `AppShell`, `AppSidebar`, `AppCanvas`. |
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
 | `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |
@@ -44,7 +44,7 @@ The aesthetic target is a professional creative application (Figma / After Effec
 
 | Concept | File Location |
 |---|---|
-| Where does undo/redo live? | `hooks/useTimelineHistory.ts` |
+| Where does undo/redo live? | `hooks/useUndoStack.ts` |
 | Where is the project saved/loaded? | `hooks/useWorkspaceIO.ts` |
 | Where are shortcuts defined? | `hooks/useShortcuts.ts` |
 | Where is the Three.js render loop? | `Network3D.tsx` |

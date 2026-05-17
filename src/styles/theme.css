@@ -67,6 +67,7 @@
   --wn-timeline-marker-fill: #7c3aed;               /* scene marker default */
   --wn-timeline-marker-selected: #a855f7;           /* scene marker selected */
   --wn-timeline-playhead: #ef4444;                  /* playhead triangle */
+  --wn-timeline-recording: #ef4444;                 /* recording active pulse */
 
   /* Timeline transport + per-color tracks (Step 22.a).
      Per-color tokens because COLOR{cyan,orange} in timeline/types.ts each
@@ -146,6 +147,7 @@
   --wn-timeline-marker-fill: #a78bfa;                /* violet-400 */
   --wn-timeline-marker-selected: #c084fc;            /* purple-400 */
   --wn-timeline-playhead: #f87171;                   /* red-400 */
+  --wn-timeline-recording: #f87171;                  /* red-400 */
 
   /* Timeline transport + per-color tracks — dark counterparts. */
   --wn-timeline-transport-active: #60a5fa;
@@ -219,6 +221,7 @@
   --color-wn-timeline-marker-fill: var(--wn-timeline-marker-fill);
   --color-wn-timeline-marker-selected: var(--wn-timeline-marker-selected);
   --color-wn-timeline-playhead: var(--wn-timeline-playhead);
+  --color-wn-timeline-recording: var(--wn-timeline-recording);
   --color-wn-timeline-transport-active: var(--wn-timeline-transport-active);
   --color-wn-timeline-drag-select: var(--wn-timeline-drag-select);
   --color-wn-timeline-bg: var(--wn-timeline-bg);

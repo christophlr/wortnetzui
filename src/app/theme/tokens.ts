@@ -38,7 +38,7 @@ export type CssVarName =
   // Timeline keyframe + marker (Phase 3.3)
   | '--wn-timeline-kf-selected' | '--wn-timeline-kf-selected-stroke' | '--wn-timeline-kf-selected-outline'
   | '--wn-timeline-marker-fill' | '--wn-timeline-marker-selected'
-  | '--wn-timeline-playhead'
+  | '--wn-timeline-playhead' | '--wn-timeline-recording'
   // Chart palette (defined in .dark scope)
   | '--chart-1' | '--chart-2' | '--chart-3' | '--chart-4' | '--chart-5';
 

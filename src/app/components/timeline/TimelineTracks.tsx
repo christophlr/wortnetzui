@@ -7,7 +7,7 @@ import {
   COLOR, inferEasingType,
   type ViewWindow, type PhysicsKeyframe, type SceneMarker,
 } from './types';
-import { TrackLabel } from './TimelineAtoms';
+import { TrackLabel, SceneMarkerHandle } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 import { useT } from '../../i18n/useT';
 
@@ -72,7 +72,7 @@ export function SceneMarkerLane({
     <div className="flex sticky top-[24px] z-20 border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: TRACK_H }}>
       {/* Label */}
       <TrackLabel>
-        <Bookmark className="w-3 h-3 text-purple-400" fill="currentColor" />
+        <Bookmark className="w-3 h-3 text-wn-timeline-marker-fill" fill="currentColor" />
         <span className="text-xs text-muted-foreground font-medium truncate">{t('timeline.track.sceneMarkers')}</span>
       </TrackLabel>
       {/* Track area */}
@@ -99,15 +99,7 @@ export function SceneMarkerLane({
                 onContextMenu?.(marker.time, marker.label);
               }}
             >
-              {/* Pentagon marker shape */}
-              <svg width="12" height="14" viewBox="0 0 12 14" className="shrink-0">
-                <path
-                  d="M 1 1 L 11 1 L 11 9 L 6 13 L 1 9 Z"
-                  fill={isSelected ? 'var(--wn-timeline-marker-selected)' : 'var(--wn-timeline-marker-fill)'}
-                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-stroke)' : 'var(--wn-timeline-marker-fill)'}
-                  strokeWidth={isSelected ? 2 : 1}
-                />
-              </svg>
+              <SceneMarkerHandle isSelected={isSelected} />
             </button>
           );
         })}
