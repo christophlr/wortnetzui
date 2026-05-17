@@ -3,10 +3,10 @@ import {
   MonitorPlay,
   Keyboard
 } from 'lucide-react';
-import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubTrigger, MenubarSubContent } from './ui/menubar';
+import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubContent } from './ui/menubar';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
-import { TopBarActionButton, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
+import { TopBarActionButton, TopBarMenuSubTrigger, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
 import { useT } from '../i18n/useT';
 import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
 
@@ -151,7 +151,7 @@ export function TopBar({
                 <MenubarSeparator />
                 <MenubarGroup>
                   <MenubarSub>
-                    <MenubarSubTrigger>{t('topbar.label.language')}</MenubarSubTrigger>
+                    <TopBarMenuSubTrigger>{t('topbar.label.language')}</TopBarMenuSubTrigger>
                     <MenubarSubContent>
                       <MenubarRadioGroup value={currentLanguageValue} onValueChange={handleLanguageChange}>
                         <MenubarRadioItem value="de">{t('topbar.language.de')}</MenubarRadioItem>

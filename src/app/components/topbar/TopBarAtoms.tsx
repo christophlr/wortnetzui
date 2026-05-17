@@ -8,7 +8,7 @@
 import * as React from 'react';
 import { Square, Box } from 'lucide-react';
 import { Button } from '../ui/button';
-import { MenubarTrigger } from '../ui/menubar';
+import { MenubarSubTrigger, MenubarTrigger } from '../ui/menubar';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { cn } from '../ui/utils';
 
@@ -45,6 +45,17 @@ export function TopBarMenuTrigger({
     >
       {children}
     </MenubarTrigger>
+  );
+}
+
+export function TopBarMenuSubTrigger({
+  children,
+  ...props
+}: React.ComponentProps<typeof MenubarSubTrigger>) {
+  return (
+    <MenubarSubTrigger className="text-xs" {...props}>
+      {children}
+    </MenubarSubTrigger>
   );
 }
 
