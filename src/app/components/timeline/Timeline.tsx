@@ -240,6 +240,18 @@ export function Timeline(props: TimelineProps) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
       if (e.key === 'Escape') { onSelectKeyframes?.([]); e.preventDefault(); }
 
+      // Cmd-A / Ctrl-A — select all keyframes across all tracks.
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        const all: { track: string; time: number }[] = [];
+        cameraKeyframes.forEach(k => all.push({ track: 'camera-keyframes', time: k.time }));
+        Object.entries(physicsKeyframes).forEach(([tid, kfs]) =>
+          (kfs ?? []).forEach(k => all.push({ track: tid, time: k.time }))
+        );
+        sceneMarkers.forEach(m => all.push({ track: 'scene-markers', time: m.time }));
+        onSelectKeyframes?.(all);
+      }
+
       // Arrow-key nudge — ±1 frame (1/30s), Shift = ±10 frames.
       if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedKeyframes.length > 0) {
         e.preventDefault();
@@ -256,7 +268,7 @@ export function Timeline(props: TimelineProps) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedKeyframes, onDeleteSelected, handleCopy, handleCut, handlePaste, onMoveKeyframe, onDragStart, onDragEnd, onSelectKeyframes]);
+  }, [selectedKeyframes, cameraKeyframes, physicsKeyframes, sceneMarkers, onDeleteSelected, handleCopy, handleCut, handlePaste, onMoveKeyframe, onDragStart, onDragEnd, onSelectKeyframes]);
 
   // Playhead position as CSS
   const visibleDuration = viewWindow.end - viewWindow.start;
