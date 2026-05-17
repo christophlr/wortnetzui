@@ -122,7 +122,7 @@ export function TrackRow({
   isGraphEditorVisible,
   onToggleGraphEditor,
   onSelect, onMoveKeyframe, onContextMenu,
-  onDragStart, onDragEnd,
+  onDragStart, onDragEnd, onDuplicateKeyframe,
   timeFromClientX, contentRef, sceneMarkers = [],
 }: {
   trackId: string;
@@ -139,6 +139,7 @@ export function TrackRow({
   onContextMenu?: (trackId: string, time: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
   timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
   sceneMarkers?: SceneMarker[];
@@ -204,6 +205,12 @@ export function TrackRow({
     } else {
       onSelect?.(trackId, kfTime, isAdditive);
     }
+    
+    // Alt-drag = duplicate
+    if (e.altKey) {
+      onDuplicateKeyframe?.(trackId, kfTime, kfTime);
+    }
+    
     onDragStart?.();
 
     let currentTime = kfTime;

@@ -432,6 +432,7 @@ export function Timeline(props: TimelineProps) {
                 onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('camera')) n.delete('camera'); else n.add('camera'); return n; })}
                 onSelect={onKeyframeSelect}
                 onMoveKeyframe={onMoveKeyframe}
+                onDuplicateKeyframe={onDuplicateKeyframe}
                 onContextMenu={handleKeyframeContextMenu}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
@@ -489,6 +490,7 @@ export function Timeline(props: TimelineProps) {
                       onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has(track.id)) n.delete(track.id); else n.add(track.id); return n; })}
                       onSelect={onKeyframeSelect}
                       onMoveKeyframe={onMoveKeyframe}
+                      onDuplicateKeyframe={onDuplicateKeyframe}
                       onContextMenu={handleKeyframeContextMenu}
                       onDragStart={onDragStart}
                       onDragEnd={onDragEnd}
