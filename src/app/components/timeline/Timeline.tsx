@@ -42,6 +42,7 @@ export function Timeline(props: TimelineProps) {
     onRenameSceneMarker,
     isRecording,
     onToggleRecording,
+    onCancelDrag,
   } = props;
 
   const { t } = useT();
@@ -238,7 +239,12 @@ export function Timeline(props: TimelineProps) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') { handleCopy(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'x') { handleCut(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
-      if (e.key === 'Escape') { onSelectKeyframes?.([]); e.preventDefault(); }
+      if (e.key === 'Escape') {
+        // Cancel any in-progress drag and clear selection.
+        onCancelDrag?.();
+        onSelectKeyframes?.([]);
+        e.preventDefault();
+      }
 
       // Cmd-A / Ctrl-A — select all keyframes across all tracks.
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {

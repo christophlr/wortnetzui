@@ -195,6 +195,7 @@ export interface WortnetzContextType {
   handlePhysicsChange: (params: Partial<WortnetzContextType['physicsParams']>) => void;
   handleDragStart: () => void;
   handleDragEnd: () => void;
+  handleCancelDrag: () => void;
   
   // History
   pushHistory: (next: TimelineState) => void;

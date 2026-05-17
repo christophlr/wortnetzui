@@ -171,4 +171,5 @@ export interface TimelineProps {
   onRenameSceneMarker?: (time: number, label?: string) => void;
   isRecording?: boolean;
   onToggleRecording?: () => void;
+  onCancelDrag?: () => void;
 }

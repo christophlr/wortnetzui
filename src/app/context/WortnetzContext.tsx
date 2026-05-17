@@ -577,6 +577,19 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     }
   }, [pushHistory, getTimelineState]);
 
+  /** Cancel an in-progress drag: restore the pre-drag snapshot without pushing history. */
+  const handleCancelDrag = useCallback(() => {
+    const snapshot = preDragStateRef.current;
+    if (!snapshot) return;
+    setCameraKeyframes(snapshot.cameraKeyframes);
+    cameraKeyframesRef.current = snapshot.cameraKeyframes;
+    setPhysicsKeyframes(snapshot.physicsKeyframes);
+    physicsKeyframesRef.current = snapshot.physicsKeyframes;
+    setSceneMarkers(snapshot.sceneMarkers);
+    sceneMarkersRef.current = snapshot.sceneMarkers;
+    preDragStateRef.current = null;
+  }, []);
+
   return (
     <WortnetzContext.Provider value={{
       viewMode, setViewMode, themeMode, setThemeMode, themeAuto, setThemeAuto,
@@ -597,7 +610,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       handleSetValue, handleSetHandle2D, handleCameraChange,
       handleTogglePhysicsKeyframe,
       handleKeyframeSelect, handleSelectKeyframes, handlePhysicsChange,
-      handleDragStart, handleDragEnd,
+      handleDragStart, handleDragEnd, handleCancelDrag,
       pushHistory, getTimelineState, undo, redo, canUndo, canRedo,
       handleSave, handleLoad
     }}>
