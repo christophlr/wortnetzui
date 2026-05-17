@@ -15,6 +15,7 @@ import {
 
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
+import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
 
 export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number, trackId?: string): number | null {
   if (sorted.length === 0) return null;
@@ -53,7 +54,16 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [timecode, setTimecode] = useState('00:00:00:00');
   const [selectedKeyframes, setSelectedKeyframes] = useState<{ track: string; time: number }[]>([]);
   const [sceneMarkers, setSceneMarkers] = useState<SceneMarker[]>([]);
-  const [themeMode, setThemeMode] = useState<'light' | 'hybrid' | 'dark'>('light');
+  const [themeAuto, setThemeAuto] = useState<boolean>(() =>
+    typeof window !== 'undefined' && localStorage.getItem(THEME_AUTO_KEY) === 'true'
+  );
+  const [themeMode, setThemeMode] = useState<'light' | 'hybrid' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    if (localStorage.getItem(THEME_AUTO_KEY) === 'true') return resolveSystemTheme();
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'hybrid') return stored;
+    return 'light';
+  });
   const [inputText, setInputText] = useState(DEFAULT_TEXT);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('word');
   const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
@@ -616,7 +626,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   return (
     <WortnetzContext.Provider value={{
-      viewMode, setViewMode, themeMode, setThemeMode, renderMode, setRenderMode,
+      viewMode, setViewMode, themeMode, setThemeMode, themeAuto, setThemeAuto, renderMode, setRenderMode,
       activeTool, setActiveTool, canvasAspectRatio, setCanvasAspectRatio, zoomValue, setZoomValue,
       isSidebarOpen, setIsSidebarOpen, sidebarWidth, setSidebarWidth, timelineHeight, setTimelineHeight,
       isNetworkReady, setIsNetworkReady, initProgress, setInitProgress,

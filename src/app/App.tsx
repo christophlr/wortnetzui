@@ -12,7 +12,7 @@ import { DEFAULT_TIMELINE_HEIGHT } from './constants';
 import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
 import {
-  useOverlayBandOffsets, useThemeClass, useInitProgressTick,
+  useOverlayBandOffsets, useThemeClass, useSystemThemeSync, useInitProgressTick,
   useRecordingHistory, usePlayAnimation, useTimecode, useTimelineResize,
 } from './hooks/useAppEffects';
 
@@ -21,6 +21,7 @@ export default function App() {
 
   const { offsets, topBarRef, timelineRef } = useOverlayBandOffsets();
   useThemeClass(wn.themeMode);
+  useSystemThemeSync(wn.themeAuto, wn.setThemeMode);
   useInitProgressTick(wn.isNetworkReady, wn.setInitProgress);
   useRecordingHistory(wn.isRecording, wn.getTimelineState, wn.pushHistory);
   usePlayAnimation(wn.isPlaying, wn.setIsPlaying, wn.setPlayheadPosition, wn.playheadRef);

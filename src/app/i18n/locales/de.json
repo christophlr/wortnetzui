@@ -13,7 +13,8 @@
       "shortcuts":    "Tastaturkürzel...",
       "preview":      "Vorschau",
       "themeLight":   "Hell",
-      "themeDark":    "Dunkel"
+      "themeDark":    "Dunkel",
+      "themeSystem":  "System"
     },
     "label": {
       "mode":  "Modus",

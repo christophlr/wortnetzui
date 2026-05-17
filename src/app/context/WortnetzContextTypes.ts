@@ -42,6 +42,8 @@ export interface WortnetzContextType {
   setViewMode: (mode: '2D' | '3D') => void;
   themeMode: 'light' | 'hybrid' | 'dark';
   setThemeMode: (mode: 'light' | 'hybrid' | 'dark') => void;
+  themeAuto: boolean;
+  setThemeAuto: (auto: boolean) => void;
   renderMode: 'edit' | 'render';
   setRenderMode: (mode: 'edit' | 'render') => void;
   

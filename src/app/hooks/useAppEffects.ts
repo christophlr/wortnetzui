@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { TIMELINE_DURATION } from '../constants';
 import type { TimelineState } from '../context/WortnetzContextTypes';
+import { resolveSystemTheme } from '../theme/tokens';
 
 export function useOverlayBandOffsets() {
   const [offsets, setOffsets] = useState({ top: 0, bottom: 0 });
@@ -30,6 +31,22 @@ export function useThemeClass(themeMode: 'light' | 'dark' | 'hybrid') {
     else if (themeMode === 'hybrid') root.classList.add('theme-hybrid');
     else root.classList.add('light');
   }, [themeMode]);
+}
+
+/**
+ * When the user has picked "System" (themeAuto === true), follow the OS's
+ * prefers-color-scheme in real time. Tears the listener down when the user
+ * flips back to an explicit choice.
+ */
+export function useSystemThemeSync(themeAuto: boolean, setThemeMode: (m: 'light' | 'hybrid' | 'dark') => void) {
+  useEffect(() => {
+    if (!themeAuto || typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => setThemeMode(resolveSystemTheme());
+    apply();
+    mql.addEventListener('change', apply);
+    return () => mql.removeEventListener('change', apply);
+  }, [themeAuto, setThemeMode]);
 }
 
 export function useInitProgressTick(isNetworkReady: boolean, setInitProgress: (v: number | ((prev: number) => number)) => void) {

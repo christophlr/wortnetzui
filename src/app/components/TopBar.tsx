@@ -1,5 +1,5 @@
 import {
-  Save, FolderOpen, Sun, Moon, Undo2, Redo2, Download,
+  Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
   MonitorPlay,
   Keyboard
 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useProject } from '../hooks/useProject';
 import { TopBarActionButton, TopBarMenuSubTrigger, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
 import { useT } from '../i18n/useT';
 import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
+import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
 
 function NetworkLogo() {
   return (
@@ -39,9 +40,10 @@ export function TopBar({
   onExport,
   onApplyNodeStylePreset
 }: TopBarProps) {
-  const { 
-    viewMode, setViewMode, 
-    themeMode, setThemeMode, 
+  const {
+    viewMode, setViewMode,
+    themeMode, setThemeMode,
+    themeAuto, setThemeAuto,
     renderMode, setRenderMode,
     setPhysicsParams,
     undo, redo, canUndo, canRedo
@@ -64,6 +66,22 @@ export function TopBar({
 
   const autoDetect = localStorage.getItem(LANGUAGE_AUTO_KEY) === 'true';
   const currentLanguageValue = autoDetect ? 'auto' : language;
+
+  const handleThemeChange = (v: string) => {
+    if (v === 'system') {
+      localStorage.setItem(THEME_AUTO_KEY, 'true');
+      localStorage.removeItem(THEME_STORAGE_KEY);
+      setThemeAuto(true);
+      setThemeMode(resolveSystemTheme());
+    } else {
+      localStorage.setItem(THEME_AUTO_KEY, 'false');
+      localStorage.setItem(THEME_STORAGE_KEY, v);
+      setThemeAuto(false);
+      setThemeMode(v as 'light' | 'dark');
+    }
+  };
+
+  const currentThemeValue = themeAuto ? 'system' : themeMode;
 
   const handleViewModeChange = (mode: '2D' | '3D') => {
     setViewMode(mode);
@@ -143,9 +161,10 @@ export function TopBar({
                 <MenubarSeparator />
                 <MenubarGroup>
                   <MenubarLabel>{t('topbar.label.theme')}</MenubarLabel>
-                  <MenubarRadioGroup value={themeMode} onValueChange={(v) => setThemeMode(v as any)}>
+                  <MenubarRadioGroup value={currentThemeValue} onValueChange={handleThemeChange}>
                     <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />{t('topbar.item.themeLight')}</MenubarRadioItem>
                     <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />{t('topbar.item.themeDark')}</MenubarRadioItem>
+                    <MenubarRadioItem value="system"><Monitor size={12} strokeWidth={2} />{t('topbar.item.themeSystem')}</MenubarRadioItem>
                   </MenubarRadioGroup>
                 </MenubarGroup>
                 <MenubarSeparator />

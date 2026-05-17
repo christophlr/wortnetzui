@@ -13,7 +13,8 @@
       "shortcuts":    "Shortcuts...",
       "preview":      "Preview",
       "themeLight":   "Light",
-      "themeDark":    "Dark"
+      "themeDark":    "Dark",
+      "themeSystem":  "System"
     },
     "label": {
       "mode":  "Mode",
