@@ -157,7 +157,7 @@ export function Sidebar({
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
           <button
             onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+            className="size-8 mb-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-wn-control-hover transition-colors"
             title={t('common.sidebar.expand')}
           >
             <PanelRight size={18} />
@@ -178,7 +178,7 @@ export function Sidebar({
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
           <button
             onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+            className="size-8 mb-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-wn-control-hover transition-colors"
             title={t('common.sidebar.collapse')}
           >
             <PanelRightClose size={18} />

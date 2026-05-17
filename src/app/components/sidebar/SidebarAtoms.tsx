@@ -71,14 +71,12 @@ export function SidebarActivityButton({
       onClick={onClick}
       title={label}
       className={cn(
-        'group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
-        active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-hover',
+        'group relative flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-wn-control-hover',
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       <Icon
-        size={20}
+        size={18}
         className={cn(active ? 'scale-110' : 'scale-100 group-hover:scale-105')}
       />
       {active ? (
