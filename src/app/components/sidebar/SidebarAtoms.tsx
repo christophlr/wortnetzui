@@ -59,11 +59,16 @@ export function SidebarActivityButton({
   icon: Icon,
   label,
   onClick,
+  showIndicator = true,
+  className,
 }: {
   active: boolean;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
   onClick: () => void;
+  /** When false the left-edge accent bar is hidden (collapse button). */
+  showIndicator?: boolean;
+  className?: string;
 }) {
   return (
     <button
@@ -73,6 +78,7 @@ export function SidebarActivityButton({
       className={cn(
         'group relative flex h-10 w-10 items-center justify-center transition-colors',
         active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+        className,
       )}
     >
       <span
@@ -82,11 +88,11 @@ export function SidebarActivityButton({
       <Icon
         size={20}
         className={cn(
-          'relative transition-transform',
-          active ? 'scale-110 group-hover:scale-[1.18]' : 'scale-100 group-hover:scale-105',
+          'relative transition-transform duration-200 origin-center will-change-transform',
+          active ? 'scale-105 group-hover:scale-110' : 'scale-100 group-hover:scale-110',
         )}
       />
-      {active ? (
+      {active && showIndicator ? (
         <div className="absolute left-0 h-5 w-0.5 bg-wn-accent rounded-r-full" />
       ) : null}
     </button>

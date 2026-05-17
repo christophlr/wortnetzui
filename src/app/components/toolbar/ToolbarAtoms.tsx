@@ -61,7 +61,7 @@ export function ToolButton<TId extends string>({
       <Icon
         size={18}
         strokeWidth={isActive ? 2.5 : 2}
-        className={cn(isActive ? 'scale-105' : 'scale-100 group-hover:scale-110')}
+        className={cn('transition-transform duration-200 origin-center will-change-transform', isActive ? 'scale-105 group-hover:scale-110' : 'scale-100 group-hover:scale-110')}
       />
     </button>
   );

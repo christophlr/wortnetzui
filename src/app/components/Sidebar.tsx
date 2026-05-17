@@ -155,13 +155,14 @@ export function Sidebar({
     return (
       <div className="flex h-full w-12 bg-sidebar border border-sidebar-border shadow-sm rounded-tr-xl rounded-b-xl overflow-hidden pointer-events-auto">
         <div className="w-full flex flex-col items-center py-4 gap-2 bg-sidebar-accent/50">
-          <button
-            onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-wn-control-hover transition-colors"
-            title={t('common.sidebar.expand')}
-          >
-            <PanelRight size={18} />
-          </button>
+          <SidebarActivityButton
+            active={false}
+            icon={PanelRight}
+            label={t('common.sidebar.expand')}
+            onClick={onCollapse!}
+            showIndicator={false}
+            className="mb-2"
+          />
           {activityButtons}
         </div>
       </div>
@@ -176,13 +177,14 @@ export function Sidebar({
 
         {/* VS Code Style Activity Bar (Icons) */}
         <div className="w-11 border-r border-sidebar-border/60 bg-sidebar-accent/50 flex flex-col items-center py-4 gap-2">
-          <button
-            onClick={onCollapse}
-            className="size-8 mb-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-wn-control-hover transition-colors"
-            title={t('common.sidebar.collapse')}
-          >
-            <PanelRightClose size={18} />
-          </button>
+          <SidebarActivityButton
+            active={false}
+            icon={PanelRightClose}
+            label={t('common.sidebar.collapse')}
+            onClick={onCollapse!}
+            showIndicator={false}
+            className="mb-2"
+          />
           {activityButtons}
         </div>
 
@@ -190,7 +192,7 @@ export function Sidebar({
         <div className="flex-1 flex flex-col min-w-0">
           <ShadSidebarHeader className="p-4 pb-2 border-b border-sidebar-border/50 flex flex-row items-center justify-between">
             <SidebarTabHeader>{headerTitle}</SidebarTabHeader>
-            <button onClick={onCollapse} className="text-zinc-300 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors md:hidden">
+            <button onClick={onCollapse} className="text-muted-foreground hover:text-foreground transition-colors md:hidden">
               <X size={16} />
             </button>
           </ShadSidebarHeader>
