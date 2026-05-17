@@ -5,7 +5,10 @@
 ---
 
 ## UI Language
-- **The UI must be German by default.** Labels, tooltips, and descriptions should be in German. 
+- **The UI must be German by default.** Labels, tooltips, and descriptions should be in German.
+- **All display strings go through i18next.** Use `useT()` from `src/app/i18n/useT.ts` in functional components; use the `i18n` singleton in class components. Never hardcode display text in JSX.
+- **Locale files** live at `src/app/i18n/locales/de.json` (primary) and `en.json` (fallback). Both files must stay in key parity.
+- **Canonical reference**: `src/app/components/Sidebar.tsx` — the sidebar and its tabs are the golden example of correct i18n wiring.
 
 ---
 
