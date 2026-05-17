@@ -1,13 +1,12 @@
 import {
   Save, FolderOpen, Sun, Moon, Undo2, Redo2, Download,
-  Square, Box, MonitorPlay,
+  MonitorPlay,
   Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubTrigger, MenubarSubContent } from './ui/menubar';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
-import { TopBarActionButton, TopBarMenuTrigger, TopBarPill } from './topbar/TopBarAtoms';
+import { TopBarActionButton, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
 import { useT } from '../i18n/useT';
 import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
 
@@ -171,19 +170,12 @@ export function TopBar({
 
       {/* Right Pill: Toggles & Actions */}
       <TopBarPill gap="gap-3">
-        <ToggleGroup
-          type="single"
+        <TopBarViewToggle
           value={viewMode}
-          onValueChange={(v) => v && handleViewModeChange(v as '2D' | '3D')}
-          className="h-7 gap-0 border border-border rounded-md overflow-hidden bg-background/50"
-        >
-          <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title={t('topbar.view.twoD')}>
-            <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-border hover:bg-accent/50 data-[state=on]:bg-primary/10" title={t('topbar.view.threeD')}>
-            <Box size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onChange={handleViewModeChange}
+          titleTwoD={t('topbar.view.twoD')}
+          titleThreeD={t('topbar.view.threeD')}
+        />
 
         <TopBarActionButton
           active={renderMode === 'render'}

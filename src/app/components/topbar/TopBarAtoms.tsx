@@ -1,12 +1,15 @@
 /**
  * TopBarAtoms — primitives for the top menu bar. Provides the rounded pill
- * shell, the styled menu trigger, and the right-pill action button.
- * All brand/state colors reference CSS variables defined in theme.css.
+ * shell, the styled menu trigger, the view-mode toggle, and the right-pill
+ * action button. All brand/state colors reference CSS variables defined in
+ * theme.css.
  */
 
 import * as React from 'react';
+import { Square, Box } from 'lucide-react';
 import { Button } from '../ui/button';
 import { MenubarTrigger } from '../ui/menubar';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { cn } from '../ui/utils';
 
 export function TopBarPill({
@@ -42,6 +45,42 @@ export function TopBarMenuTrigger({
     >
       {children}
     </MenubarTrigger>
+  );
+}
+
+export function TopBarViewToggle({
+  value,
+  onChange,
+  titleTwoD,
+  titleThreeD,
+}: {
+  value: '2D' | '3D';
+  onChange: (mode: '2D' | '3D') => void;
+  titleTwoD?: string;
+  titleThreeD?: string;
+}) {
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      onValueChange={(v) => v && onChange(v as '2D' | '3D')}
+      className="h-7 gap-0 border border-border rounded-md overflow-hidden bg-background/50"
+    >
+      <ToggleGroupItem
+        value="2D"
+        className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10"
+        title={titleTwoD}
+      >
+        <Square size={13} strokeWidth={2.5} fill={value === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="3D"
+        className="h-7 w-8 p-0 text-[11px] border-l border-border hover:bg-accent/50 data-[state=on]:bg-primary/10"
+        title={titleThreeD}
+      >
+        <Box size={13} strokeWidth={2.5} fill={value === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }
 
