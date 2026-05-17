@@ -14,11 +14,17 @@
  *      SidebarEditableNumber / SidebarDescription
  *                                  inline pieces that fill the slots of a level-4 row
  *
- * Visual rules are sourced from the `--wn-*` and shadcn semantic tokens
- * (`text-foreground`, `text-muted-foreground`, `border-border`,
- * `bg-wn-control-bg`, `bg-wn-info-bg`, `border-wn-divider`). Raw
- * `zinc-*` palette classes must not be reintroduced here — the tokens
- * carry both light and dark values.
+ * Rhythm & Typography Rules:
+ * - Subgroup headings (`SidebarGroup`): `text-[12px] font-semibold`.
+ * - Section titles (`SidebarSection`): `text-[12px] font-semibold tracking-[0.03em]`.
+ * - Numeric slider readings must use `SidebarEditableNumber` or `SidebarValueChip`.
+ * - New tabs or subgroups MUST reuse these shared atoms first. Do not hand-roll fresh 
+ *   spacing, heading, or value-chip class stacks unless a shared atom is missing.
+ * - Visual rules are sourced from the `--wn-*` and shadcn semantic tokens
+ *   (`text-foreground`, `text-muted-foreground`, `border-border`,
+ *   `bg-wn-control-bg`, `bg-wn-info-bg`, `border-wn-divider`). Raw
+ *   `zinc-*` palette classes must not be reintroduced here — the tokens
+ *   carry both light and dark values.
  */
 
 import * as React from 'react';
