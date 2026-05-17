@@ -1,36 +1,38 @@
 ---
-name: inspector-patch-summary
-description: 'Auto-generate per-file before/after patch summaries for inspector refactors, including semantic hierarchy, atom usage, slider/control behavior, risks, and checklist impact.'
-argument-hint: 'Changed inspector files or diff scope (optional)'
+name: sidebar-patch-summary
+description: 'Auto-generate per-file before/after patch summaries for sidebar refactors, including semantic hierarchy, atom usage, slider/control behavior, risks, and checklist impact.'
+argument-hint: 'Changed sidebar files or diff scope (optional)'
 user-invocable: true
 ---
-# Inspector Patch Summary
+# Sidebar Patch Summary
 
-Generate concise, per-file before/after summaries for inspector refactor patches.
+Generate concise, per-file before/after summaries for sidebar refactor patches.
 
 ## When To Use
-- After preparing or applying inspector refactor patches
+- After preparing or applying sidebar refactor patches
 - During review to explain exactly what changed per file
 - Before approval in confirm mode to provide a compact impact view
 
 ## Inputs
-- Preferred: staged/unstaged diff for inspector files
+- Preferred: staged/unstaged diff for sidebar files
 - Optional: explicit file list from user
 - Optional: acceptance checklist target for this refactor batch
 
 ## Procedure
 1. Collect changed files in scope:
-- src/app/components/Inspector.tsx
-- src/app/components/inspector/**/*.tsx
+- src/app/components/Sidebar.tsx
+- src/app/components/sidebar/**/*.tsx
 
-2. For each changed file, identify before/after deltas in these buckets:
+2. Check if there are meaningful diffs. If no diff detected, exit cleanly with a short message indicating "No changes detected."
+
+3. For each changed file, identify before/after deltas in these buckets:
 - Semantic headings (h1/h2/h3)
-- Inspector atom usage (section/subgroup/label/value chip)
+- Sidebar atom usage (section/group/row/value chip/editable number)
 - Control-row behavior (slider/value button/keyframe layout)
 - Spacing/style constraints (no ad-hoc hacks, token-safe styling)
 - German label/tooltips preservation
 
-3. Produce a per-file summary block using this template:
+4. Produce a per-file summary block using this template:
 
 File: <path>
 - Before: <1-3 concise bullets>
@@ -38,7 +40,7 @@ File: <path>
 - Risk: Low|Medium|High - <brief reason>
 - Checklist impact: <which acceptance checks moved toward PASS>
 
-4. Produce a final rollup:
+5. Produce a final rollup:
 - Files summarized: <count>
 - Net behavior change: None|Minor|Material
 - Outstanding violations: <count or none>
@@ -49,7 +51,8 @@ File: <path>
 - Do not include unrelated architectural commentary.
 - Do not invent changes; summarize only observable diffs.
 - If a file has no meaningful diff, omit it.
+- **No diff detected → exit cleanly**.
 
 ## Example Invocations
-- /inspector-patch-summary PhysicsTab.tsx CanvasTab.tsx
-- /inspector-patch-summary summarize current unstaged inspector diffs
+- /sidebar-patch-summary PhysicsTab.tsx CanvasTab.tsx
+- /sidebar-patch-summary summarize current unstaged sidebar diffs

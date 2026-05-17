@@ -79,7 +79,7 @@ export function inferEasingType(kf: {
 export const LABEL_W = 224;
 export const TRACK_H = 26;
 export const GRAPH_H = 120;
-export const EASING_H = 56;      // value graph height (legacy compat)
+export const EASING_H = 56;      // value graph height
 export const MINI_CURVE_H = 18;  // mini-curve height inside dopesheet track
 
 /* ── Track groups ── */

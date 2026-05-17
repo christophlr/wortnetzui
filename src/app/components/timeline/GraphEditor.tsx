@@ -253,7 +253,7 @@ export function GraphEditor({
 
             const y = getNormY(kfVal);
             const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
-            const isHover = false; // TODO: hover state
+            const isHover = false;
 
             // Tangent computation
             const mode = kf.mode || 'aligned';

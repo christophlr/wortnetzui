@@ -1,11 +1,6 @@
 # Wortnetzui — Architecture & Design Specification
 
-> **🤖 AI INSTRUCTION:** Read this file before touching the 3D engine, physics, rendering, or data flow.
-
-<visual_freeze>
-  <constraint>Preserve all existing visual appearances (colors, fonts, spacing, node styles, gradients, shadows) exactly as they are.</constraint>
-  <constraint>Apply visual changes ONLY if the user's prompt explicitly requests a change to the UI or rendering style.</constraint>
-</visual_freeze>
+> **🤖 AI INSTRUCTION:** Read this file before touching the 3D engine, physics, rendering, or data flow. For visual appearance rules, always consult [STYLE_GUIDE.md](./STYLE_GUIDE.md).
 
 ## 1. 3D Rendering Architecture — `Network3D.tsx`
 
@@ -51,6 +46,39 @@ Runs every frame off the main thread via `physics.worker.ts`. Uses transferable 
 `WortnetzContext.tsx` is the **Single Source of Truth**. App.tsx is just a composer.
 `Network3D` does not hold React state for anything that needs to persist.
 
-### 2.1 Undo/Redo & Save
-- **Undo**: Timeline state only (camera/physics keyframes, markers). Capped at 50.
-- **Save**: Serializes text, settings,
+### 2.1 State (WortnetzContext slices)
+The global state is divided into logical slices inside the context provider.
+- `text` & `parseMode`: Drive the n-gram extraction and node generation.
+- `visualSettings`: Global appearance parameters (e.g., node sizing, edge opacity).
+- `physicsParams`: Active force parameters.
+- `timeline`: Playback state, current time, duration.
+- `tracks` & `keyframes`: The actual animation data.
+
+### 2.2 Undo/Redo (`useTimelineHistory`)
+- **Scope**: Tracks timeline state only (camera keyframes, physics keyframes, scene markers). It does not track text input or global visual settings.
+- **Implementation**: Uses a capped stack (max 50) of serialized state snapshots. It implements a debounced commit strategy to group rapid changes (like scrubbing a value).
+
+### 2.3 Save/Load (`useWorkspaceIO`)
+- **Serialization**: Packages the current text, settings, layout mode, and all keyframe data into a unified JSON structure (`.wortnetz` file).
+- **Hydration**: Validates the loaded file structure before applying it to the context, handling legacy formats if necessary.
+
+### 2.4 Keyframe interpolation (Hermite splines)
+- **Why Hermite?**: We use cubic Hermite splines (via `easing.ts`) instead of simple linear interpolation or basic bezier curves because Hermite splines provide continuous velocity (C1 continuity) across multiple keyframes. This prevents jarring, abrupt changes in camera motion or physics parameters when passing through an intermediate keyframe.
+- **How it works**: It uses the surrounding keyframes to calculate entry and exit tangents, resulting in a smooth, continuous curve.
+
+### 2.5 Camera system internal state
+- The camera's active position, target, and rotation are owned by `Network3D` imperatively for performance, but **keyframes are owned by the context**.
+- During playback, `Network3D` pulls interpolated values from the context and applies them directly to the Three.js camera. When paused, user interaction updates the imperative camera, and clicking "add keyframe" pushes the current imperative state back into the React context.
+
+## 3. UI Composition Cascade
+
+The user interface is built following a strict atomic hierarchy, ensuring consistency and reusability across the application. Visual constraints and rules for this cascade are detailed in [STYLE_GUIDE.md](./STYLE_GUIDE.md).
+
+`AppShell`
+  ↳ `AppCanvas` (3D Viewport) / `AppSidebar` (Right Docked Panel)
+      ↳ `Sidebar` (Component)
+          ↳ `SidebarTabHeader` (h1 - uppercase tab title)
+          ↳ `SidebarSection` (h2 - major functional area)
+              ↳ `SidebarGroup` (h3 - used ONLY for a true subgroup of 2+ related controls)
+                  ↳ `SidebarRow` (e.g. `SidebarSliderRow`, `SidebarToggleRow`)
+                      ↳ **Atomic control** (`SidebarEditableNumber`, `SidebarSliderTrack`, `Switch`)
