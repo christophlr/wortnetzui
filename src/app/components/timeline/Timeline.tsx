@@ -239,10 +239,24 @@ export function Timeline(props: TimelineProps) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'x') { handleCut(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
       if (e.key === 'Escape') { onSelectKeyframes?.([]); e.preventDefault(); }
+
+      // Arrow-key nudge — ±1 frame (1/30s), Shift = ±10 frames.
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedKeyframes.length > 0) {
+        e.preventDefault();
+        const frameSize = 1 / 30;
+        const delta = (e.key === 'ArrowRight' ? 1 : -1) * frameSize * (e.shiftKey ? 10 : 1);
+        onDragStart?.();
+        selectedKeyframes.forEach(s => {
+          if (s.track !== 'scene-markers') {
+            onMoveKeyframe?.(s.track, s.time, Math.max(0, s.time + delta));
+          }
+        });
+        onDragEnd?.();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedKeyframes, onDeleteSelected, handleCopy, handleCut, handlePaste]);
+  }, [selectedKeyframes, onDeleteSelected, handleCopy, handleCut, handlePaste, onMoveKeyframe, onDragStart, onDragEnd, onSelectKeyframes]);
 
   // Playhead position as CSS
   const visibleDuration = viewWindow.end - viewWindow.start;
