@@ -71,13 +71,20 @@ export function SidebarActivityButton({
       onClick={onClick}
       title={label}
       className={cn(
-        'group relative flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-wn-control-hover',
+        'group relative flex h-10 w-10 items-center justify-center transition-colors',
         active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
+      <span
+        aria-hidden
+        className="absolute inset-1 rounded-lg transition-colors group-hover:bg-wn-control-hover"
+      />
       <Icon
-        size={18}
-        className={cn(active ? 'scale-110' : 'scale-100 group-hover:scale-105')}
+        size={20}
+        className={cn(
+          'relative transition-transform',
+          active ? 'scale-110 group-hover:scale-[1.18]' : 'scale-100 group-hover:scale-105',
+        )}
       />
       {active ? (
         <div className="absolute left-0 h-5 w-0.5 bg-wn-accent rounded-r-full" />
