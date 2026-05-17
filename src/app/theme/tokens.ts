@@ -59,7 +59,9 @@ export const pad = {
 
 // C. Gradient presets (typed; home for the four-preset palette).
 export interface GradientPreset {
-  /** Display name; will flow through i18n in Phase 4. */
+  /** Display name for programmatic use. When a gradient-picker UI lands, names should be
+   *  looked up via i18n rather than stored here directly. Live colours are the source of
+   *  truth — see networkTheme.defaultGradientSettings. */
   name: string;
   inner: string;
   outer: string;
