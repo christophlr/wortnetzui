@@ -82,6 +82,7 @@
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
+  --preview-background: oklch(0.16 0 0);  /* artboard fill — slight lift from chrome --background */
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
