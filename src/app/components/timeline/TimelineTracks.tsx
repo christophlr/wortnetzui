@@ -186,7 +186,17 @@ export function TrackRow({
   const handleKfMouseDown = (e: React.MouseEvent, kfTime: number) => {
     e.stopPropagation();
     if (e.button === 2) return; // right-click handled by context menu
-    onSelect?.(trackId, kfTime, e.shiftKey || e.metaKey);
+
+    const isAdditive = e.shiftKey || e.metaKey;
+    const isAlreadySelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kfTime) < 0.1) ?? false;
+
+    // Premiere/AE convention: clicking an unselected keyframe without a modifier
+    // clears the current selection and selects only this keyframe before dragging.
+    if (!isAdditive && !isAlreadySelected) {
+      onSelect?.(trackId, kfTime, false);
+    } else {
+      onSelect?.(trackId, kfTime, isAdditive);
+    }
     onDragStart?.();
 
     let currentTime = kfTime;
