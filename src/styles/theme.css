@@ -64,6 +64,18 @@
   --wn-timeline-marker-fill: #7c3aed;               /* scene marker default */
   --wn-timeline-marker-selected: #a855f7;           /* scene marker selected */
   --wn-timeline-playhead: #ef4444;                  /* playhead triangle */
+
+  /* Timeline transport + per-color tracks (Step 22.a).
+     Per-color tokens because COLOR{cyan,orange} in timeline/types.ts each
+     need distinct keyframe-fill and graph-stroke values; the singular
+     tokens listed in the remediation plan are split here. */
+  --wn-timeline-transport-active: #60a5fa;          /* active transport icon (blue-400) */
+  --wn-timeline-drag-select: rgba(59,130,246,0.1);  /* drag-select marquee fill (blue-500/10) */
+  --wn-timeline-bg: #ffffff;                        /* graph-editor dot stroke (was #fff) */
+  --wn-timeline-cyan-kf-fill: #60a5fa;              /* COLOR.cyan.kfFill (blue-400) */
+  --wn-timeline-cyan-graph-stroke: #3b82f6;         /* COLOR.cyan.graphStroke (blue-500) */
+  --wn-timeline-orange-kf-fill: #fb923c;            /* COLOR.orange.kfFill (orange-400) */
+  --wn-timeline-orange-graph-stroke: #f97316;       /* COLOR.orange.graphStroke (orange-500) */
 }
 
 
@@ -127,6 +139,15 @@
   --wn-timeline-marker-fill: #a78bfa;                /* violet-400 */
   --wn-timeline-marker-selected: #c084fc;            /* purple-400 */
   --wn-timeline-playhead: #f87171;                   /* red-400 */
+
+  /* Timeline transport + per-color tracks — dark counterparts. */
+  --wn-timeline-transport-active: #60a5fa;
+  --wn-timeline-drag-select: rgba(96,165,250,0.15);
+  --wn-timeline-bg: #09090b;
+  --wn-timeline-cyan-kf-fill: #60a5fa;
+  --wn-timeline-cyan-graph-stroke: #3b82f6;
+  --wn-timeline-orange-kf-fill: #fb923c;
+  --wn-timeline-orange-graph-stroke: #f97316;
 }
 
 @theme inline {
@@ -188,6 +209,13 @@
   --color-wn-timeline-marker-fill: var(--wn-timeline-marker-fill);
   --color-wn-timeline-marker-selected: var(--wn-timeline-marker-selected);
   --color-wn-timeline-playhead: var(--wn-timeline-playhead);
+  --color-wn-timeline-transport-active: var(--wn-timeline-transport-active);
+  --color-wn-timeline-drag-select: var(--wn-timeline-drag-select);
+  --color-wn-timeline-bg: var(--wn-timeline-bg);
+  --color-wn-timeline-cyan-kf-fill: var(--wn-timeline-cyan-kf-fill);
+  --color-wn-timeline-cyan-graph-stroke: var(--wn-timeline-cyan-graph-stroke);
+  --color-wn-timeline-orange-kf-fill: var(--wn-timeline-orange-kf-fill);
+  --color-wn-timeline-orange-graph-stroke: var(--wn-timeline-orange-graph-stroke);
 }
 
 @layer base {
