@@ -44,6 +44,7 @@
      keyframe toggles, drag-active states, and radio-card selection.
      Phase 2.1 introduces these; Phase 2.2 swaps consumers. */
   --wn-accent: #3b82f6;             /* blue-500 — switch on, drag active */
+  --wn-accent-muted: #93c5fd;       /* blue-300 — softer accent fill (slider range) */
   --wn-accent-soft: #eff6ff;        /* blue-50 — soft fills (radio card selected) */
   --wn-keyframe-active: #3b82f6;    /* same as accent — unified */
   --wn-divider: rgba(212, 212, 216, 0.8);  /* zinc-300/80 */
@@ -120,6 +121,7 @@
 
   /* Dark-mode counterparts to the wn-* action accents. */
   --wn-accent: #60a5fa;             /* blue-400 — softer in dark */
+  --wn-accent-muted: #3b82f6;       /* blue-500 — recessed against blue-400 wn-accent */
   --wn-accent-soft: rgba(59, 130, 246, 0.18);
   --wn-keyframe-active: #60a5fa;
   --wn-divider: #27272a;            /* zinc-800 */
@@ -192,6 +194,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-wn-accent: var(--wn-accent);
+  --color-wn-accent-muted: var(--wn-accent-muted);
   --color-wn-accent-soft: var(--wn-accent-soft);
   --color-wn-keyframe-active: var(--wn-keyframe-active);
   --color-wn-divider: var(--wn-divider);

@@ -41,7 +41,7 @@ export function ContentTab({
             onChange={(e) => setLocalText(e.target.value)}
           />
           <Button
-            className="w-full h-9 text-xs gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md active:scale-[0.98] transition-transform"
+            className="w-full h-9 text-xs gap-2 bg-wn-accent hover:bg-wn-accent/90 text-white shadow-md active:scale-[0.98] transition-transform"
             onClick={() => onTextChange(localText)}
           >
             <RefreshCw size={14} />

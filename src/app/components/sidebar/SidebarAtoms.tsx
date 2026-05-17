@@ -82,7 +82,7 @@ export function SidebarActivityButton({
         className={cn(active ? 'scale-110' : 'scale-100 group-hover:scale-105')}
       />
       {active ? (
-        <div className="absolute left-0 h-5 w-0.5 bg-foreground rounded-r-full" />
+        <div className="absolute left-0 h-5 w-0.5 bg-wn-accent rounded-r-full" />
       ) : null}
     </button>
   );
