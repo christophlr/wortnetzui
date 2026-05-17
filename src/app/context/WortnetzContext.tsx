@@ -16,6 +16,7 @@ import {
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
 import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
+import { sameTime, differentTime } from '../components/timeline/timeUtils';
 
 export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number, trackId?: string): number | null {
   if (sorted.length === 0) return null;
@@ -193,8 +194,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
     for (const trackId of Object.keys(PHYS_TRACK_PARAM)) {
       const param = PHYS_TRACK_PARAM[trackId] as keyof typeof effectivePhysics;
-      const existingK = (nextPhysKfs[trackId] ?? []).find(k => Math.abs(k.time - currentTime) <= 0.1);
-      const filtered = (nextPhysKfs[trackId] ?? []).filter(k => Math.abs(k.time - currentTime) > 0.1);
+      const existingK = (nextPhysKfs[trackId] ?? []).find(k => sameTime(k.time, currentTime));
+      const filtered = (nextPhysKfs[trackId] ?? []).filter(k => differentTime(k.time, currentTime));
       const easingProps = existingK
         ? { handleOut: existingK.handleOut, handleIn: existingK.handleIn, handleOutTime: existingK.handleOutTime, handleInTime: existingK.handleInTime, mode: existingK.mode }
         : { mode: 'aligned' as const };
@@ -206,7 +207,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
     if (viewMode !== '3D') {
       let nextMarkers2D = sceneMarkersRef.current;
-      const markerExists2D = nextMarkers2D.some(m => Math.abs(m.time - currentTime) <= 0.1);
+      const markerExists2D = nextMarkers2D.some(m => sameTime(m.time, currentTime));
       if (!markerExists2D) {
         const label = `Scene ${nextMarkers2D.length + 1}`;
         nextMarkers2D = [...nextMarkers2D, { time: currentTime, label }].sort((a, b) => a.time - b.time);
@@ -223,8 +224,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const existingCK = cameraKeyframesRef.current.find(s => Math.abs(s.time - currentTime) <= 0.1);
-    const filteredCkfs = cameraKeyframesRef.current.filter(s => Math.abs(s.time - currentTime) > 0.1);
+    const existingCK = cameraKeyframesRef.current.find(s => sameTime(s.time, currentTime));
+    const filteredCkfs = cameraKeyframesRef.current.filter(s => differentTime(s.time, currentTime));
     const cameraEasingProps = existingCK
       ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut, tensionHandleInTime: existingCK.tensionHandleInTime, tensionHandleOutTime: existingCK.tensionHandleOutTime }
       : { mode: 'aligned' as const };
@@ -234,7 +235,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     setCameraKeyframes(nextCkfs);
 
     let nextMarkers = sceneMarkersRef.current;
-    const markerExists = nextMarkers.some(m => Math.abs(m.time - currentTime) <= 0.1);
+    const markerExists = nextMarkers.some(m => sameTime(m.time, currentTime));
     if (!markerExists) {
       const label = `Scene ${nextMarkers.length + 1}`;
       nextMarkers = [...nextMarkers, { time: currentTime, label }].sort((a, b) => a.time - b.time);
@@ -248,12 +249,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleCameraChange = useCallback(() => {
     if (viewMode !== '3D') return;
     const currentTime = playheadRef.current;
-    if (!cameraKeyframesRef.current.some(s => Math.abs(s.time - currentTime) < 0.1)) return;
+    if (!cameraKeyframesRef.current.some(s => sameTime(s.time, currentTime))) return;
     const keyframe = network3DRef.current?.getCameraKeyframe();
     if (!keyframe) return;
     setCameraKeyframes(prev => {
-      const existingCK = prev.find(s => Math.abs(s.time - currentTime) < 0.1);
-      const filtered = prev.filter(s => Math.abs(s.time - currentTime) > 0.1);
+      const existingCK = prev.find(s => sameTime(s.time, currentTime));
+      const filtered = prev.filter(s => differentTime(s.time, currentTime));
       const easingProps = existingCK
         ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut }
         : { mode: 'aligned' as const };
@@ -306,6 +307,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)),
       })));
     } else {
+      // Phase 2.1: 0.01 epsilon here mismatches the 0.1 TIME_EPSILON used elsewhere — intentional until Phase 2.1 fixes the dedup bug.
       if (trackId === 'camera-keyframes') {
         setCameraKeyframes(prev => {
           const next = prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
@@ -327,20 +329,20 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prevCkfs => {
-        const next = prevCkfs.filter(s => Math.abs(s.time - time) > 0.1);
+        const next = prevCkfs.filter(s => differentTime(s.time, time));
         cameraKeyframesRef.current = next;
         return next;
       });
-      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
-        const kfs = (prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - time) > 0.1);
+        const kfs = (prevPkfs[trackId] ?? []).filter(k => differentTime(k.time, time));
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
         return next;
       });
-      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && Math.abs(s.time - time) < 0.1)));
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
       pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
     }
   }, [getTimelineState, pushHistory]);
@@ -455,7 +457,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       setCameraKeyframes(prevCkfs => {
         const src = prevCkfs.find(s => Math.abs(s.time - srcTime) < 0.01);
         if (!src) return prevCkfs;
-        const next = [...prevCkfs.filter(s => Math.abs(s.time - destTime) > 0.1), { ...src, time: destTime }].sort((a, b) => a.time - b.time);
+        const next = [...prevCkfs.filter(s => differentTime(s.time, destTime)), { ...src, time: destTime }].sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
         return next;
       });
@@ -464,7 +466,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       setPhysicsKeyframes(prevPkfs => {
         const src = (prevPkfs[trackId] ?? []).find(k => Math.abs(k.time - srcTime) < 0.01);
         if (!src) return prevPkfs;
-        const next = { ...prevPkfs, [trackId]: [...(prevPkfs[trackId] ?? []).filter(k => Math.abs(k.time - destTime) > 0.1), { ...src, time: destTime }].sort((a, b) => a.time - b.time) };
+        const next = { ...prevPkfs, [trackId]: [...(prevPkfs[trackId] ?? []).filter(k => differentTime(k.time, destTime)), { ...src, time: destTime }].sort((a, b) => a.time - b.time) };
         physicsKeyframesRef.current = next;
         return next;
       });
@@ -508,9 +510,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const currentTime = playheadRef.current;
     setPhysicsKeyframes(prevKfs => {
       const track = prevKfs[trackId] ?? [];
-      const hasKf = track.some(k => Math.abs(k.time - currentTime) <= 0.1);
+      const hasKf = track.some(k => sameTime(k.time, currentTime));
       const next = hasKf
-        ? { ...prevKfs, [trackId]: track.filter(k => Math.abs(k.time - currentTime) > 0.1) }
+        ? { ...prevKfs, [trackId]: track.filter(k => differentTime(k.time, currentTime)) }
         : { ...prevKfs, [trackId]: [...track, { time: currentTime, value, mode: 'aligned' as const }].sort((a, b) => a.time - b.time) };
       physicsKeyframesRef.current = next;
       pushHistory({ ...prev, physicsKeyframes: next });
@@ -554,7 +556,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         const isRecordingLocal = isRecordingRef.current;
         if (track.length === 0 && !isRecordingLocal) continue;
         
-        const kfIdx = track.findIndex(k => Math.abs(k.time - currentTime) <= 0.1);
+        const kfIdx = track.findIndex(k => sameTime(k.time, currentTime));
         if (kfIdx >= 0) {
           if (newVal !== track[kfIdx].value) {
             nextKfs[trackId] = track.map((k, i) => i === kfIdx ? { ...k, value: newVal } : k);
