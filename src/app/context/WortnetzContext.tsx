@@ -290,14 +290,20 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     } else {
       if (trackId === 'camera-keyframes') {
         setCameraKeyframes(prev => {
-          const next = prev.map(s => sameTime(s.time, oldTime) ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
+          // Move, then dedup: remove any OTHER keyframe within TIME_EPSILON of newTime.
+          const moved = prev.map(s => sameTime(s.time, oldTime) ? { ...s, time: newTime } : s);
+          const deduped = moved.filter((s, i) => !(differentTime(s.time, newTime) === false && !sameTime(s.time, oldTime) && moved.findIndex(x => sameTime(x.time, newTime)) !== i));
+          const next = deduped.sort((a, b) => a.time - b.time);
           cameraKeyframesRef.current = next;
           return next;
         });
       } else if (trackId in PHYS_TRACK_PARAM) {
         setPhysicsKeyframes(prev => {
-          const kfs = (prev[trackId] ?? []).map(k => sameTime(k.time, oldTime) ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
-          const next = { ...prev, [trackId]: kfs };
+          // Move, then dedup: remove any OTHER keyframe within TIME_EPSILON of newTime.
+          const track = prev[trackId] ?? [];
+          const moved = track.map(k => sameTime(k.time, oldTime) ? { ...k, time: newTime } : k);
+          const deduped = moved.filter((k, i) => moved.findIndex(x => sameTime(x.time, k.time)) === i);
+          const next = { ...prev, [trackId]: deduped.sort((a, b) => a.time - b.time) };
           physicsKeyframesRef.current = next;
           return next;
         });
