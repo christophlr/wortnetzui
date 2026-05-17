@@ -1,6 +1,7 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
 import { Button } from './ui/button';
+import i18n from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -40,17 +41,17 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="p-4 bg-red-50 rounded-full">
             <AlertTriangle className="w-12 h-12 text-red-500" />
           </div>
-          
+
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-zinc-900">Etwas ist schiefgelaufen</h2>
+            <h2 className="text-2xl font-bold text-zinc-900">{i18n.t('common.error.title')}</h2>
             <p className="text-zinc-500 max-w-md mx-auto">
-              Die 3D-Visualisierung konnte aufgrund eines technischen Problems nicht geladen werden. 
+              {i18n.t('common.error.body')}
               {this.state.error?.message.includes('limit') ? (
                 <span className="block mt-2 font-medium text-amber-600">
-                  Tipp: Schließen Sie andere Tabs mit 3D-Inhalten oder Grafik-Anwendungen, um WebGL-Ressourcen freizugeben.
+                  {i18n.t('common.error.webglTip')}
                 </span>
               ) : (
-                "Dies kann durch einen WebGL-Fehler oder zu hohen Grafikspeicherverbrauch verursacht worden sein."
+                i18n.t('common.error.bodyFallback')
               )}
             </p>
           </div>
@@ -61,12 +62,12 @@ export class ErrorBoundary extends Component<Props, State> {
             </code>
           </div>
 
-          <Button 
+          <Button
             onClick={this.handleReset}
             className="gap-2 bg-zinc-900 text-white hover:bg-zinc-800"
           >
             <RefreshCcw className="w-4 h-4" />
-            Anwendung neu laden
+            {i18n.t('common.error.reload')}
           </Button>
         </div>
       );

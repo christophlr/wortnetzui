@@ -253,7 +253,7 @@ export function GraphEditor({
 
             const y = getNormY(kfVal);
             const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
-            const isHover = false; // TODO: hover state
+            const isHover = false;
 
             // Tangent computation
             const mode = kf.mode || 'aligned';
@@ -326,7 +326,7 @@ export function GraphEditor({
                 <circle
                   cx={`${xPct}%`} cy={y} r={isSelected ? 6 : 5}
                   fill={isSelected ? 'var(--wn-timeline-kf-selected)' : colorMap.graphStroke}
-                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-outline)' : '#fff'}
+                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-outline)' : 'var(--wn-timeline-bg)'}
                   strokeWidth={isSelected ? 2 : 1.5}
                   className={onSetValue && !isTension ? 'cursor-ns-resize' : undefined}
                   onMouseDown={onSetValue && !isTension ? (e) => startValueDrag(e, kf.time, kf.value!) : undefined}

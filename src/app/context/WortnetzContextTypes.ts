@@ -1,4 +1,4 @@
-import { GradientSettings, NodeAppearanceSettings, EdgeAppearanceSettings, NodeShape } from '../networkTheme';
+import { EdgeAppearanceSettings, NodeShape } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import type { Network3DHandle } from '../components/Network3D';
 
@@ -42,9 +42,9 @@ export interface WortnetzContextType {
   setViewMode: (mode: '2D' | '3D') => void;
   themeMode: 'light' | 'hybrid' | 'dark';
   setThemeMode: (mode: 'light' | 'hybrid' | 'dark') => void;
-  renderMode: 'edit' | 'render';
-  setRenderMode: (mode: 'edit' | 'render') => void;
-  
+  themeAuto: boolean;
+  setThemeAuto: (auto: boolean) => void;
+
   activeTool: ToolId;
   setActiveTool: (tool: ToolId) => void;
   canvasAspectRatio: string;
@@ -69,8 +69,6 @@ export interface WortnetzContextType {
   setInputText: (text: string) => void;
   parseMode: 'sentence' | 'word' | 'both';
   setParseMode: (mode: 'sentence' | 'word' | 'both') => void;
-  gradientSettings: GradientSettings;
-  setGradientSettings: (settings: GradientSettings) => void;
   styleSettings: {
     edgeOpacity: number;
     edgeWidth: number;
@@ -113,16 +111,11 @@ export interface WortnetzContextType {
   }>>;
   visualSettings: {
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
@@ -131,28 +124,19 @@ export interface WortnetzContextType {
   };
   setVisualSettings: React.Dispatch<React.SetStateAction<{
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
   }>>;
-  nodeAppearance: NodeAppearanceSettings;
-  setNodeAppearance: (app: NodeAppearanceSettings) => void;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
-  lastAppliedPreset: 'outline'|'filled'|null;
-  setLastAppliedPreset: (preset: 'outline'|'filled'|null) => void;
 
   // Timeline / Playback
   isPlaying: boolean;
@@ -205,7 +189,6 @@ export interface WortnetzContextType {
   handleSetValue: (trackId: string, time: number, value: number) => void;
   handleSetHandle2D: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleCameraChange: () => void;
-  handleApplyNodeStylePreset: (preset: 'outline' | 'filled' | 'reset') => void;
   handleTogglePhysicsKeyframe: (trackId: string, value: number) => void;
   handleKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   handleSelectKeyframes: (kfs: { track: string; time: number }[]) => void;

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle, Square } from 'lucide-react';
-import { Button } from '../ui/button';
 import { TIMELINE_DURATION } from '../../constants';
 import { useTimelineView } from './useTimelineView';
 import { TimelineRuler } from './TimelineRuler';
@@ -9,28 +8,11 @@ import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
 import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
-import { TrackLabel } from './TimelineAtoms';
+import { TrackLabel, TimelineTransportButton } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 import { useT } from '../../i18n/useT';
 
 /* ── Small helper components ── */
-
-function TBtn({ children, onClick, disabled, active, title }: {
-  children: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean; title?: string;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={`h-6 w-6 p-0 shrink-0 ${active ? 'text-blue-400' : ''} ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      {children}
-    </Button>
-  );
-}
 
 function TCDisplay({ value }: { value: string }) {
   return (
@@ -291,46 +273,46 @@ export function Timeline(props: TimelineProps) {
               </div>
 
               {/* Right: Graph Editor + Zoom + Snap */}
-              <TBtn onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title={t('timeline.action.deleteSelected')}>
+              <TimelineTransportButton onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title={t('timeline.action.deleteSelected')}>
                 <Trash2 className="w-3 h-3" />
-              </TBtn>
+              </TimelineTransportButton>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={onUndo} disabled={!canUndo} title={t('timeline.action.undo')}><Undo2 className="w-3 h-3" /></TBtn>
-              <TBtn onClick={onRedo} disabled={!canRedo} title={t('timeline.action.redo')}><Redo2 className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={onUndo} disabled={!canUndo} title={t('timeline.action.undo')}><Undo2 className="w-3 h-3" /></TimelineTransportButton>
+              <TimelineTransportButton onClick={onRedo} disabled={!canRedo} title={t('timeline.action.redo')}><Redo2 className="w-3 h-3" /></TimelineTransportButton>
 
               {/* Center: Timecode + Transport */}
               <div className="flex-1 flex items-center justify-center gap-2">
-                <TBtn onClick={onStop} title={t('timeline.action.stop')}><Square className="w-3 h-3 fill-current" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(0)} title={t('timeline.action.gotoStart')}><SkipBack className="w-3 h-3" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title={t('timeline.action.prevFrame')}>
+                <TimelineTransportButton onClick={onStop} title={t('timeline.action.stop')}><Square className="w-3 h-3 fill-current" /></TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(0)} title={t('timeline.action.gotoStart')}><SkipBack className="w-3 h-3" /></TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title={t('timeline.action.prevFrame')}>
                   <ChevronLeft className="w-3 h-3" />
-                </TBtn>
+                </TimelineTransportButton>
                 <TCDisplay value={timecode} />
-                <TBtn onClick={onPlayPause} title={isPlaying ? t('timeline.action.pause') : t('timeline.action.play')}>
+                <TimelineTransportButton onClick={onPlayPause} title={isPlaying ? t('timeline.action.pause') : t('timeline.action.play')}>
                   {isPlaying ? <Pause className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
-                </TBtn>
-                <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title={t('timeline.action.nextFrame')}>
+                </TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title={t('timeline.action.nextFrame')}>
                   <ChevronLeft className="w-3 h-3 rotate-180" />
-                </TBtn>
+                </TimelineTransportButton>
                 <div className="w-px h-4 bg-border mx-0.5" />
-                <TBtn
+                <TimelineTransportButton
                   onClick={onCaptureKeyframe}
                   title={t('timeline.action.captureKeyframe')}
                   active={hasKfAtPlayhead}
                 >
-                  <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-blue-400 fill-blue-400' : ''}`} />
-                </TBtn>
-                <TBtn
+                  <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-wn-timeline-transport-active fill-wn-timeline-transport-active' : ''}`} />
+                </TimelineTransportButton>
+                <TimelineTransportButton
                   onClick={onToggleRecording}
                   title={t('timeline.action.record')}
                   active={isRecording}
                 >
                   <Circle className={`w-3 h-3 ${isRecording ? 'text-red-500 fill-red-500 animate-pulse' : ''}`} />
-                </TBtn>
+                </TimelineTransportButton>
               </div>
 
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={zoomOut} title={t('timeline.action.zoomOut')}><ZoomOut className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={zoomOut} title={t('timeline.action.zoomOut')}><ZoomOut className="w-3 h-3" /></TimelineTransportButton>
               <button
                 className="text-[9px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors"
                 onClick={zoomReset}
@@ -338,11 +320,11 @@ export function Timeline(props: TimelineProps) {
               >
                 {zoom.toFixed(zoom >= 10 ? 0 : 1)}×
               </button>
-              <TBtn onClick={zoomIn} title={t('timeline.action.zoomIn')}><ZoomIn className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={zoomIn} title={t('timeline.action.zoomIn')}><ZoomIn className="w-3 h-3" /></TimelineTransportButton>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={() => setSnap(!snap)} active={snap} title={t('timeline.action.snap')}>
+              <TimelineTransportButton onClick={() => setSnap(!snap)} active={snap} title={t('timeline.action.snap')}>
                 <Magnet className="w-3 h-3" />
-              </TBtn>
+              </TimelineTransportButton>
             </div>
 
             {/* Scrollable Tracks Area */}
@@ -400,7 +382,7 @@ export function Timeline(props: TimelineProps) {
                 const height = Math.abs(dragSelect.endY - dragSelect.startY);
                 return (
                   <div
-                    className="absolute border border-blue-500/60 bg-blue-500/10 pointer-events-none z-[9999]"
+                    className="absolute border border-wn-timeline-transport-active/60 bg-wn-timeline-drag-select pointer-events-none z-[9999]"
                     style={{ left, top, width, height }}
                   />
                 );

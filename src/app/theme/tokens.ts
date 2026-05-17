@@ -29,8 +29,8 @@ export type CssVarName =
   | '--sidebar-accent' | '--sidebar-accent-foreground'
   | '--sidebar-border' | '--sidebar-ring'
   // Wortnetz action accents
-  | '--wn-accent' | '--wn-accent-soft' | '--wn-keyframe-active'
-  | '--wn-divider' | '--wn-control-bg' | '--wn-info-bg'
+  | '--wn-accent' | '--wn-accent-muted' | '--wn-accent-soft' | '--wn-keyframe-active'
+  | '--wn-divider' | '--wn-control-bg' | '--wn-control-hover' | '--wn-info-bg'
   // Brand + TopBar state (Phase 3.3)
   | '--wn-brand-blue'
   | '--wn-topbar-toggle-active' | '--wn-topbar-toggle-active-hover'
@@ -44,6 +44,18 @@ export type CssVarName =
 
 /** Helper to produce a typed `var(--…)` CSS string. */
 export const themeVar = (name: CssVarName): string => `var(${name})`;
+
+// Theme persistence + OS detection (mirrors the Language Auto pattern
+// in src/app/i18n/index.ts). `themeMode` stays concrete ('light' | 'dark');
+// `themeAuto` flags that the user picked "System" so the app should follow
+// prefers-color-scheme in real time.
+export const THEME_STORAGE_KEY = 'wortnetze.theme';
+export const THEME_AUTO_KEY = 'wortnetze.theme.auto';
+
+export function resolveSystemTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 // B. Spacing aliases — pure className constants, no runtime cost.
 export const pad = {
@@ -59,7 +71,8 @@ export const pad = {
 
 // C. Gradient presets (typed; home for the four-preset palette).
 export interface GradientPreset {
-  /** Display name; will flow through i18n in Phase 4. */
+  /** Display name for programmatic use. When a gradient-picker UI lands, names should be
+   *  looked up via i18n rather than stored here directly. */
   name: string;
   inner: string;
   outer: string;

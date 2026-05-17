@@ -11,30 +11,24 @@
       "undo":         "Undo",
       "redo":         "Redo",
       "shortcuts":    "Shortcuts...",
-      "preview":      "Preview",
       "themeLight":   "Light",
-      "themeDark":    "Dark"
+      "themeDark":    "Dark",
+      "themeSystem":  "System"
     },
     "label": {
-      "mode":  "Mode",
       "theme": "Theme",
       "language": "Language"
     },
     "language": {
-      "de": "Deutsch",
+      "de": "German",
       "en": "English",
-      "auto": "Auto-Detect"
-    },
-    "state": {
-      "on":  "ON",
-      "off": "OFF"
+      "auto": "Auto-detect"
     },
     "view": {
       "twoD":   "2D view",
       "threeD": "3D view"
     },
     "action": {
-      "preview":   "Preview",
       "export":    "Export"
     }
   },
@@ -75,14 +69,12 @@
         "title": "Visual",
         "section": {
           "nodes":        "Nodes",
-          "labels":       "Labels",
           "edges":        "Edges",
-          "environment":  "Environment",
           "pathAnimator": "Path animator"
         },
         "group": {
           "shape":              "Shape",
-          "atmosphereGradient": "Atmosphere gradient"
+          "atmosphereGradient": "Gradient"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -90,16 +82,14 @@
           "ellipse":           "Ellipse"
         },
         "slider": {
-          "baseScale":     "Base scale",
-          "radialBias":    "Radial bias",
-          "weightMapping": "Weight mapping",
+          "baseScale":     "Scale",
+          "radialBias":    "Falloff",
           "globalOpacity": "Global opacity",
           "brushRadius":   "Brush radius",
           "feather":       "Feather",
           "smoothness":    "Smoothness"
         },
         "toggle": {
-          "flowAnimation": "Flow animation",
           "glitchPaint":   "Glitch paint",
           "cameraFollow":  "Camera follow"
         },
@@ -113,10 +103,15 @@
           "inactive":   "No effects"
         },
         "action": {
-          "shuffleAtmosphere": "Shuffle atmosphere"
+          "randomizeGradient": "Randomize gradient"
+        },
+"pathAnimator": {
+          "emptyHint":         "Click nodes in the preview to build a path.",
+          "playSequence":      "Play sequence",
+          "interpolationNote": "Nodes are interpolated using Catmull-Rom."
         },
         "description": {
-          "radialBias": "Scale = base + (bias × dist)"
+          "radialBias": "Boost size of nodes farther from the center"
         }
       },
       "physics": {
@@ -153,6 +148,16 @@
           "pan":   "Drag to pan",
           "zoom":  "Slide to zoom (relative)"
         },
+        "view": {
+          "top":    "Top view (Y)",
+          "left":   "Left view (-X)",
+          "right":  "Right view (X)",
+          "bottom": "Bottom view (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
         "reset":  "Reset",
         "resetCamera": "Reset camera"
       },
@@ -172,6 +177,22 @@
   },
   "timeline": {
     "label": "Timeline",
+    "contextMenu": {
+      "addSceneMarker":  "Add scene marker",
+      "pasteAtPlayhead": "Paste at playhead",
+      "copy":            "Copy",
+      "cut":             "Cut",
+      "delete":          "Delete",
+      "keyframeEasing":  "Keyframe easing",
+      "easing": {
+        "auto":     "Auto (smooth)",
+        "linear":   "Linear",
+        "hold":     "Hold (step)",
+        "easyEase": "Easy ease",
+        "easeIn":   "Ease in",
+        "easeOut":  "Ease out"
+      }
+    },
     "track": {
       "sceneMarkers": "Scene markers",
       "camera":       "Camera",
@@ -197,6 +218,11 @@
       "toggleGraphEditor":"Toggle graph editor"
     }
   },
+  "preview": {
+    "loading": {
+      "label": "Initializing"
+    }
+  },
   "dialogs": {
     "shortcuts": {
       "title": "Manage keyboard shortcuts",
@@ -205,13 +231,29 @@
         "action": { "label": "Action", "placeholder": "e.g. Save" },
         "key":    { "label": "Key",    "placeholder": "e.g. s" }
       },
-      "done": "Done"
+      "done": "Done",
+      "command": {
+        "save":          "Save",
+        "load":          "Open",
+        "undo":          "Undo",
+        "redo":          "Redo",
+        "playPause":     "Play / Pause",
+        "record":        "Record",
+        "toggleSidebar": "Toggle sidebar"
+      }
     }
   },
   "common": {
     "sidebar": {
       "expand":   "Open sidebar",
       "collapse": "Collapse sidebar"
+    },
+    "error": {
+      "title":       "Something went wrong",
+      "body":        "The 3D visualisation could not be loaded due to a technical problem.",
+      "bodyFallback":"This may have been caused by a WebGL error or excessive graphics memory usage.",
+      "webglTip":    "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
+      "reload":      "Reload application"
     }
   }
 }

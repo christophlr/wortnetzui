@@ -1,19 +1,54 @@
 /**
- * TimelineAtoms — primitives for the bottom timeline. Today exposes only
- * TrackLabel: the fixed-width left column shared by SceneMarkerLane,
- * TrackRow, TrackGroup, GraphEditor, and the ruler's empty cell. Other
- * candidates from the master plan (RulerTick, GraphEditorHeader,
+ * TimelineAtoms — primitives for the bottom timeline. Exposes:
+ *   - TrackLabel: the fixed-width left column shared by SceneMarkerLane,
+ *     TrackRow, TrackGroup, GraphEditor, and the ruler's empty cell.
+ *   - TimelineTransportButton: square 6×6 ghost button used for the
+ *     toolbar transport / zoom / snap / record / undo etc. controls.
+ *
+ * Other candidates from the master plan (RulerTick, GraphEditorHeader,
  * TrackValueChip, TrackRow itself) stay inlined for now — they're either
  * single-consumer or logic-heavy components, not atoms.
  */
 
 import * as React from 'react';
+import { Button } from '../ui/button';
 import { LABEL_W } from './types';
 import { cn } from '../ui/utils';
 
 export type TrackLabelVariant = 'row' | 'stacked';
 export type TrackLabelPadding = 'header' | 'indent';
 export type TrackLabelBorder = 'right' | 'none';
+
+export function TimelineTransportButton({
+  children,
+  onClick,
+  disabled,
+  active,
+  title,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  title?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn(
+        'h-6 w-6 p-0 shrink-0',
+        active && 'text-wn-timeline-transport-active',
+        disabled && 'opacity-40 pointer-events-none',
+      )}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      {children}
+    </Button>
+  );
+}
 
 export function TrackLabel({
   variant = 'row',

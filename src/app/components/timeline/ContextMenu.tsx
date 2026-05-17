@@ -8,6 +8,7 @@ import {
 } from '../ui/context-menu';
 import { KeyframeIcon } from './KeyframeIcon';
 import type { EasingType } from './types';
+import { useT } from '../../i18n/useT';
 
 export type ContextMenuTarget =
   | { mode: 'background'; time: number }
@@ -35,14 +36,15 @@ export function TimelineContextMenuContent({
   target, onCopy, onCut, onPaste, onDelete,
   onAddSceneMarker, onSetEasing, onClose,
 }: TimelineContextMenuProps) {
-  
-  const easingPresets: { type: EasingType; label: string }[] = [
-    { type: 'auto',     label: 'Auto (Smooth)' },
-    { type: 'linear',   label: 'Linear' },
-    { type: 'hold',     label: 'Hold (Step)' },
-    { type: 'easyEase', label: 'Easy Ease' },
-    { type: 'easeIn',   label: 'Ease In' },
-    { type: 'easeOut',  label: 'Ease Out' },
+  const { t } = useT();
+
+  const easingPresets: { type: EasingType; labelKey: string }[] = [
+    { type: 'auto',     labelKey: 'timeline.contextMenu.easing.auto' },
+    { type: 'linear',   labelKey: 'timeline.contextMenu.easing.linear' },
+    { type: 'hold',     labelKey: 'timeline.contextMenu.easing.hold' },
+    { type: 'easyEase', labelKey: 'timeline.contextMenu.easing.easyEase' },
+    { type: 'easeIn',   labelKey: 'timeline.contextMenu.easing.easeIn' },
+    { type: 'easeOut',  labelKey: 'timeline.contextMenu.easing.easeOut' },
   ];
 
   return (
@@ -50,11 +52,11 @@ export function TimelineContextMenuContent({
       {target.mode === 'background' && (
         <>
           <ContextMenuItem onClick={() => onAddSceneMarker?.(target.time)}>
-            Add Scene Marker
+            {t('timeline.contextMenu.addSceneMarker')}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onPaste} disabled={!onPaste}>
-            Paste at Playhead
+            {t('timeline.contextMenu.pasteAtPlayhead')}
             <ContextMenuShortcut>⌘V</ContextMenuShortcut>
           </ContextMenuItem>
         </>
@@ -63,43 +65,43 @@ export function TimelineContextMenuContent({
       {target.mode === 'keyframe' && (
         <>
           <ContextMenuItem onClick={onCopy}>
-            Copy
+            {t('timeline.contextMenu.copy')}
             <ContextMenuShortcut>⌘C</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={onCut}>
-            Cut
+            {t('timeline.contextMenu.cut')}
             <ContextMenuShortcut>⌘X</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={onPaste} disabled={!onPaste}>
-            Paste at Playhead
+            {t('timeline.contextMenu.pasteAtPlayhead')}
             <ContextMenuShortcut>⌘V</ContextMenuShortcut>
           </ContextMenuItem>
-          
+
           <ContextMenuSeparator />
           <ContextMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Keyframe Easing
+            {t('timeline.contextMenu.keyframeEasing')}
           </ContextMenuLabel>
-          
-          {easingPresets.map(({ type, label }) => (
-            <ContextMenuItem 
-              key={type} 
+
+          {easingPresets.map(({ type, labelKey }) => (
+            <ContextMenuItem
+              key={type}
               onClick={() => onSetEasing?.(type)}
               className={target.easingType === type ? "bg-accent text-accent-foreground" : ""}
             >
-              <KeyframeIcon 
-                type={type} 
-                size={12} 
-                fill={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'} 
-                stroke={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'} 
+              <KeyframeIcon
+                type={type}
+                size={12}
+                fill={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'}
+                stroke={target.easingType === type ? 'currentColor' : 'var(--muted-foreground)'}
               />
-              <span className="flex-1 ml-1">{label}</span>
+              <span className="flex-1 ml-1">{t(labelKey)}</span>
               {target.easingType === type && <span className="text-xs">✓</span>}
             </ContextMenuItem>
           ))}
-          
+
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onDelete} variant="destructive">
-            Delete
+            {t('timeline.contextMenu.delete')}
             <ContextMenuShortcut>⌫</ContextMenuShortcut>
           </ContextMenuItem>
         </>
@@ -108,20 +110,20 @@ export function TimelineContextMenuContent({
       {target.mode === 'scene-marker' && (
         <>
           <ContextMenuItem onClick={onCopy}>
-            Copy
+            {t('timeline.contextMenu.copy')}
             <ContextMenuShortcut>⌘C</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={onCut}>
-            Cut
+            {t('timeline.contextMenu.cut')}
             <ContextMenuShortcut>⌘X</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onClick={onPaste} disabled={!onPaste}>
-            Paste at Playhead
+            {t('timeline.contextMenu.pasteAtPlayhead')}
             <ContextMenuShortcut>⌘V</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onDelete} variant="destructive">
-            Delete
+            {t('timeline.contextMenu.delete')}
             <ContextMenuShortcut>⌫</ContextMenuShortcut>
           </ContextMenuItem>
         </>

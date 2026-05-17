@@ -1,305 +1,103 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { Preview } from './components/Preview';
 import { Timeline } from './components/timeline/Timeline';
-import { Progress } from './components/ui/progress';
-import type { Network3DHandle } from './components/Network3D';
-import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from './networkTheme';
-import { TIMELINE_DURATION, DEFAULT_TIMELINE_HEIGHT } from './constants';
 import { AppCanvas } from './components/shell/AppCanvas';
 import { AppSidebar } from './components/shell/AppSidebar';
-import { evaluateHermite, computeCatmullRomTangent } from './easing';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
-import { Toolbar, type ToolId } from './components/Toolbar';
+import { Toolbar } from './components/Toolbar';
 import { PathAnimatorUI } from './components/PathAnimatorUI';
-import useTimelineHistory from './hooks/useTimelineHistory';
-import useWorkspaceIO from './hooks/useWorkspaceIO';
+import { DEFAULT_TIMELINE_HEIGHT } from './constants';
 import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
-import { SceneMarker, TimelineState } from './context/WortnetzContextTypes';
-import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './context/WortnetzContextConstants';
-
+import {
+  useOverlayBandOffsets, useThemeClass, useSystemThemeSync, useInitProgressTick,
+  useRecordingHistory, usePlayAnimation, useTimecode, useTimelineResize,
+} from './hooks/useAppEffects';
 
 export default function App() {
-  const {
-    viewMode, setViewMode,
-    themeMode, setThemeMode,
-    isPlaying, setIsPlaying,
-    playheadPosition, setPlayheadPosition,
-    timecode, setTimecode,
-    selectedKeyframes, setSelectedKeyframes,
-    sceneMarkers, setSceneMarkers,
-    inputText, setInputText,
-    parseMode, setParseMode,
-    gradientSettings, setGradientSettings,
-    styleSettings, setStyleSettings,
-    physicsParams, setPhysicsParams,
-    cameraKeyframes, setCameraKeyframes,
-    physicsKeyframes, setPhysicsKeyframes,
-    sidebarWidth, setSidebarWidth,
-    timelineHeight, setTimelineHeight,
-    isSidebarOpen, setIsSidebarOpen,
-    isNetworkReady, setIsNetworkReady,
-    initProgress, setInitProgress,
-    canvasAspectRatio, setCanvasAspectRatio,
-    activeTool, setActiveTool,
-    zoomValue, setZoomValue,
-    visualSettings, setVisualSettings,
-    selectedNode, setSelectedNode,
-    isRecording, setIsRecording,
-    renderMode, setRenderMode,
-    nodeAppearance, setNodeAppearance,
-    edgeAppearance, setEdgeAppearance,
-    lastAppliedPreset, setLastAppliedPreset,
-    network3DRef,
-    cameraKeyframesRef,
-    physicsKeyframesRef,
-    sceneMarkersRef,
-    selectedKeyframesRef,
-    playheadRef,
-    isRecordingRef,
-    undo: handleUndo,
-    redo: handleRedo,
-    pushHistory,
-    getTimelineState,
-    handleSave,
-    handleLoad,
-    effectivePhysicsParams,
-    handleCaptureKeyframe,
-    handleMoveKeyframe,
-    handleDeleteKeyframe,
-    handleSetHandle,
-    handleClearHandle,
-    handleSetInterpolation,
-    handleDuplicateKeyframe,
-    handleAddSceneMarker,
-    handleRenameSceneMarker,
-    handleMoveSceneMarker,
-    handleSetValue,
-    handleSetHandle2D,
-    handleCameraChange,
-    handleApplyNodeStylePreset,
-    handleTogglePhysicsKeyframe,
-    handleKeyframeSelect,
-    handleSelectKeyframes,
-    handlePhysicsChange,
-    handleDragStart,
-    handleDragEnd,
-    previewIsDark,
-    uiIsDark,
-    canUndo,
-    canRedo
-  } = useWortnetz();
+  const wn = useWortnetz();
 
-  const [overlayBandOffsets, setOverlayBandOffsets] = useState({ top: 0, bottom: 0 });
-  const topBarContainerRef = useRef<HTMLDivElement>(null);
-  const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const { offsets, topBarRef, timelineRef } = useOverlayBandOffsets();
+  useThemeClass(wn.themeMode);
+  useSystemThemeSync(wn.themeAuto, wn.setThemeMode);
+  useInitProgressTick(wn.isNetworkReady, wn.setInitProgress);
+  useRecordingHistory(wn.isRecording, wn.getTimelineState, wn.pushHistory);
+  usePlayAnimation(wn.isPlaying, wn.setIsPlaying, wn.setPlayheadPosition, wn.playheadRef);
+  useTimecode(wn.playheadPosition, wn.setTimecode);
+  const startTimelineResize = useTimelineResize(wn.timelineHeight, wn.setTimelineHeight);
 
-  useLayoutEffect(() => {
-    const measure = () => {
-      setOverlayBandOffsets({
-        top: topBarContainerRef.current?.offsetHeight ?? 0,
-        bottom: timelineContainerRef.current?.offsetHeight ?? 0
-      });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (topBarContainerRef.current) observer.observe(topBarContainerRef.current);
-    if (timelineContainerRef.current) observer.observe(timelineContainerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const preDragStateRef = useRef<TimelineState | null>(null);
-  const preRecordStateRef = useRef<TimelineState | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!isNetworkReady) {
-      setInitProgress(0);
-      const interval = setInterval(() => {
-        setInitProgress(prev => {
-          if (typeof prev !== 'number') return 0;
-          if (prev >= 95) return prev;
-          return prev + Math.random() * 15;
-        });
-      }, 150);
-      return () => clearInterval(interval);
-    } else {
-      setInitProgress(100);
-    }
-  }, [isNetworkReady, setInitProgress]);
-
-  // Undo/redo history — tracks the full timeline state
-  // history state managed by useTimelineHistory
-
-  
-  // Redundant hooks and state effects are now managed in WortnetzContext.
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark', 'theme-hybrid');
-    
-    if (themeMode === 'dark') {
-      root.classList.add('dark');
-    } else if (themeMode === 'hybrid') {
-      root.classList.add('theme-hybrid');
-    } else {
-      root.classList.add('light');
-    }
-  }, [themeMode]);
-
-  useEffect(() => {
-    if (isRecording) {
-      preRecordStateRef.current = getTimelineState();
-    } else if (preRecordStateRef.current) {
-      pushHistory(getTimelineState());
-      preRecordStateRef.current = null;
-    }
-  }, [isRecording]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const shortcutState = useShortcuts(useMemo(() => ({
-    onSave: handleSave,
-    onLoad: handleLoad,
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    onTogglePlay: () => setIsPlaying((p: boolean) => !p),
-    onToggleRecord: () => setIsRecording((p: boolean) => !p),
-    onToggleSidebar: () => setIsSidebarOpen(!isSidebarOpen),
-  }), [handleSave, handleLoad, handleUndo, handleRedo, setIsPlaying, setIsRecording, setIsSidebarOpen, isSidebarOpen]));
-
-  const { 
-    isShortcutsOpen: isShortcutsVisible, 
-    setIsShortcutsOpen: setIsShortcutsVisible, 
-    shortcuts: appShortcutsList, 
-    addShortcut: addAppShortcut, 
-    removeShortcut: removeAppShortcut 
-  } = shortcutState;
-
-  useEffect(() => {
-    if (isPlaying) {
-      startTimeRef.current = Date.now() - playheadRef.current * 1000;
-      const animate = () => {
-        const newPos = (Date.now() - startTimeRef.current) / 1000;
-        if (newPos >= TIMELINE_DURATION) {
-          setPlayheadPosition(TIMELINE_DURATION); setIsPlaying(false);
-        } else {
-          setPlayheadPosition(newPos);
-          animationRef.current = requestAnimationFrame(animate);
-        }
-      };
-      animationRef.current = requestAnimationFrame(animate);
-    } else {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    }
-    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  }, [isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const total = Math.floor(playheadPosition);
-    const frames = Math.floor((playheadPosition - total) * 30);
-    const s = total % 60; const m = Math.floor(total / 60) % 60; const h = Math.floor(total / 3600);
-    setTimecode(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(frames).padStart(2,'0')}`);
-  }, [playheadPosition]);
-
-
-
-
-  /* ── Selection ── */
-
-
-  const startTimelineResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = timelineHeight;
-    const onMove = (ev: MouseEvent) => setTimelineHeight(Math.max(100, Math.min(600, startHeight - (ev.clientY - startY))));
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [timelineHeight, setTimelineHeight]);
+  const { isShortcutsOpen, setIsShortcutsOpen, shortcuts, addShortcut, removeShortcut } = useShortcuts(useMemo(() => ({
+    onSave: wn.handleSave, onLoad: wn.handleLoad, onUndo: wn.undo, onRedo: wn.redo,
+    onTogglePlay: () => wn.setIsPlaying((p: boolean) => !p),
+    onToggleRecord: () => wn.setIsRecording((p: boolean) => !p),
+    onToggleSidebar: () => wn.setIsSidebarOpen(!wn.isSidebarOpen),
+  }), [wn.handleSave, wn.handleLoad, wn.undo, wn.redo, wn.setIsPlaying, wn.setIsRecording, wn.setIsSidebarOpen, wn.isSidebarOpen]));
 
   return (
     <>
       <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
         <AppCanvas>
-          <div
-            className="absolute left-0 right-0 z-0"
-            style={{ top: overlayBandOffsets.top, bottom: overlayBandOffsets.bottom }}
-          >
+          <div className="absolute left-0 right-0 z-0" style={{ top: offsets.top, bottom: offsets.bottom }}>
             <Preview
-              ref={network3DRef} viewMode={viewMode} physicsEnabled={true}
-              isPlaying={isPlaying} playheadPosition={playheadPosition}
-              physicsParams={physicsParams} inputText={inputText} parseMode={parseMode}
-              gradientSettings={gradientSettings} styleSettings={styleSettings}
-              cameraKeyframes={cameraKeyframes} onCameraChange={handleCameraChange}
-              physicsKeyframes={physicsKeyframes}
-              isDark={previewIsDark}
-              isNetworkReady={isNetworkReady} onNetworkReady={() => setIsNetworkReady(true)}
-              renderMode={renderMode}
-              nodeAppearance={nodeAppearance} edgeAppearance={edgeAppearance}
-              canvasAspectRatio={canvasAspectRatio}
-              initProgress={initProgress}
-              visualSettings={visualSettings}
-              onNodeSelect={setSelectedNode}
+              ref={wn.network3DRef} viewMode={wn.viewMode} physicsEnabled={true}
+              isPlaying={wn.isPlaying} playheadPosition={wn.playheadPosition}
+              physicsParams={wn.physicsParams} inputText={wn.inputText} parseMode={wn.parseMode}
+              styleSettings={wn.styleSettings}
+              cameraKeyframes={wn.cameraKeyframes} onCameraChange={wn.handleCameraChange}
+              physicsKeyframes={wn.physicsKeyframes} isDark={wn.previewIsDark}
+              isNetworkReady={wn.isNetworkReady} onNetworkReady={() => wn.setIsNetworkReady(true)}
+              edgeAppearance={wn.edgeAppearance}
+              canvasAspectRatio={wn.canvasAspectRatio} initProgress={wn.initProgress}
+              visualSettings={wn.visualSettings} onNodeSelect={wn.setSelectedNode}
             />
           </div>
 
           <div className="absolute left-6 z-50 flex items-center pointer-events-none"
-               style={{ top: overlayBandOffsets.top + 12, bottom: overlayBandOffsets.bottom + 12 }}>
+               style={{ top: offsets.top + 12, bottom: offsets.bottom + 12 }}>
             <div className="pointer-events-auto">
-              <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+              <Toolbar activeTool={wn.activeTool} onToolChange={wn.setActiveTool} />
             </div>
           </div>
 
-          {activeTool === 'path' && (
-            <div className="absolute left-20 z-[60] pointer-events-none" style={{ top: overlayBandOffsets.top + 96 }}>
+          {wn.activeTool === 'path' && (
+            <div className="absolute left-20 z-[60] pointer-events-none" style={{ top: offsets.top + 96 }}>
               <div className="pointer-events-auto">
-                <PathAnimatorUI nodes={[]} onReorder={() => {}} onRemove={() => {}} onClose={() => setActiveTool('pointer')} />
+                <PathAnimatorUI nodes={[]} onReorder={() => {}} onRemove={() => {}} onClose={() => wn.setActiveTool('pointer')} />
               </div>
             </div>
           )}
 
-          <div ref={topBarContainerRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
+          <div ref={topBarRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
             <TopBar
-              onApplyNodeStylePreset={handleApplyNodeStylePreset}
-              onOpenShortcuts={() => setIsShortcutsVisible(true)}
+              onOpenShortcuts={() => setIsShortcutsOpen(true)}
             />
           </div>
 
-          <div ref={timelineContainerRef} className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
-            <div 
-              className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
-              onMouseDown={startTimelineResize}
-              onDoubleClick={() => setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)}
-            />
+          <div ref={timelineRef} className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
+            <div className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
+                 onMouseDown={startTimelineResize}
+                 onDoubleClick={() => wn.setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)} />
             <div className="pointer-events-auto">
               <Timeline
-                isPlaying={isPlaying} onPlayPause={() => setIsPlaying(p => !p)} onStop={() => { setIsPlaying(false); setPlayheadPosition(0); }}
-                playheadPosition={playheadPosition}
-                onPlayheadChange={pos => { setPlayheadPosition(pos); if (isPlaying) setIsPlaying(false); }}
-                selectedKeyframes={selectedKeyframes}
-                onKeyframeSelect={handleKeyframeSelect}
-                onSelectKeyframes={handleSelectKeyframes}
-                cameraKeyframes={cameraKeyframes} onCaptureKeyframe={handleCaptureKeyframe}
-                physicsKeyframes={physicsKeyframes}
-                onMoveKeyframe={handleMoveKeyframe}
-                onSetHandle={handleSetHandle}
-                onSetHandle2D={handleSetHandle2D}
-                onSetValue={handleSetValue}
-                onClearHandle={handleClearHandle}
-                onSetInterpolation={handleSetInterpolation}
-                onDeleteKeyframe={handleDeleteKeyframe} onDuplicateKeyframe={handleDuplicateKeyframe}
-                onDragStart={handleDragStart} onDragEnd={handleDragEnd}
-                timecode={timecode} onUndo={handleUndo} onRedo={handleRedo}
-                canUndo={canUndo} canRedo={canRedo}
-                height={timelineHeight}
-                sceneMarkers={sceneMarkers}
-                onAddSceneMarker={handleAddSceneMarker}
-                onRenameSceneMarker={handleRenameSceneMarker}
-                onMoveSceneMarker={handleMoveSceneMarker}
-                isRecording={isRecording}
-                onToggleRecording={() => setIsRecording(!isRecording)}
+                isPlaying={wn.isPlaying} onPlayPause={() => wn.setIsPlaying(p => !p)}
+                onStop={() => { wn.setIsPlaying(false); wn.setPlayheadPosition(0); }}
+                playheadPosition={wn.playheadPosition}
+                onPlayheadChange={pos => { wn.setPlayheadPosition(pos); if (wn.isPlaying) wn.setIsPlaying(false); }}
+                selectedKeyframes={wn.selectedKeyframes}
+                onKeyframeSelect={wn.handleKeyframeSelect} onSelectKeyframes={wn.handleSelectKeyframes}
+                cameraKeyframes={wn.cameraKeyframes} onCaptureKeyframe={wn.handleCaptureKeyframe}
+                physicsKeyframes={wn.physicsKeyframes} onMoveKeyframe={wn.handleMoveKeyframe}
+                onSetHandle={wn.handleSetHandle} onSetHandle2D={wn.handleSetHandle2D}
+                onSetValue={wn.handleSetValue} onClearHandle={wn.handleClearHandle} onSetInterpolation={wn.handleSetInterpolation}
+                onDeleteKeyframe={wn.handleDeleteKeyframe} onDuplicateKeyframe={wn.handleDuplicateKeyframe}
+                onDragStart={wn.handleDragStart} onDragEnd={wn.handleDragEnd}
+                timecode={wn.timecode} onUndo={wn.undo} onRedo={wn.redo}
+                canUndo={wn.canUndo} canRedo={wn.canRedo} height={wn.timelineHeight}
+                sceneMarkers={wn.sceneMarkers} onAddSceneMarker={wn.handleAddSceneMarker}
+                onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker}
+                isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
               />
             </div>
           </div>
@@ -307,51 +105,38 @@ export default function App() {
 
         <AppSidebar>
           <Sidebar
-            onPhysicsChange={handlePhysicsChange} onTextChange={setInputText}
-            inputText={inputText}
-            parseMode={parseMode}
-            onParsingChange={setParseMode}
-            onGradientChange={setGradientSettings}
-            onStyleChange={(patch) => setStyleSettings(prev => ({ ...prev, ...patch }))}
-            styleSettings={styleSettings}
-            onNodeAppearanceChange={setNodeAppearance} onEdgeAppearanceChange={setEdgeAppearance}
-            nodeAppearance={nodeAppearance} appliedNodePreset={lastAppliedPreset}
-            effectivePhysicsParams={effectivePhysicsParams}
-            canvasAspectRatio={canvasAspectRatio}
-            onCanvasAspectRatioChange={setCanvasAspectRatio}
-            currentTime={playheadPosition} cameraKeyframes={cameraKeyframes}
-            physicsKeyframes={physicsKeyframes}
-            onTogglePhysicsKeyframe={handleTogglePhysicsKeyframe}
-            width={sidebarWidth} viewMode={viewMode}
-            onDeleteKeyframe={(time) => handleDeleteKeyframe('camera-keyframes', time)}
-            onCollapse={() => setIsSidebarOpen(!isSidebarOpen)}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            onPanView={(dx, dy) => network3DRef.current?.panView(dx, dy)}
-            onRotateView={(dt, dp) => network3DRef.current?.rotateView(dt, dp)}
-            onSetRotation={(t, p) => network3DRef.current?.setRotation(t, p)}
-            onResetView={() => network3DRef.current?.resetView()}
-            onZoomChange={(val) => { setZoomValue(val); network3DRef.current?.setZoom(val); }}
-            zoomValue={zoomValue}
-            visualSettings={visualSettings}
-            onVisualSettingsChange={setVisualSettings}
-            selectedNode={selectedNode}
+            onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText}
+            inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
+            onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
+            styleSettings={wn.styleSettings}
+            onEdgeAppearanceChange={wn.setEdgeAppearance}
+            effectivePhysicsParams={wn.effectivePhysicsParams}
+            canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
+            currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}
+            physicsKeyframes={wn.physicsKeyframes} onTogglePhysicsKeyframe={wn.handleTogglePhysicsKeyframe}
+            viewMode={wn.viewMode}
+            onDeleteKeyframe={(time) => wn.handleDeleteKeyframe('camera-keyframes', time)}
+            onCollapse={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)}
+            isSidebarOpen={wn.isSidebarOpen} onToggleSidebar={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)}
+            onPanView={(dx, dy) => wn.network3DRef.current?.panView(dx, dy)}
+            onRotateView={(dt, dp) => wn.network3DRef.current?.rotateView(dt, dp)}
+            onSetRotation={(t, p) => wn.network3DRef.current?.setRotation(t, p)}
+            onResetView={() => wn.network3DRef.current?.resetView()}
+            onZoomChange={(val) => { wn.setZoomValue(val); wn.network3DRef.current?.setZoom(val); }}
+            zoomValue={wn.zoomValue}
+            visualSettings={wn.visualSettings} onVisualSettingsChange={wn.setVisualSettings}
+            selectedNode={wn.selectedNode}
           />
         </AppSidebar>
       </div>
 
       <ShortcutsDialog
-        isOpen={isShortcutsVisible}
-        onOpenChange={setIsShortcutsVisible}
-        shortcuts={appShortcutsList}
-        onAddShortcut={addAppShortcut}
-        onRemoveShortcut={removeAppShortcut}
+        isOpen={isShortcutsOpen}
+        onOpenChange={setIsShortcutsOpen}
+        shortcuts={shortcuts}
+        onAddShortcut={addShortcut}
+        onRemoveShortcut={removeShortcut}
       />
     </>
   );
 }
-
-
-
-
-

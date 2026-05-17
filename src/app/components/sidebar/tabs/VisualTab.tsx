@@ -1,19 +1,30 @@
 import * as React from 'react';
-import { Circle, Dices, Eye, EyeOff, RectangleHorizontal, Square } from 'lucide-react';
+import { Circle, Dices, RectangleHorizontal, Square } from 'lucide-react';
 import type { NodeShape } from '../../../networkTheme';
-import { cn } from '../../ui/utils';
 import {
   SidebarButtonGroupRow,
   SidebarCollapsiblePanel,
   SidebarColorRow,
   SidebarGroup,
   SidebarSection,
+  SidebarSectionActionButton,
   SidebarSliderRow,
   SidebarSliderTrack,
   SidebarTabContent,
   SidebarToggleRow,
+  SidebarVisibilityToggle,
 } from '../SidebarAtoms';
 import { useT } from '../../../i18n/useT';
+
+function hslToHex(h: number, s: number, l: number) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(color * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
 
 const SHAPE_IDS: NodeShape[] = ['rectangle', 'rounded-rectangle', 'ellipse'];
 const SHAPE_ICONS: Record<NodeShape, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -21,29 +32,6 @@ const SHAPE_ICONS: Record<NodeShape, React.ComponentType<{ size?: number; classN
   'rounded-rectangle': RectangleHorizontal,
   ellipse: Circle,
 };
-
-function VisibilityToggle({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        'p-0 transition-colors',
-        visible
-          ? 'text-zinc-900 dark:text-zinc-100'
-          : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300',
-      )}
-    >
-      {visible ? <Eye size={13} /> : <EyeOff size={13} />}
-    </button>
-  );
-}
 
 export function VisualTab({
   styleSettings,
@@ -68,126 +56,37 @@ export function VisualTab({
     label: t(`sidebar.tab.visual.shape.${id}`),
   }));
 
+  const randomizeGradient = () => {
+    const hue = Math.random() * 360;
+    const complement = (hue + 120 + Math.random() * 120) % 360;
+    setVisual({
+      gradientOrigin: hslToHex(hue, 0.65, 0.55),
+      gradientPeriphery: hslToHex(complement, 0.55, 0.55),
+    });
+  };
+
   return (
     <SidebarTabContent>
       <SidebarSection
         title={t('sidebar.tab.visual.section.nodes')}
         actions={
-          <VisibilityToggle
+          <SidebarVisibilityToggle
             visible={visualSettings.nodesVisible}
             onToggle={() => setVisual({ nodesVisible: !visualSettings.nodesVisible })}
           />
         }
       >
-        <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
-          <SidebarButtonGroupRow<NodeShape>
-            value={styleSettings.nodeShape}
-            onChange={(id) => onStyleChange({ nodeShape: id })}
-            options={shapeOptions}
-          />
-        </SidebarGroup>
-
-        <SidebarSliderRow
-          label={t('sidebar.tab.visual.slider.baseScale')}
-          value={`${(styleSettings.nodeScale ?? 1).toFixed(1)}x`}
-          slider={
-            <SidebarSliderTrack
-              value={[(styleSettings.nodeScale ?? 1) * 100]}
-              max={250}
-              step={5}
-              onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+        <SidebarGroup
+          title={t('sidebar.tab.visual.group.atmosphereGradient')}
+          stack="snug"
+          actions={
+            <SidebarSectionActionButton
+              icon={Dices}
+              title={t('sidebar.tab.visual.action.randomizeGradient')}
+              onClick={randomizeGradient}
             />
           }
-        />
-
-        <SidebarSliderRow
-          label={t('sidebar.tab.visual.slider.radialBias')}
-          value={visualSettings.radialBiasScale.toFixed(2)}
-          slider={
-            <SidebarSliderTrack
-              value={[visualSettings.radialBiasScale * 100]}
-              max={100}
-              step={1}
-              onValueChange={([val]) => setVisual({ radialBiasScale: val / 100 })}
-            />
-          }
-          description={t('sidebar.tab.visual.description.radialBias')}
-        />
-      </SidebarSection>
-
-      <SidebarSection
-        title={t('sidebar.tab.visual.section.labels')}
-        actions={
-          <VisibilityToggle
-            visible={visualSettings.labelsVisible}
-            onToggle={() => setVisual({ labelsVisible: !visualSettings.labelsVisible })}
-          />
-        }
-      >
-        <SidebarSliderRow
-          label={t('sidebar.tab.visual.slider.weightMapping')}
-          value={visualSettings.labelWeightMapping.toFixed(2)}
-          slider={
-            <SidebarSliderTrack
-              value={[visualSettings.labelWeightMapping * 100]}
-              max={100}
-              step={1}
-              onValueChange={([val]) => setVisual({ labelWeightMapping: val / 100 })}
-            />
-          }
-        />
-      </SidebarSection>
-
-      <SidebarSection
-        title={t('sidebar.tab.visual.section.edges')}
-        actions={
-          <VisibilityToggle
-            visible={visualSettings.edgesVisible}
-            onToggle={() => setVisual({ edgesVisible: !visualSettings.edgesVisible })}
-          />
-        }
-      >
-        <SidebarToggleRow
-          label={t('sidebar.tab.visual.toggle.flowAnimation')}
-          tone="accent"
-          checked={visualSettings.edgeFlowAnimation}
-          onCheckedChange={(checked) => setVisual({ edgeFlowAnimation: checked })}
-        />
-
-        <SidebarSliderRow
-          label={t('sidebar.tab.visual.slider.globalOpacity')}
-          value={`${Math.round((styleSettings.edgeOpacity ?? 0) * 100)}%`}
-          slider={
-            <SidebarSliderTrack
-              value={[(styleSettings.edgeOpacity ?? 0) * 100]}
-              max={100}
-              step={1}
-              onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
-            />
-          }
-        />
-      </SidebarSection>
-
-      <SidebarSection
-        title={t('sidebar.tab.visual.section.environment')}
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={() => setVisual({ envAtmosphereSeed: Math.random() * 1000 })}
-              className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-all"
-              title={t('sidebar.tab.visual.action.shuffleAtmosphere')}
-            >
-              <Dices size={13} />
-            </button>
-            <VisibilityToggle
-              visible={visualSettings.envVisible}
-              onToggle={() => setVisual({ envVisible: !visualSettings.envVisible })}
-            />
-          </>
-        }
-      >
-        <SidebarGroup title={t('sidebar.tab.visual.group.atmosphereGradient')} stack="snug">
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <SidebarColorRow
               label={t('sidebar.tab.visual.color.origin')}
@@ -201,9 +100,79 @@ export function VisualTab({
             />
           </div>
         </SidebarGroup>
+
+        <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
+          <SidebarButtonGroupRow<NodeShape>
+            value={styleSettings.nodeShape}
+            onChange={(id) => onStyleChange({ nodeShape: id })}
+            options={shapeOptions}
+          />
+        </SidebarGroup>
+
+        <SidebarSliderRow
+          label={t('sidebar.tab.visual.slider.baseScale')}
+          value={styleSettings.nodeScale ?? 1}
+          onCommit={(val) => onStyleChange({ nodeScale: val })}
+          min={0}
+          max={2.5}
+          format={(v) => `${v.toFixed(1)}x`}
+          slider={
+            <SidebarSliderTrack
+              value={[(styleSettings.nodeScale ?? 1) * 100]}
+              max={250}
+              step={5}
+              onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
+            />
+          }
+        />
+
+        <SidebarSliderRow
+          label={t('sidebar.tab.visual.slider.radialBias')}
+          value={visualSettings.radialBiasScale}
+          onCommit={(val) => setVisual({ radialBiasScale: val })}
+          min={-1}
+          max={1}
+          slider={
+            <SidebarSliderTrack
+              value={[visualSettings.radialBiasScale * 100]}
+              min={-100}
+              max={100}
+              step={1}
+              onValueChange={([val]) => setVisual({ radialBiasScale: val / 100 })}
+            />
+          }
+          description={t('sidebar.tab.visual.description.radialBias')}
+        />
       </SidebarSection>
 
-      <SidebarSection>
+<SidebarSection
+        title={t('sidebar.tab.visual.section.edges')}
+        actions={
+          <SidebarVisibilityToggle
+            visible={visualSettings.edgesVisible}
+            onToggle={() => setVisual({ edgesVisible: !visualSettings.edgesVisible })}
+          />
+        }
+      >
+        <SidebarSliderRow
+          label={t('sidebar.tab.visual.slider.globalOpacity')}
+          value={(styleSettings.edgeOpacity ?? 0) * 100}
+          onCommit={(val) => onStyleChange({ edgeOpacity: val / 100 })}
+          min={0}
+          max={100}
+          format={(v) => `${Math.round(v)}%`}
+          slider={
+            <SidebarSliderTrack
+              value={[(styleSettings.edgeOpacity ?? 0) * 100]}
+              max={100}
+              step={1}
+              onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
+            />
+          }
+        />
+      </SidebarSection>
+
+<SidebarSection>
         <SidebarCollapsiblePanel
           title={t('sidebar.tab.visual.fx.title')}
           status={visualSettings.glitchActive ? t('sidebar.tab.visual.fx.active') : t('sidebar.tab.visual.fx.inactive')}
@@ -222,7 +191,11 @@ export function VisualTab({
             <>
               <SidebarSliderRow
                 label={t('sidebar.tab.visual.slider.brushRadius')}
-                value={`${visualSettings.glitchBrushRadius}px`}
+                value={visualSettings.glitchBrushRadius}
+                onCommit={(val) => setVisual({ glitchBrushRadius: Math.round(val) })}
+                min={0}
+                max={500}
+                format={(v) => `${Math.round(v)}px`}
                 slider={
                   <SidebarSliderTrack
                     value={[visualSettings.glitchBrushRadius]}
@@ -234,7 +207,10 @@ export function VisualTab({
               />
               <SidebarSliderRow
                 label={t('sidebar.tab.visual.slider.feather')}
-                value={visualSettings.glitchFeather.toFixed(2)}
+                value={visualSettings.glitchFeather}
+                onCommit={(val) => setVisual({ glitchFeather: val })}
+                min={0}
+                max={1}
                 slider={
                   <SidebarSliderTrack
                     value={[visualSettings.glitchFeather * 100]}
@@ -259,7 +235,10 @@ export function VisualTab({
 
         <SidebarSliderRow
           label={t('sidebar.tab.visual.slider.smoothness')}
-          value={visualSettings.pathSmoothness.toFixed(2)}
+          value={visualSettings.pathSmoothness}
+          onCommit={(val) => setVisual({ pathSmoothness: val })}
+          min={0}
+          max={1}
           slider={
             <SidebarSliderTrack
               value={[visualSettings.pathSmoothness * 100]}

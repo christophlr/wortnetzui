@@ -2,7 +2,7 @@ import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef, useState, useEffect, useRef } from 'react';
 import { VERSION, BUILD_DATE, BUILD_NUMBER, LAST_COMMIT_HASH, LAST_COMMIT_DATE } from '../../version';
 import { type PhysicsKeyframe, type SceneMarker, type TimelineState } from '../context/WortnetzContextTypes';
-import { type NodeAppearanceSettings, type GradientSettings, type EdgeAppearanceSettings } from '../networkTheme';
+import { type EdgeAppearanceSettings } from '../networkTheme';
 import { type PhysicsParams } from '../graph';
 import { Artboard, LoadingOverlay, OverlayBadge } from './preview/PreviewAtoms';
 import { useT } from '../i18n/useT';
@@ -16,7 +16,6 @@ interface PreviewProps {
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   inputText?: string;
   parseMode?: 'sentence' | 'word' | 'both';
-  gradientSettings?: GradientSettings;
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: any; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{ time: number; position: any; target: any }>;
   onCameraChange?: () => void;
@@ -24,8 +23,6 @@ interface PreviewProps {
   isNetworkReady?: boolean;
   onNetworkReady?: () => void;
   onNetworkProgress?: (progress: number) => void;
-  renderMode?: 'edit' | 'render';
-  nodeAppearance?: NodeAppearanceSettings;
   edgeAppearance?: EdgeAppearanceSettings;
   canvasAspectRatio?: string;
   initProgress?: number;
@@ -43,7 +40,6 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   physicsKeyframes,
   inputText,
   parseMode,
-  gradientSettings,
   styleSettings,
   cameraKeyframes,
   onCameraChange,
@@ -51,8 +47,6 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   isNetworkReady,
   onNetworkReady,
   onNetworkProgress,
-  renderMode,
-  nodeAppearance,
   edgeAppearance,
   canvasAspectRatio = 'full',
   initProgress,
@@ -60,7 +54,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   visualSettings,
   onNodeSelect,
 }: PreviewProps, ref) {
-  const { language } = useT();
+  const { t, language } = useT();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [lastHmr, setLastHmr] = useState<Date>(() => new Date(BUILD_DATE));
@@ -102,9 +96,9 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
 
   return (
     <div ref={previewRef} className="w-full h-full relative overflow-hidden bg-[var(--shell-background)] transition-colors duration-500">
-      {/* Pasteboard Backdrop (Grid) - Visible only in edit mode (preview not enabled) */}
-      <div 
-        className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-500 ${renderMode === 'edit' ? 'opacity-100' : 'opacity-0'}`}
+      {/* Pasteboard Backdrop (Grid) */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: `
           linear-gradient(to right, ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} 1px, transparent 1px),
@@ -129,15 +123,12 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
               physicsKeyframes={physicsKeyframes}
               inputText={inputText}
               parseMode={parseMode}
-              gradientSettings={gradientSettings}
               styleSettings={styleSettings}
               cameraKeyframes={cameraKeyframes}
               onCameraChange={onCameraChange}
               isDark={isDark}
               onReady={onNetworkReady}
               onProgress={onNetworkProgress}
-              renderMode={renderMode}
-              nodeAppearance={nodeAppearance}
               edgeAppearance={edgeAppearance}
               visualSettings={visualSettings}
               onNodeSelect={onNodeSelect}
@@ -160,7 +151,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         </Artboard>
       )}
 
-      {!isNetworkReady && <LoadingOverlay progress={initProgress} />}
+      {!isNetworkReady && <LoadingOverlay label={t('preview.loading.label')} progress={initProgress} />}
     </div>
   );
 });

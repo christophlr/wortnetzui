@@ -11,30 +11,24 @@
       "undo":         "Rückgängig",
       "redo":         "Wiederholen",
       "shortcuts":    "Tastaturkürzel...",
-      "preview":      "Preview",
       "themeLight":   "Hell",
-      "themeDark":    "Dunkel"
+      "themeDark":    "Dunkel",
+      "themeSystem":  "System"
     },
     "label": {
-      "mode":  "Modus",
       "theme": "Design",
       "language": "Sprache"
     },
     "language": {
       "de": "Deutsch",
       "en": "English",
-      "auto": "Auto-Detect"
-    },
-    "state": {
-      "on":  "AN",
-      "off": "AUS"
+      "auto": "Automatisch"
     },
     "view": {
       "twoD":   "2D Ansicht",
       "threeD": "3D Ansicht"
     },
     "action": {
-      "preview":   "Vorschau",
       "export":    "Exportieren"
     }
   },
@@ -75,14 +69,12 @@
         "title": "Visualisierung",
         "section": {
           "nodes":        "Knoten",
-          "labels":       "Beschriftung",
           "edges":        "Verbindungen",
-          "environment":  "Umgebung",
           "pathAnimator": "Path Animator"
         },
         "group": {
           "shape":            "Form",
-          "atmosphereGradient": "Atmosphäre-Gradient"
+          "atmosphereGradient": "Gradient"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -90,18 +82,16 @@
           "ellipse":           "Ellipse"
         },
         "slider": {
-          "baseScale":     "Basis-Skalierung",
-          "radialBias":    "Radialer Bias",
-          "weightMapping": "Weight-Mapping",
-          "globalOpacity": "Global Opacity",
-          "brushRadius":   "Brush Radius",
-          "feather":       "Feather",
-          "smoothness":    "Smoothness"
+          "baseScale":     "Skalierung",
+          "radialBias":    "Falloff",
+          "globalOpacity": "Globale Deckkraft",
+          "brushRadius":   "Pinselradius",
+          "feather":       "Weiche Kante",
+          "smoothness":    "Glättung"
         },
         "toggle": {
-          "flowAnimation": "Flow Animation",
-          "glitchPaint":   "Glitch Paint",
-          "cameraFollow":  "Camera Follow"
+          "glitchPaint":   "Glitch-Pinsel",
+          "cameraFollow":  "Kamera folgen"
         },
         "color": {
           "origin":    "Origin",
@@ -113,10 +103,15 @@
           "inactive":   "Keine Effekte"
         },
         "action": {
-          "shuffleAtmosphere": "Shuffle Atmosphere"
+          "randomizeGradient": "Gradient zufällig generieren"
+        },
+"pathAnimator": {
+          "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
+          "playSequence":      "Sequenz abspielen",
+          "interpolationNote": "Knoten werden mittels Catmull-Rom interpoliert."
         },
         "description": {
-          "radialBias": "Scale = Basis + (Bias × Dist)"
+          "radialBias": "Knoten weiter vom Zentrum entfernt größer darstellen"
         }
       },
       "physics": {
@@ -153,6 +148,16 @@
           "pan":   "Ziehen zum Verschieben",
           "zoom":  "Schieben zum Zoomen (Relativ)"
         },
+        "view": {
+          "top":    "Draufsicht (Y)",
+          "left":   "Linke Ansicht (-X)",
+          "right":  "Rechte Ansicht (X)",
+          "bottom": "Unteransicht (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
         "reset":  "Reset",
         "resetCamera": "Kamera zurücksetzen"
       },
@@ -172,6 +177,22 @@
   },
   "timeline": {
     "label": "Timeline",
+    "contextMenu": {
+      "addSceneMarker":  "Szenenmarker hinzufügen",
+      "pasteAtPlayhead": "An Abspielkopf einfügen",
+      "copy":            "Kopieren",
+      "cut":             "Ausschneiden",
+      "delete":          "Löschen",
+      "keyframeEasing":  "Keyframe-Interpolation",
+      "easing": {
+        "auto":     "Auto (Weich)",
+        "linear":   "Linear",
+        "hold":     "Halten (Stufe)",
+        "easyEase": "Easy Ease",
+        "easeIn":   "Ease In",
+        "easeOut":  "Ease Out"
+      }
+    },
     "track": {
       "sceneMarkers": "Szenen-Marker",
       "camera":       "Kamera",
@@ -197,6 +218,11 @@
       "toggleGraphEditor":"Graph-Editor umschalten"
     }
   },
+  "preview": {
+    "loading": {
+      "label": "Initialisierung"
+    }
+  },
   "dialogs": {
     "shortcuts": {
       "title": "Tastaturkürzel verwalten",
@@ -205,13 +231,29 @@
         "action": { "label": "Aktion", "placeholder": "z.B. Speichern" },
         "key":    { "label": "Taste",  "placeholder": "z.B. s" }
       },
-      "done": "Fertig"
+      "done": "Fertig",
+      "command": {
+        "save":          "Speichern",
+        "load":          "Laden",
+        "undo":          "Rückgängig",
+        "redo":          "Wiederholen",
+        "playPause":     "Abspielen / Pause",
+        "record":        "Aufnahme",
+        "toggleSidebar": "Sidebar umschalten"
+      }
     }
   },
   "common": {
     "sidebar": {
       "expand":   "Sidebar einblenden",
       "collapse": "Sidebar ausblenden"
+    },
+    "error": {
+      "title":       "Etwas ist schiefgelaufen",
+      "body":        "Die 3D-Visualisierung konnte aufgrund eines technischen Problems nicht geladen werden.",
+      "bodyFallback":"Dies kann durch einen WebGL-Fehler oder zu hohen Grafikspeicherverbrauch verursacht worden sein.",
+      "webglTip":    "Tipp: Schließen Sie andere Tabs mit 3D-Inhalten oder Grafik-Anwendungen, um WebGL-Ressourcen freizugeben.",
+      "reload":      "Anwendung neu laden"
     }
   }
 }

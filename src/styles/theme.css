@@ -36,7 +36,7 @@
   --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #09090b;
-  --sidebar-border: #e4e4e7;
+  --sidebar-border: #d4d4d8;
   --sidebar-ring: oklch(0.708 0 0);
 
   /* Wortnetz action accents (unified across all tabs).
@@ -44,11 +44,14 @@
      keyframe toggles, drag-active states, and radio-card selection.
      Phase 2.1 introduces these; Phase 2.2 swaps consumers. */
   --wn-accent: #3b82f6;             /* blue-500 — switch on, drag active */
+  --wn-accent-muted: #93c5fd;       /* blue-300 — softer accent fill (slider range) */
   --wn-accent-soft: #eff6ff;        /* blue-50 — soft fills (radio card selected) */
   --wn-keyframe-active: #3b82f6;    /* same as accent — unified */
   --wn-divider: rgba(212, 212, 216, 0.8);  /* zinc-300/80 */
   --wn-control-bg: #f4f4f5;         /* zinc-100 — pill / button-group bg */
+  --wn-control-hover: #e4e4e7;      /* zinc-200 — hover affordance on control surfaces */
   --wn-info-bg: rgba(250, 250, 250, 0.5);  /* zinc-50/50 */
+  --wn-slider-range: #a1a1aa;       /* zinc-400 — subdued range fill, enough contrast but not dominant */
 
   /* Brand + TopBar state colors (Phase 3.3). */
   --wn-brand-blue: #3b9eff;                         /* NetworkLogo stroke/fill */
@@ -64,12 +67,25 @@
   --wn-timeline-marker-fill: #7c3aed;               /* scene marker default */
   --wn-timeline-marker-selected: #a855f7;           /* scene marker selected */
   --wn-timeline-playhead: #ef4444;                  /* playhead triangle */
+
+  /* Timeline transport + per-color tracks (Step 22.a).
+     Per-color tokens because COLOR{cyan,orange} in timeline/types.ts each
+     need distinct keyframe-fill and graph-stroke values; the singular
+     tokens listed in the remediation plan are split here. */
+  --wn-timeline-transport-active: #60a5fa;          /* active transport icon (blue-400) */
+  --wn-timeline-drag-select: rgba(59,130,246,0.1);  /* drag-select marquee fill (blue-500/10) */
+  --wn-timeline-bg: #ffffff;                        /* graph-editor dot stroke (was #fff) */
+  --wn-timeline-cyan-kf-fill: #60a5fa;              /* COLOR.cyan.kfFill (blue-400) */
+  --wn-timeline-cyan-graph-stroke: #3b82f6;         /* COLOR.cyan.graphStroke (blue-500) */
+  --wn-timeline-orange-kf-fill: #fb923c;            /* COLOR.orange.kfFill (orange-400) */
+  --wn-timeline-orange-graph-stroke: #f97316;       /* COLOR.orange.graphStroke (orange-500) */
 }
 
 
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
+  --preview-background: oklch(0.16 0 0);  /* artboard fill — slight lift from chrome --background */
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
@@ -102,16 +118,19 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-border: #3f3f46; /* Zinc-700 */
   --sidebar-ring: oklch(0.439 0 0);
 
   /* Dark-mode counterparts to the wn-* action accents. */
   --wn-accent: #60a5fa;             /* blue-400 — softer in dark */
+  --wn-accent-muted: #3b82f6;       /* blue-500 — recessed against blue-400 wn-accent */
   --wn-accent-soft: rgba(59, 130, 246, 0.18);
   --wn-keyframe-active: #60a5fa;
   --wn-divider: #27272a;            /* zinc-800 */
   --wn-control-bg: #27272a;         /* zinc-800 */
+  --wn-control-hover: #3f3f46;      /* zinc-700 — lifts off zinc-800 surface */
   --wn-info-bg: rgba(255, 255, 255, 0.02);
+  --wn-slider-range: #52525b;       /* zinc-600 — readable against dark track */
 
   /* Brand + TopBar state colors — dark counterparts. */
   --wn-brand-blue: #3b9eff;                          /* unchanged — brand identity */
@@ -127,6 +146,15 @@
   --wn-timeline-marker-fill: #a78bfa;                /* violet-400 */
   --wn-timeline-marker-selected: #c084fc;            /* purple-400 */
   --wn-timeline-playhead: #f87171;                   /* red-400 */
+
+  /* Timeline transport + per-color tracks — dark counterparts. */
+  --wn-timeline-transport-active: #60a5fa;
+  --wn-timeline-drag-select: rgba(96,165,250,0.15);
+  --wn-timeline-bg: #09090b;
+  --wn-timeline-cyan-kf-fill: #60a5fa;
+  --wn-timeline-cyan-graph-stroke: #3b82f6;
+  --wn-timeline-orange-kf-fill: #fb923c;
+  --wn-timeline-orange-graph-stroke: #f97316;
 }
 
 @theme inline {
@@ -170,11 +198,14 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-wn-accent: var(--wn-accent);
+  --color-wn-accent-muted: var(--wn-accent-muted);
   --color-wn-accent-soft: var(--wn-accent-soft);
   --color-wn-keyframe-active: var(--wn-keyframe-active);
   --color-wn-divider: var(--wn-divider);
   --color-wn-control-bg: var(--wn-control-bg);
+  --color-wn-control-hover: var(--wn-control-hover);
   --color-wn-info-bg: var(--wn-info-bg);
+  --color-wn-slider-range: var(--wn-slider-range);
   /* Brand + TopBar */
   --color-wn-brand-blue: var(--wn-brand-blue);
   --color-wn-topbar-toggle-active: var(--wn-topbar-toggle-active);
@@ -188,6 +219,13 @@
   --color-wn-timeline-marker-fill: var(--wn-timeline-marker-fill);
   --color-wn-timeline-marker-selected: var(--wn-timeline-marker-selected);
   --color-wn-timeline-playhead: var(--wn-timeline-playhead);
+  --color-wn-timeline-transport-active: var(--wn-timeline-transport-active);
+  --color-wn-timeline-drag-select: var(--wn-timeline-drag-select);
+  --color-wn-timeline-bg: var(--wn-timeline-bg);
+  --color-wn-timeline-cyan-kf-fill: var(--wn-timeline-cyan-kf-fill);
+  --color-wn-timeline-cyan-graph-stroke: var(--wn-timeline-cyan-graph-stroke);
+  --color-wn-timeline-orange-kf-fill: var(--wn-timeline-orange-kf-fill);
+  --color-wn-timeline-orange-graph-stroke: var(--wn-timeline-orange-graph-stroke);
 }
 
 @layer base {

@@ -13,12 +13,12 @@ type ShortcutActionDefinitions = {
 export function useShortcuts(actions: ShortcutActionDefinitions) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [shortcuts, setShortcuts] = useState([
-    { id: '1', command: 'Speichern', key: 's' },
-    { id: '2', command: 'Laden', key: 'o' },
-    { id: '3', command: 'Rückgängig', key: 'z' },
-    { id: '4', command: 'Wiederholen', key: 'Z' }, // shift+z
-    { id: '5', command: 'Abspielen/Pause', key: ' ' },
-    { id: '6', command: 'Aufnahme', key: 'r' },
+    { id: '1', command: 'Speichern',       key: 's', tKey: 'dialogs.shortcuts.command.save' },
+    { id: '2', command: 'Laden',           key: 'o', tKey: 'dialogs.shortcuts.command.load' },
+    { id: '3', command: 'Rückgängig',      key: 'z', tKey: 'dialogs.shortcuts.command.undo' },
+    { id: '4', command: 'Wiederholen',     key: 'Z', tKey: 'dialogs.shortcuts.command.redo' },
+    { id: '5', command: 'Abspielen/Pause', key: ' ', tKey: 'dialogs.shortcuts.command.playPause' },
+    { id: '6', command: 'Aufnahme',        key: 'r', tKey: 'dialogs.shortcuts.command.record' },
   ]);
 
   useEffect(() => {

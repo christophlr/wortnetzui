@@ -1,11 +1,8 @@
 import { useCallback } from 'react';
-import type { TimelineState } from '../context/WortnetzContextTypes';
-import type { GradientSettings, NodeAppearanceSettings, EdgeAppearanceSettings } from '../networkTheme';
 
 type WorkspaceState = {
   inputText: string;
   parseMode: 'sentence' | 'word' | 'both';
-  gradientSettings: GradientSettings;
   styleSettings: any;
   physicsParams: any;
   viewMode: '2D' | '3D';

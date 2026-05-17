@@ -5,13 +5,14 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import { normalizeLanguage } from './index';
 import type { SupportedLanguage } from './index';
 
 export function useT() {
   const { t, i18n } = useTranslation();
   return {
     t,
-    language: i18n.language as SupportedLanguage,
+    language: normalizeLanguage(i18n.resolvedLanguage ?? i18n.language),
     setLanguage: (lng: SupportedLanguage) => i18n.changeLanguage(lng),
   };
 }
