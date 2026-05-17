@@ -2,6 +2,9 @@
 
 > **🤖 FOR AI CODING ASSISTANTS:** > Do not generate code based on this README. You must establish your system context by reading `./AGENTS.md` before taking any action.
 
+## For Contributors
+Start at [AGENTS.md](./AGENTS.md). Architecture in [ARCHITECTURE.md](./ARCHITECTURE.md). Visual rules in [STYLE_GUIDE.md](./STYLE_GUIDE.md).
+
 ## Running the code
 Run `npm i` to install the dependencies.
 

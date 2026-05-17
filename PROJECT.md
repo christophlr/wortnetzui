@@ -1,6 +1,6 @@
 # Wortnetze — Project Overview & File Map
 
-> **🤖 AI INSTRUCTION:** Do not look for standing orders here. All immutable rules and constraints are located in `./AGENTS.md`.
+> **🤖 AI INSTRUCTION:** PROJECT.md = file map and reverse index. AGENTS.md = standing constraints. ARCHITECTURE.md = system design. STYLE_GUIDE.md = visual rules. VOCABULARY.md = string ↔ code mapping.
 
 ## What This Project Is
 **Wortnetze** ("word networks") is a browser-based creative tool for visualising the linguistic structure of text as an animated 3D/2D network graph. It is an **art and research instrument**, not a dashboard. 
@@ -20,16 +20,38 @@ The aesthetic target is a professional creative application (Figma / After Effec
 | `components/shell/` | Modular layout components: `AppShell`, `AppSidebar`, `AppCanvas`. |
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
 | `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |
-| `Inspector.tsx` | Right sidebar with 5 tab panels. |
-| `components/inspector/InspectorAtoms.tsx` | Shared atomic building blocks for inspector tab groups, subgroup headers, labels, and value chips. |
+| `components/preview/PreviewAtoms.tsx` | Atomic components for the preview surface. |
+| `components/Sidebar.tsx` | Right sidebar with 5 tab panels. |
+| `components/sidebar/tabs/` | Individual tab components for the sidebar. |
+| `components/sidebar/SidebarAtoms.tsx` | Shared atomic building blocks for sidebar tabs. |
 | `TopBar.tsx` & `Toolbar.tsx` | Floating UI overlays (menu, actions, tool picker). |
+| `components/topbar/TopBarAtoms.tsx` | Atomic components for the TopBar. |
+| `components/toolbar/ToolbarAtoms.tsx` | Atomic components for the Toolbar. |
 | `timeline/` | Modular animation workspace (Transport, Ruler, Dopesheet, Graph Editor). |
+| `components/timeline/TimelineAtoms.tsx` | Atomic components for the timeline. |
+| `components/dialogs/DialogAtoms.tsx` | Atomic components for dialogs. |
+| `theme/tokens.ts` | CSS variable tokens and spacing aliases. |
+| `i18n/` | Internationalization config and locales (`en.json`, `de.json`). |
 | `ui/` | shadcn/ui component library + local `color-picker.tsx`. |
-| `.github/agents/inspector-atom-maintenance.agent.md` | Custom Copilot agent for inspector atom audits, semantic heading enforcement, and safe minimal refactors. |
-| `.github/prompts/inspector-violations-review.prompt.md` | Slash prompt that outputs only inspector violations and acceptance checklist status. |
-| `.github/skills/inspector-patch-summary/SKILL.md` | Skill for per-file before/after inspector refactor patch summaries. |
+| `.github/agents/sidebar-atom-maintenance.agent.md` | Custom agent for sidebar atom audits, semantic heading enforcement, and safe minimal refactors. |
+| `.github/prompts/sidebar-violations-review.prompt.md` | Slash prompt that outputs only sidebar violations and acceptance checklist status. |
+| `.github/skills/sidebar-patch-summary/SKILL.md` | Skill for per-file before/after sidebar refactor patch summaries. |
 | `graph/` | N-gram extraction (`parsing.ts`) and off-thread physics (`physics.worker.ts`). |
 | `networkTheme.ts` & `constants.ts` | 3D scene colour tokens and global constants. |
+| `PRE-PHASE5-REMEDIATION.md` | Pre-phase 5 remediation plan tracking the audit and remediation steps. |
+
+## Reverse Index
+
+| Concept | File Location |
+|---|---|
+| Where does undo/redo live? | `hooks/useTimelineHistory.ts` |
+| Where is the project saved/loaded? | `hooks/useWorkspaceIO.ts` |
+| Where are shortcuts defined? | `hooks/useShortcuts.ts` |
+| Where is the Three.js render loop? | `Network3D.tsx` |
+| Where does node physics happen? | `graph/physics.worker.ts` |
+| Where is the text parsed into nodes? | `graph/parsing.ts` |
+| Where do I change the language? | `i18n/` and `components/TopBar.tsx` |
+| Where is the atomic sidebar UI built? | `components/sidebar/SidebarAtoms.tsx` |
 
 ## Technology Stack
 
