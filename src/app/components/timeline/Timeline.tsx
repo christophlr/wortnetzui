@@ -114,11 +114,11 @@ export function Timeline(props: TimelineProps) {
   }, []);
 
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
-    const t = timeFromClientX(e.clientX, contentRef.current, sceneMarkers.map(m => m.time));
+    const t = timeFromClientX(e.clientX, contentRef.current, [...sceneMarkers.map(m => m.time), playheadPosition]);
     if (t !== null) {
       setContextMenuTarget({ mode: 'background', time: t });
     }
-  }, [timeFromClientX, sceneMarkers]);
+  }, [timeFromClientX, sceneMarkers, playheadPosition]);
 
   const handleSetEasing = useCallback((type: EasingType) => {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
@@ -391,6 +391,7 @@ export function Timeline(props: TimelineProps) {
                 onContextMenu={handleMarkerContextMenu}
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
+                playheadTime={playheadPosition}
               />
 
               {/* Drag-select marquee (rendered locally to be clipped by timeline) */}
@@ -437,6 +438,7 @@ export function Timeline(props: TimelineProps) {
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
                 sceneMarkers={sceneMarkers}
+                playheadTime={playheadPosition}
               />
               {/* Camera graph editor (tension curve) */}
               {expandedGraphTracks.has('camera') && (
@@ -493,6 +495,7 @@ export function Timeline(props: TimelineProps) {
                       timeFromClientX={timeFromClientX}
                       contentRef={contentRef}
                       sceneMarkers={sceneMarkers}
+                      playheadTime={playheadPosition}
                     />
                     {/* Per-track graph editor */}
                     {expandedGraphTracks.has(track.id) && (

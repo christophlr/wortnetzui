@@ -29,10 +29,16 @@ export function SceneMarkerLane({
   onContextMenu?: (time: number, label: string) => void;
   timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
+  playheadTime?: number;
 }) {
   const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
   const [draggingMarker, setDraggingMarker] = useState<{ origTime: number; currentTime: number } | null>(null);
+  // Snap points: other markers + playhead
+  const snapPoints = useMemo(
+    () => [...markers.map(m => m.time), ...(playheadTime !== undefined ? [playheadTime] : [])],
+    [markers, playheadTime]
+  );
 
   const handleMarkerMouseDown = (e: React.MouseEvent, marker: SceneMarker) => {
     e.stopPropagation();
@@ -44,7 +50,7 @@ export function SceneMarkerLane({
     const onMove = (ev: MouseEvent) => {
       // Snap to other markers? Maybe not while dragging the marker itself, but good to have the option.
       // Usually you don't snap a marker to another marker.
-      const t = timeFromClientX(ev.clientX, contentRef.current, markers.map(m => m.time));
+      const t = timeFromClientX(ev.clientX, contentRef.current, snapPoints);
       if (t !== null && Math.abs(t - currentTime) > 0.001) {
         onMoveMarker?.(currentTime, t);
         currentTime = t;
@@ -64,7 +70,7 @@ export function SceneMarkerLane({
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    const t = timeFromClientX(e.clientX, contentRef.current, markers.map(m => m.time));
+    const t = timeFromClientX(e.clientX, contentRef.current, snapPoints);
     if (t !== null) onAddMarker?.(t);
   };
 
@@ -136,6 +142,7 @@ export function TrackRow({
   timeFromClientX: (clientX: number, el: HTMLElement | null, snapPoints: number[]) => number | null;
   contentRef: React.RefObject<HTMLDivElement | null>;
   sceneMarkers?: SceneMarker[];
+  playheadTime?: number;
 }) {
   const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -200,7 +207,10 @@ export function TrackRow({
     onDragStart?.();
 
     let currentTime = kfTime;
-    const snapPoints = sceneMarkers.map(m => m.time);
+    const snapPoints = [
+      ...sceneMarkers.map(m => m.time),
+      ...(playheadTime !== undefined ? [playheadTime] : [])
+    ];
 
     const onMove = (ev: MouseEvent) => {
       const t = timeFromClientX(ev.clientX, contentRef.current, snapPoints);
