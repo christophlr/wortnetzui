@@ -53,7 +53,7 @@ export function Artboard({
     >
       <div
         className={cn(
-          'relative transition-all duration-500 ease-in-out overflow-hidden border border-zinc-300 dark:border-white/10 rounded-[2px]',
+          'relative transition-all duration-500 ease-in-out overflow-hidden border border-border rounded-[2px]',
           themeHybrid
             ? 'preview-portal shadow-2xl'
             : 'shadow-[0_30px_90px_rgba(0,0,0,0.4)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6)]',
@@ -122,13 +122,13 @@ export function LoadingOverlay({
       <div className="w-64 flex flex-col items-center gap-4">
         <div className="w-full space-y-3">
           <div className="flex justify-center items-center">
-            <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 tracking-tight">
+            <span className="text-[13px] font-medium text-foreground tracking-tight">
               {label}
             </span>
           </div>
           <Progress
             value={progress}
-            className="h-1 bg-zinc-200/80 dark:bg-zinc-800/80 overflow-hidden"
+            className="h-1 bg-wn-control-bg overflow-hidden"
           />
         </div>
       </div>

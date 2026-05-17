@@ -228,6 +228,11 @@
       "toggleGraphEditor":"Toggle graph editor"
     }
   },
+  "preview": {
+    "loading": {
+      "label": "Initializing"
+    }
+  },
   "dialogs": {
     "shortcuts": {
       "title": "Manage keyboard shortcuts",

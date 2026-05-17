@@ -60,7 +60,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   visualSettings,
   onNodeSelect,
 }: PreviewProps, ref) {
-  const { language } = useT();
+  const { t, language } = useT();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [lastHmr, setLastHmr] = useState<Date>(() => new Date(BUILD_DATE));
@@ -160,7 +160,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
         </Artboard>
       )}
 
-      {!isNetworkReady && <LoadingOverlay progress={initProgress} />}
+      {!isNetworkReady && <LoadingOverlay label={t('preview.loading.label')} progress={initProgress} />}
     </div>
   );
 });

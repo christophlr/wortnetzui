@@ -2016,7 +2016,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
         {/* Camera Locked Indicator */}
         {cameraLocked && (
-          <div className="absolute top-4 right-4 z-20 bg-blue-500/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
+          <div className="absolute top-4 right-4 z-20 bg-wn-accent/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
             <Lock className="w-3 h-3" />
             CAMERA LOCKED
             <button 

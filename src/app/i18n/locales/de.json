@@ -228,6 +228,11 @@
       "toggleGraphEditor":"Graph-Editor umschalten"
     }
   },
+  "preview": {
+    "loading": {
+      "label": "Initialisierung"
+    }
+  },
   "dialogs": {
     "shortcuts": {
       "title": "Tastaturkürzel verwalten",

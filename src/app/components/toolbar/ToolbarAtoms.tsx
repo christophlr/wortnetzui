@@ -19,7 +19,7 @@ export function ToolbarShell({
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-1.5 p-1.5 bg-zinc-50/90 backdrop-blur-md border border-zinc-200 shadow-xl rounded-2xl pointer-events-auto',
+        'flex flex-col items-center gap-1.5 p-1.5 bg-wn-control-bg/90 backdrop-blur-md border border-border shadow-xl rounded-2xl pointer-events-auto',
         className,
       )}
     >
@@ -29,7 +29,7 @@ export function ToolbarShell({
 }
 
 export function ToolbarDivider() {
-  return <div className="w-6 h-[1px] bg-zinc-200/60 my-0.5" />;
+  return <div className="w-6 h-[1px] bg-wn-divider my-0.5" />;
 }
 
 export function ToolButton<TId extends string>({
@@ -54,8 +54,8 @@ export function ToolButton<TId extends string>({
       className={cn(
         'group relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200',
         isActive
-          ? 'bg-zinc-900 text-white shadow-sm'
-          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50',
+          ? 'bg-wn-accent text-white shadow-sm'
+          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
       )}
     >
       <Icon
