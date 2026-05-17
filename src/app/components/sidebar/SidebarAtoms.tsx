@@ -71,10 +71,10 @@ export function SidebarActivityButton({
       onClick={onClick}
       title={label}
       className={cn(
-        'group relative flex h-10 w-10 items-center justify-center',
+        'group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
         active
           ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground',
+          : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-hover',
       )}
     >
       <Icon

@@ -30,7 +30,7 @@ export type CssVarName =
   | '--sidebar-border' | '--sidebar-ring'
   // Wortnetz action accents
   | '--wn-accent' | '--wn-accent-muted' | '--wn-accent-soft' | '--wn-keyframe-active'
-  | '--wn-divider' | '--wn-control-bg' | '--wn-info-bg'
+  | '--wn-divider' | '--wn-control-bg' | '--wn-control-hover' | '--wn-info-bg'
   // Brand + TopBar state (Phase 3.3)
   | '--wn-brand-blue'
   | '--wn-topbar-toggle-active' | '--wn-topbar-toggle-active-hover'

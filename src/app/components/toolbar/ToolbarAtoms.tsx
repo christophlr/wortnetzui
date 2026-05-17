@@ -55,7 +55,7 @@ export function ToolButton<TId extends string>({
         'group relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200',
         isActive
           ? 'bg-wn-accent text-white shadow-sm'
-          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+          : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-hover',
       )}
     >
       <Icon
