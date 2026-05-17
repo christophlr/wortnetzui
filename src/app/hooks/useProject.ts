@@ -5,7 +5,6 @@ export function useProject() {
   const {
     inputText, setInputText,
     parseMode, setParseMode,
-    gradientSettings, setGradientSettings,
     styleSettings, setStyleSettings,
     physicsParams, setPhysicsParams,
     viewMode, setViewMode,
@@ -15,16 +14,15 @@ export function useProject() {
   } = useWortnetz();
 
   const handleSave = useCallback(() => {
-    const state = { 
-      inputText, 
-      parseMode, 
-      gradientSettings, 
-      styleSettings, 
-      physicsParams, 
-      viewMode, 
-      cameraKeyframes, 
-      physicsKeyframes, 
-      sceneMarkers 
+    const state = {
+      inputText,
+      parseMode,
+      styleSettings,
+      physicsParams,
+      viewMode,
+      cameraKeyframes,
+      physicsKeyframes,
+      sceneMarkers
     };
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -33,7 +31,7 @@ export function useProject() {
     a.download = `sprachvernetzungen-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]);
+  }, [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]);
 
   const handleLoad = useCallback(() => {
     const input = document.createElement('input');
@@ -48,14 +46,13 @@ export function useProject() {
             const s = JSON.parse(ev.target?.result as string);
             if (s.inputText) setInputText(s.inputText);
             if (s.parseMode) setParseMode(s.parseMode);
-            if (s.gradientSettings) setGradientSettings(s.gradientSettings);
             if (s.styleSettings) setStyleSettings(s.styleSettings);
             if (s.physicsParams) {
-              setPhysicsParams((prev: any) => ({ 
-                ...prev, 
-                ...s.physicsParams, 
-                verticalOrder: s.physicsParams.verticalOrder ?? 0, 
-                pulse: s.physicsParams.pulse ?? 0 
+              setPhysicsParams((prev: any) => ({
+                ...prev,
+                ...s.physicsParams,
+                verticalOrder: s.physicsParams.verticalOrder ?? 0,
+                pulse: s.physicsParams.pulse ?? 0
               }));
             }
             if (s.viewMode) setViewMode(s.viewMode);
@@ -70,7 +67,7 @@ export function useProject() {
       }
     };
     input.click();
-  }, [setInputText, setParseMode, setGradientSettings, setStyleSettings, setPhysicsParams, setViewMode, setCameraKeyframes, setPhysicsKeyframes, setSceneMarkers]);
+  }, [setInputText, setParseMode, setStyleSettings, setPhysicsParams, setViewMode, setCameraKeyframes, setPhysicsKeyframes, setSceneMarkers]);
 
   return {
     handleSave,

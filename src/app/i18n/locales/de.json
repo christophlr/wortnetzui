@@ -11,13 +11,11 @@
       "undo":         "Rückgängig",
       "redo":         "Wiederholen",
       "shortcuts":    "Tastaturkürzel...",
-      "preview":      "Vorschau",
       "themeLight":   "Hell",
       "themeDark":    "Dunkel",
       "themeSystem":  "System"
     },
     "label": {
-      "mode":  "Modus",
       "theme": "Design",
       "language": "Sprache"
     },
@@ -26,16 +24,11 @@
       "en": "English",
       "auto": "Automatisch"
     },
-    "state": {
-      "on":  "AN",
-      "off": "AUS"
-    },
     "view": {
       "twoD":   "2D Ansicht",
       "threeD": "3D Ansicht"
     },
     "action": {
-      "preview":   "Vorschau",
       "export":    "Exportieren"
     }
   },
@@ -76,14 +69,12 @@
         "title": "Visualisierung",
         "section": {
           "nodes":        "Knoten",
-          "labels":       "Beschriftung",
           "edges":        "Verbindungen",
-          "environment":  "Umgebung",
           "pathAnimator": "Path Animator"
         },
         "group": {
           "shape":            "Form",
-          "atmosphereGradient": "Atmosphäre-Gradient"
+          "atmosphereGradient": "Gradient"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -91,16 +82,14 @@
           "ellipse":           "Ellipse"
         },
         "slider": {
-          "baseScale":     "Basis-Skalierung",
-          "radialBias":    "Radialer Bias",
-          "weightMapping": "Weight-Mapping",
+          "baseScale":     "Skalierung",
+          "radialBias":    "Falloff",
           "globalOpacity": "Globale Deckkraft",
           "brushRadius":   "Pinselradius",
           "feather":       "Weiche Kante",
           "smoothness":    "Glättung"
         },
         "toggle": {
-          "flowAnimation": "Fluss-Animation",
           "glitchPaint":   "Glitch-Pinsel",
           "cameraFollow":  "Kamera folgen"
         },
@@ -114,15 +103,15 @@
           "inactive":   "Keine Effekte"
         },
         "action": {
-          "shuffleAtmosphere": "Shuffle Atmosphere"
+          "randomizeGradient": "Gradient zufällig generieren"
         },
-        "pathAnimator": {
+"pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
           "playSequence":      "Sequenz abspielen",
           "interpolationNote": "Knoten werden mittels Catmull-Rom interpoliert."
         },
         "description": {
-          "radialBias": "Scale = Basis + (Bias × Dist)"
+          "radialBias": "Knoten weiter vom Zentrum entfernt größer darstellen"
         }
       },
       "physics": {

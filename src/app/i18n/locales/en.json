@@ -11,13 +11,11 @@
       "undo":         "Undo",
       "redo":         "Redo",
       "shortcuts":    "Shortcuts...",
-      "preview":      "Preview",
       "themeLight":   "Light",
       "themeDark":    "Dark",
       "themeSystem":  "System"
     },
     "label": {
-      "mode":  "Mode",
       "theme": "Theme",
       "language": "Language"
     },
@@ -26,16 +24,11 @@
       "en": "English",
       "auto": "Auto-detect"
     },
-    "state": {
-      "on":  "ON",
-      "off": "OFF"
-    },
     "view": {
       "twoD":   "2D view",
       "threeD": "3D view"
     },
     "action": {
-      "preview":   "Preview",
       "export":    "Export"
     }
   },
@@ -76,14 +69,12 @@
         "title": "Visual",
         "section": {
           "nodes":        "Nodes",
-          "labels":       "Labels",
           "edges":        "Edges",
-          "environment":  "Environment",
           "pathAnimator": "Path animator"
         },
         "group": {
           "shape":              "Shape",
-          "atmosphereGradient": "Atmosphere gradient"
+          "atmosphereGradient": "Gradient"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -91,16 +82,14 @@
           "ellipse":           "Ellipse"
         },
         "slider": {
-          "baseScale":     "Base scale",
-          "radialBias":    "Radial bias",
-          "weightMapping": "Weight mapping",
+          "baseScale":     "Scale",
+          "radialBias":    "Falloff",
           "globalOpacity": "Global opacity",
           "brushRadius":   "Brush radius",
           "feather":       "Feather",
           "smoothness":    "Smoothness"
         },
         "toggle": {
-          "flowAnimation": "Flow animation",
           "glitchPaint":   "Glitch paint",
           "cameraFollow":  "Camera follow"
         },
@@ -114,15 +103,15 @@
           "inactive":   "No effects"
         },
         "action": {
-          "shuffleAtmosphere": "Shuffle atmosphere"
+          "randomizeGradient": "Randomize gradient"
         },
-        "pathAnimator": {
+"pathAnimator": {
           "emptyHint":         "Click nodes in the preview to build a path.",
           "playSequence":      "Play sequence",
           "interpolationNote": "Nodes are interpolated using Catmull-Rom."
         },
         "description": {
-          "radialBias": "Scale = base + (bias × dist)"
+          "radialBias": "Boost size of nodes farther from the center"
         }
       },
       "physics": {

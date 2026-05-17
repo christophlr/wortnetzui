@@ -44,11 +44,11 @@ export default function App() {
               ref={wn.network3DRef} viewMode={wn.viewMode} physicsEnabled={true}
               isPlaying={wn.isPlaying} playheadPosition={wn.playheadPosition}
               physicsParams={wn.physicsParams} inputText={wn.inputText} parseMode={wn.parseMode}
-              gradientSettings={wn.gradientSettings} styleSettings={wn.styleSettings}
+              styleSettings={wn.styleSettings}
               cameraKeyframes={wn.cameraKeyframes} onCameraChange={wn.handleCameraChange}
               physicsKeyframes={wn.physicsKeyframes} isDark={wn.previewIsDark}
               isNetworkReady={wn.isNetworkReady} onNetworkReady={() => wn.setIsNetworkReady(true)}
-              renderMode={wn.renderMode} nodeAppearance={wn.nodeAppearance} edgeAppearance={wn.edgeAppearance}
+              edgeAppearance={wn.edgeAppearance}
               canvasAspectRatio={wn.canvasAspectRatio} initProgress={wn.initProgress}
               visualSettings={wn.visualSettings} onNodeSelect={wn.setSelectedNode}
             />
@@ -71,7 +71,6 @@ export default function App() {
 
           <div ref={topBarRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
             <TopBar
-              onApplyNodeStylePreset={wn.handleApplyNodeStylePreset}
               onOpenShortcuts={() => setIsShortcutsOpen(true)}
             />
           </div>
@@ -108,11 +107,9 @@ export default function App() {
           <Sidebar
             onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText}
             inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
-            onGradientChange={wn.setGradientSettings}
             onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
             styleSettings={wn.styleSettings}
-            onNodeAppearanceChange={wn.setNodeAppearance} onEdgeAppearanceChange={wn.setEdgeAppearance}
-            nodeAppearance={wn.nodeAppearance} appliedNodePreset={wn.lastAppliedPreset}
+            onEdgeAppearanceChange={wn.setEdgeAppearance}
             effectivePhysicsParams={wn.effectivePhysicsParams}
             canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
             currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}

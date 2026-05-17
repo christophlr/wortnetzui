@@ -13,8 +13,7 @@ import {
   SidebarProvider as ShadSidebarProvider,
 } from './ui/sidebar';
 
-import type { NodeShape, NodeAppearanceSettings } from '../networkTheme';
-import { defaultGradientSettings } from '../networkTheme';
+import type { NodeShape } from '../networkTheme';
 import { ContentTab } from './sidebar/tabs/ContentTab';
 import { VisualTab } from './sidebar/tabs/VisualTab';
 import { PhysicsTab } from './sidebar/tabs/PhysicsTab';
@@ -37,13 +36,9 @@ interface SidebarProps {
   inputText?: string;
   parseMode: 'sentence' | 'word' | 'both';
   onParsingChange: (m: 'sentence' | 'word' | 'both') => void;
-  onGradientChange: (gs: any) => void;
   onStyleChange: (s: any) => void;
   styleSettings: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
-  onNodeAppearanceChange: (na: NodeAppearanceSettings) => void;
   onEdgeAppearanceChange: (ea: any) => void;
-  nodeAppearance: NodeAppearanceSettings;
-  appliedNodePreset: 'outline' | 'filled' | null;
   effectivePhysicsParams: any;
   currentTime: number;
   cameraKeyframes: any[];
@@ -66,16 +61,11 @@ interface SidebarProps {
   onOverrideChange?: (nodeId: string, property: string, value: any, unlinked: boolean) => void;
   visualSettings?: {
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
@@ -86,25 +76,20 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  onPhysicsChange, onTextChange, inputText = "", parseMode, onParsingChange, onGradientChange,
-  onStyleChange, onNodeAppearanceChange, onEdgeAppearanceChange,
-  nodeAppearance, appliedNodePreset, canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
+  onPhysicsChange, onTextChange, inputText = "", parseMode, onParsingChange,
+  onStyleChange, onEdgeAppearanceChange,
+  canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
   currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe,
   viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
   onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
   onZoomChange, zoomValue,
   selectedNode, onOverrideChange, visualSettings = {
     nodesVisible: true,
-    labelsVisible: true,
     edgesVisible: true,
-    envVisible: true,
-    radialBiasScale: 0.5,
+    radialBiasScale: 0,
     radialBiasOpacity: 0.5,
-    gradientOrigin: defaultGradientSettings.innerColor,
-    gradientPeriphery: defaultGradientSettings.outerColor,
-    labelWeightMapping: 0.5,
-    edgeFlowAnimation: false,
-    envAtmosphereSeed: 123,
+    gradientOrigin: '#4f46e5',
+    gradientPeriphery: '#7c3aed',
     glitchActive: false,
     glitchBrushRadius: 100,
     glitchFeather: 0.5,

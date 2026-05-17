@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback, ReactNode, useMemo, useEffect } from 'react';
-import { defaultGradientSettings, defaultNodeAppearance, defaultEdgeAppearance, type GradientSettings, type NodeShape, type NodeAppearanceSettings, type EdgeAppearanceSettings } from '../networkTheme';
+import { defaultEdgeAppearance, type NodeShape, type EdgeAppearanceSettings } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import { evaluateHermite, computeCatmullRomTangent } from '../easing';
@@ -66,7 +66,6 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   });
   const [inputText, setInputText] = useState(DEFAULT_TEXT);
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('word');
-  const [gradientSettings, setGradientSettings] = useState<GradientSettings>(defaultGradientSettings);
   const [styleSettings, setStyleSettings] = useState({
     edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1,
     nodeShape: 'rectangle' as NodeShape,
@@ -86,17 +85,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<ToolId>('pointer');
   const [zoomValue, setZoomValue] = useState(50);
   const [visualSettings, setVisualSettings] = useState({
-    nodesVisible: true, labelsVisible: true, edgesVisible: true, envVisible: true,
-    radialBiasScale: 0.5, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
-    labelWeightMapping: 0.5, edgeFlowAnimation: false, envAtmosphereSeed: 123,
+    nodesVisible: true, edgesVisible: true,
+    radialBiasScale: 0, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
     glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
     pathSmoothness: 0.5, pathCameraFollow: true
   });
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [renderMode, setRenderMode] = useState<'edit' | 'render'>('edit');
-  const [nodeAppearance, setNodeAppearance] = useState<NodeAppearanceSettings>(defaultNodeAppearance);
-  const [lastAppliedPreset, setLastAppliedPreset] = useState<'outline'|'filled'|null>(null);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
   const [keyframeHistory, setKeyframeHistory] = useState<TimelineState[]>([{ cameraKeyframes: [], physicsKeyframes: EMPTY_PHYSICS_KFS, sceneMarkers: [] }]);
@@ -170,14 +165,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const previewIsDark = themeMode === 'dark';
 
   const { handleSave: ioSave, handleLoad: ioLoad } = useWorkspaceIO(
-    useCallback(() => ({ 
-      inputText, parseMode, gradientSettings, styleSettings, physicsParams, 
-      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers 
-    }), [inputText, parseMode, gradientSettings, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
+    useCallback(() => ({
+      inputText, parseMode, styleSettings, physicsParams,
+      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers
+    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
     useCallback((s) => {
       if (s.inputText) setInputText(s.inputText);
       if (s.parseMode) setParseMode(s.parseMode);
-      if (s.gradientSettings) setGradientSettings(s.gradientSettings);
       if (s.styleSettings) setStyleSettings(s.styleSettings);
       if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
       if (s.viewMode) setViewMode(s.viewMode);
@@ -527,22 +521,6 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleSetHandle2D = handleSetHandle; // Map for compatibility
 
   // color helper to derive light fill
-  const hexToRgb = (hex: string) => {
-    const h = hex.replace('#', '');
-    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-    const bigint = parseInt(full, 16);
-    return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-  };
-  const lightenHex = (hex: string, percent: number) => {
-    const { r, g, b } = hexToRgb(hex);
-    const p = Math.max(0, Math.min(100, percent)) / 100;
-    const nr = Math.round(r + (255 - r) * p);
-    const ng = Math.round(g + (255 - g) * p);
-    const nb = Math.round(b + (255 - b) * p);
-    const toHex = (n: number) => n.toString(16).padStart(2, '0');
-    return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
-  };
-
   const handleKeyframeSelect = useCallback((track: string, time: number, additive: boolean) => {
     setSelectedKeyframes(prev => {
       const already = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
@@ -595,22 +573,6 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const handleApplyNodeStylePreset = useCallback((preset: 'outline' | 'filled' | 'reset') => {
-    if (preset === 'reset') {
-      setNodeAppearance(defaultNodeAppearance);
-      setLastAppliedPreset(null);
-      return;
-    }
-    const inner = gradientSettings.innerColor ?? defaultGradientSettings.innerColor;
-    if (preset === 'outline') {
-      setNodeAppearance({ borderColor: inner, fillColor: lightenHex(inner, 0.8), textColor: inner });
-      setLastAppliedPreset('outline');
-    } else if (preset === 'filled') {
-      setNodeAppearance({ borderColor: '#FFFFFFCC', fillColor: inner, textColor: '#ffffff' });
-      setLastAppliedPreset('filled');
-    }
-  }, [gradientSettings]);
-
   const preDragStateRef = useRef<TimelineState | null>(null);
 
   const handleDragStart = useCallback(() => {
@@ -626,13 +588,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   return (
     <WortnetzContext.Provider value={{
-      viewMode, setViewMode, themeMode, setThemeMode, themeAuto, setThemeAuto, renderMode, setRenderMode,
+      viewMode, setViewMode, themeMode, setThemeMode, themeAuto, setThemeAuto,
       activeTool, setActiveTool, canvasAspectRatio, setCanvasAspectRatio, zoomValue, setZoomValue,
       isSidebarOpen, setIsSidebarOpen, sidebarWidth, setSidebarWidth, timelineHeight, setTimelineHeight,
       isNetworkReady, setIsNetworkReady, initProgress, setInitProgress,
-      inputText, setInputText, parseMode, setParseMode, gradientSettings, setGradientSettings,
+      inputText, setInputText, parseMode, setParseMode,
       styleSettings, setStyleSettings, physicsParams, setPhysicsParams, visualSettings, setVisualSettings,
-      nodeAppearance, setNodeAppearance, edgeAppearance, setEdgeAppearance, lastAppliedPreset, setLastAppliedPreset,
+      edgeAppearance, setEdgeAppearance,
       isPlaying, setIsPlaying, isRecording, setIsRecording, playheadPosition, setPlayheadPosition, timecode, setTimecode,
       cameraKeyframes, setCameraKeyframes, physicsKeyframes, setPhysicsKeyframes, sceneMarkers, setSceneMarkers,
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
@@ -642,7 +604,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,
-      handleApplyNodeStylePreset, handleTogglePhysicsKeyframe,
+      handleTogglePhysicsKeyframe,
       handleKeyframeSelect, handleSelectKeyframes, handlePhysicsChange,
       handleDragStart, handleDragEnd,
       pushHistory, getTimelineState, undo, redo, canUndo, canRedo,

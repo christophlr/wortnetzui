@@ -174,20 +174,36 @@ export type SidebarGroupStack = 'tight' | 'snug' | 'loose';
 export function SidebarGroup({
   title,
   stack = 'tight',
+  actions,
   children,
 }: {
   title?: React.ReactNode;
   stack?: SidebarGroupStack;
+  /**
+   * Optional inline-trailing controls (e.g. a randomize button) rendered on
+   * the same baseline as the title, aligned to the right — mirroring the
+   * value-chip column used by SidebarSliderRow.
+   */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const stackClass =
     stack === 'loose' ? pad.subgroupLoose : stack === 'snug' ? pad.subgroupSnug : pad.subgroup;
   return (
     <div className={stackClass}>
-      {title ? (
-        <h3 className="text-[12px] font-semibold text-foreground">
-          {title}
-        </h3>
+      {title || actions ? (
+        <div className="flex items-center justify-between gap-2">
+          {title ? (
+            <h3 className="flex-1 text-[12px] font-semibold text-foreground">
+              {title}
+            </h3>
+          ) : (
+            <div className="flex-1" />
+          )}
+          {actions ? (
+            <div className="flex items-center gap-1 shrink-0">{actions}</div>
+          ) : null}
+        </div>
       ) : null}
       {children}
     </div>

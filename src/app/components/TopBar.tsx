@@ -1,6 +1,5 @@
 import {
   Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
-  MonitorPlay,
   Keyboard
 } from 'lucide-react';
 import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubContent } from './ui/menubar';
@@ -10,41 +9,21 @@ import { TopBarActionButton, TopBarMenuSubTrigger, TopBarMenuTrigger, TopBarPill
 import { useT } from '../i18n/useT';
 import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
 import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
-
-function NetworkLogo() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <polygon
-        points="6.81 6.96 19 7 16.33 11 7 25 25 13 25 25 6.81 6.96"
-        fill="none"
-        stroke="var(--wn-brand-blue)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-      <circle cx="7" cy="25" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
-      <circle cx="7" cy="7" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
-      <circle cx="25" cy="25" r="3" fill="var(--wn-brand-blue)" opacity="0.5" />
-    </svg>
-  );
-}
+import faviconUrl from '../../../favicon.svg';
 
 interface TopBarProps {
   onOpenShortcuts?: () => void;
   onExport?: () => void;
-  onApplyNodeStylePreset?: (preset: 'outline' | 'filled' | 'reset') => void;
 }
 
 export function TopBar({
   onOpenShortcuts,
   onExport,
-  onApplyNodeStylePreset
 }: TopBarProps) {
   const {
     viewMode, setViewMode,
     themeMode, setThemeMode,
     themeAuto, setThemeAuto,
-    renderMode, setRenderMode,
     setPhysicsParams,
     undo, redo, canUndo, canRedo
   } = useWortnetz();
@@ -95,7 +74,7 @@ export function TopBar({
 
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
-          <NetworkLogo />
+          <img src={faviconUrl} alt="Logo" className="w-5 h-5" />
           <span className="text-[12px] font-medium text-foreground tracking-tight whitespace-nowrap">Wortnetze</span>
         </div>
 
@@ -151,15 +130,6 @@ export function TopBar({
               <TopBarMenuTrigger>{t('topbar.menu.view.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
-                  <MenubarLabel>{t('topbar.label.mode')}</MenubarLabel>
-                  <MenubarItem onSelect={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}>
-                    <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-wn-topbar-toggle-text' : 'text-muted-foreground'} />
-                    {t('topbar.item.preview')}
-                    <MenubarShortcut>{renderMode === 'render' ? t('topbar.state.on') : t('topbar.state.off')}</MenubarShortcut>
-                  </MenubarItem>
-                </MenubarGroup>
-                <MenubarSeparator />
-                <MenubarGroup>
                   <MenubarLabel>{t('topbar.label.theme')}</MenubarLabel>
                   <MenubarRadioGroup value={currentThemeValue} onValueChange={handleThemeChange}>
                     <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />{t('topbar.item.themeLight')}</MenubarRadioItem>
@@ -195,18 +165,6 @@ export function TopBar({
           titleTwoD={t('topbar.view.twoD')}
           titleThreeD={t('topbar.view.threeD')}
         />
-
-        <TopBarActionButton
-          active={renderMode === 'render'}
-          onClick={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}
-        >
-          <MonitorPlay
-            size={12}
-            strokeWidth={2.5}
-            className={`mr-1.5 transition-transform duration-300 ${renderMode === 'render' ? 'scale-110' : 'opacity-70'}`}
-          />
-          {t('topbar.action.preview')}
-        </TopBarActionButton>
 
         <TopBarActionButton onClick={onExport}>
           <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
