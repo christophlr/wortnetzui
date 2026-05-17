@@ -251,7 +251,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleMoveKeyframe = useCallback((trackId: string, oldTime: number, newTime: number) => {
     const delta = newTime - oldTime;
     const sel = selectedKeyframesRef.current;
-    const isMultiDrag = sel.length > 1 && sel.some(s => s.track === trackId && Math.abs(s.time - oldTime) < 0.01);
+    const isMultiDrag = sel.length > 1 && sel.some(s => s.track === trackId && sameTime(s.time, oldTime));
 
     if (isMultiDrag) {
       setCameraKeyframes(prev => {
@@ -288,16 +288,15 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)),
       })));
     } else {
-      // Phase 2.1: 0.01 epsilon here mismatches the 0.1 TIME_EPSILON used elsewhere — intentional until Phase 2.1 fixes the dedup bug.
       if (trackId === 'camera-keyframes') {
         setCameraKeyframes(prev => {
-          const next = prev.map(s => Math.abs(s.time - oldTime) < 0.01 ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
+          const next = prev.map(s => sameTime(s.time, oldTime) ? { ...s, time: newTime } : s).sort((a, b) => a.time - b.time);
           cameraKeyframesRef.current = next;
           return next;
         });
       } else if (trackId in PHYS_TRACK_PARAM) {
         setPhysicsKeyframes(prev => {
-          const kfs = (prev[trackId] ?? []).map(k => Math.abs(k.time - oldTime) < 0.01 ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
+          const kfs = (prev[trackId] ?? []).map(k => sameTime(k.time, oldTime) ? { ...k, time: newTime } : k).sort((a, b) => a.time - b.time);
           const next = { ...prev, [trackId]: kfs };
           physicsKeyframesRef.current = next;
           return next;
@@ -332,7 +331,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prev => {
         const next = prev.map(s => {
-          if (Math.abs(s.time - time) >= 0.01) return s;
+          if (differentTime(s.time, time)) return s;
           const slopeKey = side === 'out' ? 'tensionHandleOut' : 'tensionHandleIn';
           const timeKey = side === 'out' ? 'tensionHandleOutTime' : 'tensionHandleInTime';
           const nextKf = { ...s, [slopeKey]: slope, [timeKey]: timeOffset };
@@ -350,7 +349,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prev => {
         const kfs = (prev[trackId] ?? []).map(k => {
-          if (Math.abs(k.time - time) >= 0.01) return k;
+          if (differentTime(k.time, time)) return k;
           const slopeKey = side === 'out' ? 'handleOut' : 'handleIn';
           const timeKey = side === 'out' ? 'handleOutTime' : 'handleInTime';
           const nextKf = { ...k, [slopeKey]: slope, [timeKey]: timeOffset };
@@ -374,7 +373,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prevCkfs => {
         const next = prevCkfs.map(s => {
-          if (Math.abs(s.time - time) >= 0.01) return s;
+          if (differentTime(s.time, time)) return s;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { tensionHandleIn: _a, tensionHandleOut: _b, tensionHandleInTime: _c, tensionHandleOutTime: _d, ...rest } = s;
           return rest;
@@ -386,7 +385,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
-          if (Math.abs(k.time - time) >= 0.01) return k;
+          if (differentTime(k.time, time)) return k;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { handleIn: _a, handleOut: _b, handleInTime: _c, handleOutTime: _d, ...rest } = k;
           return rest;
@@ -404,7 +403,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prevCkfs => {
         const next = prevCkfs.map(s => {
-          if (Math.abs(s.time - time) >= 0.01) return s;
+          if (differentTime(s.time, time)) return s;
           const nextKf = { ...s, mode };
           if (mode === 'aligned' && nextKf.tensionHandleOut !== undefined) {
             nextKf.tensionHandleIn = nextKf.tensionHandleOut;
@@ -419,7 +418,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
-          if (Math.abs(k.time - time) >= 0.01) return k;
+          if (differentTime(k.time, time)) return k;
           const nextKf = { ...k, mode };
           if (mode === 'aligned' && nextKf.handleOut !== undefined) {
             nextKf.handleIn = nextKf.handleOut;
@@ -439,7 +438,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const prev = getTimelineState();
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prevCkfs => {
-        const src = prevCkfs.find(s => Math.abs(s.time - srcTime) < 0.01);
+        const src = prevCkfs.find(s => sameTime(s.time, srcTime));
         if (!src) return prevCkfs;
         const next = [...prevCkfs.filter(s => differentTime(s.time, destTime)), { ...src, time: destTime }].sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
@@ -448,7 +447,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
     } else if (trackId in PHYS_TRACK_PARAM) {
       setPhysicsKeyframes(prevPkfs => {
-        const src = (prevPkfs[trackId] ?? []).find(k => Math.abs(k.time - srcTime) < 0.01);
+        const src = (prevPkfs[trackId] ?? []).find(k => sameTime(k.time, srcTime));
         if (!src) return prevPkfs;
         const next = { ...prevPkfs, [trackId]: [...(prevPkfs[trackId] ?? []).filter(k => differentTime(k.time, destTime)), { ...src, time: destTime }].sort((a, b) => a.time - b.time) };
         physicsKeyframesRef.current = next;
@@ -469,20 +468,20 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleRenameSceneMarker = useCallback((time: number, label?: string) => {
     if (!label) return;
     const prev = getTimelineState();
-    const next = sceneMarkersRef.current.map(m => Math.abs(m.time - time) < 0.01 ? { ...m, label } : m);
+    const next = sceneMarkersRef.current.map(m => sameTime(m.time, time) ? { ...m, label } : m);
     sceneMarkersRef.current = next;
     setSceneMarkers(next);
     pushHistory({ ...prev, sceneMarkers: next });
   }, [getTimelineState, pushHistory]);
 
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
-    setSceneMarkers(prev => prev.map(m => Math.abs(m.time - oldTime) < 0.01 ? { ...m, time: newTime } : m).sort((a, b) => a.time - b.time));
+    setSceneMarkers(prev => prev.map(m => sameTime(m.time, oldTime) ? { ...m, time: newTime } : m).sort((a, b) => a.time - b.time));
   }, []);
 
   const handleSetValue = useCallback((trackId: string, time: number, value: number) => {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prev => {
-        const next = prev.map(s => Math.abs(s.time - time) >= 0.01 ? s : { ...s, tension: Math.max(0, value) });
+        const next = prev.map(s => differentTime(s.time, time) ? s : { ...s, tension: Math.max(0, value) });
         cameraKeyframesRef.current = next;
         return next;
       });
@@ -509,10 +508,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   // color helper to derive light fill
   const handleKeyframeSelect = useCallback((track: string, time: number, additive: boolean) => {
     setSelectedKeyframes(prev => {
-      const already = prev.some(s => s.track === track && Math.abs(s.time - time) < 0.01);
+      const already = prev.some(s => s.track === track && sameTime(s.time, time));
       if (additive) {
         return already
-          ? prev.filter(s => !(s.track === track && Math.abs(s.time - time) < 0.01))
+          ? prev.filter(s => !(s.track === track && sameTime(s.time, time)))
           : [...prev, { track, time }];
       } else {
         return already ? prev : [{ track, time }];
