@@ -11,6 +11,7 @@ import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMen
 import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 import { useT } from '../../i18n/useT';
+import { withinSelection } from './timeUtils';
 
 /* ── Small helper components ── */
 
@@ -79,11 +80,11 @@ export function Timeline(props: TimelineProps) {
     if (selectedKeyframes.length === 0) return;
     const sel = selectedKeyframes[0];
     if (sel.track === 'camera-keyframes') {
-      const kf = cameraKeyframes.find(k => Math.abs(k.time - sel.time) < 0.01);
+      const kf = cameraKeyframes.find(k => withinSelection(k.time, sel.time));
       if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
     } else {
       const arr = physicsKeyframes[sel.track] ?? [];
-      const kf = arr.find(k => Math.abs(k.time - sel.time) < 0.01);
+      const kf = arr.find(k => withinSelection(k.time, sel.time));
       if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
     }
   }, [selectedKeyframes, cameraKeyframes, physicsKeyframes]);
@@ -123,11 +124,11 @@ export function Timeline(props: TimelineProps) {
     innerCtxHandledRef.current = true;
     let easingType: any = 'auto';
     if (trackId === 'camera-keyframes') {
-      const kf = cameraKeyframes.find(k => Math.abs(k.time - kfTime) < 0.01);
+      const kf = cameraKeyframes.find(k => withinSelection(k.time, kfTime));
       if (kf) easingType = inferEasingType(kf as any);
     } else {
       const arr = physicsKeyframes[trackId] ?? [];
-      const kf = arr.find(k => Math.abs(k.time - kfTime) < 0.01);
+      const kf = arr.find(k => withinSelection(k.time, kfTime));
       if (kf) easingType = inferEasingType(kf);
     }
     setContextMenuTarget({ mode: 'keyframe', track: trackId, time: kfTime, easingType });

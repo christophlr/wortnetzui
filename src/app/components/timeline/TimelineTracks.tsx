@@ -10,6 +10,7 @@ import {
 import { TrackLabel, SceneMarkerHandle } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 import { useT } from '../../i18n/useT';
+import { sameTime, withinSelection, withinSnap } from './timeUtils';
 
 /* ── Scene Marker Lane ── */
 
@@ -51,7 +52,7 @@ export function SceneMarkerLane({
       // Snap to other markers? Maybe not while dragging the marker itself, but good to have the option.
       // Usually you don't snap a marker to another marker.
       const t = timeFromClientX(ev.clientX, contentRef.current, snapPoints);
-      if (t !== null && Math.abs(t - currentTime) > 0.001) {
+      if (t !== null && !withinSnap(t, currentTime)) {
         onMoveMarker?.(currentTime, t);
         currentTime = t;
         setDraggingMarker(prev => prev ? { ...prev, currentTime: t } : null);
@@ -59,7 +60,7 @@ export function SceneMarkerLane({
     };
     const onUp = () => {
       setDraggingMarker(null);
-      if (Math.abs(currentTime - marker.time) > 0.001) {
+      if (!withinSnap(currentTime, marker.time)) {
         onDropMarker?.(marker.time, currentTime);
       }
       window.removeEventListener('mousemove', onMove);
@@ -89,7 +90,7 @@ export function SceneMarkerLane({
             : marker.time;
           const pct = ((displayTime - viewWindow.start) / visibleDuration) * 100;
           if (pct < -5 || pct > 105) return null;
-          const isSelected = selectedKeyframes?.some(s => s.track === 'scene-markers' && Math.abs(s.time - marker.time) < 0.01) ?? false;
+          const isSelected = selectedKeyframes?.some(s => s.track === 'scene-markers' && withinSelection(s.time, marker.time)) ?? false;
 
           return (
             <button
@@ -195,7 +196,7 @@ export function TrackRow({
     if (e.button === 2) return; // right-click handled by context menu
 
     const isAdditive = e.shiftKey || e.metaKey;
-    const isAlreadySelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kfTime) < 0.1) ?? false;
+    const isAlreadySelected = selectedKeyframes?.some(s => s.track === trackId && sameTime(s.time, kfTime)) ?? false;
 
     // Premiere/AE convention: clicking an unselected keyframe without a modifier
     // clears the current selection and selects only this keyframe before dragging.
@@ -221,7 +222,7 @@ export function TrackRow({
 
     const onMove = (ev: MouseEvent) => {
       const t = timeFromClientX(ev.clientX, contentRef.current, snapPoints);
-      if (t !== null && Math.abs(t - currentTime) > 0.001) {
+      if (t !== null && !withinSnap(t, currentTime)) {
         onMoveKeyframe?.(trackId, currentTime, t);
         currentTime = t;
       }
@@ -282,7 +283,7 @@ export function TrackRow({
         {keyframes.map((kf, i) => {
           const pct = ((kf.time - viewWindow.start) / visibleDuration) * 100;
           if (pct < -3 || pct > 103) return null;
-          const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
+          const isSelected = selectedKeyframes?.some(s => s.track === trackId && withinSelection(s.time, kf.time));
           const prevKf = i > 0 ? keyframes[i - 1] : null;
           const nextKf = i + 1 < keyframes.length ? keyframes[i + 1] : null;
           const easingType = inferEasingType(kf, prevKf, nextKf, kf.value);

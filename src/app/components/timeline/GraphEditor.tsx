@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { LABEL_W, GRAPH_H, COLOR, inferEasingType, type ViewWindow, type EasingType } from './types';
 import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+import { withinSelection } from './timeUtils';
 
 /**
  * Full Hermite curve editor for a single track.
@@ -256,7 +257,7 @@ export function GraphEditor({
             if (xPct < -5 || xPct > 105) return null;
 
             const y = getNormY(kfVal);
-            const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
+            const isSelected = selectedKeyframes?.some(s => s.track === trackId && withinSelection(s.time, kf.time));
             const isHover = false;
 
             // Tangent computation

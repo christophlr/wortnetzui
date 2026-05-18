@@ -1,4 +1,5 @@
 import type { ViewWindow } from './types';
+import { withinSnap } from './timeUtils';
 
 /**
  * Adaptive tick ruler for the timeline.
@@ -33,7 +34,7 @@ export function TimelineRuler({
     if (t < 0 || t > duration) continue;
     const leftPct = ((t - viewWindow.start) / visibleDuration) * 100;
     if (leftPct < -1 || leftPct > 101) continue;
-    ticks.push({ t, major: Math.abs(t % majorStep) < 0.001, leftPct });
+    ticks.push({ t, major: withinSnap(t % majorStep, 0), leftPct });
   }
 
   const formatTime = (t: number) => {
