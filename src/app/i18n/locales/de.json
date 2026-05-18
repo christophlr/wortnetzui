@@ -183,6 +183,11 @@
       "copy":            "Kopieren",
       "cut":             "Ausschneiden",
       "delete":          "Löschen",
+      "duplicate":       "Duplizieren",
+      "rippleDelete":    "Ripple-Löschen",
+      "selectAll":       "Alle auswählen",
+      "createKeyframesHere": "Keyframes auf allen Spuren hier erstellen",
+      "resetTrack":      "Auf Standard zurücksetzen",
       "keyframeEasing":  "Keyframe-Interpolation",
       "easing": {
         "auto":     "Auto (Weich)",

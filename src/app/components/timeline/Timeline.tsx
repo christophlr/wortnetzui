@@ -95,6 +95,21 @@ export function Timeline(props: TimelineProps) {
     onDuplicateKeyframe?.(clipboard.track, clipboard.kfData.time, playheadPosition);
   }, [clipboard, playheadPosition, onDuplicateKeyframe]);
 
+  const handleSelectAll = useCallback(() => {
+    const all: { track: string; time: number }[] = [];
+    cameraKeyframes.forEach(k => all.push({ track: 'camera-keyframes', time: k.time }));
+    Object.entries(physicsKeyframes).forEach(([tid, kfs]) =>
+      (kfs ?? []).forEach(k => all.push({ track: tid, time: k.time }))
+    );
+    sceneMarkers.forEach(m => all.push({ track: 'scene-markers', time: m.time }));
+    onSelectKeyframes?.(all);
+  }, [cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes]);
+
+  const handleDuplicateAtTarget = useCallback(() => {
+    if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
+    onDuplicateKeyframe?.(contextMenuTarget.track, contextMenuTarget.time, playheadPosition);
+  }, [contextMenuTarget, onDuplicateKeyframe, playheadPosition]);
+
   // Context menu handlers
   const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
     let easingType: any = 'auto';
@@ -570,6 +585,8 @@ export function Timeline(props: TimelineProps) {
             onCut={handleCut}
             onPaste={clipboard ? handlePaste : undefined}
             onDelete={onDeleteSelected}
+            onDuplicate={handleDuplicateAtTarget}
+            onSelectAll={handleSelectAll}
             onAddSceneMarker={onAddSceneMarker}
             onSetEasing={handleSetEasing}
           />

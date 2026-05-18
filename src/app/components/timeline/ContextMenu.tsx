@@ -21,6 +21,10 @@ interface TimelineContextMenuProps {
   onCut?: () => void;
   onPaste?: () => void;
   onDelete?: () => void;
+  onDuplicate?: () => void;
+  onRippleDelete?: () => void;
+  onSelectAll?: () => void;
+  onCreateKeyframesAtMarker?: (time: number) => void;
   onAddSceneMarker?: (time: number) => void;
   onSetEasing?: (type: EasingType) => void;
   onClose: () => void;
@@ -34,7 +38,8 @@ interface TimelineContextMenuProps {
  */
 export function TimelineContextMenuContent({
   target, onCopy, onCut, onPaste, onDelete,
-  onAddSceneMarker, onSetEasing, onClose,
+  onDuplicate, onRippleDelete, onSelectAll, onCreateKeyframesAtMarker,
+  onAddSceneMarker, onSetEasing,
 }: TimelineContextMenuProps) {
   const { t } = useT();
 
@@ -53,6 +58,10 @@ export function TimelineContextMenuContent({
         <>
           <ContextMenuItem onClick={() => onAddSceneMarker?.(target.time)}>
             {t('timeline.contextMenu.addSceneMarker')}
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onSelectAll} disabled={!onSelectAll}>
+            {t('timeline.contextMenu.selectAll')}
+            <ContextMenuShortcut>⌘A</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onPaste} disabled={!onPaste}>
@@ -75,6 +84,9 @@ export function TimelineContextMenuContent({
           <ContextMenuItem onClick={onPaste} disabled={!onPaste}>
             {t('timeline.contextMenu.pasteAtPlayhead')}
             <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onDuplicate} disabled={!onDuplicate}>
+            {t('timeline.contextMenu.duplicate')}
           </ContextMenuItem>
 
           <ContextMenuSeparator />

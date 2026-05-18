@@ -183,6 +183,11 @@
       "copy":            "Copy",
       "cut":             "Cut",
       "delete":          "Delete",
+      "duplicate":       "Duplicate",
+      "rippleDelete":    "Ripple delete",
+      "selectAll":       "Select all",
+      "createKeyframesHere": "Create keyframes on all tracks here",
+      "resetTrack":      "Reset to default",
       "keyframeEasing":  "Keyframe easing",
       "easing": {
         "auto":     "Auto (smooth)",
