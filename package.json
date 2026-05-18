@@ -1,7 +1,7 @@
 {
   "name": "wortnetzui",
   "private": true,
-  "version": "0.204",
+  "version": "0.208",
   "type": "module",
   "packageManager": "npm@10.x",
   "scripts": {
@@ -9,7 +9,11 @@
     "prebuild": "node ./scripts/sync-version.mjs --build",
     "build": "vite build",
     "dev": "vite --host",
-    "dev:fixed": "bash ./scripts/dev-fixed.sh"
+    "dev:fixed": "bash ./scripts/dev-fixed.sh",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:inspector": "! grep -ri 'inspector' src/app/",
+    "check:time-literals": "! grep -rE 'Math\\.abs\\(.*0\\.(001|01|1)[^0-9]' src/app/components/timeline/"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -77,9 +81,11 @@
     "@tailwindcss/vite": "4.1.12",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.7.0",
+    "@vitest/coverage-v8": "^4.1.6",
     "tailwindcss": "4.1.12",
     "typescript": "^6.0.3",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vitest": "^4.1.6"
   },
   "peerDependencies": {
     "react": "18.3.1",

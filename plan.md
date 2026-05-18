@@ -1,3 +1,5 @@
+!!!THIS IS OUTDATED AND ALREADY IMPLEMENTED!!!
+
 # Wortnetze — Comprehensive Modularization & i18n Plan
 
 ## Context
