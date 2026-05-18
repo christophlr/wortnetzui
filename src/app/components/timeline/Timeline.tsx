@@ -590,7 +590,6 @@ export function Timeline(props: TimelineProps) {
         {contextMenuTarget && (
           <TimelineContextMenuContent
             target={contextMenuTarget}
-            onClose={() => setContextMenuTarget(null)}
             onCopy={handleCopy}
             onCut={handleCut}
             onPaste={clipboard ? handlePaste : undefined}

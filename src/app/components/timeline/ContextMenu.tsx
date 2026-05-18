@@ -1,4 +1,3 @@
-import * as React from 'react';
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -29,9 +28,6 @@ interface TimelineContextMenuProps {
   onResetTrack?: (trackId: string) => void;
   onAddSceneMarker?: (time: number) => void;
   onSetEasing?: (type: EasingType) => void;
-  onClose: () => void;
-  x?: number;
-  y?: number;
 }
 
 /**
@@ -166,19 +162,3 @@ export function TimelineContextMenuContent({
   );
 }
 
-export function TimelineContextMenu({ x = 0, y = 0, onClose, ...props }: TimelineContextMenuProps) {
-  React.useEffect(() => {
-    const handleUp = () => onClose();
-    window.addEventListener('mouseup', handleUp, { capture: true, once: true });
-    return () => window.removeEventListener('mouseup', handleUp, { capture: true });
-  }, [onClose]);
-
-  return (
-    <div 
-      style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }} 
-      onContextMenu={e => e.preventDefault()}
-    >
-      <TimelineContextMenuContent onClose={onClose} {...props} />
-    </div>
-  );
-}
