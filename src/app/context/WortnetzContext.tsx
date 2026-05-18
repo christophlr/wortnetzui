@@ -123,10 +123,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     setSceneMarkers(state.sceneMarkers ?? []);
   }, []);
 
-  const { push: pushHistory, undo, redo, canUndo, canRedo } = useUndoStack<TimelineState>(
+  const { push: pushHistory, pushDebounced: pushHistoryDebounced, undo, redo, canUndo, canRedo } = useUndoStack<TimelineState>(
     getTimelineState,
     applyTimelineState,
-    { capacity: 50 }
+    { capacity: 30 }
   );
 
   const network3DRef = useRef<Network3DHandle>(null);
@@ -262,10 +262,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     if (isMultiDrag) {
       setCameraKeyframes(prev => {
         const selectedTimes = new Set(sel.filter(s => s.track === 'camera-keyframes').map(s => s.time));
-        const next = prev.map(s => selectedTimes.has(s.time)
+        const moved = prev.map(s => selectedTimes.has(s.time)
           ? { ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)) }
           : s
-        ).sort((a, b) => a.time - b.time);
+        );
+        // Dedup: keep first occurrence when two keyframes land on the same time.
+        const deduped = moved.filter((s, i) => moved.findIndex(x => sameTime(x.time, s.time)) === i);
+        const next = deduped.sort((a, b) => a.time - b.time);
         cameraKeyframesRef.current = next;
         return next;
       });
@@ -273,20 +276,24 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         const nextKfs: Record<string, PhysicsKeyframe[]> = { ...prev };
         for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
           const selectedTimes = new Set(sel.filter(s => s.track === tid).map(s => s.time));
-          nextKfs[tid] = (prev[tid] ?? []).map(k => selectedTimes.has(k.time)
+          const moved = (prev[tid] ?? []).map(k => selectedTimes.has(k.time)
             ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
             : k
-          ).sort((a, b) => a.time - b.time);
+          );
+          const deduped = moved.filter((k, i) => moved.findIndex(x => sameTime(x.time, k.time)) === i);
+          nextKfs[tid] = deduped.sort((a, b) => a.time - b.time);
         }
         physicsKeyframesRef.current = nextKfs;
         return nextKfs;
       });
       setSceneMarkers(prev => {
         const selectedTimes = new Set(sel.filter(s => s.track === 'scene-markers').map(s => s.time));
-        const next = prev.map(m => selectedTimes.has(m.time)
+        const moved = prev.map(m => selectedTimes.has(m.time)
           ? { ...m, time: Math.max(0, Math.min(TIMELINE_DURATION, m.time + delta)) }
           : m
-        ).sort((a, b) => a.time - b.time);
+        );
+        const deduped = moved.filter((m, i) => moved.findIndex(x => sameTime(x.time, m.time)) === i);
+        const next = deduped.sort((a, b) => a.time - b.time);
         sceneMarkersRef.current = next;
         return next;
       });
@@ -545,8 +552,17 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   }, [getTimelineState, pushHistory]);
 
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
-    setSceneMarkers(prev => prev.map(m => sameTime(m.time, oldTime) ? { ...m, time: newTime } : m).sort((a, b) => a.time - b.time));
+    const next = sceneMarkersRef.current
+      .map(m => sameTime(m.time, oldTime) ? { ...m, time: newTime } : m)
+      .sort((a, b) => a.time - b.time);
+    sceneMarkersRef.current = next;
+    setSceneMarkers(next);
   }, []);
+
+  // Called once on drag-end; commits the final marker position to undo history.
+  const handleDropSceneMarker = useCallback((_fromTime: number, _toTime: number) => {
+    pushHistory(getTimelineState());
+  }, [getTimelineState, pushHistory]);
 
   const handleSetValue = useCallback((trackId: string, time: number, value: number) => {
     if (trackId === 'camera-keyframes') {
@@ -555,7 +571,18 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         cameraKeyframesRef.current = next;
         return next;
       });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevKfs => {
+        const track = prevKfs[trackId] ?? [];
+        const next = {
+          ...prevKfs,
+          [trackId]: track.map(k => differentTime(k.time, time) ? k : { ...k, value: Math.max(0, value) }),
+        };
+        physicsKeyframesRef.current = next;
+        return next;
+      });
     }
+    // Value drags are bracketed by handleDragStart/handleDragEnd; no push needed here.
   }, []);
 
   const handleTogglePhysicsKeyframe = useCallback((trackId: string, value: number) => {
@@ -595,12 +622,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const handlePhysicsChange = useCallback((params: Partial<typeof physicsParams>) => {
     setPhysicsParams(prev => ({ ...prev, ...params }));
-    
+
     const currentTime = playheadRef.current;
     setPhysicsKeyframes(prevKfs => {
       let changed = false;
       const nextKfs = { ...prevKfs };
-      
+
       for (const [trackId, paramName] of Object.entries(PHYS_TRACK_PARAM)) {
         const newVal = (params as Record<string, number>)[paramName];
         if (newVal === undefined) continue;
@@ -608,7 +635,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         const track = prevKfs[trackId] ?? [];
         const isRecordingLocal = isRecordingRef.current;
         if (track.length === 0 && !isRecordingLocal) continue;
-        
+
         const kfIdx = track.findIndex(k => sameTime(k.time, currentTime));
         if (kfIdx >= 0) {
           if (newVal !== track[kfIdx].value) {
@@ -621,12 +648,15 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           changed = true;
         }
       }
-      
+
       if (!changed) return prevKfs;
       physicsKeyframesRef.current = nextKfs;
       return nextKfs;
     });
-  }, []);
+    // Debounce-commit: slider drags have no explicit start/end bracket, so we push
+    // a snapshot 500 ms after the last change so undo captures one entry per gesture.
+    pushHistoryDebounced(500);
+  }, [pushHistoryDebounced]);
 
   const preDragStateRef = useRef<TimelineState | null>(null);
 
@@ -670,7 +700,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       effectivePhysicsParams, previewIsDark, uiIsDark,
       handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe, handleResetTrack,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
-      handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
+      handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker, handleDropSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,
       handleTogglePhysicsKeyframe,
       handleKeyframeSelect, handleSelectKeyframes, handlePhysicsChange,

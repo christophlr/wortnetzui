@@ -188,7 +188,8 @@ export interface WortnetzContextType {
   handleAddSceneMarker: (time: number, label?: string) => void;
   handleRenameSceneMarker: (time: number, label?: string) => void;
   handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
-  
+  handleDropSceneMarker: (fromTime: number, toTime: number) => void;
+
   handleSetValue: (trackId: string, time: number, value: number) => void;
   handleSetHandle2D: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleCameraChange: () => void;
