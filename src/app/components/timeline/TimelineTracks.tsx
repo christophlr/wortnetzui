@@ -16,7 +16,7 @@ import { useT } from '../../i18n/useT';
 export function SceneMarkerLane({
   markers, viewWindow, selectedKeyframes,
   onAddMarker, onMoveMarker, onDropMarker, onDeleteMarker,
-  onSelect, onContextMenu, timeFromClientX, contentRef,
+  onSelect, onContextMenu, timeFromClientX, contentRef, playheadTime,
 }: {
   markers: SceneMarker[];
   viewWindow: ViewWindow;
@@ -89,7 +89,7 @@ export function SceneMarkerLane({
             : marker.time;
           const pct = ((displayTime - viewWindow.start) / visibleDuration) * 100;
           if (pct < -5 || pct > 105) return null;
-          const isSelected = selectedKeyframes?.some(s => s.track === 'scene-markers' && Math.abs(s.time - marker.time) < 0.01);
+          const isSelected = selectedKeyframes?.some(s => s.track === 'scene-markers' && Math.abs(s.time - marker.time) < 0.01) ?? false;
 
           return (
             <button
@@ -123,7 +123,7 @@ export function TrackRow({
   onToggleGraphEditor,
   onSelect, onMoveKeyframe, onContextMenu, onTrackHeaderContextMenu,
   onDragStart, onDragEnd, onDuplicateKeyframe,
-  timeFromClientX, contentRef, sceneMarkers = [],
+  timeFromClientX, contentRef, sceneMarkers = [], playheadTime,
 }: {
   trackId: string;
   name: string;
