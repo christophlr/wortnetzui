@@ -13,7 +13,8 @@ import { useT } from '../../i18n/useT';
 export type ContextMenuTarget =
   | { mode: 'background'; time: number }
   | { mode: 'keyframe'; track: string; time: number; easingType?: EasingType }
-  | { mode: 'scene-marker'; time: number; label: string };
+  | { mode: 'scene-marker'; time: number; label: string }
+  | { mode: 'track-header'; track: string };
 
 interface TimelineContextMenuProps {
   target: ContextMenuTarget;
@@ -25,6 +26,7 @@ interface TimelineContextMenuProps {
   onRippleDelete?: () => void;
   onSelectAll?: () => void;
   onCreateKeyframesAtMarker?: (time: number) => void;
+  onResetTrack?: (trackId: string) => void;
   onAddSceneMarker?: (time: number) => void;
   onSetEasing?: (type: EasingType) => void;
   onClose: () => void;
@@ -38,7 +40,7 @@ interface TimelineContextMenuProps {
  */
 export function TimelineContextMenuContent({
   target, onCopy, onCut, onPaste, onDelete,
-  onDuplicate, onRippleDelete, onSelectAll, onCreateKeyframesAtMarker,
+  onDuplicate, onRippleDelete, onSelectAll, onCreateKeyframesAtMarker, onResetTrack,
   onAddSceneMarker, onSetEasing,
 }: TimelineContextMenuProps) {
   const { t } = useT();
@@ -120,6 +122,16 @@ export function TimelineContextMenuContent({
             {t('timeline.contextMenu.rippleDelete')}
           </ContextMenuItem>
         </>
+      )}
+
+      {target.mode === 'track-header' && (
+        <ContextMenuItem
+          onClick={() => onResetTrack?.(target.track)}
+          disabled={!onResetTrack}
+          variant="destructive"
+        >
+          {t('timeline.contextMenu.resetTrack')}
+        </ContextMenuItem>
       )}
 
       {target.mode === 'scene-marker' && (

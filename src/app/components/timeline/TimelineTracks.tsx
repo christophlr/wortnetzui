@@ -121,7 +121,7 @@ export function TrackRow({
   selectedKeyframes, showMiniCurve,
   isGraphEditorVisible,
   onToggleGraphEditor,
-  onSelect, onMoveKeyframe, onContextMenu,
+  onSelect, onMoveKeyframe, onContextMenu, onTrackHeaderContextMenu,
   onDragStart, onDragEnd, onDuplicateKeyframe,
   timeFromClientX, contentRef, sceneMarkers = [],
 }: {
@@ -137,6 +137,7 @@ export function TrackRow({
   onSelect?: (track: string, time: number, additive: boolean) => void;
   onMoveKeyframe?: (trackId: string, oldTime: number, newTime: number) => void;
   onContextMenu?: (trackId: string, time: number) => void;
+  onTrackHeaderContextMenu?: (trackId: string) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
@@ -242,8 +243,19 @@ export function TrackRow({
   const [dragDelta, setDragDelta] = useState<{ x: number; y: number; dt: number } | null>(null);
 
   return (
-    <div className={`group flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
-      {/* Label */}
+    <div
+      className={`group flex border-b border-border/50 ${colorMap.border} border-l-2`}
+      style={{ height: TRACK_H }}
+    >
+      {/* Label — right-click here resets the whole track. */}
+      <div
+        onContextMenu={(e) => {
+          if (!onTrackHeaderContextMenu) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onTrackHeaderContextMenu(trackId);
+        }}
+      >
       <TrackLabel padding="indent">
         <span className="text-[11px] text-muted-foreground truncate flex-1">{name}</span>
         {onToggleGraphEditor && (
@@ -256,6 +268,7 @@ export function TrackRow({
           </button>
         )}
       </TrackLabel>
+      </div>
       {/* Track area */}
       <div className={`flex-1 relative ${colorMap.trackBg}`}>
         {/* Mini-curve (Ableton-style faint curve in dopesheet mode) */}

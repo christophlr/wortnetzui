@@ -380,6 +380,23 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     }
   }, [getTimelineState, pushHistory]);
 
+  /** Clear all keyframes on a single track (used by track-header right-click "Reset to default"). */
+  const handleResetTrack = useCallback((trackId: string) => {
+    const prev = getTimelineState();
+    if (trackId === 'camera-keyframes') {
+      cameraKeyframesRef.current = [];
+      setCameraKeyframes([]);
+      setSelectedKeyframes(sel => sel.filter(s => s.track !== trackId));
+      pushHistory({ ...prev, cameraKeyframes: [] });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      const next = { ...physicsKeyframesRef.current, [trackId]: [] };
+      physicsKeyframesRef.current = next;
+      setPhysicsKeyframes(next);
+      setSelectedKeyframes(sel => sel.filter(s => s.track !== trackId));
+      pushHistory({ ...prev, physicsKeyframes: next });
+    }
+  }, [getTimelineState, pushHistory]);
+
   const handleSetHandle = useCallback((trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset = 0.33) => {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prev => {
@@ -651,7 +668,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,
       effectivePhysicsParams, previewIsDark, uiIsDark,
-      handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe,
+      handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe, handleResetTrack,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,

@@ -32,7 +32,7 @@ export function Timeline(props: TimelineProps) {
     cameraKeyframes = [], physicsKeyframes = {},
     onCaptureKeyframe, onMoveKeyframe,
     onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
-    onDeleteKeyframe, onDuplicateKeyframe, onRippleDeleteKeyframe,
+    onDeleteKeyframe, onDuplicateKeyframe, onRippleDeleteKeyframe, onResetTrack,
     onDragStart, onDragEnd,
     timecode = '00:00:00:00',
     onUndo, onRedo, canUndo, canRedo,
@@ -131,6 +131,10 @@ export function Timeline(props: TimelineProps) {
 
   const handleMarkerContextMenu = useCallback((time: number, label: string) => {
     setContextMenuTarget({ mode: 'scene-marker', time, label });
+  }, []);
+
+  const handleTrackHeaderContextMenu = useCallback((track: string) => {
+    setContextMenuTarget({ mode: 'track-header', track });
   }, []);
 
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
@@ -479,6 +483,7 @@ export function Timeline(props: TimelineProps) {
                 onMoveKeyframe={onMoveKeyframe}
                 onDuplicateKeyframe={onDuplicateKeyframe}
                 onContextMenu={handleKeyframeContextMenu}
+                onTrackHeaderContextMenu={handleTrackHeaderContextMenu}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 timeFromClientX={timeFromClientX}
@@ -595,6 +600,7 @@ export function Timeline(props: TimelineProps) {
             onSelectAll={handleSelectAll}
             onAddSceneMarker={onAddSceneMarker}
             onCreateKeyframesAtMarker={onCreateKeyframesAtMarker}
+            onResetTrack={onResetTrack}
             onSetEasing={handleSetEasing}
           />
         )}
