@@ -337,6 +337,17 @@ export function GraphEditor({
                   </>
                 )}
 
+                {/* Selection ring */}
+                {isSelected && (
+                  <circle
+                    cx={`${xPct}%`} cy={y} r={8}
+                    fill="none"
+                    stroke="var(--wn-timeline-kf-selected-outline)"
+                    strokeOpacity={0.3}
+                    strokeWidth={1.5}
+                    pointerEvents="none"
+                  />
+                )}
                 {/* Keyframe dot */}
                 <circle
                   cx={`${xPct}%`} cy={y} r={isSelected ? 6 : 5}
