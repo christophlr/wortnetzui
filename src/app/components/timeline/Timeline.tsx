@@ -48,7 +48,7 @@ export function Timeline(props: TimelineProps) {
   const { t } = useT();
   const contentRef = useRef<HTMLDivElement>(null);
   const view = useTimelineView(TIMELINE_DURATION);
-  const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration } = view;
+  const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration, setPanStart, duration } = view;
 
   // Graph editor toggle
   const [expandedGraphTracks, setExpandedGraphTracks] = useState<Set<string>>(new Set());
@@ -163,8 +163,33 @@ export function Timeline(props: TimelineProps) {
     window.addEventListener('mouseup', onUp);
   }, [timeFromClientX, onPlayheadChange, onSelectKeyframes]);
 
-  // Drag-select
+  // Middle-click pan — drag the timeline view horizontally.
   const handleTrackAreaMouseDown = useCallback((e: React.MouseEvent) => {
+    // Middle-click → pan view.
+    if (e.button === 1) {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startPan = view.panStart;
+      const rect = contentRef.current?.getBoundingClientRect();
+      const rightW = rect ? rect.width - LABEL_W : 1;
+      const visibleDuration = viewWindow.end - viewWindow.start;
+      const secondsPerPixel = visibleDuration / rightW;
+      const maxStart = Math.max(0, duration - visibleDuration);
+
+      const onMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX;
+        const newPan = Math.max(0, Math.min(maxStart, startPan - dx * secondsPerPixel));
+        setPanStart(newPan);
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      return;
+    }
+
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button')) return;
     const startX = e.clientX;
@@ -206,7 +231,7 @@ export function Timeline(props: TimelineProps) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [timeFromClientX, cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes]);
+  }, [timeFromClientX, cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes, view.panStart, viewWindow, duration, setPanStart, onPlayheadChange]);
 
   // Auto-extend duration check
   useEffect(() => {
