@@ -1,7 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useRef, useCallback, useReducer, useEffect } from 'react';
 
 export interface UndoStackOptions {
   capacity?: number;
+}
+
+interface UndoState<T> {
+  history: T[];
+  index: number;
 }
 
 export function useUndoStack<T>(
@@ -9,9 +14,13 @@ export function useUndoStack<T>(
   applyState: (state: T) => void,
   options: UndoStackOptions = {}
 ) {
-  const { capacity = 50 } = options;
-  const [history, setHistory] = useState<T[]>(() => [getState()]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const { capacity = 30 } = options;
+
+  // Refs hold the canonical state so push/undo/redo never read stale closures.
+  const stateRef = useRef<UndoState<T>>({ history: [structuredClone(getState())], index: 0 });
+  // Trigger re-renders so canUndo/canRedo stay reactive.
+  const [, forceRender] = useReducer((n: number) => n + 1, 0);
+
   const debounceTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -27,57 +36,63 @@ export function useUndoStack<T>(
       window.clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-    
-    setHistory(h => {
-      const nextH = [...h.slice(0, currentIndex + 1), nextState].slice(-capacity);
-      return nextH;
-    });
-    setCurrentIndex(i => Math.min(i + 1, capacity - 1));
-  }, [currentIndex, capacity]);
+    const { history, index } = stateRef.current;
+    const truncated = history.slice(0, index + 1);
+    const next = [...truncated, structuredClone(nextState)].slice(-capacity);
+    stateRef.current = { history: next, index: next.length - 1 };
+    forceRender();
+  }, [capacity]);
 
-  const pushDebounced = useCallback((ms: number) => {
+  const pushDebounced = useCallback((ms: number, nextState?: T) => {
     if (debounceTimerRef.current !== null) {
       window.clearTimeout(debounceTimerRef.current);
     }
-    
+    const snapshot = nextState !== undefined ? structuredClone(nextState) : null;
     debounceTimerRef.current = window.setTimeout(() => {
-      push(getState());
+      const s = snapshot ?? structuredClone(getState());
+      const { history, index } = stateRef.current;
+      const truncated = history.slice(0, index + 1);
+      const next = [...truncated, s].slice(-capacity);
+      stateRef.current = { history: next, index: next.length - 1 };
+      forceRender();
       debounceTimerRef.current = null;
     }, ms);
-  }, [push, getState]);
+  }, [getState, capacity]);
 
   const undo = useCallback(() => {
-    if (currentIndex <= 0) return;
-    
     if (debounceTimerRef.current !== null) {
       window.clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-
-    const prevIndex = currentIndex - 1;
-    applyState(history[prevIndex]);
-    setCurrentIndex(prevIndex);
-  }, [currentIndex, history, applyState]);
+    const { history, index } = stateRef.current;
+    if (index <= 0) return;
+    const newIndex = index - 1;
+    stateRef.current = { history, index: newIndex };
+    applyState(structuredClone(history[newIndex]));
+    forceRender();
+  }, [applyState]);
 
   const redo = useCallback(() => {
-    if (currentIndex >= history.length - 1) return;
-
     if (debounceTimerRef.current !== null) {
       window.clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
+    const { history, index } = stateRef.current;
+    if (index >= history.length - 1) return;
+    const newIndex = index + 1;
+    stateRef.current = { history, index: newIndex };
+    applyState(structuredClone(history[newIndex]));
+    forceRender();
+  }, [applyState]);
 
-    const nextIndex = currentIndex + 1;
-    applyState(history[nextIndex]);
-    setCurrentIndex(nextIndex);
-  }, [currentIndex, history, applyState]);
+  const { index, history } = stateRef.current;
 
   return {
     push,
     pushDebounced,
     undo,
     redo,
-    canUndo: currentIndex > 0,
-    canRedo: currentIndex < history.length - 1,
+    canUndo: index > 0,
+    canRedo: index < history.length - 1,
   };
 }
