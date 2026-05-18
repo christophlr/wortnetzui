@@ -298,28 +298,43 @@ export function GraphEditor({
                   />
                 )}
 
-                {/* Handle dots — only when selected/hovered */}
+                {/* Handle dots — only when selected/hovered. */}
+                {/* Each handle has a transparent r=12 hit-target overlaying the visible r=5 dot. */}
                 {showHandles && tNext !== null && (
-                  <circle
-                    cx={`${xOut}%`} cy={yOut} r="5"
-                    fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
-                    stroke={colorMap.graphStroke} strokeWidth="1.5"
-                    strokeOpacity={isAutoHandles ? 0.4 : 1}
-                    className="cursor-move"
-                    onMouseDown={(e) => startHandleDrag(e, kf, 'out', mOut, handleTimeOut)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
-                  />
+                  <>
+                    <circle
+                      cx={`${xOut}%`} cy={yOut} r="12"
+                      fill="transparent" pointerEvents="all"
+                      className="cursor-move"
+                      onMouseDown={(e) => startHandleDrag(e, kf, 'out', mOut, handleTimeOut)}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
+                    />
+                    <circle
+                      cx={`${xOut}%`} cy={yOut} r="5"
+                      fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
+                      stroke={colorMap.graphStroke} strokeWidth="1.5"
+                      strokeOpacity={isAutoHandles ? 0.4 : 1}
+                      pointerEvents="none"
+                    />
+                  </>
                 )}
                 {showHandles && tPrev !== null && (
-                  <circle
-                    cx={`${xIn}%`} cy={yIn} r="5"
-                    fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
-                    stroke={colorMap.graphStroke} strokeWidth="1.5"
-                    strokeOpacity={isAutoHandles ? 0.4 : 1}
-                    className="cursor-move"
-                    onMouseDown={(e) => startHandleDrag(e, kf, 'in', mIn, handleTimeIn)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
-                  />
+                  <>
+                    <circle
+                      cx={`${xIn}%`} cy={yIn} r="12"
+                      fill="transparent" pointerEvents="all"
+                      className="cursor-move"
+                      onMouseDown={(e) => startHandleDrag(e, kf, 'in', mIn, handleTimeIn)}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
+                    />
+                    <circle
+                      cx={`${xIn}%`} cy={yIn} r="5"
+                      fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
+                      stroke={colorMap.graphStroke} strokeWidth="1.5"
+                      strokeOpacity={isAutoHandles ? 0.4 : 1}
+                      pointerEvents="none"
+                    />
+                  </>
                 )}
 
                 {/* Keyframe dot */}
