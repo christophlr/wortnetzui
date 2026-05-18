@@ -169,6 +169,7 @@ export interface TimelineProps {
   onDropSceneMarker?: (fromTime: number, toTime: number) => void;
   onDeleteSceneMarker?: (time: number) => void;
   onRenameSceneMarker?: (time: number, label?: string) => void;
+  onCreateKeyframesAtMarker?: (time: number) => void;
   isRecording?: boolean;
   onToggleRecording?: () => void;
   onCancelDrag?: () => void;

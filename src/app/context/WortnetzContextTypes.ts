@@ -175,7 +175,8 @@ export interface WortnetzContextType {
   uiIsDark: boolean;
   
   // Actions
-  handleCaptureKeyframe: () => void;
+  handleCaptureKeyframe: (atTime?: number) => void;
+  handleCreateKeyframesAtMarker: (time: number) => void;
   handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
   handleDeleteKeyframe: (trackId: string, time: number) => void;
   handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;

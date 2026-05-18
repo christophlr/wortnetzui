@@ -39,7 +39,7 @@ export function Timeline(props: TimelineProps) {
     height = 260,
     sceneMarkers = [],
     onAddSceneMarker, onMoveSceneMarker, onDropSceneMarker, onDeleteSceneMarker,
-    onRenameSceneMarker,
+    onRenameSceneMarker, onCreateKeyframesAtMarker,
     isRecording,
     onToggleRecording,
     onCancelDrag,
@@ -588,6 +588,7 @@ export function Timeline(props: TimelineProps) {
             onDuplicate={handleDuplicateAtTarget}
             onSelectAll={handleSelectAll}
             onAddSceneMarker={onAddSceneMarker}
+            onCreateKeyframesAtMarker={onCreateKeyframesAtMarker}
             onSetEasing={handleSetEasing}
           />
         )}

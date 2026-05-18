@@ -121,6 +121,13 @@ export function TimelineContextMenuContent({
 
       {target.mode === 'scene-marker' && (
         <>
+          <ContextMenuItem
+            onClick={() => onCreateKeyframesAtMarker?.(target.time)}
+            disabled={!onCreateKeyframesAtMarker}
+          >
+            {t('timeline.contextMenu.createKeyframesHere')}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={onCopy}>
             {t('timeline.contextMenu.copy')}
             <ContextMenuShortcut>⌘C</ContextMenuShortcut>

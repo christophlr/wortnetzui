@@ -167,9 +167,11 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleLoad = useCallback(() => ioLoad(), [ioLoad]);
 
   // Handlers
-  const handleCaptureKeyframe = useCallback(() => {
+  const handleCaptureKeyframe = useCallback((atTime?: number) => {
     const prev = getTimelineState();
-    const currentTime = playheadRef.current;
+    // Scene markers are time bookmarks, not state snapshots — when a marker triggers
+    // bulk capture, we use the marker's time. Otherwise capture at the playhead.
+    const currentTime = atTime ?? playheadRef.current;
     const effectivePhysics = network3DRef.current?.getEffectivePhysicsParams() ?? physicsParams;
 
     const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
@@ -226,6 +228,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     setSelectedKeyframes([]);
     pushHistory({ cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
+
+  const handleCreateKeyframesAtMarker = useCallback((time: number) => {
+    handleCaptureKeyframe(time);
+  }, [handleCaptureKeyframe]);
 
   const handleCameraChange = useCallback(() => {
     if (viewMode !== '3D') return;
@@ -604,7 +610,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,
       effectivePhysicsParams, previewIsDark, uiIsDark,
-      handleCaptureKeyframe, handleMoveKeyframe, handleDeleteKeyframe,
+      handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,

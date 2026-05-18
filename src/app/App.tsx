@@ -96,6 +96,7 @@ export default function App() {
                 timecode={wn.timecode} onUndo={wn.undo} onRedo={wn.redo}
                 canUndo={wn.canUndo} canRedo={wn.canRedo} height={wn.timelineHeight}
                 sceneMarkers={wn.sceneMarkers} onAddSceneMarker={wn.handleAddSceneMarker}
+                onCreateKeyframesAtMarker={wn.handleCreateKeyframesAtMarker}
                 onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker}
                 isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
               />
