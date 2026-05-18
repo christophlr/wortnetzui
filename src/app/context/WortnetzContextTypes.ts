@@ -179,6 +179,7 @@ export interface WortnetzContextType {
   handleCreateKeyframesAtMarker: (time: number) => void;
   handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
   handleDeleteKeyframe: (trackId: string, time: number) => void;
+  handleRippleDeleteKeyframe: (trackId: string, time: number) => void;
   handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleClearHandle: (trackId: string, time: number) => void;
   handleSetInterpolation: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;

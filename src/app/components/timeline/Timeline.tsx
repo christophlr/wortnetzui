@@ -32,7 +32,7 @@ export function Timeline(props: TimelineProps) {
     cameraKeyframes = [], physicsKeyframes = {},
     onCaptureKeyframe, onMoveKeyframe,
     onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
-    onDeleteKeyframe, onDuplicateKeyframe,
+    onDeleteKeyframe, onDuplicateKeyframe, onRippleDeleteKeyframe,
     onDragStart, onDragEnd,
     timecode = '00:00:00:00',
     onUndo, onRedo, canUndo, canRedo,
@@ -109,6 +109,11 @@ export function Timeline(props: TimelineProps) {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
     onDuplicateKeyframe?.(contextMenuTarget.track, contextMenuTarget.time, playheadPosition);
   }, [contextMenuTarget, onDuplicateKeyframe, playheadPosition]);
+
+  const handleRippleDeleteAtTarget = useCallback(() => {
+    if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
+    onRippleDeleteKeyframe?.(contextMenuTarget.track, contextMenuTarget.time);
+  }, [contextMenuTarget, onRippleDeleteKeyframe]);
 
   // Context menu handlers
   const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
@@ -586,6 +591,7 @@ export function Timeline(props: TimelineProps) {
             onPaste={clipboard ? handlePaste : undefined}
             onDelete={onDeleteSelected}
             onDuplicate={handleDuplicateAtTarget}
+            onRippleDelete={handleRippleDeleteAtTarget}
             onSelectAll={handleSelectAll}
             onAddSceneMarker={onAddSceneMarker}
             onCreateKeyframesAtMarker={onCreateKeyframesAtMarker}

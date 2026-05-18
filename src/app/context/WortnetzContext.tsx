@@ -339,6 +339,47 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     }
   }, [getTimelineState, pushHistory]);
 
+  /**
+   * Ripple-delete: removes the keyframe at `time` AND shifts every later keyframe
+   * on the same track left by the gap to the previous keyframe (or to 0 if none).
+   * Mirrors the Premiere/Avid "ripple delete" convention applied to point events.
+   */
+  const handleRippleDeleteKeyframe = useCallback((trackId: string, time: number) => {
+    const prev = getTimelineState();
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prevCkfs => {
+        const sorted = [...prevCkfs].sort((a, b) => a.time - b.time);
+        const idx = sorted.findIndex(k => sameTime(k.time, time));
+        if (idx === -1) return prevCkfs;
+        const prevTime = idx > 0 ? sorted[idx - 1].time : 0;
+        const gap = sorted[idx].time - prevTime;
+        const next = sorted
+          .filter((_, i) => i !== idx)
+          .map(k => k.time > time ? { ...k, time: Math.max(0, k.time - gap) } : k);
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const arr = [...(prevPkfs[trackId] ?? [])].sort((a, b) => a.time - b.time);
+        const idx = arr.findIndex(k => sameTime(k.time, time));
+        if (idx === -1) return prevPkfs;
+        const prevTime = idx > 0 ? arr[idx - 1].time : 0;
+        const gap = arr[idx].time - prevTime;
+        const kfs = arr
+          .filter((_, i) => i !== idx)
+          .map(k => k.time > time ? { ...k, time: Math.max(0, k.time - gap) } : k);
+        const next = { ...prevPkfs, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+      setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
+    }
+  }, [getTimelineState, pushHistory]);
+
   const handleSetHandle = useCallback((trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset = 0.33) => {
     if (trackId === 'camera-keyframes') {
       setCameraKeyframes(prev => {
@@ -610,7 +651,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,
       effectivePhysicsParams, previewIsDark, uiIsDark,
-      handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe,
+      handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,

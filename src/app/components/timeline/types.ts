@@ -154,6 +154,7 @@ export interface TimelineProps {
   onSetValue?: (trackId: string, time: number, value: number) => void;
   onSetInterpolation?: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
+  onRippleDeleteKeyframe?: (trackId: string, time: number) => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;

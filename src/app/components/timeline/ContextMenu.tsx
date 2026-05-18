@@ -116,6 +116,9 @@ export function TimelineContextMenuContent({
             {t('timeline.contextMenu.delete')}
             <ContextMenuShortcut>⌫</ContextMenuShortcut>
           </ContextMenuItem>
+          <ContextMenuItem onClick={onRippleDelete} disabled={!onRippleDelete} variant="destructive">
+            {t('timeline.contextMenu.rippleDelete')}
+          </ContextMenuItem>
         </>
       )}
 

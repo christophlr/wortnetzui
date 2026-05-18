@@ -92,6 +92,7 @@ export default function App() {
                 onSetHandle={wn.handleSetHandle} onSetHandle2D={wn.handleSetHandle2D}
                 onSetValue={wn.handleSetValue} onClearHandle={wn.handleClearHandle} onSetInterpolation={wn.handleSetInterpolation}
                 onDeleteKeyframe={wn.handleDeleteKeyframe} onDuplicateKeyframe={wn.handleDuplicateKeyframe}
+                onRippleDeleteKeyframe={wn.handleRippleDeleteKeyframe}
                 onDragStart={wn.handleDragStart} onDragEnd={wn.handleDragEnd} onCancelDrag={wn.handleCancelDrag}
                 timecode={wn.timecode} onUndo={wn.undo} onRedo={wn.redo}
                 canUndo={wn.canUndo} canRedo={wn.canRedo} height={wn.timelineHeight}
