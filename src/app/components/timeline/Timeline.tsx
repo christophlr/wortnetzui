@@ -55,6 +55,9 @@ export function Timeline(props: TimelineProps) {
 
   // Context menu target state (synced with Radix open state)
   const [contextMenuTarget, setContextMenuTarget] = useState<ContextMenuTarget | null>(null);
+  // Set to true by inner ctx-menu handlers (keyframe/marker/header) so the background
+  // handler knows to skip — avoids overwriting the target before Radix opens the menu.
+  const innerCtxHandledRef = useRef(false);
 
   // Clipboard
   const [clipboard, setClipboard] = useState<{ track: string; kfData: any } | null>(null);
@@ -117,6 +120,7 @@ export function Timeline(props: TimelineProps) {
 
   // Context menu handlers
   const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
+    innerCtxHandledRef.current = true;
     let easingType: any = 'auto';
     if (trackId === 'camera-keyframes') {
       const kf = cameraKeyframes.find(k => Math.abs(k.time - kfTime) < 0.01);
@@ -130,14 +134,22 @@ export function Timeline(props: TimelineProps) {
   }, [cameraKeyframes, physicsKeyframes]);
 
   const handleMarkerContextMenu = useCallback((time: number, label: string) => {
+    innerCtxHandledRef.current = true;
     setContextMenuTarget({ mode: 'scene-marker', time, label });
   }, []);
 
   const handleTrackHeaderContextMenu = useCallback((track: string) => {
+    innerCtxHandledRef.current = true;
     setContextMenuTarget({ mode: 'track-header', track });
   }, []);
 
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
+    // Inner handlers (keyframe/marker/track-header) set this flag synchronously
+    // before the event bubbles here. If set, the target is already correct — skip.
+    if (innerCtxHandledRef.current) {
+      innerCtxHandledRef.current = false;
+      return;
+    }
     const t = timeFromClientX(e.clientX, contentRef.current, [...sceneMarkers.map(m => m.time), playheadPosition]);
     if (t !== null) {
       setContextMenuTarget({ mode: 'background', time: t });
@@ -377,15 +389,15 @@ export function Timeline(props: TimelineProps) {
                 </TimelineTransportButton>
                 <div className="w-px h-4 bg-border mx-0.5" />
                 <TimelineTransportButton
-                  onClick={onCaptureKeyframe}
+                  onClick={() => onCaptureKeyframe?.()}
                   title={t('timeline.action.captureKeyframe')}
                   active={hasKfAtPlayhead}
                 >
                   <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-wn-timeline-transport-active fill-wn-timeline-transport-active' : ''}`} />
                 </TimelineTransportButton>
                 <RecordButton
-                  isRecording={isRecording}
-                  onToggleRecording={onToggleRecording}
+                  isRecording={isRecording ?? false}
+                  onToggleRecording={onToggleRecording ?? (() => {})}
                   title={t('timeline.recordComingSoon')}
                 />
               </div>

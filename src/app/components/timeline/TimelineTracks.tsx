@@ -99,9 +99,7 @@ export function SceneMarkerLane({
               }`}
               style={{ left: `${pct}%`, transform: 'translate(-6px, -50%)' }}
               onMouseDown={(e) => handleMarkerMouseDown(e, marker)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+              onContextMenu={() => {
                 onContextMenu?.(marker.time, marker.label);
               }}
             >
@@ -249,10 +247,8 @@ export function TrackRow({
     >
       {/* Label — right-click here resets the whole track. */}
       <div
-        onContextMenu={(e) => {
+        onContextMenu={() => {
           if (!onTrackHeaderContextMenu) return;
-          e.preventDefault();
-          e.stopPropagation();
           onTrackHeaderContextMenu(trackId);
         }}
       >
@@ -300,9 +296,7 @@ export function TrackRow({
                 filter: isSelected ? 'drop-shadow(0 0 6px color-mix(in srgb, var(--wn-timeline-kf-selected) 60%, transparent))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
               }}
               onMouseDown={(e) => handleKfMouseDown(e, kf.time)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
+              onContextMenu={() => {
                 onContextMenu?.(trackId, kf.time);
               }}
             >

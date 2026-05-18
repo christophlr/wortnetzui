@@ -171,7 +171,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const prev = getTimelineState();
     // Scene markers are time bookmarks, not state snapshots — when a marker triggers
     // bulk capture, we use the marker's time. Otherwise capture at the playhead.
-    const currentTime = atTime ?? playheadRef.current;
+    const currentTime = typeof atTime === 'number' ? atTime : playheadRef.current;
     const effectivePhysics = network3DRef.current?.getEffectivePhysicsParams() ?? physicsParams;
 
     const nextPhysKfs: Record<string, PhysicsKeyframe[]> = { ...physicsKeyframesRef.current };
