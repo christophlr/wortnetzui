@@ -120,6 +120,8 @@ export function GraphEditor({
     kfTime: number; startY: number; startValue: number;
   } | null>(null);
 
+  const [dragDelta, setDragDelta] = useState<{ x: number; y: number; dv: number } | null>(null);
+
   // Handle drag — mousemove
   const handleDragMove = (e: MouseEvent) => {
     if (!dragging || !trackRef.current) return;
@@ -189,10 +191,12 @@ export function GraphEditor({
       const dy = startY - ev.clientY;
       const delta = (dy / (GRAPH_H * 0.8)) * valRange;
       onSetValue?.(trackId, kfTime, Math.max(0, startValue + delta));
+      setDragDelta({ x: ev.clientX, y: ev.clientY, dv: delta });
     };
     const upFn = () => {
       onDragEnd?.();
       setDraggingValue(null);
+      setDragDelta(null);
       window.removeEventListener('mousemove', moveFn);
       window.removeEventListener('mouseup', upFn);
     };
@@ -386,6 +390,14 @@ export function GraphEditor({
           );
         })}
       </div>
+      {dragDelta && (
+        <div
+          className="fixed pointer-events-none z-[10000] px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums bg-background border border-border text-foreground shadow-md"
+          style={{ left: dragDelta.x + 12, top: dragDelta.y + 12 }}
+        >
+          Δv: {dragDelta.dv >= 0 ? '+' : ''}{dragDelta.dv.toFixed(2)}
+        </div>
+      )}
     </div>
   );
 }

@@ -214,6 +214,7 @@ export function TrackRow({
     onDragStart?.();
 
     let currentTime = kfTime;
+    const startTime = kfTime;
     const snapPoints = [
       ...sceneMarkers.map(m => m.time),
       ...(playheadTime !== undefined ? [playheadTime] : [])
@@ -225,15 +226,20 @@ export function TrackRow({
         onMoveKeyframe?.(trackId, currentTime, t);
         currentTime = t;
       }
+      const dt = currentTime - startTime;
+      setDragDelta({ x: ev.clientX, y: ev.clientY, dt });
     };
     const onUp = () => {
       onDragEnd?.();
+      setDragDelta(null);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
+
+  const [dragDelta, setDragDelta] = useState<{ x: number; y: number; dt: number } | null>(null);
 
   return (
     <div className={`group flex border-b border-border/50 ${colorMap.border} border-l-2`} style={{ height: TRACK_H }}>
@@ -298,6 +304,14 @@ export function TrackRow({
           );
         })}
       </div>
+      {dragDelta && (
+        <div
+          className="fixed pointer-events-none z-[10000] px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums bg-background border border-border text-foreground shadow-md"
+          style={{ left: dragDelta.x + 12, top: dragDelta.y + 12 }}
+        >
+          Δt: {dragDelta.dt >= 0 ? '+' : ''}{dragDelta.dt.toFixed(2)}s
+        </div>
+      )}
     </div>
   );
 }
