@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useRef, useCallback, ReactN
 import { defaultEdgeAppearance, type NodeShape, type EdgeAppearanceSettings } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
-import { evaluateHermite, computeCatmullRomTangent } from '../easing';
 import type { Network3DHandle } from '../components/Network3D';
 
 import { 
@@ -16,36 +15,9 @@ import {
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
 import { useUndoStack } from '../hooks/useUndoStack';
+import { interpolatePhysicsParam } from '../animation/interpolatePhysicsParam';
 import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
 import { sameTime, differentTime } from '../components/timeline/timeUtils';
-
-export function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number, trackId?: string): number | null {
-  if (sorted.length === 0) return null;
-  if (time <= sorted[0].time) return sorted[0].value;
-  if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i];
-    const b = sorted[i + 1];
-    if (time >= a.time && time <= b.time) {
-      const segDur = b.time - a.time;
-      if (segDur === 0) return a.value;
-      const tRaw = (time - a.time) / segDur;
-      
-      const prevTime = i > 0 ? sorted[i - 1].time : null;
-      const prevVal = i > 0 ? sorted[i - 1].value : null;
-      const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
-      const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
-
-      const m0 = a.handleOut ?? (prevTime === null ? 0 : computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value));
-      const m1 = b.handleIn ?? (nextTime === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal));
-
-      const val = evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
-      
-      return trackId === 'phys-grv' ? val : Math.max(0, val);
-    }
-  }
-  return null;
-}
 
 const WortnetzContext = createContext<WortnetzContextType | undefined>(undefined);
 

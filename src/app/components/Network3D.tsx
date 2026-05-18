@@ -8,6 +8,7 @@ import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, GIZMO_
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
+import { interpolatePhysicsParam } from '../animation/interpolatePhysicsParam';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -15,7 +16,7 @@ import {
   ContextMenuItem,
 } from './ui/context-menu';
 
-type PhysicsKeyframe = { time: number; value: number; handleIn?: number; handleOut?: number; mode?: 'aligned' | 'broken' };
+import type { PhysicsKeyframe } from './timeline/types';
 
 interface Network3DProps {
   isPlaying: boolean;
@@ -152,29 +153,6 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   });
 }
 
-
-/** Interpolate a physics param from pre-sorted keyframes using Cubic Hermite splines. */
-function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
-  if (sorted.length === 0) return null;
-  if (time <= sorted[0].time) return sorted[0].value;
-  if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i], b = sorted[i + 1];
-    if (time >= a.time && time <= b.time) {
-      const segDur = b.time - a.time;
-      if (segDur === 0) return a.value;
-      const tRaw = (time - a.time) / segDur;
-      const prevTime = i > 0 ? sorted[i - 1].time : null;
-      const prevVal = i > 0 ? sorted[i - 1].value : null;
-      const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
-      const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
-      const m0 = a.handleOut ?? computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value);
-      const m1 = b.handleIn ?? computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal);
-      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
-    }
-  }
-  return null;
-}
 
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
