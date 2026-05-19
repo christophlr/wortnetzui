@@ -955,6 +955,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       handleInTgt?: { x: number; y: number; z: number };
       handleOutTgt?: { x: number; y: number; z: number };
       tension?: number;
+      interpolation?: 'auto' | 'linear' | 'hold';
     }>,
     time: number
   ) => {
@@ -994,6 +995,29 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       return;
     }
     const tRaw = Math.max(0, Math.min(1, (time - prev.time) / segDur));
+
+    if (prev.interpolation === 'hold') {
+      cameraRef.current.position.set(prev.position.x, prev.position.y, prev.position.z);
+      controlsRef.current.target.set(prev.target.x, prev.target.y, prev.target.z);
+      cameraRef.current.lookAt(controlsRef.current.target);
+      return;
+    }
+
+    if (prev.interpolation === 'linear') {
+      const lerp = (a: number, b: number) => a + (b - a) * tRaw;
+      cameraRef.current.position.set(
+        lerp(prev.position.x, next.position.x),
+        lerp(prev.position.y, next.position.y),
+        lerp(prev.position.z, next.position.z),
+      );
+      controlsRef.current.target.set(
+        lerp(prev.target.x, next.target.x),
+        lerp(prev.target.y, next.target.y),
+        lerp(prev.target.z, next.target.z),
+      );
+      cameraRef.current.lookAt(controlsRef.current.target);
+      return;
+    }
 
     const t0 = prev.tension ?? 1;
     const t1 = next.tension ?? 1;
@@ -1411,10 +1435,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       lastTime = now;
 
 
-      // Re-enable physics during playback if it was auto-stopped but keyframes are still driving values
-      if (isPlayingRef.current && !physicsEnabledRef.current) {
-        const hasKfs = Object.values(physicsKeyframesRef.current).some(kfs => kfs.length > 0);
-        if (hasKfs) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
+      // Re-enable physics during playback if it was auto-stopped but keyframes or a live
+      // modulator (LFO) are still driving values. Modulators need continuous steps even
+      // when the network is visually settled, because the LFO evaluates against live time.
+      if (!physicsEnabledRef.current) {
+        const hasKfs = isPlayingRef.current && Object.values(physicsKeyframesRef.current).some(kfs => kfs.length > 0);
+        const hasModulator = Object.values(trackMetaRef.current).some(m => m.modulator != null && m.modulator.depth !== 0);
+        if (hasKfs || hasModulator) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
       }
 
       // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage

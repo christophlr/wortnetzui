@@ -35,6 +35,15 @@ export function interpolatePhysicsParam(
       const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
 
       // Null guard: endpoint tangents default to 0, not NaN.
+      if (a.interpolation === 'hold') {
+        return trackId === 'phys-grv' ? a.value : Math.max(0, a.value);
+      }
+
+      if (a.interpolation === 'linear') {
+        const val = a.value + (b.value - a.value) * tRaw;
+        return trackId === 'phys-grv' ? val : Math.max(0, val);
+      }
+
       const m0 = a.handleOut ?? (prevTime === null ? 0 : computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value));
       const m1 = b.handleIn ?? (nextTime === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal));
 

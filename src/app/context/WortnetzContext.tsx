@@ -184,7 +184,14 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       const existingK = (nextPhysKfs[trackId] ?? []).find(k => sameTime(k.time, currentTime));
       const filtered = (nextPhysKfs[trackId] ?? []).filter(k => differentTime(k.time, currentTime));
       const easingProps = existingK
-        ? { handleOut: existingK.handleOut, handleIn: existingK.handleIn, handleOutTime: existingK.handleOutTime, handleInTime: existingK.handleInTime, mode: existingK.mode }
+        ? {
+            handleOut: existingK.handleOut,
+            handleIn: existingK.handleIn,
+            handleOutTime: existingK.handleOutTime,
+            handleInTime: existingK.handleInTime,
+            mode: existingK.mode,
+            interpolation: existingK.interpolation,
+          }
         : { mode: 'aligned' as const };
       nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: effectivePhysics[param], ...easingProps }]
         .sort((a, b) => a.time - b.time);
@@ -214,7 +221,19 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     const existingCK = cameraKeyframesRef.current.find(s => sameTime(s.time, currentTime));
     const filteredCkfs = cameraKeyframesRef.current.filter(s => differentTime(s.time, currentTime));
     const cameraEasingProps = existingCK
-      ? { handleOutPos: existingCK.handleOutPos, handleInPos: existingCK.handleInPos, handleOutTgt: existingCK.handleOutTgt, handleInTgt: existingCK.handleInTgt, mode: existingCK.mode, tension: existingCK.tension, tensionHandleIn: existingCK.tensionHandleIn, tensionHandleOut: existingCK.tensionHandleOut, tensionHandleInTime: existingCK.tensionHandleInTime, tensionHandleOutTime: existingCK.tensionHandleOutTime }
+      ? {
+          handleOutPos: existingCK.handleOutPos,
+          handleInPos: existingCK.handleInPos,
+          handleOutTgt: existingCK.handleOutTgt,
+          handleInTgt: existingCK.handleInTgt,
+          mode: existingCK.mode,
+          tension: existingCK.tension,
+          tensionHandleIn: existingCK.tensionHandleIn,
+          tensionHandleOut: existingCK.tensionHandleOut,
+          tensionHandleInTime: existingCK.tensionHandleInTime,
+          tensionHandleOutTime: existingCK.tensionHandleOutTime,
+          interpolation: existingCK.interpolation,
+        }
       : { mode: 'aligned' as const };
     const nextCkfs = [...filteredCkfs, { ...keyframe, ...cameraEasingProps, time: currentTime }]
       .sort((a, b) => a.time - b.time);
@@ -415,7 +434,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           if (differentTime(s.time, time)) return s;
           const slopeKey = side === 'out' ? 'tensionHandleOut' : 'tensionHandleIn';
           const timeKey = side === 'out' ? 'tensionHandleOutTime' : 'tensionHandleInTime';
-          const nextKf = { ...s, [slopeKey]: slope, [timeKey]: timeOffset };
+          const { interpolation: _interp, ...rest } = s;
+          const nextKf = { ...rest, [slopeKey]: slope, [timeKey]: timeOffset };
           if (nextKf.mode !== 'broken') {
             nextKf.tensionHandleIn = slope;
             nextKf.tensionHandleInTime = timeOffset;
@@ -433,7 +453,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           if (differentTime(k.time, time)) return k;
           const slopeKey = side === 'out' ? 'handleOut' : 'handleIn';
           const timeKey = side === 'out' ? 'handleOutTime' : 'handleInTime';
-          const nextKf = { ...k, [slopeKey]: slope, [timeKey]: timeOffset };
+          const { interpolation: _interp, ...rest } = k;
+          const nextKf = { ...rest, [slopeKey]: slope, [timeKey]: timeOffset };
           if (nextKf.mode !== 'broken') {
             nextKf.handleIn = slope;
             nextKf.handleInTime = timeOffset;
@@ -506,6 +527,37 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
             nextKf.handleInTime = nextKf.handleOutTime;
           }
           return nextKf;
+        });
+        const next = { ...prevPkfs, [trackId]: kfs };
+        physicsKeyframesRef.current = next;
+        return next;
+      });
+      pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
+    }
+  }, [getTimelineState, pushHistory]);
+
+  const handleSetKeyframeEasing = useCallback((trackId: string, time: number, easing: 'auto' | 'linear' | 'hold') => {
+    const prev = getTimelineState();
+    const interpolation = easing === 'auto' ? undefined : easing;
+    if (trackId === 'camera-keyframes') {
+      setCameraKeyframes(prevCkfs => {
+        const next = prevCkfs.map(s => {
+          if (differentTime(s.time, time)) return s;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { tensionHandleIn: _a, tensionHandleOut: _b, tensionHandleInTime: _c, tensionHandleOutTime: _d, ...rest } = s;
+          return interpolation ? { ...rest, interpolation } : rest;
+        });
+        cameraKeyframesRef.current = next;
+        return next;
+      });
+      pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
+    } else if (trackId in PHYS_TRACK_PARAM) {
+      setPhysicsKeyframes(prevPkfs => {
+        const kfs = (prevPkfs[trackId] ?? []).map(k => {
+          if (differentTime(k.time, time)) return k;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { handleIn: _a, handleOut: _b, handleInTime: _c, handleOutTime: _d, ...rest } = k;
+          return interpolation ? { ...rest, interpolation } : rest;
         });
         const next = { ...prevPkfs, [trackId]: kfs };
         physicsKeyframesRef.current = next;
@@ -803,7 +855,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       trackMetaRef, armedTracksRef,
       effectivePhysicsParams, previewIsDark, uiIsDark,
       handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe, handleResetTrack,
-      handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
+      handleSetHandle, handleClearHandle, handleSetInterpolation, handleSetKeyframeEasing, handleDuplicateKeyframe,
       handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker, handleDropSceneMarker, handleDeleteSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,
       handleTogglePhysicsKeyframe,

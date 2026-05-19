@@ -54,6 +54,16 @@ describe('interpolatePhysicsParam — interpolation', () => {
     expect(interpolatePhysicsParam(kfs, 0)).toBe(10);
     expect(interpolatePhysicsParam(kfs, 2)).toBe(30);
   });
+
+  it('honors hold interpolation', () => {
+    const kfs = [kf(0, 10, { interpolation: 'hold' }), kf(2, 30)];
+    expect(interpolatePhysicsParam(kfs, 1)).toBe(10);
+  });
+
+  it('honors linear interpolation', () => {
+    const kfs = [kf(0, 10, { interpolation: 'linear' }), kf(2, 30)];
+    expect(interpolatePhysicsParam(kfs, 1)).toBe(20);
+  });
 });
 
 describe('interpolatePhysicsParam — null guard (A5 bug fix)', () => {

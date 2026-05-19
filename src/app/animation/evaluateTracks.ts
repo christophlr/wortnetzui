@@ -29,6 +29,7 @@ export function evaluateTracks(
   time: number,
   dt: number,
   applied: PhysicsParamsLike,
+  wallTime: number = 0,
 ): PhysicsParamsLike {
   for (const key of Object.keys(sliderParams)) {
     const tr = tracks[key];
@@ -37,7 +38,7 @@ export function evaluateTracks(
       ? interpolatePhysicsParam(tr.keyframes, time, tr.trackId)
       : null;
     const base = interp !== null ? interp : slider;
-    const target = tr?.modulator ? base + evalLfo(tr.modulator, time) : base;
+    const target = tr?.modulator ? base + evalLfo(tr.modulator, wallTime) : base;
     const glide = tr?.glide ?? 0;
     if (glide > 0) {
       const blend = Math.min(1, dt / glide);

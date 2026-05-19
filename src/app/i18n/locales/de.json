@@ -219,6 +219,9 @@
       "depth":       "Stärke",
       "phase":       "Phase",
       "hint":        "Tipp: entspricht dem Pulse-Regler",
+      "bpmSync":     "BPM-Sync",
+      "bpm":         "BPM",
+      "subdivision": "Unterteilung",
       "wave": {
         "sine":     "Sinus",
         "triangle": "Dreieck",

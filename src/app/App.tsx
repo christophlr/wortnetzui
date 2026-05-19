@@ -98,6 +98,7 @@ export default function App() {
                 physicsKeyframes={wn.physicsKeyframes} onMoveKeyframe={wn.handleMoveKeyframe}
                 onSetHandle={wn.handleSetHandle} onSetHandle2D={wn.handleSetHandle2D}
                 onSetValue={wn.handleSetValue} onClearHandle={wn.handleClearHandle} onSetInterpolation={wn.handleSetInterpolation}
+                onSetKeyframeEasing={wn.handleSetKeyframeEasing}
                 onDeleteKeyframe={wn.handleDeleteKeyframe} onDuplicateKeyframe={wn.handleDuplicateKeyframe}
                 onRippleDeleteKeyframe={wn.handleRippleDeleteKeyframe}
                 onResetTrack={wn.handleResetTrack}
@@ -110,7 +111,6 @@ export default function App() {
                 onDropSceneMarker={wn.handleDropSceneMarker} onDeleteSceneMarker={wn.handleDeleteSceneMarker}
                 isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
                 trackMeta={wn.trackMeta}
-                onSetTrackGlide={wn.handleSetTrackGlide}
                 onSetTrackModulator={wn.handleSetTrackModulator}
                 armedTracks={wn.armedTracks}
                 onToggleTrackArm={wn.handleToggleTrackArm}
@@ -120,14 +120,16 @@ export default function App() {
         </AppCanvas>
 
         <AppSidebar>
-          <Sidebar
-            onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText}
-            inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
-            onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
-            styleSettings={wn.styleSettings}
-            onEdgeAppearanceChange={wn.setEdgeAppearance}
-            effectivePhysicsParams={wn.effectivePhysicsParams}
-            canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
+            <Sidebar
+              onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText}
+              inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
+              onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
+              styleSettings={wn.styleSettings}
+              onEdgeAppearanceChange={wn.setEdgeAppearance}
+              effectivePhysicsParams={wn.effectivePhysicsParams}
+              trackMeta={wn.trackMeta}
+              onSetTrackModulator={wn.handleSetTrackModulator}
+              canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
             currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}
             physicsKeyframes={wn.physicsKeyframes} onTogglePhysicsKeyframe={wn.handleTogglePhysicsKeyframe}
             viewMode={wn.viewMode}

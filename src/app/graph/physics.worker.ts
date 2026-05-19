@@ -341,7 +341,8 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage | Up
     appliedSeeded = true;
   }
 
-  evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>);
+  const wallTime = performance.now() / 1000;
+  evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>, wallTime);
 
   // Layer main-thread overrides (pulse, jolt damping floor) on top of `applied`.
   const final: PhysicsParams = paramOverrides

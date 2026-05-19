@@ -105,7 +105,7 @@ describe('evaluateTracks — glide', () => {
 });
 
 describe('evaluateTracks — modulator', () => {
-  it('adds LFO output to the target', () => {
+  it('adds LFO output to the target (wallTime drives the LFO, not playhead time)', () => {
     const tr: WorkerTrack = {
       trackId: 'phys-rep',
       keyframes: [],
@@ -113,8 +113,37 @@ describe('evaluateTracks — modulator', () => {
       modulator: { waveform: 'sine', rate: 1, depth: 100, phase: 0 },
     };
     const applied = fresh();
-    evaluateTracks({ repulsion: tr }, SLIDER, 0.25, 0.016, applied);
-    // sine at t=0.25, rate=1, phase=0 → +1 → +100
+    // playhead time=0 (paused), wallTime=0.25 → sine peaks at +1 → +100
+    evaluateTracks({ repulsion: tr }, SLIDER, 0, 0.016, applied, 0.25);
+    // sine at wallTime=0.25, rate=1, phase=0 → +1 → +100
     expect(applied.repulsion).toBeCloseTo(1500 + 100, 6);
+  });
+
+  it('is unaffected by playhead time when wallTime is provided', () => {
+    const tr: WorkerTrack = {
+      trackId: 'phys-rep',
+      keyframes: [],
+      glide: 0,
+      modulator: { waveform: 'sine', rate: 1, depth: 100, phase: 0 },
+    };
+    const applied1 = fresh();
+    const applied2 = fresh();
+    // Same wallTime but different playhead times → same LFO output
+    evaluateTracks({ repulsion: tr }, SLIDER, 0, 0.016, applied1, 0.25);
+    evaluateTracks({ repulsion: tr }, SLIDER, 5, 0.016, applied2, 0.25);
+    expect(applied1.repulsion).toBeCloseTo(applied2.repulsion, 6);
+  });
+
+  it('BPM-sync: rate=1 at 120 BPM gives 2 Hz effective rate', () => {
+    const tr: WorkerTrack = {
+      trackId: 'phys-rep',
+      keyframes: [],
+      glide: 0,
+      modulator: { waveform: 'sine', rate: 1, depth: 100, phase: 0, bpm: 120 },
+    };
+    const applied = fresh();
+    // 120 BPM * 1 cycle/beat / 60 = 2 Hz → quarter period = 0.125 s → peak at wallTime=0.125
+    evaluateTracks({ repulsion: tr }, SLIDER, 0, 0.016, applied, 0.125);
+    expect(applied.repulsion).toBeCloseTo(1500 + 100, 5);
   });
 });

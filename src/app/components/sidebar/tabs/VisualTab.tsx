@@ -182,7 +182,6 @@ export function VisualTab({
         >
           <SidebarToggleRow
             label={t('sidebar.tab.visual.toggle.glitchPaint')}
-            tone="accent"
             checked={visualSettings.glitchActive}
             onCheckedChange={(checked) => setVisual({ glitchActive: checked })}
           />
@@ -228,7 +227,6 @@ export function VisualTab({
       <SidebarSection title={t('sidebar.tab.visual.section.pathAnimator')}>
         <SidebarToggleRow
           label={t('sidebar.tab.visual.toggle.cameraFollow')}
-          tone="accent"
           checked={visualSettings.pathCameraFollow}
           onCheckedChange={(checked) => setVisual({ pathCameraFollow: checked })}
         />

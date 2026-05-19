@@ -219,6 +219,9 @@
       "depth":       "Depth",
       "phase":       "Phase",
       "hint":        "Tip: matches the Pulse knob",
+      "bpmSync":     "BPM Sync",
+      "bpm":         "BPM",
+      "subdivision": "Division",
       "wave": {
         "sine":     "Sine",
         "triangle": "Triangle",

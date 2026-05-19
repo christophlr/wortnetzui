@@ -34,6 +34,9 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - If displayed value ≠ raw value (e.g. ×10 scale), pass `parseInput` to invert.
 - **Never** render a `<span>` for a numeric slider value.
 
+### Physics Modulator Popover
+- Physics tab sliders expose a **Modulator** popover button between the numeric value and the keyframe toggle; the popover hosts the modulator controls.
+
 ### Colour Rule
 - **UI**: `hsl(var(--...))` CSS variables. Never hardcode hex in React components.
 - **3D scene**: use `networkTheme.ts` functions. Never hardcode scene colours inline.
@@ -73,6 +76,9 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - **All** context menus (right-click) must use Shadcn/Radix `ContextMenu` components.
 - Never use custom portals or floating divs for context menus.
 - Menus must have `bg-popover/95` and `backdrop-blur-sm` for a professional, integrated look.
+
+### Timeline Track Tuning
+- The timeline’s per-track tuning panel (beneath the Graph Editor) shows **Modulator** controls only; Glide tuning is not displayed in timeline tracks.
 
 ---
 
