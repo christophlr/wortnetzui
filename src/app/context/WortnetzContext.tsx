@@ -524,16 +524,44 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   }, [getTimelineState, pushHistory]);
 
   const handleMoveSceneMarker = useCallback((oldTime: number, newTime: number) => {
-    const next = sceneMarkersRef.current
+    const delta = newTime - oldTime;
+    // Marker drag shifts the marker AND all keyframes pinned at that time.
+    const nextMarkers = sceneMarkersRef.current
       .map(m => sameTime(m.time, oldTime) ? { ...m, time: newTime } : m)
       .sort((a, b) => a.time - b.time);
-    sceneMarkersRef.current = next;
-    setSceneMarkers(next);
+    sceneMarkersRef.current = nextMarkers;
+    setSceneMarkers(nextMarkers);
+
+    setCameraKeyframes(prev => {
+      const next = prev
+        .map(s => sameTime(s.time, oldTime) ? { ...s, time: Math.max(0, Math.min(TIMELINE_DURATION, s.time + delta)) } : s)
+        .sort((a, b) => a.time - b.time);
+      cameraKeyframesRef.current = next;
+      return next;
+    });
+    setPhysicsKeyframes(prev => {
+      const nextKfs: Record<string, PhysicsKeyframe[]> = {};
+      for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
+        nextKfs[tid] = (prev[tid] ?? [])
+          .map(k => sameTime(k.time, oldTime) ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) } : k)
+          .sort((a, b) => a.time - b.time);
+      }
+      physicsKeyframesRef.current = nextKfs;
+      return nextKfs;
+    });
   }, []);
 
   // Called once on drag-end; commits the final marker position to undo history.
   const handleDropSceneMarker = useCallback((_fromTime: number, _toTime: number) => {
     pushHistory(getTimelineState());
+  }, [getTimelineState, pushHistory]);
+
+  const handleDeleteSceneMarker = useCallback((time: number) => {
+    const prev = getTimelineState();
+    const next = sceneMarkersRef.current.filter(m => differentTime(m.time, time));
+    sceneMarkersRef.current = next;
+    setSceneMarkers(next);
+    pushHistory({ ...prev, sceneMarkers: next });
   }, [getTimelineState, pushHistory]);
 
   const handleSetValue = useCallback((trackId: string, time: number, value: number) => {
@@ -672,7 +700,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       effectivePhysicsParams, previewIsDark, uiIsDark,
       handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe, handleResetTrack,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,
-      handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker, handleDropSceneMarker,
+      handleAddSceneMarker, handleRenameSceneMarker, handleMoveSceneMarker, handleDropSceneMarker, handleDeleteSceneMarker,
       handleSetValue, handleSetHandle2D, handleCameraChange,
       handleTogglePhysicsKeyframe,
       handleKeyframeSelect, handleSelectKeyframes, handlePhysicsChange,

@@ -100,7 +100,7 @@ export default function App() {
                 sceneMarkers={wn.sceneMarkers} onAddSceneMarker={wn.handleAddSceneMarker}
                 onCreateKeyframesAtMarker={wn.handleCreateKeyframesAtMarker}
                 onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker}
-                onDropSceneMarker={wn.handleDropSceneMarker}
+                onDropSceneMarker={wn.handleDropSceneMarker} onDeleteSceneMarker={wn.handleDeleteSceneMarker}
                 isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
               />
             </div>

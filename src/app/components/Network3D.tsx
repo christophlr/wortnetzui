@@ -976,7 +976,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const tgtY = hermite(pp?.target.y ?? null, pp?.time ?? null, prev.target.y, next.target.y, nn?.target.y ?? null, nn?.time ?? null, prev.handleOutTgt?.y, next.handleInTgt?.y);
     const tgtZ = hermite(pp?.target.z ?? null, pp?.time ?? null, prev.target.z, next.target.z, nn?.target.z ?? null, nn?.time ?? null, prev.handleOutTgt?.z, next.handleInTgt?.z);
 
-    cameraRef.current.position.set(camX, camY, camZ);
+    // Cartesian Hermite traces a chord rather than an arc, causing the camera to drift
+    // closer to the target mid-segment. Rescale the offset to the linearly interpolated
+    // distance so rotation moves stay at constant distance and dolly moves still work.
+    const d0 = Math.sqrt((prev.position.x - prev.target.x) ** 2 + (prev.position.y - prev.target.y) ** 2 + (prev.position.z - prev.target.z) ** 2);
+    const d1 = Math.sqrt((next.position.x - next.target.x) ** 2 + (next.position.y - next.target.y) ** 2 + (next.position.z - next.target.z) ** 2);
+    const interpDist = d0 + (d1 - d0) * tRaw;
+    const dx = camX - tgtX, dy = camY - tgtY, dz = camZ - tgtZ;
+    const rawDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const scale = rawDist > 0 ? interpDist / rawDist : 1;
+
+    cameraRef.current.position.set(tgtX + dx * scale, tgtY + dy * scale, tgtZ + dz * scale);
     controlsRef.current.target.set(tgtX, tgtY, tgtZ);
     cameraRef.current.lookAt(controlsRef.current.target);
   };
