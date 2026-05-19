@@ -708,8 +708,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Immediate sync when visual/style settings change
   useEffect(() => {
     if (graphNodesRef.current) {
-      prevMaxOverlapRef.current = maxOverlap;
-
       syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, undefined, visualSettings, styleSettings);
     }
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1274,7 +1272,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
       }
 
-      syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+      prevMaxOverlapRef.current = maxOverlap;
+
+      const hasActiveModulationLoc = (isPlayingRef.current && hasAnyKfsRef.current) || hasAnyModulatorRef.current;
+      if (avgMovement > 0.05 || maxOverlap > 0 || hasActiveModulationLoc) {
+        syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+      }
 
       // Auto-stop heuristic
       const curParams = effectivePhysicsRef.current;
