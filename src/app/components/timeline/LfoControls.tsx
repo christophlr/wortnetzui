@@ -193,7 +193,6 @@ function depthMaxFor(paramKey: string): number {
     case 'gravity':      return 5;
     case 'turbulence':   return 5;
     case 'verticalOrder':return 5;
-    case 'pulse':        return 0.5;
     default:             return 1;
   }
 }

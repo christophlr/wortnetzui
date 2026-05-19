@@ -52,7 +52,7 @@ export function useProject() {
                 ...prev,
                 ...s.physicsParams,
                 verticalOrder: s.physicsParams.verticalOrder ?? 0,
-                pulse: s.physicsParams.pulse ?? 0
+                
               }));
             }
             if (s.viewMode) setViewMode(s.viewMode);

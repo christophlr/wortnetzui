@@ -4,7 +4,7 @@
 //
 // Phase 3: the worker also owns the per-frame animation clock. Each `step`
 // message carries `time`, `dt`, baseline `sliderParams`, and optional
-// `paramOverrides` (pulse + jolt damping floor from main thread). The worker
+// `paramOverrides` (jolt damping floor from main thread). The worker
 // evaluates per-track Hermite + LFO + glide into a stable `applied` map and
 // runs the force integrator on `applied`-with-overrides. The response carries
 // `applied` so the main thread can drive recording + jolt-velocity tracking.
@@ -20,12 +20,12 @@ interface PhysicsParams {
   gravity: number;
   turbulence: number;
   verticalOrder: number;
-  pulse: number;
+ 
 }
 
 const DEFAULT_PHYSICS: PhysicsParams = {
   repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5,
-  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0,
+  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0,
 };
 
 interface InitMessage {
@@ -344,7 +344,7 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage | Up
   const wallTime = performance.now() / 1000;
   evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>, wallTime);
 
-  // Layer main-thread overrides (pulse, jolt damping floor) on top of `applied`.
+  // Layer main-thread overrides (jolt damping floor) on top of `applied`.
   const final: PhysicsParams = paramOverrides
     ? { ...applied, ...paramOverrides }
     : applied;

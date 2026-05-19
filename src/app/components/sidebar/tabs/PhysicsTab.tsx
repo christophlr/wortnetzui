@@ -61,7 +61,6 @@ export function PhysicsTab({
       sectionKey: 'dynamics',
       params: [
         { id: 'phys-trb', paramKey: 'turbulence',   key: 'turbulence',   value: effectivePhysicsParams?.turbulence   ?? 0,    max: 10,   step: 0.1 },
-        { id: 'phys-pls', paramKey: 'pulse',        key: 'pulse',        value: effectivePhysicsParams?.pulse        ?? 0,    max: 1,    step: 0.01 },
       ],
     },
     {

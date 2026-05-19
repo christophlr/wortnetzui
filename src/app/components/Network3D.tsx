@@ -1271,7 +1271,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       // Auto-stop heuristic
       const curParams = effectivePhysicsRef.current;
-      if (curParams.turbulence > 0 || maxOverlap > 1 || curParams.pulse > 0) {
+      if (curParams.turbulence > 0 || maxOverlap > 1) {
         stillFramesRef.current = 0;
       } else if (avgMovement < 0.5) {
         stillFramesRef.current++;
@@ -1448,7 +1448,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
         // The worker is now authoritative for keyframe/glide/LFO evaluation.
         // Main thread tracks parameter-change velocity from the previous frame's
-        // `applied` to drive the jolt + pulse overrides — both are layered on top
+        // `applied` to drive the jolt overrides — both are layered on top
         // of `applied` via `paramOverrides` so the worker stays a pure evaluator.
         const lastApplied = effectivePhysicsRef.current;
 
@@ -1464,8 +1464,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dGrv = Math.abs(lastApplied.gravity - prev.gravity) / 5;
         const dTrb = Math.abs((lastApplied.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
         const dVto = Math.abs((lastApplied.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
-        const dPls = Math.abs((lastApplied.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
-        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dtMs;
 
         // Keep jolt tracking velocity from worker-applied values, not sidebar state.
         if (!isPlayingRef.current) {
@@ -1477,15 +1475,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         lastParamsTimeRef.current = now;
         lastParamsValuesRef.current = { ...lastApplied };
 
-        // Pulse + jolt damping floor become per-frame param overrides.
+        // Jolt damping floor become per-frame param overrides.
         const paramOverrides: Partial<PhysicsParams> = {};
-        if (lastApplied.pulse > 0) {
-          const pulseTime = now * 0.002;
-          const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
-          const pulseFactor = Math.sin(pulseTime) * lastApplied.pulse * 0.15 * joltSuppression;
-          paramOverrides.repulsion = lastApplied.repulsion * (1 + pulseFactor);
-          paramOverrides.linkDistance = lastApplied.linkDistance * (1 + pulseFactor * 0.2);
-        }
         if ((physicsVelocityRef.current || 0) > 0.01) {
           const jolt = physicsVelocityRef.current || 0;
           const targetDamping = Math.max(lastApplied.damping, 0.92);

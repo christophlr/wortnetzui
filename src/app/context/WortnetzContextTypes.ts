@@ -104,7 +104,6 @@ export interface WortnetzContextType {
     gravity: number;
     turbulence: number;
     verticalOrder: number;
-    pulse: number;
   };
   setPhysicsParams: React.Dispatch<React.SetStateAction<{
     repulsion: number;
@@ -115,7 +114,6 @@ export interface WortnetzContextType {
     gravity: number;
     turbulence: number;
     verticalOrder: number;
-    pulse: number;
   }>>;
   visualSettings: {
     nodesVisible: boolean;

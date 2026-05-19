@@ -58,7 +58,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     depthSizeEnabled: false,
     depthSizeStrength: 50,
   });
-  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0 });
+  const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
   const [trackMeta, setTrackMeta] = useState<Record<string, TrackMeta>>(() => ({ ...DEFAULT_TRACK_META }));
@@ -149,7 +149,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       if (s.inputText) setInputText(s.inputText);
       if (s.parseMode) setParseMode(s.parseMode);
       if (s.styleSettings) setStyleSettings(s.styleSettings);
-      if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0, pulse: s.physicsParams.pulse ?? 0 }));
+      if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0 }));
       if (s.viewMode) setViewMode(s.viewMode);
       if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
       if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);

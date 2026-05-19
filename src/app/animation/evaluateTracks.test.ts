@@ -10,7 +10,6 @@ const SLIDER = {
   gravity: 0,
   turbulence: 0,
   verticalOrder: 0,
-  pulse: 0,
 };
 
 function fresh() {

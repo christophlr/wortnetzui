@@ -115,7 +115,6 @@ export const TRACK_GROUPS = [
       { id: 'phys-grv', paramKey: 'gravity',      kfs: [] as number[], graph: false },
       { id: 'phys-trb', paramKey: 'turbulence',   kfs: [] as number[], graph: false },
       { id: 'phys-vto', paramKey: 'verticalOrder',kfs: [] as number[], graph: false },
-      { id: 'phys-pls', paramKey: 'pulse',        kfs: [] as number[], graph: false },
     ],
   },
 ];
