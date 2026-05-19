@@ -1,6 +1,8 @@
 # Wortnetze — Animation, Visuals & Tools Roadmap
 
 > **Amendment log** — REMEDY-TL-2026-05-18: Applied Tier B blueprint amendments (B-MANDATE, B-FREEZE, B-PHASE1, B-WORKER, B-PHASE4-REFS, B-PHASE4-BLOOM, B-PHASE5-OVERRIDE, B-TEST-GATE, B-WORTNETZ) plus four adversarial-review corrections (jolt mechanism, sidebar blend regression, B-FREEZE scope, null-guard canonicalisation). Phase 0 remediation must complete before any Phase 2+ work resumes.
+>
+> **Doc status (2026-05-19)** — Phases 1, 2, and 3 are implemented (Phase 3 *except* the Glide timeline UI — see §3.6, design pending). The Context block below is a **historical audit snapshot** taken pre-Phase 1; many of the listed bugs are now fixed in code. The next active section is **Pre-Phase 4** (operational stabilisation), followed by Phase 4 (slim-composer extraction + segment-evaluator unification + bloom).
 
 ## Context
 
@@ -256,7 +258,7 @@ Current handles in [GraphEditor.tsx](src/app/components/timeline/GraphEditor.tsx
 
 ---
 
-## Phase 3 — Worker-owned animation clock + Glide + LFO + recording v2
+## Phase 3 — Worker-owned animation clock + Glide + LFO + recording v2 *(implemented — Glide UI deferred to §3.6)*
 
 **Goal:** Single clock for param signals inside the physics worker. Main thread: UI, render, message I/O.
 
@@ -311,11 +313,12 @@ Where `dt` is seconds from main thread monotonic clock (not inferred from messag
 
 **Preserve the jolt mechanism (~1453–1481):** `physicsVelocityRef` (parameter change velocity tracking) and its damping overshoot effect are independent of Hermite evaluation. After the Hermite block is removed, the jolt mechanism receives `appliedParams` from the worker response instead of `paramsForFrame` computed locally. Wire accordingly. Do not delete lines 1453–1481.
 
-**Pulse** (`lines 1486–1491`): remains on the main thread — it reads `performance.now()` for its sine clock and the sidebar `pulse` param. Mutates `sentParams.repulsion` and `sentParams.linkDistance` before posting to worker. This is intentional: pulse is a main-thread convenience, not a keyfram-able track param (until a user explicitly adds an LFO on repulsion).
+**Pulse** (`lines 1486–1491`): temporarily kept on the main thread at Phase 3 time as a convenience. **Superseded by Pre-Phase 4 P4-0** — the block is deleted there once LFO on repulsion/linkDistance is the established tool. Do not invest in this block during Phase 3.
 
 Result: the `postMessage` at line 1512 sends `{ type: 'step', time: playheadRef.current, dt, posVel, is2D }` (no `params` — worker computes from its track state). The block becomes ~20 lines instead of ~70.
 
-**After Phase 3:**
+**After Phase 3:** Phase 3 is code-complete when Verification below passes. **Pre-Phase 4 exit gate** must pass before starting Phase 4.
+
 - `grep interpolatePhysicsParam src/app/components/Network3D.tsx` → 0 matches.
 - `grep physicsBlendActiveRef src/app/components/Network3D.tsx` → 0 matches.
 - Jolt mechanism (`physicsVelocityRef`) still present and functional.
@@ -344,11 +347,130 @@ Result: the `postMessage` at line 1512 sends `{ type: 'step', time: playheadRef.
 - `npm run test` exits 0.
 - `npm run build` + `npx tsc --noEmit` clean.
 
+### 3.6 Glide UI/UX *(design pending — Phase 3 tail)*
+
+**Status:** Worker-side glide integration (`evaluateTracks.ts`) is implemented and tested. `trackMeta.glide` persists through `useWorkspaceIO` (default `0` → no-op). **Zero timeline UI surfaces it.** First UI attempt was reverted because it didn't read well in the existing track-row layout.
+
+**Open question (resolve before re-attempting):** where does `glide` live in the UI? Options to weigh —
+
+- *Per-track inline control* (number input in `TrackRow` header, next to the keyframe diamond). Cheap, but the timeline row is already dense and a unit-suffixed number ("0.5s") competes with the track label visually.
+- *Right-click track menu* (already exists via `ContextMenu.tsx`): "Glide…" opens a small popover with slider + numeric. Discoverable enough for a power-user feature, doesn't add row chrome.
+- *Sidebar "Track" detail panel*, mirroring how LFO is planned to surface (collapsed by default, expanded per-track). Most room to grow if other per-track knobs (arm, easing default, modulator) join it later.
+
+**Recommendation:** wait until LFO UI is designed (Phase 3.3 `LfoControls.tsx`) and host both in the same per-track detail panel — one disclosure surface, one design pass. Until then, glide remains accessible only via workspace JSON (acceptable: default 0 is a no-op).
+
+**Do not** re-add inline track-row glide UI without resolving the layout question first.
+
 ---
 
-## Phase 4 — Network3D extraction + visual effects
+## Pre-Phase 4 — Simulation stability & render budget (MUST complete before Phase 4)
 
-**Goal:** Trim `Network3D.tsx` from 1973 lines. Add the EffectComposer-based post-processing pipeline. The <800-line target is enforced by import-graph review (which hooks/modules are extracted), not by `wc -l` alone.
+**Prerequisites:** Phase 3 verification complete (§Phase 3). Phase 0 / Pre-Phase 3 Tier A items that block builds/tests already green. This phase does **not** re-implement Phase 3 architecture.
+
+**Goal:** Fix leaks and per-frame waste in Network3D, the physics worker, and playback-driven React churn so Phase 4 extraction and the bloom spike land on a stable baseline. Also retire the `pulse` sidebar parameter now that LFO on repulsion/linkDistance is the correct tool.
+
+**Scope boundary:** Behaviour-only fixes in existing files. **No** EffectComposer, **no** `network3d/*` module extraction, **no** God-ref `useMemo` bag (forbidden in Phase 4.1 anyway), **no** Hermite→Bezier work (that is Phase 4.1.5).
+
+**Relationship to Phase 3:** Phase 3 delivered M1 (worker-owned param evaluation). Pre-Phase 4 closes operational gaps surfaced after merge: zombie RAF, GPU teardown, modulation-aware physics wake, main-thread display-path churn (`effectivePhysicsParams`), and the pulse/LFO dual-path left open by §3.5.
+
+**Note on step messages:** Worker `step` still receives `sliderParams` (sidebar baseline) plus `time`/`dt`. That is intentional per §3.2 and matches `evaluateTracks` math; not a Phase 3 defect.
+
+### P0 — Correctness & leaks (blockers)  ·  *suggested: Sonnet 4.6 / high · Gemini Pro 3.1 / low*
+
+| ID | Issue | Files | Remediation |
+|----|-------|-------|-------------|
+| P4-0 | **Remove `pulse` sidebar parameter** — LFO on repulsion/linkDistance is the correct tool. §3.5 kept pulse as a "main-thread convenience"; that rationale no longer holds now that LFO ships. Dual-path (pulse override + LFO) is confusing and makes the jolt-velocity calc messier. | `physics.worker.ts`, `Network3D.tsx`, `WortnetzContext.tsx`, `PhysicsTab.tsx`, `types.ts` | Delete `pulse` from `PhysicsParams` interface; remove the pulse `paramOverrides` block (~lines 1482–1488 in Network3D); remove `phys-pls` track entry from `types.ts`; remove sidebar slider row. Workspace files with `pulse > 0` load cleanly — the value is ignored on parse (add a migration note). For users who want the effect: add an LFO on the repulsion track (plan already suggests a tooltip for this at §3.3). |
+| P4-1 | `animationFrameRef` never cancelled; cleanup references unused `animFrame` | `Network3D.tsx` | Cancel `animationFrameRef` on teardown; early-out in `animate` when `isCancelled` |
+| P4-2 | `LineSegments` edges + `textureCacheRef` not disposed on scene teardown | `Network3D.tsx` | Dispose edge geometry/material; dispose every cached `CanvasTexture` |
+| P4-3 | LFO/glide stop ticking when physics auto-sleeps (`stillFrames` only respects turbulence/movement; playback wake only checks keyframes) | `Network3D.tsx`, optionally `physics.worker.ts` | `hasActiveModulation()`: any track with `modulator.depth > 0`, `glide > 0` with changing target, or `isPlaying` → keep stepping. After P4-0, remove the `curParams.pulse > 0` guard from the auto-stop check. **Preferred efficiency:** when graph settled but modulation active, optional lightweight worker tick that runs `evaluateTracks` only (skip `runStep`) |
+
+### P1 — Hot path reduction (high ROI)  ·  *suggested: Opus 4.7 / high (P4-4); Sonnet 4.6 / medium for the rest*
+
+| ID | Issue | Files | Remediation |
+|----|-------|-------|-------------|
+| P4-4 | Sidebar physics display `effectivePhysicsParams` useMemo re-runs Hermite ×8 on every `playheadPosition` change (~60/s during play) | `WortnetzContext.tsx`, `PhysicsTab` | Sidebar display reads `network3DRef.getEffectivePhysicsParams()` (worker `applied`) at ~10–15 Hz during playback/scrub. Remove the `effectivePhysicsParams` dependency on `interpolatePhysicsParam` for live display. **Do not** optimise or extend the main-thread Hermite path — it will be deleted/bypassed in Phase 4.1.5 |
+| P4-5 | Full `syncGraphVisuals` on every worker step | `Network3D.tsx` | Skip or reduce work when `avgMovement` below epsilon; reuse vectors in glitch path |
+| P4-6 | Physics `step` posted every display frame | `Network3D.tsx` | Cap simulation posts at ~30 Hz; keep `renderer.render` at display rate |
+| P4-7 | Retina × label `pixelRatio: 3` GPU cost | `Network3D.tsx` | `setPixelRatio(min(dpr, 2))`; consider label build ratio 2 |
+
+### P2 — Mode-specific & optional LOD  ·  *suggested: Sonnet 4.6 / medium · Gemini Pro 3.1 / low*
+
+| ID | Issue | Files | Remediation |
+|----|-------|-------|-------------|
+| P4-8 | 2D overlap separation O(n²)×4 on main thread | `Network3D.tsx` | Spatial hash or fewer passes when n > threshold |
+| P4-9 | Worker exact repulsion for all n < 2000 (graph runs up to ~700 nodes) | `physics.worker.ts` | Reuse spatial hash at a lower threshold (e.g. n ≥ 150) |
+| P4-10 | **Optional** distance-LOD (tier B): cull/simplify distant sprites | `Network3D.tsx` | Only if P0–P1 insufficient; sprites remain billboards per `ARCHITECTURE.md` §1.2 |
+
+### P3 — Allocation hygiene (GC pressure)  ·  *suggested: Sonnet 4.6 / medium · Gemini Pro 3.1 / low*
+
+These are mostly 1–4 line fixes. Each eliminates a recurring allocation in the per-frame hot path. Do in a single commit; no behaviour change.
+
+| ID | Location | Issue | Remediation |
+|----|----------|-------|-------------|
+| P4-11 | `Network3D.tsx:603-604` | `new THREE.Color(gradientOrigin/Periphery)` allocated every call to `syncGraphVisuals` (~every step) | Cache two `THREE.Color` refs updated only when `visualSettings` changes |
+| P4-12 | `Network3D.tsx:659` | `new THREE.Color().lerpColors(origin, periphery, t)` per node per frame — ~700 allocs/frame at typical graph size | Declare one scratch `THREE.Color` outside the loop; reuse it with `.lerpColors()` |
+| P4-13 | `Network3D.tsx:669-670` | `.position.clone().project(camera)` + `new THREE.Vector3()` per node when `glitchActive` | Pre-allocate two scratch `THREE.Vector3`s outside the loop |
+| P4-14 | `Network3D.tsx:1478` | `{ ...lastApplied }` spread every animation frame for jolt change-detection | Replace with a flat numeric ref; update scalars directly |
+| P4-15 | `physics.worker.ts:355` | `{ ...applied }` snapshot allocated every step for postMessage | Couple with P4-4: send the `applied` snapshot only at the ~10–15 Hz sidebar cadence; full-rate send is wasteful once P4-4 throttles the consumer |
+| P4-16 | `evaluateTracks.ts:34` | `Object.keys(sliderParams)` rebuilt every step in the worker (PhysicsParams shape is fixed) | Cache key list as a module-level const array |
+| P4-17 | `Network3D.tsx:1442-1443` | `Object.values(physicsKeyframesRef.current).some(...)` + `Object.values(trackMetaRef.current).some(...)` scanned every animation frame (O(tracks × keyframes)) | Replace with two booleans (`hasAnyKfsRef`, `hasAnyModulatorRef`) updated only on `setPhysicsKeyframes` / `setTrackMeta`; feeds into P4-3 cleanly |
+| P4-18 | `Network3D.tsx:1428,1455` | `Date.now()` for delta alongside `performance.now()` already computed two lines later | Compute `performance.now()` once per frame; derive `dt` from it; remove `Date.now()` |
+
+### P4 — Worker hot-loop tightening  ·  *suggested: Sonnet 4.6 / high · Gemini Pro 3.1 / low*
+
+| ID | Location | Issue | Remediation |
+|----|----------|-------|-------------|
+| P4-19 | `physics.worker.ts:107-117` | Spatial grid uses `Map<string, number[]>` with template-literal keys — string allocation per node per step | Replace with flat `Int32Array` bucket array keyed by integer cell hash (`(cx * PRIME1 ^ cy * PRIME2 ^ cz) & mask`). Must land before P4-9 lowers the threshold (otherwise P4-9 makes the string-key path hotter) |
+| P4-20 | `Network3D.tsx:1249-1267` | 2D overlap O(n²)×4 passes runs every step even when the graph is settled | Gate the overlap passes on `avgMovement > 0.5 || prevMaxOverlap > 0`; skip entirely when both are false |
+| P4-21 | `Network3D.tsx:615,629` | `Math.sqrt(maxDistSq)` once + `Math.sqrt(dist²)` per node in `syncGraphVisuals` | Compute `invMaxDist = 1 / Math.sqrt(maxDistSq)` once; per node use `normDistSq = distSq * invMaxDist²` for the cubic falloff (eliminates n×sqrt); only take sqrt if actual distance value is needed elsewhere |
+
+### Explicitly deferred to Phase 4 / Phase 4.1.5
+
+- `usePhysicsWorkerSync`, `textureCache.ts` module move, `useCameraFlyTo`, `useRaycastHover` extraction → Phase 4.1
+- EffectComposer / bloom → Phase 4.2 (spike-gated)
+- Hermite → Bezier consolidation, GraphEditor curve refactor, segment-evaluator unification → Phase 4.1.5
+
+### Implementation order
+
+```
+P4-0 (remove pulse)
+  → P4-1 (RAF) → P4-2 (dispose) → P4-3 (modulation wake, cleaner post P4-0)
+  → P4-4 (sidebar reads worker applied)
+  → P4-5 (syncVisuals skip) → P4-6 (30 Hz cap) → P4-7 (DPR)
+  → P4-11–P4-18 (allocation hygiene — one commit)
+  → P4-19 (spatial grid typed-array, prerequisite for P4-9)
+  → P4-20 (2D overlap gate) → P4-21 (sqrt reduction)
+  → P4-8 (2D overlap spatial hash) → P4-9 (worker threshold)
+  → P4-10 (LOD, optional)
+  → Phase 4.1 extraction
+```
+
+P4-0 ships first so P4-3's wake logic never needs to reference pulse. P4-19 must precede P4-9 — lowering the spatial-hash threshold onto a string-key Map makes performance worse, not better.
+
+### Files modified (typical)
+- `src/app/graph/physics.worker.ts` (P4-0 interface, P4-3 optional tick, P4-9, P4-15, P4-16, P4-19)
+- `src/app/components/Network3D.tsx` (P4-0 pulse block, P4-1–P4-3, P4-5–P4-8, P4-10, P4-11–P4-14, P4-18, P4-20, P4-21)
+- `src/app/context/WortnetzContext.tsx` (P4-0 physicsParams, P4-4, P4-17)
+- `src/app/components/sidebar/tabs/PhysicsTab.tsx` (P4-0 slider row, P4-4)
+- `src/app/components/timeline/types.ts` (P4-0 track entry)
+- `src/app/animation/evaluateTracks.ts` (P4-16 key cache)
+
+### Pre-Phase 4 exit gate
+
+- `npm run test` and `npm run build` clean (mandate §5).
+- `grep interpolatePhysicsParam src/app/components/Network3D.tsx` → 0 (regression guard for Phase 3).
+- `grep -n "pulse" src/app/graph/physics.worker.ts src/app/components/sidebar/tabs/PhysicsTab.tsx src/app/components/Network3D.tsx` → 0 (pulse fully removed).
+- Manual: toggle text / 2D↔3D / parse mode 10× — no climbing GPU memory; no duplicate RAF in DevTools Performance.
+- Manual: LFO on repulsion (`depth > 0`), graph visually settled — sidebar/worker `applied` still oscillates; auto-sleep fires correctly afterward when LFO depth set to 0.
+- Manual: playback 30 s — no full Network3D scene re-init; Timeline usable.
+- Manual: load a workspace file that has `physicsParams.pulse > 0` — loads without error; pulse value silently ignored.
+- Optional: record baseline Performance profile for "idle 3D settled" and "playback + 2 armed tracks" to compare against post-Phase-4.
+
+---
+
+## Phase 4 — Network3D slim-composer refactor + segment-evaluator unification + visual effects
+
+**Goal:** Apply the **App.tsx / Sidebar slim-composer pattern** to `Network3D.tsx` (currently ~1973 lines): logic lives in hooks and `network3d/*` modules; the composer file only wires props, refs, hooks, and JSX. After extraction, unify the three Hermite call sites onto a single segment evaluator under `animation/` (Phase 4.1.5), then add the EffectComposer-based post-processing pipeline (Phase 4.2, spike-gated). The <800-line target on `Network3D.tsx` is enforced by import-graph review, not by `wc -l` alone.
 
 ### 4.1 Extraction (zero behaviour change)  ·  *suggested: Opus 4.7 / high for ref consolidation; Sonnet 4.6 / high for hook extractions*
 
@@ -371,13 +493,50 @@ Extract hooks (each a separate commit, Sonnet-tier each):
 - `useResizeObserver` — already separable.
 
 Extract pure modules (Haiku-tier each — pure code moves):
-- `network3d/keyframeInterpolation.ts` — already pure, just move.
 - `network3d/workerGlue.ts` — worker init + message packing.
 - `network3d/textureCache.ts` — sprite texture builder.
+- `network3d/syncVisuals.ts` — `syncGraphVisuals` body + dependents.
+- *Camera Hermite* extraction goes via Phase 4.1.5, not into `network3d/keyframeInterpolation.ts`. The intermediate filename is intentionally avoided so segment math doesn't briefly live under `network3d/` before moving again.
 
 Remove dead code (Haiku-tier): `applyingKeyframe` (set never read), `frameCount` (incremented never read), commented gizmo block.
 
 **Line gate:** Network3D.tsx ≤800 lines OR ≤400 lines with logic in `src/app/network3d/*` — enforced by import graph review, not `wc -l` alone.
+
+### 4.1.5 Segment-evaluator unification (Hermite today, Bezier-ready)  ·  *suggested: Opus 4.7 / high · Gemini Pro 3.1 / high*
+
+**Goal:** Collapse the three Hermite call sites onto a **single segment evaluator** so a later Bezier swap is a one-file change, not a hunt across the codebase.
+
+**Today's curve sites:**
+
+| Location | Curve | Role |
+|---|---|---|
+| `src/app/animation/interpolatePhysicsParam.ts` + worker `evaluateTracks` | Hermite + Catmull-Rom tangents | Physics param values at `time` |
+| `Network3D.tsx` `applyCameraKeyframes` (post-4.1: a hook) | Inline Hermite (same helpers) | Camera position/target |
+| `TimelineTracks.tsx` graph editor | Duplicate Hermite block | Curve **drawing** in the graph editor |
+| `src/app/easing.ts` `solveBezierEasing` | Bezier | Easing presets — currently **not** on the keyframe value path |
+
+**Scope:**
+
+- New `src/app/animation/segmentEvaluate.ts` (name TBD) — single `evaluateSegment(keyframes, time, options)` API, used by:
+  - `evaluateTracks` (worker) — replaces the inline Hermite term, keeps LFO/glide/forces untouched.
+  - Camera hook (extracted in 4.1) — replaces inline `hermite()`.
+  - GraphEditor draw path — deletes the duplicate Hermite block in `TimelineTracks.tsx`.
+- Keep the implementation Hermite today; design the API so a future Bezier-handles migration is local to this file.
+- Golden tests: extend `interpolatePhysicsParam.test.ts` as the contract suite for the new API.
+- Sidebar live-value display: confirm P4-4 already reads worker `applied` (not the old `effectivePhysicsParams` Hermite memo) — Phase 4.1.5 should not re-introduce main-thread segment evaluation for the sidebar.
+
+**Out of scope:**
+
+- Physics forces, LFO, glide integration — stay in `evaluateTracks`; only the keyframe term changes.
+- Keyframe/handle schema changes (AE-style Bezier handles vs current Catmull-Rom tangents). That is a workspace-format migration; if/when it lands, it gets its own phase with a version bump.
+- GraphEditor visual handle redesign.
+
+**Exit:**
+
+- `grep -rn "hermite\|interpolatePhysicsParam" src/app | grep -v animation/segmentEvaluate | grep -v animation/interpolatePhysicsParam.ts` → 0 matches (single import surface).
+- Worker, camera, and graph-editor draw paths all import from `src/app/animation/segmentEvaluate.ts`.
+- Visual diff against post-4.1 baseline: identical (same math under a new name).
+- `npm run test` clean; new contract test covers all three consumers via the shared API.
 
 ### 4.2 Visual effects pipeline (spike-gated)  ·  *suggested: Opus 4.7 / high · Gemini Pro 3.1 / high*
 
@@ -396,10 +555,11 @@ Remove dead code (Haiku-tier): `applyingKeyframe` (set never read), `frameCount`
 - `src/app/hooks/usePhysicsWorkerSync.ts`
 - `src/app/hooks/useCameraFlyTo.ts`
 - `src/app/hooks/useRaycastHover.ts`
-- `src/app/network3d/keyframeInterpolation.ts`
 - `src/app/network3d/workerGlue.ts`
 - `src/app/network3d/textureCache.ts`
+- `src/app/network3d/syncVisuals.ts`
 - `src/app/network3d/effectsPipeline.ts`
+- `src/app/animation/segmentEvaluate.ts` *(Phase 4.1.5 — unified Hermite/segment evaluator; replaces inline copies in worker, camera, and GraphEditor)*
 
 ### Files modified
 - `src/app/components/Network3D.tsx` (extraction targets — file shrinks substantially)
@@ -513,7 +673,8 @@ These exist as a guardrail: when designing Phase 3's `Track<T>` and `Modulator` 
 - `src/app/hooks/usePhysicsWorkerSync.ts` — P4
 - `src/app/hooks/useCameraFlyTo.ts` — P4
 - `src/app/hooks/useRaycastHover.ts` — P4
-- `src/app/network3d/keyframeInterpolation.ts` — P4
+- `src/app/animation/segmentEvaluate.ts` — P4.1.5 (unified Hermite/segment evaluator)
+- `src/app/network3d/syncVisuals.ts` — P4
 - `src/app/network3d/workerGlue.ts` — P4
 - `src/app/network3d/textureCache.ts` — P4
 - `src/app/network3d/effectsPipeline.ts` — P4
