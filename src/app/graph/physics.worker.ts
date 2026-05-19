@@ -103,18 +103,19 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   // Repulsion
   if (n >= 2000) {
     // Spatial hash grid (O(n)) for large graphs
+    
     const CELL_SIZE = 150;
-    const grid = new Map<string, number[]>();
+    if (n > gridNext.length) gridNext = new Int32Array(n * 2);
+    gridHead.fill(-1);
 
     for (let i = 0; i < n; i++) {
       const b = i * 6;
       const cx = Math.floor(posVel[b] / CELL_SIZE);
       const cy = Math.floor(posVel[b + 1] / CELL_SIZE);
       const cz = Math.floor(posVel[b + 2] / CELL_SIZE);
-      const key = `${cx},${cy},${cz}`;
-      let cell = grid.get(key);
-      if (!cell) { cell = []; grid.set(key, cell); }
-      cell.push(i);
+      const key = (Math.imul(cx, 73856093) ^ Math.imul(cy, 19349663) ^ Math.imul(cz, 83492791)) & 8191;
+      gridNext[i] = gridHead[key];
+      gridHead[key] = i;
     }
 
     for (let i = 0; i < n; i++) {

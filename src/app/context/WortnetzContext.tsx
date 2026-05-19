@@ -126,15 +126,20 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const playheadRef = useRef(playheadPosition);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
 
-  const effectivePhysicsParams = useMemo(() => {
-    const next = { ...physicsParams };
-    for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
-      const sorted = [...(physicsKeyframes[trackId] ?? [])].sort((a, b) => a.time - b.time);
-      const v = interpolatePhysicsParam(sorted, playheadPosition, trackId);
-      if (v !== null) (next as Record<string, number>)[param] = v;
-    }
-    return next;
-  }, [physicsParams, physicsKeyframes, playheadPosition]);
+  const [effectivePhysicsParams, setEffectivePhysicsParams] = useState(physicsParams);
+  useEffect(() => { setEffectivePhysicsParams(physicsParams); }, [physicsParams]);
+
+  useEffect(() => {
+    const updateEpp = () => {
+      if (network3DRef.current) {
+        setEffectivePhysicsParams(network3DRef.current.getEffectivePhysicsParams());
+      }
+    };
+    // Initial sync
+    updateEpp();
+    const interval = setInterval(updateEpp, 66); // ~15 Hz
+    return () => clearInterval(interval);
+  }, [playheadPosition, isPlaying]); // include isPlaying to re-sync if changed
 
   const uiIsDark = themeMode === 'dark';
   const previewIsDark = themeMode === 'dark';
