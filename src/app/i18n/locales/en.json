@@ -139,7 +139,7 @@
       "camera":  {
         "title": "Camera",
         "section": {
-          "rotation": "Rotation (orbit)",
+          "rotation": "Rotation",
           "pan":      "Pan view",
           "zoom":     "Zoom"
         },
@@ -215,7 +215,7 @@
       "title":       "Modulator",
       "enable":      "Enable modulator",
       "waveform":    "Waveform",
-      "rate":        "Rate (Hz)",
+      "rate":        "Rate",
       "depth":       "Depth",
       "phase":       "Phase",
       "hint":        "Tip: matches the Pulse knob",

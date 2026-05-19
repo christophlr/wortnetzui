@@ -8,8 +8,7 @@ import {
   SidebarGroup,
   SidebarSection,
   SidebarSectionActionButton,
-  SidebarSliderRow,
-  SidebarSliderTrack,
+  SidebarScrubberRow,
   SidebarTabContent,
   SidebarToggleRow,
   SidebarVisibilityToggle,
@@ -109,38 +108,25 @@ export function VisualTab({
           />
         </SidebarGroup>
 
-        <SidebarSliderRow
+        <SidebarScrubberRow
           label={t('sidebar.tab.visual.slider.baseScale')}
           value={styleSettings.nodeScale ?? 1}
-          onCommit={(val) => onStyleChange({ nodeScale: val })}
           min={0}
           max={2.5}
+          step={0.05}
           format={(v) => `${v.toFixed(1)}x`}
-          slider={
-            <SidebarSliderTrack
-              value={[(styleSettings.nodeScale ?? 1) * 100]}
-              max={250}
-              step={5}
-              onValueChange={([val]) => onStyleChange({ nodeScale: val / 100 })}
-            />
-          }
+          onValueChange={(val) => onStyleChange({ nodeScale: val })}
+          onCommit={(val) => onStyleChange({ nodeScale: val })}
         />
 
-        <SidebarSliderRow
+        <SidebarScrubberRow
           label={t('sidebar.tab.visual.slider.radialBias')}
           value={visualSettings.radialBiasScale}
-          onCommit={(val) => setVisual({ radialBiasScale: val })}
           min={-1}
           max={1}
-          slider={
-            <SidebarSliderTrack
-              value={[visualSettings.radialBiasScale * 100]}
-              min={-100}
-              max={100}
-              step={1}
-              onValueChange={([val]) => setVisual({ radialBiasScale: val / 100 })}
-            />
-          }
+          step={0.01}
+          onValueChange={(val) => setVisual({ radialBiasScale: val })}
+          onCommit={(val) => setVisual({ radialBiasScale: val })}
           description={t('sidebar.tab.visual.description.radialBias')}
         />
       </SidebarSection>
@@ -154,21 +140,15 @@ export function VisualTab({
           />
         }
       >
-        <SidebarSliderRow
+        <SidebarScrubberRow
           label={t('sidebar.tab.visual.slider.globalOpacity')}
-          value={(styleSettings.edgeOpacity ?? 0) * 100}
-          onCommit={(val) => onStyleChange({ edgeOpacity: val / 100 })}
+          value={Math.round((styleSettings.edgeOpacity ?? 0) * 100)}
           min={0}
           max={100}
+          step={1}
           format={(v) => `${Math.round(v)}%`}
-          slider={
-            <SidebarSliderTrack
-              value={[(styleSettings.edgeOpacity ?? 0) * 100]}
-              max={100}
-              step={1}
-              onValueChange={([val]) => onStyleChange({ edgeOpacity: val / 100 })}
-            />
-          }
+          onValueChange={(val) => onStyleChange({ edgeOpacity: val / 100 })}
+          onCommit={(val) => onStyleChange({ edgeOpacity: val / 100 })}
         />
       </SidebarSection>
 
@@ -188,36 +168,24 @@ export function VisualTab({
 
           {visualSettings.glitchActive && (
             <>
-              <SidebarSliderRow
+              <SidebarScrubberRow
                 label={t('sidebar.tab.visual.slider.brushRadius')}
                 value={visualSettings.glitchBrushRadius}
-                onCommit={(val) => setVisual({ glitchBrushRadius: Math.round(val) })}
                 min={0}
                 max={500}
+                step={5}
                 format={(v) => `${Math.round(v)}px`}
-                slider={
-                  <SidebarSliderTrack
-                    value={[visualSettings.glitchBrushRadius]}
-                    max={500}
-                    step={5}
-                    onValueChange={([val]) => setVisual({ glitchBrushRadius: val })}
-                  />
-                }
+                onValueChange={(val) => setVisual({ glitchBrushRadius: Math.round(val) })}
+                onCommit={(val) => setVisual({ glitchBrushRadius: Math.round(val) })}
               />
-              <SidebarSliderRow
+              <SidebarScrubberRow
                 label={t('sidebar.tab.visual.slider.feather')}
                 value={visualSettings.glitchFeather}
-                onCommit={(val) => setVisual({ glitchFeather: val })}
                 min={0}
                 max={1}
-                slider={
-                  <SidebarSliderTrack
-                    value={[visualSettings.glitchFeather * 100]}
-                    max={100}
-                    step={1}
-                    onValueChange={([val]) => setVisual({ glitchFeather: val / 100 })}
-                  />
-                }
+                step={0.01}
+                onValueChange={(val) => setVisual({ glitchFeather: val })}
+                onCommit={(val) => setVisual({ glitchFeather: val })}
               />
             </>
           )}
@@ -231,20 +199,14 @@ export function VisualTab({
           onCheckedChange={(checked) => setVisual({ pathCameraFollow: checked })}
         />
 
-        <SidebarSliderRow
+        <SidebarScrubberRow
           label={t('sidebar.tab.visual.slider.smoothness')}
           value={visualSettings.pathSmoothness}
-          onCommit={(val) => setVisual({ pathSmoothness: val })}
           min={0}
           max={1}
-          slider={
-            <SidebarSliderTrack
-              value={[visualSettings.pathSmoothness * 100]}
-              max={100}
-              step={1}
-              onValueChange={([val]) => setVisual({ pathSmoothness: val / 100 })}
-            />
-          }
+          step={0.01}
+          onValueChange={(val) => setVisual({ pathSmoothness: val })}
+          onCommit={(val) => setVisual({ pathSmoothness: val })}
         />
       </SidebarSection>
     </SidebarTabContent>

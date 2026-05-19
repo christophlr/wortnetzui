@@ -30,6 +30,7 @@
 import * as React from 'react';
 import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform } from 'lucide-react';
 import { Slider } from '../ui/slider';
+import { Scrubber, type ScrubberProps } from '../ui/scrubber';
 import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
 import { RadioGroupItem } from '../ui/radio-group';
@@ -234,6 +235,79 @@ export function SidebarSliderTrack({
   ...props
 }: React.ComponentProps<typeof Slider>) {
   return <Slider className={cn('py-2', className)} {...props} />;
+}
+
+/**
+ * SidebarScrubberTrack — level-5 atom. Thin wrapper around `Scrubber` that
+ * forwards all props unchanged. Use as the `slider` slot inside a
+ * `SidebarScrubberRow`, or standalone when you don't need accessory buttons.
+ */
+export function SidebarScrubberTrack({ className, ...props }: ScrubberProps) {
+  return <Scrubber className={cn(className)} {...props} />;
+}
+
+/**
+ * SidebarScrubberRow — level-4 atom. Single-row layout:
+ *   [scrubber track with built-in label + value]  [optional accessory buttons]
+ *
+ * The scrubber takes flex-1 width so accessory buttons (modulator, keyframe)
+ * sit flush to the right without needing a separate header row.
+ */
+export function SidebarScrubberRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  decimals,
+  ticks,
+  onValueChange,
+  onCommit,
+  format,
+  parseInput,
+  accessory,
+  description,
+  className,
+}: {
+  label?: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  decimals?: number;
+  ticks?: number;
+  onValueChange?: (v: number) => void;
+  onCommit?: (v: number) => void;
+  format?: (v: number) => string;
+  parseInput?: (raw: string) => number;
+  accessory?: React.ReactNode;
+  description?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1.5', className)}>
+      <div className="flex items-center gap-1.5">
+        <SidebarScrubberTrack
+          label={label}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          decimals={decimals}
+          ticks={ticks}
+          onValueChange={onValueChange}
+          onCommit={onCommit}
+          format={format}
+          parseInput={parseInput}
+          className="flex-1 min-w-0"
+        />
+        {accessory ? (
+          <div className="flex items-center gap-1 shrink-0">{accessory}</div>
+        ) : null}
+      </div>
+      {description ? <SidebarDescription>{description}</SidebarDescription> : null}
+    </div>
+  );
 }
 
 export function SidebarDescription({

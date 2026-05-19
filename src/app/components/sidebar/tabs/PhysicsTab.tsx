@@ -1,9 +1,8 @@
 import {
   SidebarKeyframeToggle,
   SidebarModulatorButton,
+  SidebarScrubberRow,
   SidebarSection,
-  SidebarSliderRow,
-  SidebarSliderTrack,
   SidebarTabContent,
 } from '../SidebarAtoms';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
@@ -73,12 +72,6 @@ export function PhysicsTab({
     },
   ];
 
-  const paramLabel = (paramKey: string): string => {
-    const name = t(`sidebar.tab.physics.param.${paramKey}.name`);
-    const hint = t(`sidebar.tab.physics.param.${paramKey}.hint`);
-    return hint ? `${name} (${hint})` : name;
-  };
-
   return (
     <SidebarTabContent>
       {groups.map((group) => (
@@ -92,13 +85,15 @@ export function PhysicsTab({
             const min = p.min ?? 0;
             const modulator = trackMeta?.[p.id]?.modulator ?? null;
             return (
-              <SidebarSliderRow
+              <SidebarScrubberRow
                 key={p.id}
-                label={paramLabel(p.paramKey)}
+                label={t(`sidebar.tab.physics.param.${p.paramKey}.name`)}
                 value={p.value}
-                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
                 min={min}
                 max={p.max}
+                step={p.step}
+                onValueChange={(val) => onPhysicsChange({ [p.key]: val })}
+                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
                 description={t(`sidebar.tab.physics.param.${p.paramKey}.desc`)}
                 accessory={
                   <>
@@ -138,15 +133,6 @@ export function PhysicsTab({
                       title={active ? t('sidebar.tab.physics.keyframe.remove') : t('sidebar.tab.physics.keyframe.set')}
                     />
                   </>
-                }
-                slider={
-                  <SidebarSliderTrack
-                    value={[p.value]}
-                    min={min}
-                    max={p.max}
-                    step={p.step}
-                    onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
-                  />
                 }
               />
             );

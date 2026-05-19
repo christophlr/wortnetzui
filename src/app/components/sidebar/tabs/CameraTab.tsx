@@ -5,8 +5,7 @@ import { cn } from '../../ui/utils';
 import {
   SidebarDragPuck,
   SidebarSection,
-  SidebarSliderRow,
-  SidebarSliderTrack,
+  SidebarScrubberRow,
   SidebarTabContent,
   SidebarViewPresetButton,
 } from '../SidebarAtoms';
@@ -251,22 +250,15 @@ export function CameraTab({
       </SidebarSection>
 
       <SidebarSection title={t('sidebar.tab.camera.section.zoom')}>
-        <SidebarSliderRow
+        <SidebarScrubberRow
           value={zoomValue}
-          onCommit={(val) => onZoomChange(val)}
           min={0}
           max={100}
+          step={1}
           format={(v) => `${Math.round(v)}%`}
+          onValueChange={(val) => onZoomChange(val)}
+          onCommit={(val) => onZoomChange(val)}
           description={t('sidebar.tab.camera.hint.zoom')}
-          slider={
-            <SidebarSliderTrack
-              value={[zoomValue]}
-              min={0}
-              max={100}
-              step={1}
-              onValueChange={([val]) => onZoomChange(val)}
-            />
-          }
         />
       </SidebarSection>
 

@@ -9,9 +9,9 @@ import type { Modulator, ModulatorWaveform } from '../../animation/Modulator';
 import { DEFAULT_MODULATOR } from '../../animation/Modulator';
 import {
   SidebarCollapsiblePanel,
+  SidebarScrubberRow,
   SidebarSegmentedPicker,
   SidebarSliderRow,
-  SidebarSliderTrack,
   SidebarToggleRow,
   SidebarDescription,
 } from '../sidebar/SidebarAtoms';
@@ -85,21 +85,16 @@ export function LfoControlsBody({
           />
           {bpmEnabled ? (
             <>
-              <SidebarSliderRow
+              <SidebarScrubberRow
                 label={t('timeline.lfo.bpm')}
                 value={current.bpm!}
-                onCommit={(v) => onChange({ ...current, bpm: Math.round(Math.max(20, Math.min(300, v))) })}
                 min={20}
                 max={300}
-                slider={
-                  <SidebarSliderTrack
-                    value={[current.bpm!]}
-                    min={20}
-                    max={300}
-                    step={1}
-                    onValueChange={([v]) => onChange({ ...current, bpm: Math.round(v) })}
-                  />
-                }
+                step={1}
+                decimals={0}
+                format={(v) => String(Math.round(v))}
+                onValueChange={(v) => onChange({ ...current, bpm: Math.round(v) })}
+                onCommit={(v) => onChange({ ...current, bpm: Math.round(Math.max(20, Math.min(300, v))) })}
               />
               <SidebarSliderRow
                 label={t('timeline.lfo.subdivision')}
@@ -113,53 +108,33 @@ export function LfoControlsBody({
               />
             </>
           ) : (
-            <SidebarSliderRow
+            <SidebarScrubberRow
               label={t('timeline.lfo.rate')}
               value={current.rate}
-              onCommit={(v) => onChange({ ...current, rate: Math.max(0.1, Math.min(10, v)) })}
               min={0.1}
               max={10}
-              slider={
-                <SidebarSliderTrack
-                  value={[current.rate]}
-                  min={0.1}
-                  max={10}
-                  step={0.1}
-                  onValueChange={([v]) => onChange({ ...current, rate: v })}
-                />
-              }
+              step={0.1}
+              onValueChange={(v) => onChange({ ...current, rate: v })}
+              onCommit={(v) => onChange({ ...current, rate: Math.max(0.1, Math.min(10, v)) })}
             />
           )}
-          <SidebarSliderRow
+          <SidebarScrubberRow
             label={t('timeline.lfo.depth')}
             value={current.depth}
-            onCommit={(v) => onChange({ ...current, depth: Math.max(0, v) })}
             min={0}
-            slider={
-              <SidebarSliderTrack
-                value={[current.depth]}
-                min={0}
-                max={depthMaxFor(paramKey)}
-                step={depthStepFor(paramKey)}
-                onValueChange={([v]) => onChange({ ...current, depth: v })}
-              />
-            }
+            max={depthMaxFor(paramKey)}
+            step={depthStepFor(paramKey)}
+            onValueChange={(v) => onChange({ ...current, depth: v })}
+            onCommit={(v) => onChange({ ...current, depth: Math.max(0, v) })}
           />
-          <SidebarSliderRow
+          <SidebarScrubberRow
             label={t('timeline.lfo.phase')}
             value={current.phase}
-            onCommit={(v) => onChange({ ...current, phase: ((v % TWO_PI) + TWO_PI) % TWO_PI })}
             min={0}
             max={TWO_PI}
-            slider={
-              <SidebarSliderTrack
-                value={[current.phase]}
-                min={0}
-                max={TWO_PI}
-                step={TWO_PI / 32}
-                onValueChange={([v]) => onChange({ ...current, phase: v })}
-              />
-            }
+            step={TWO_PI / 32}
+            onValueChange={(v) => onChange({ ...current, phase: v })}
+            onCommit={(v) => onChange({ ...current, phase: ((v % TWO_PI) + TWO_PI) % TWO_PI })}
           />
           {trackId === 'phys-rep' ? (
             <SidebarDescription>{t('timeline.lfo.hint')}</SidebarDescription>

@@ -139,8 +139,8 @@
       "camera":  {
         "title": "Kamera",
         "section": {
-          "rotation": "Rotation (Orbit)",
-          "pan":      "Ansicht verschieben (Pan)",
+          "rotation": "Rotation",
+          "pan":      "Ansicht verschieben",
           "zoom":     "Zoom"
         },
         "hint": {
@@ -215,7 +215,7 @@
       "title":       "Modulator",
       "enable":      "Modulator aktivieren",
       "waveform":    "Wellenform",
-      "rate":        "Rate (Hz)",
+      "rate":        "Rate",
       "depth":       "Stärke",
       "phase":       "Phase",
       "hint":        "Tipp: entspricht dem Pulse-Regler",
