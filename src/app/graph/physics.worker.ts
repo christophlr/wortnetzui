@@ -62,6 +62,8 @@ let edgeIndices: Int32Array;
 let wordCounts: Int32Array;
 let sharedMatrix: Uint8Array;
 let nodeCount = 0;
+let gridHead = new Int32Array(8192);
+let gridNext = new Int32Array(0);
 
 // Animation state owned by the worker (Phase 3).
 let tracks: Record<string, WorkerTrack | undefined> = {};
@@ -101,9 +103,8 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   }
 
   // Repulsion
-  if (n >= 2000) {
+  if (n >= 150) {
     // Spatial hash grid (O(n)) for large graphs
-    
     const CELL_SIZE = 150;
     if (n > gridNext.length) gridNext = new Int32Array(n * 2);
     gridHead.fill(-1);
@@ -132,13 +133,17 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
       for (let ox = -1; ox <= 1; ox++) {
         for (let oy = -1; oy <= 1; oy++) {
           for (let oz = -1; oz <= 1; oz++) {
-            const key = `${cx + ox},${cy + oy},${cz + oz}`;
-            const cell = grid.get(key);
-            if (!cell) continue;
-
-            for (let cIdx = 0; cIdx < cell.length; cIdx++) {
-              const j = cell[cIdx];
-              if (i === j) continue;
+            const hx = cx + ox;
+            const hy = cy + oy;
+            const hz = cz + oz;
+            const key = (Math.imul(hx, 73856093) ^ Math.imul(hy, 19349663) ^ Math.imul(hz, 83492791)) & 8191;
+            
+            let j = gridHead[key];
+            while (j !== -1) {
+              if (i === j) {
+                j = gridNext[j];
+                continue;
+              }
               const bj = j * 6;
               const dx = x - posVel[bj];
               const dy = y - posVel[bj + 1];
@@ -154,6 +159,8 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
               fx += dx * invDist * force;
               fy += dy * invDist * force;
               fz += dz * invDist * force;
+              
+              j = gridNext[j];
             }
           }
         }
