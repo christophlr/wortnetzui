@@ -19,6 +19,14 @@ import {
 
 import type { PhysicsKeyframe } from './timeline/types';
 
+
+const _colorA = new THREE.Color();
+const _colorB = new THREE.Color();
+const _scratchColor = new THREE.Color();
+const _scratchVec1 = new THREE.Vector3();
+const _scratchVec2 = new THREE.Vector3();
+
+
 interface Network3DProps {
   isPlaying: boolean;
   playheadPosition: number;
