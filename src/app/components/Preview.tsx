@@ -1,7 +1,7 @@
 import { Network3D, type Network3DHandle } from './Network3D';
 import { forwardRef, useState, useEffect, useRef } from 'react';
 import { VERSION, BUILD_DATE, BUILD_NUMBER, LAST_COMMIT_HASH, LAST_COMMIT_DATE } from '../../version';
-import { type PhysicsKeyframe, type SceneMarker, type TimelineState } from '../context/WortnetzContextTypes';
+import { type PhysicsKeyframe, type SceneMarker, type TimelineState, type TrackMeta } from '../context/WortnetzContextTypes';
 import { type EdgeAppearanceSettings } from '../networkTheme';
 import { type PhysicsParams } from '../graph';
 import { Artboard, LoadingOverlay, OverlayBadge } from './preview/PreviewAtoms';
@@ -14,6 +14,7 @@ interface PreviewProps {
   playheadPosition: number;
   physicsParams?: PhysicsParams;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
+  trackMeta?: Record<string, TrackMeta>;
   inputText?: string;
   parseMode?: 'sentence' | 'word' | 'both';
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape: any; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
@@ -38,6 +39,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   playheadPosition,
   physicsParams,
   physicsKeyframes,
+  trackMeta,
   inputText,
   parseMode,
   styleSettings,
@@ -121,6 +123,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
               playheadPosition={playheadPosition}
               physicsParams={physicsParams}
               physicsKeyframes={physicsKeyframes}
+              trackMeta={trackMeta}
               inputText={inputText}
               parseMode={parseMode}
               styleSettings={styleSettings}

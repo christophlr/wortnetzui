@@ -1,4 +1,6 @@
 import type { ReactNode, RefObject } from 'react';
+import type { Modulator } from '../../animation/Modulator';
+import type { TrackMeta } from '../../animation/Track';
 
 /* ── Shared timeline types ── */
 
@@ -175,4 +177,13 @@ export interface TimelineProps {
   isRecording?: boolean;
   onToggleRecording?: () => void;
   onCancelDrag?: () => void;
+
+  // Per-track Glide + LFO (Phase 3.4)
+  trackMeta?: Record<string, TrackMeta>;
+  onSetTrackGlide?: (trackId: string, seconds: number) => void;
+  onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
+
+  // Per-track recording arm (Phase 3.5)
+  armedTracks?: ReadonlySet<string>;
+  onToggleTrackArm?: (trackId: string) => void;
 }

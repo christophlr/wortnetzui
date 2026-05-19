@@ -1,6 +1,11 @@
 import { EdgeAppearanceSettings, NodeShape } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import type { Network3DHandle } from '../components/Network3D';
+import type { Modulator } from '../animation/Modulator';
+import type { TrackMeta } from '../animation/Track';
+
+export type { Modulator } from '../animation/Modulator';
+export type { Track, TrackMeta } from '../animation/Track';
 
 export type Keyframe = {
   time: number;
@@ -34,6 +39,7 @@ export type TimelineState = {
   cameraKeyframes: Keyframe[];
   physicsKeyframes: Record<string, PhysicsKeyframe[]>;
   sceneMarkers: SceneMarker[];
+  trackMeta: Record<string, TrackMeta>;
 };
 
 export interface WortnetzContextType {
@@ -157,6 +163,18 @@ export interface WortnetzContextType {
   selectedKeyframes: { track: string; time: number }[];
   setSelectedKeyframes: React.Dispatch<React.SetStateAction<{ track: string; time: number }[]>>;
 
+  // Track-level animation tuning (Phase 3).
+  // Keyed by trackId (PHYS_TRACK_PARAM key, e.g. 'phys-rep'). Defaults to glide=0, no modulator.
+  trackMeta: Record<string, TrackMeta>;
+  setTrackMeta: React.Dispatch<React.SetStateAction<Record<string, TrackMeta>>>;
+  handleSetTrackGlide: (trackId: string, seconds: number) => void;
+  handleSetTrackModulator: (trackId: string, modulator: Modulator | null) => void;
+
+  // Per-track recording arm (Phase 3.5). Defaults to all tracks armed.
+  armedTracks: ReadonlySet<string>;
+  handleToggleTrackArm: (trackId: string) => void;
+  handleCommitRecording: (result: import('../animation/Recorder').RecorderResult) => void;
+
   // Refs
   network3DRef: React.RefObject<Network3DHandle | null>;
   cameraKeyframesRef: React.MutableRefObject<Keyframe[]>;
@@ -165,6 +183,8 @@ export interface WortnetzContextType {
   selectedKeyframesRef: React.MutableRefObject<{ track: string; time: number }[]>;
   playheadRef: React.MutableRefObject<number>;
   isRecordingRef: React.MutableRefObject<boolean>;
+  trackMetaRef: React.MutableRefObject<Record<string, TrackMeta>>;
+  armedTracksRef: React.MutableRefObject<ReadonlySet<string>>;
 
   selectedNode: any;
   setSelectedNode: (node: any) => void;

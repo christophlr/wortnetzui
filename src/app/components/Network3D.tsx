@@ -8,7 +8,8 @@ import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, GIZMO_
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
-import { interpolatePhysicsParam } from '../animation/interpolatePhysicsParam';
+import type { TrackMeta } from '../animation/Track';
+import type { WorkerTrack } from '../animation/evaluateTracks';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -25,6 +26,7 @@ interface Network3DProps {
   viewMode?: '2D' | '3D';
   physicsParams?: PhysicsParams;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
+  trackMeta?: Record<string, TrackMeta>;
   parseMode?: 'sentence' | 'word' | 'both';
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{
@@ -176,6 +178,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     parseMode = 'word',
     physicsParams = DEFAULT_PHYSICS,
     physicsKeyframes,
+    trackMeta,
     styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
     cameraKeyframes = [],
     onCameraChange,
@@ -223,15 +226,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const cameraKeyframesRef = useRef(cameraKeyframes);
   const isPlayingRef = useRef(isPlaying);
   const physicsParamsRef = useRef(physicsParams);
-  const effectivePhysicsRef = useRef(physicsParams);
-  const physicsBlendActiveRef = useRef(false);
-  const physicsBlendStartRef = useRef<number>(0);
-  const physicsBlendDurationRef = useRef<number>(30); // Reduced from 60ms for snappier response
-  const physicsBlendFromRef = useRef(physicsParams);
-  const physicsBlendToRef = useRef(physicsParams);
-  const physicsBlendScratchRef = useRef({ ...DEFAULT_PHYSICS });
+  // `effectivePhysicsRef` is now the worker-authoritative `applied` snapshot,
+  // updated on every worker step response. Exposed via `getEffectivePhysicsParams`.
+  const effectivePhysicsRef = useRef<PhysicsParams>({ ...physicsParams });
+  const lastStepNowRef = useRef<number>(performance.now());
   const lastParamsTimeRef = useRef<number>(performance.now());
-  const lastParamsValuesRef = useRef(physicsParams);
+  const lastParamsValuesRef = useRef<PhysicsParams>({ ...physicsParams });
   const physicsVelocityRef = useRef<number>(0);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const hoveredNodeRef = useRef<GraphNode | null>(null);
@@ -272,6 +272,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const edgeAppearanceRef = useRef(edgeAppearance);
   const onCameraChangeRef = useRef(onCameraChange);
   const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
+  const trackMetaRef = useRef<Record<string, TrackMeta>>(trackMeta ?? {});
+  useEffect(() => { trackMetaRef.current = trackMeta ?? {}; }, [trackMeta]);
+  const tracksDebounceRef = useRef<number | null>(null);
   const visualSettingsRef = useRef(visualSettings);
   useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
@@ -288,7 +291,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
   }, [playheadPosition]);
   useEffect(() => {
-    // Pre-sort keyframes once on change instead of per-frame in interpolatePhysicsParam
+    // Pre-sort keyframes so the worker's per-step Hermite eval sees them in order.
     const raw = physicsKeyframes ?? {};
     const sorted: Record<string, PhysicsKeyframe[]> = {};
     for (const [trackId, kfs] of Object.entries(raw)) {
@@ -296,13 +299,45 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
     physicsKeyframesRef.current = sorted;
   }, [physicsKeyframes]);
+
+  // Push tracks (keyframes + glide + modulator) to the worker. Debounced so a
+  // drag of a keyframe or LFO slider doesn't flood the message queue. The
+  // worker keys tracks by paramKey ('repulsion', ...) — `PHYS_TRACK_PARAM`
+  // maps trackId → paramKey and is the single source of truth for that.
+  useEffect(() => {
+    if (tracksDebounceRef.current !== null) {
+      window.clearTimeout(tracksDebounceRef.current);
+    }
+    tracksDebounceRef.current = window.setTimeout(() => {
+      const tracksMsg: Record<string, WorkerTrack> = {};
+      const kfs = physicsKeyframesRef.current;
+      const meta = trackMetaRef.current;
+      for (const [trackId, paramKey] of Object.entries(PHYS_TRACK_PARAM)) {
+        const m = meta[trackId];
+        tracksMsg[paramKey] = {
+          trackId,
+          keyframes: kfs[trackId] ?? [],
+          glide: m?.glide ?? 0,
+          modulator: m?.modulator,
+        };
+      }
+      physicsWorkerRef.current?.postMessage({ type: 'updateTracks', tracks: tracksMsg });
+      tracksDebounceRef.current = null;
+    }, 100);
+    return () => {
+      if (tracksDebounceRef.current !== null) {
+        window.clearTimeout(tracksDebounceRef.current);
+        tracksDebounceRef.current = null;
+      }
+    };
+  }, [physicsKeyframes, trackMeta]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
+    // Sidebar slider change: forward the new baseline to the worker on the
+    // next step (sliderParams is included in every step message). Worker glide
+    // = 0 (default) means tracks without keyframes snap instantly to the new
+    // baseline — the old 30 ms easeOut blend was removed in Phase 3.
     physicsParamsRef.current = physicsParams;
-    physicsBlendFromRef.current = effectivePhysicsRef.current;
-    physicsBlendToRef.current = physicsParams;
-    physicsBlendStartRef.current = performance.now();
-    physicsBlendActiveRef.current = true;
     physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
   }, [physicsParams]);
@@ -1137,7 +1172,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       );
     }
 
-    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number }>) => {
+    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number; applied?: PhysicsParams }>) => {
       if (e.data.type === 'settle_progress') {
         const { progress } = e.data;
         if (progress !== undefined) {
@@ -1165,8 +1200,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
 
       // ── STEP response ──
-      const { posVel, avgMovement } = e.data;
+      const { posVel, avgMovement, applied } = e.data;
       if (!posVel || avgMovement === undefined) return;
+      if (applied) {
+        // Worker is authoritative for `applied`; surfaces it back so the main
+        // thread can drive jolt velocity, recording, and external consumers
+        // via `getEffectivePhysicsParams()`.
+        effectivePhysicsRef.current = applied;
+      }
       const arr = graphNodeArrayRef.current;
       for (let i = 0; i < arr.length; i++) {
         const b = i * 6;
@@ -1360,7 +1401,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     renderer.domElement.addEventListener('dblclick', handleDblClick);
 
     // Animation loop
-    let frameCount = 0;
     let lastTime = Date.now();
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -1379,114 +1419,56 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
       if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
-        let paramsForFrame = physicsParamsRef.current;
+        // The worker is now authoritative for keyframe/glide/LFO evaluation.
+        // Main thread tracks parameter-change velocity from the previous frame's
+        // `applied` to drive the jolt + pulse overrides — both are layered on top
+        // of `applied` via `paramOverrides` so the worker stays a pure evaluator.
+        const lastApplied = effectivePhysicsRef.current;
 
-        if (physicsBlendActiveRef.current) {
-          const elapsed = performance.now() - physicsBlendStartRef.current;
-          const tRaw = Math.max(0, Math.min(1, elapsed / physicsBlendDurationRef.current));
-          const t = applyEasing(tRaw, 'easeOut'); // 'easeOut' is instantly responsive, unlike 'easeInOut'
-          const from = physicsBlendFromRef.current;
-          const to = physicsBlendToRef.current;
-
-          // Reuse a scratch object to avoid per-frame allocation during blend
-          physicsBlendScratchRef.current.repulsion   = from.repulsion   + (to.repulsion   - from.repulsion)   * t;
-          physicsBlendScratchRef.current.springK     = from.springK     + (to.springK     - from.springK)     * t;
-          physicsBlendScratchRef.current.damping     = from.damping     + (to.damping     - from.damping)     * t;
-          physicsBlendScratchRef.current.minSpeed    = from.minSpeed    + (to.minSpeed    - from.minSpeed)    * t;
-          physicsBlendScratchRef.current.linkDistance= from.linkDistance+ (to.linkDistance- from.linkDistance)* t;
-          physicsBlendScratchRef.current.gravity     = from.gravity     + (to.gravity     - from.gravity)     * t;
-          physicsBlendScratchRef.current.turbulence  = from.turbulence  + (to.turbulence  - from.turbulence)  * t;
-          physicsBlendScratchRef.current.verticalOrder = from.verticalOrder + (to.verticalOrder - from.verticalOrder) * t;
-          physicsBlendScratchRef.current.pulse       = from.pulse       + (to.pulse       - from.pulse)       * t;
-          paramsForFrame = physicsBlendScratchRef.current;
-
-          if (tRaw >= 1) {
-            physicsBlendActiveRef.current = false;
-            paramsForFrame = physicsBlendToRef.current;
-          }
-        }
-
-        let isDrivenByTimeline = false;
-        // Apply physics keyframe overrides (during playback and when scrubbing)
-        {
-          const pkfs = physicsKeyframesRef.current;
-          const t = playheadRef.current;
-          let overridden = false;
-          const scratch = physicsBlendScratchRef.current;
-          for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
-            const val = interpolatePhysicsParam(pkfs[trackId] ?? [], t);
-            if (val !== null) {
-              if (!overridden) {
-                scratch.repulsion    = paramsForFrame.repulsion;
-                scratch.springK      = paramsForFrame.springK;
-                scratch.damping      = paramsForFrame.damping;
-                scratch.minSpeed     = paramsForFrame.minSpeed;
-                scratch.linkDistance = paramsForFrame.linkDistance;
-                scratch.gravity      = paramsForFrame.gravity;
-                scratch.turbulence   = paramsForFrame.turbulence;
-                scratch.verticalOrder = paramsForFrame.verticalOrder;
-                scratch.pulse        = paramsForFrame.pulse;
-                overridden = true;
-              }
-              (scratch as Record<string, number>)[param] = val;
-            }
-          }
-          if (overridden) {
-            paramsForFrame = scratch;
-            stillFramesRef.current = 0; // keep physics active while keyframes are driving values
-            isDrivenByTimeline = true;
-          }
-        }
-
-        // Track per-frame velocity of parameter changes to create a "jolt" effect
         const now = performance.now();
-        const dt = Math.max(1, now - lastParamsTimeRef.current);
+        const dtMs = Math.max(1, now - lastParamsTimeRef.current);
         const prev = lastParamsValuesRef.current;
-        
-        // Sum up the magnitude of changes across all parameters
-        const dRep = Math.abs(paramsForFrame.repulsion - prev.repulsion) / 1000;
-        const dSpr = Math.abs(paramsForFrame.springK - prev.springK) * 20;
-        const dDmp = Math.abs(paramsForFrame.damping - prev.damping) * 20;
-        const dSpd = Math.abs(paramsForFrame.minSpeed - prev.minSpeed);
-        const dLnk = Math.abs(paramsForFrame.linkDistance - prev.linkDistance) / 100;
-        const dGrv = Math.abs(paramsForFrame.gravity - prev.gravity) / 5;
-        const dTrb = Math.abs((paramsForFrame.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
-        const dVto = Math.abs((paramsForFrame.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
-        const dPls = Math.abs((paramsForFrame.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
-        
-        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dt;
-        
-        // Suppress jolt if timeline is driving the animation or we are playing
-        if (!isDrivenByTimeline && !isPlayingRef.current) {
+
+        const dRep = Math.abs(lastApplied.repulsion - prev.repulsion) / 1000;
+        const dSpr = Math.abs(lastApplied.springK - prev.springK) * 20;
+        const dDmp = Math.abs(lastApplied.damping - prev.damping) * 20;
+        const dSpd = Math.abs(lastApplied.minSpeed - prev.minSpeed);
+        const dLnk = Math.abs(lastApplied.linkDistance - prev.linkDistance) / 100;
+        const dGrv = Math.abs(lastApplied.gravity - prev.gravity) / 5;
+        const dTrb = Math.abs((lastApplied.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
+        const dVto = Math.abs((lastApplied.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
+        const dPls = Math.abs((lastApplied.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
+        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dtMs;
+
+        // Keep jolt tracking velocity from worker-applied values, not sidebar state.
+        if (!isPlayingRef.current) {
           physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
         } else {
-          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8; // Fast decay
+          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8;
         }
-        
+
         lastParamsTimeRef.current = now;
-        lastParamsValuesRef.current = { ...paramsForFrame };
+        lastParamsValuesRef.current = { ...lastApplied };
 
-        effectivePhysicsRef.current = paramsForFrame;
-
-        let sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
-        if ((physicsVelocityRef.current || 0) > 0.01 || sentParams.pulse > 0) {
-          
-          if (sentParams.pulse > 0) {
-             const pulseTime = performance.now() * 0.002;
-             const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
-             const pulseFactor = Math.sin(pulseTime) * sentParams.pulse * 0.15 * joltSuppression;
-             sentParams.repulsion = sentParams.repulsion * (1 + pulseFactor);
-             sentParams.linkDistance = sentParams.linkDistance * (1 + pulseFactor * 0.2);
-          }
-
-          if ((physicsVelocityRef.current || 0) > 0.01) {
-            const jolt = physicsVelocityRef.current || 0;
-            // Temporarily reduce friction, but keep a safe limit (0.92) to prevent numerical explosion
-            const targetDamping = Math.max(sentParams.damping, 0.92);
-            sentParams.damping = sentParams.damping + (targetDamping - sentParams.damping) * Math.min(1, jolt * 1.5);
-            physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80; // Fast decay back to normal
-          }
+        // Pulse + jolt damping floor become per-frame param overrides.
+        const paramOverrides: Partial<PhysicsParams> = {};
+        if (lastApplied.pulse > 0) {
+          const pulseTime = now * 0.002;
+          const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
+          const pulseFactor = Math.sin(pulseTime) * lastApplied.pulse * 0.15 * joltSuppression;
+          paramOverrides.repulsion = lastApplied.repulsion * (1 + pulseFactor);
+          paramOverrides.linkDistance = lastApplied.linkDistance * (1 + pulseFactor * 0.2);
         }
+        if ((physicsVelocityRef.current || 0) > 0.01) {
+          const jolt = physicsVelocityRef.current || 0;
+          const targetDamping = Math.max(lastApplied.damping, 0.92);
+          paramOverrides.damping = lastApplied.damping + (targetDamping - lastApplied.damping) * Math.min(1, jolt * 1.5);
+          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80;
+        }
+
+        // dt for the worker's glide integrator (seconds since last step, clamped).
+        const dtSeconds = Math.min(0.1, Math.max(0.001, (now - lastStepNowRef.current) / 1000));
+        lastStepNowRef.current = now;
 
         // Pack current positions + velocities into the reusable buffer and transfer to worker
         const pv = workerPosVelRef.current;
@@ -1498,11 +1480,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
         workerBusyRef.current = true;
         physicsWorkerRef.current!.postMessage(
-          { type: 'step', posVel: pv, params: sentParams, is2D },
-          [pv.buffer]
+          {
+            type: 'step',
+            posVel: pv,
+            time: playheadRef.current,
+            dt: dtSeconds,
+            sliderParams: physicsParamsRef.current,
+            paramOverrides: Object.keys(paramOverrides).length > 0 ? paramOverrides : undefined,
+            is2D,
+          },
+          [pv.buffer],
         );
       }
-      frameCount++;
 
       if (!is2D) {
         // Camera keyframe animation (3D only)

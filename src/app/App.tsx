@@ -13,7 +13,7 @@ import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
 import {
   useOverlayBandOffsets, useThemeClass, useSystemThemeSync, useInitProgressTick,
-  usePlayAnimation, useTimecode, useTimelineResize,
+  usePlayAnimation, useTimecode, useTimelineResize, useRecorder,
 } from './hooks/useAppEffects';
 
 export default function App() {
@@ -27,6 +27,13 @@ export default function App() {
   usePlayAnimation(wn.isPlaying, wn.setIsPlaying, wn.setPlayheadPosition, wn.playheadRef);
   useTimecode(wn.playheadPosition, wn.setTimecode);
   const startTimelineResize = useTimelineResize(wn.timelineHeight, wn.setTimelineHeight);
+  useRecorder({
+    isRecording: wn.isRecording,
+    isPlaying: wn.isPlaying,
+    playheadRef: wn.playheadRef,
+    network3DRef: wn.network3DRef,
+    onCommit: wn.handleCommitRecording,
+  });
 
   const { isShortcutsOpen, setIsShortcutsOpen, shortcuts, addShortcut, removeShortcut } = useShortcuts(useMemo(() => ({
     onSave: wn.handleSave, onLoad: wn.handleLoad, onUndo: wn.undo, onRedo: wn.redo,
@@ -46,7 +53,7 @@ export default function App() {
               physicsParams={wn.physicsParams} inputText={wn.inputText} parseMode={wn.parseMode}
               styleSettings={wn.styleSettings}
               cameraKeyframes={wn.cameraKeyframes} onCameraChange={wn.handleCameraChange}
-              physicsKeyframes={wn.physicsKeyframes} isDark={wn.previewIsDark}
+              physicsKeyframes={wn.physicsKeyframes} trackMeta={wn.trackMeta} isDark={wn.previewIsDark}
               isNetworkReady={wn.isNetworkReady} onNetworkReady={() => wn.setIsNetworkReady(true)}
               edgeAppearance={wn.edgeAppearance}
               canvasAspectRatio={wn.canvasAspectRatio} initProgress={wn.initProgress}
@@ -102,6 +109,11 @@ export default function App() {
                 onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker}
                 onDropSceneMarker={wn.handleDropSceneMarker} onDeleteSceneMarker={wn.handleDeleteSceneMarker}
                 isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
+                trackMeta={wn.trackMeta}
+                onSetTrackGlide={wn.handleSetTrackGlide}
+                onSetTrackModulator={wn.handleSetTrackModulator}
+                armedTracks={wn.armedTracks}
+                onToggleTrackArm={wn.handleToggleTrackArm}
               />
             </div>
           </div>

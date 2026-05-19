@@ -4,20 +4,31 @@ import { ToolId } from '../components/Toolbar';
 import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import type { Network3DHandle } from '../components/Network3D';
 
-import { 
-  Keyframe, 
-  PhysicsKeyframe, 
-  SceneMarker, 
-  TimelineState, 
-  WortnetzContextType 
+import {
+  Keyframe,
+  PhysicsKeyframe,
+  SceneMarker,
+  TimelineState,
+  WortnetzContextType,
+  TrackMeta,
+  Modulator,
 } from './WortnetzContextTypes';
 
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
+
+// Default trackMeta map seeded for all 8 physics tracks (glide=0, no modulator).
+const DEFAULT_TRACK_META: Record<string, TrackMeta> = Object.freeze(
+  Object.fromEntries(Object.keys(PHYS_TRACK_PARAM).map(id => [id, { glide: 0 }]))
+);
+const DEFAULT_ARMED_TRACKS: ReadonlySet<string> = Object.freeze(
+  new Set(Object.keys(PHYS_TRACK_PARAM))
+) as ReadonlySet<string>;
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
 import { useUndoStack } from '../hooks/useUndoStack';
 import { interpolatePhysicsParam } from '../animation/interpolatePhysicsParam';
 import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
-import { sameTime, differentTime } from '../components/timeline/timeUtils';
+import { sameTime, differentTime, MUTATION_EPSILON } from '../components/timeline/timeUtils';
+import type { RecorderResult } from '../animation/Recorder';
 
 const WortnetzContext = createContext<WortnetzContextType | undefined>(undefined);
 
@@ -50,6 +61,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [physicsParams, setPhysicsParams] = useState({ repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5, linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0 });
   const [cameraKeyframes, setCameraKeyframes] = useState<Keyframe[]>([]);
   const [physicsKeyframes, setPhysicsKeyframes] = useState<Record<string, PhysicsKeyframe[]>>(EMPTY_PHYSICS_KFS);
+  const [trackMeta, setTrackMeta] = useState<Record<string, TrackMeta>>(() => ({ ...DEFAULT_TRACK_META }));
+  const [armedTracks, setArmedTracks] = useState<ReadonlySet<string>>(DEFAULT_ARMED_TRACKS);
   const [sidebarWidth, setSidebarWidth] = useState(360);
   const [timelineHeight, setTimelineHeight] = useState(320);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -83,16 +96,24 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const cameraKeyframesRef = useRef(cameraKeyframes);
   useEffect(() => { cameraKeyframesRef.current = cameraKeyframes; }, [cameraKeyframes]);
 
-  const getTimelineState = useCallback(() => ({
+  const trackMetaRef = useRef(trackMeta);
+  useEffect(() => { trackMetaRef.current = trackMeta; }, [trackMeta]);
+
+  const armedTracksRef = useRef<ReadonlySet<string>>(armedTracks);
+  useEffect(() => { armedTracksRef.current = armedTracks; }, [armedTracks]);
+
+  const getTimelineState = useCallback((): TimelineState => ({
     cameraKeyframes: cameraKeyframesRef.current,
     physicsKeyframes: physicsKeyframesRef.current,
-    sceneMarkers: sceneMarkersRef.current
+    sceneMarkers: sceneMarkersRef.current,
+    trackMeta: trackMetaRef.current,
   }), []);
 
   const applyTimelineState = useCallback((state: TimelineState) => {
     setCameraKeyframes(state.cameraKeyframes ?? []);
     setPhysicsKeyframes(state.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
     setSceneMarkers(state.sceneMarkers ?? []);
+    setTrackMeta(state.trackMeta ?? { ...DEFAULT_TRACK_META });
   }, []);
 
   const { push: pushHistory, pushDebounced: pushHistoryDebounced, undo, redo, canUndo, canRedo } = useUndoStack<TimelineState>(
@@ -121,8 +142,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const { handleSave: ioSave, handleLoad: ioLoad } = useWorkspaceIO(
     useCallback(() => ({
       inputText, parseMode, styleSettings, physicsParams,
-      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers
-    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers]),
+      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers,
+      trackMeta,
+    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers, trackMeta]),
     useCallback((s) => {
       if (s.inputText) setInputText(s.inputText);
       if (s.parseMode) setParseMode(s.parseMode);
@@ -132,6 +154,16 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
       if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
       if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+      // v0 files (no version, no trackMeta) load with all-default trackMeta.
+      // v1 files restore only the non-default entries that were persisted;
+      // unmentioned tracks fall back to glide=0, no modulator.
+      const baseMeta = { ...DEFAULT_TRACK_META };
+      if (s.trackMeta) {
+        for (const [trackId, m] of Object.entries(s.trackMeta)) {
+          baseMeta[trackId] = { glide: m.glide ?? 0, modulator: m.modulator };
+        }
+      }
+      setTrackMeta(baseMeta);
     }, [])
   );
 
@@ -681,7 +713,76 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     physicsKeyframesRef.current = snapshot.physicsKeyframes;
     setSceneMarkers(snapshot.sceneMarkers);
     sceneMarkersRef.current = snapshot.sceneMarkers;
+    if (snapshot.trackMeta) {
+      setTrackMeta(snapshot.trackMeta);
+      trackMetaRef.current = snapshot.trackMeta;
+    }
     preDragStateRef.current = null;
+  }, []);
+
+  const handleSetTrackGlide = useCallback((trackId: string, seconds: number) => {
+    const prev = getTimelineState();
+    const clamped = Math.max(0, seconds);
+    setTrackMeta(prevMeta => {
+      const next = { ...prevMeta, [trackId]: { ...(prevMeta[trackId] ?? { glide: 0 }), glide: clamped } };
+      trackMetaRef.current = next;
+      return next;
+    });
+    // Live slider drag: debounce 300ms so a single drag is one undo step.
+    pushHistoryDebounced(300, { ...prev, trackMeta: trackMetaRef.current });
+  }, [getTimelineState, pushHistoryDebounced]);
+
+  const handleSetTrackModulator = useCallback((trackId: string, modulator: Modulator | null) => {
+    const prev = getTimelineState();
+    setTrackMeta(prevMeta => {
+      const existing = prevMeta[trackId] ?? { glide: 0 };
+      const nextEntry: TrackMeta = modulator
+        ? { ...existing, modulator }
+        : { glide: existing.glide };
+      const next = { ...prevMeta, [trackId]: nextEntry };
+      trackMetaRef.current = next;
+      return next;
+    });
+    pushHistoryDebounced(300, { ...prev, trackMeta: trackMetaRef.current });
+  }, [getTimelineState, pushHistoryDebounced]);
+
+  // Build paramKey → trackId reverse map once. Used by handleCommitRecording.
+  const PARAM_TO_TRACK_ID = useRef<Record<string, string>>(
+    Object.fromEntries(Object.entries(PHYS_TRACK_PARAM).map(([trackId, paramKey]) => [paramKey, trackId]))
+  ).current;
+
+  const handleCommitRecording = useCallback((result: RecorderResult) => {
+    const prev = getTimelineState();
+    const [t0, t1] = result.range;
+    setPhysicsKeyframes(prevPkfs => {
+      const next = { ...prevPkfs };
+      for (const [paramKey, newKfs] of Object.entries(result.perTrack)) {
+        const trackId = PARAM_TO_TRACK_ID[paramKey];
+        if (!trackId) continue;
+        if (!armedTracksRef.current.has(trackId)) continue;
+        const existing = prevPkfs[trackId] ?? [];
+        // Replace within [t0, t1] on this track (DAW standard).
+        const outsideRange = existing.filter(
+          kf => kf.time < t0 - MUTATION_EPSILON || kf.time > t1 + MUTATION_EPSILON,
+        );
+        next[trackId] = [...outsideRange, ...newKfs].sort((a, b) => a.time - b.time);
+      }
+      physicsKeyframesRef.current = next;
+      return next;
+    });
+    // Single undo entry covers the entire recording.
+    pushHistory({ ...prev, physicsKeyframes: physicsKeyframesRef.current });
+  }, [getTimelineState, pushHistory, PARAM_TO_TRACK_ID]);
+
+  const handleToggleTrackArm = useCallback((trackId: string) => {
+    setArmedTracks(prev => {
+      const next = new Set(prev);
+      if (next.has(trackId)) next.delete(trackId);
+      else next.add(trackId);
+      armedTracksRef.current = next;
+      return next;
+    });
+    // Arm/disarm is a session-level toggle, not undoable per plan.
   }, []);
 
   return (
@@ -696,7 +797,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       isPlaying, setIsPlaying, isRecording, setIsRecording, playheadPosition, setPlayheadPosition, timecode, setTimecode,
       cameraKeyframes, setCameraKeyframes, physicsKeyframes, setPhysicsKeyframes, sceneMarkers, setSceneMarkers,
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
+      trackMeta, setTrackMeta, handleSetTrackGlide, handleSetTrackModulator,
+      armedTracks, handleToggleTrackArm, handleCommitRecording,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,
+      trackMetaRef, armedTracksRef,
       effectivePhysicsParams, previewIsDark, uiIsDark,
       handleCaptureKeyframe, handleCreateKeyframesAtMarker, handleMoveKeyframe, handleDeleteKeyframe, handleRippleDeleteKeyframe, handleResetTrack,
       handleSetHandle, handleClearHandle, handleSetInterpolation, handleDuplicateKeyframe,

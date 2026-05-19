@@ -7,7 +7,7 @@ import {
   COLOR, inferEasingType,
   type ViewWindow, type PhysicsKeyframe, type SceneMarker,
 } from './types';
-import { TrackLabel, SceneMarkerHandle } from './TimelineAtoms';
+import { TrackLabel, SceneMarkerHandle, LfoBadge, TrackArmToggle } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 import { useT } from '../../i18n/useT';
 import { sameTime, withinSelection, withinSnap } from './timeUtils';
@@ -123,6 +123,9 @@ export function TrackRow({
   onSelect, onMoveKeyframe, onContextMenu, onTrackHeaderContextMenu,
   onDragStart, onDragEnd, onDuplicateKeyframe,
   timeFromClientX, contentRef, sceneMarkers = [], playheadTime,
+  modulatorWaveform,
+  isArmed,
+  onToggleArm,
 }: {
   trackId: string;
   name: string;
@@ -144,6 +147,9 @@ export function TrackRow({
   contentRef: React.RefObject<HTMLDivElement | null>;
   sceneMarkers?: SceneMarker[];
   playheadTime?: number;
+  modulatorWaveform?: 'sine' | 'triangle' | 'square' | null;
+  isArmed?: boolean;
+  onToggleArm?: () => void;
 }) {
   const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -254,7 +260,15 @@ export function TrackRow({
         }}
       >
       <TrackLabel padding="indent">
+        {onToggleArm && (
+          <TrackArmToggle
+            armed={!!isArmed}
+            onToggle={onToggleArm}
+            title={isArmed ? t('timeline.track.armed') : t('timeline.track.arm')}
+          />
+        )}
         <span className="text-[11px] text-muted-foreground truncate flex-1">{name}</span>
+        <LfoBadge waveform={modulatorWaveform ?? null} />
         {onToggleGraphEditor && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleGraphEditor(); }}

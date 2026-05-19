@@ -8,8 +8,10 @@ import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
 import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
-import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton } from './TimelineAtoms';
+import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton, RecordingIndicator } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
+import { TrackTuningPanel } from './TrackTuningPanel';
+import { PHYS_TRACK_PARAM } from '../../context/WortnetzContextConstants';
 import { useT } from '../../i18n/useT';
 import { withinSelection } from './timeUtils';
 
@@ -44,6 +46,11 @@ export function Timeline(props: TimelineProps) {
     isRecording,
     onToggleRecording,
     onCancelDrag,
+    trackMeta,
+    onSetTrackGlide,
+    onSetTrackModulator,
+    armedTracks,
+    onToggleTrackArm,
   } = props;
 
   const { t } = useT();
@@ -561,24 +568,38 @@ export function Timeline(props: TimelineProps) {
                       contentRef={contentRef}
                       sceneMarkers={sceneMarkers}
                       playheadTime={playheadPosition}
+                      modulatorWaveform={trackMeta?.[track.id]?.modulator?.waveform ?? null}
+                      isArmed={armedTracks?.has(track.id)}
+                      onToggleArm={onToggleTrackArm ? () => onToggleTrackArm(track.id) : undefined}
                     />
                     {/* Per-track graph editor */}
                     {expandedGraphTracks.has(track.id) && (
-                      <GraphEditor
-                        trackId={track.id}
-                        color="orange"
-                        keyframeData={kfArr}
-                        viewWindow={viewWindow}
-                        onSetHandle={onSetHandle}
-                        onSetHandle2D={onSetHandle2D}
-                        onSetValue={onSetValue}
-                        onClearHandle={onClearHandle}
-                        onSetInterpolation={onSetInterpolation}
-                        onDragStart={onDragStart}
-                        onDragEnd={onDragEnd}
-                        onContextMenu={handleKeyframeContextMenu}
-                        selectedKeyframes={selectedKeyframes}
-                      />
+                      <>
+                        <GraphEditor
+                          trackId={track.id}
+                          color="orange"
+                          keyframeData={kfArr}
+                          viewWindow={viewWindow}
+                          onSetHandle={onSetHandle}
+                          onSetHandle2D={onSetHandle2D}
+                          onSetValue={onSetValue}
+                          onClearHandle={onClearHandle}
+                          onSetInterpolation={onSetInterpolation}
+                          onDragStart={onDragStart}
+                          onDragEnd={onDragEnd}
+                          onContextMenu={handleKeyframeContextMenu}
+                          selectedKeyframes={selectedKeyframes}
+                        />
+                        {trackMeta && onSetTrackGlide && onSetTrackModulator ? (
+                          <TrackTuningPanel
+                            trackId={track.id}
+                            paramKey={PHYS_TRACK_PARAM[track.id]}
+                            meta={trackMeta[track.id] ?? { glide: 0 }}
+                            onSetGlide={(s) => onSetTrackGlide(track.id, s)}
+                            onSetModulator={(m) => onSetTrackModulator(track.id, m)}
+                          />
+                        ) : null}
+                      </>
                     )}
                   </div>
                 );

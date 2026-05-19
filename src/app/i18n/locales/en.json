@@ -202,7 +202,32 @@
       "sceneMarkers": "Scene markers",
       "camera":       "Camera",
       "keyframes":    "Keyframes",
-      "physics":      "Physics"
+      "physics":      "Physics",
+      "arm":          "Arm track",
+      "armed":        "Armed — will be recorded"
+    },
+    "glide": {
+      "label":       "Glide",
+      "description": "How quickly the parameter approaches its target (seconds). 0 = instant.",
+      "unit":        "s"
+    },
+    "lfo": {
+      "title":       "Modulator",
+      "enable":      "Enable modulator",
+      "waveform":    "Waveform",
+      "rate":        "Rate (Hz)",
+      "depth":       "Depth",
+      "phase":       "Phase",
+      "hint":        "Tip: matches the Pulse knob",
+      "wave": {
+        "sine":     "Sine",
+        "triangle": "Triangle",
+        "square":   "Square"
+      }
+    },
+    "recording": {
+      "indicator":     "Recording",
+      "replacePrompt": "Existing keyframes in the recorded range will be replaced"
     },
     "recordComingSoon": "Recording will be available in a future version",
     "action": {

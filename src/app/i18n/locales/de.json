@@ -202,7 +202,32 @@
       "sceneMarkers": "Szenen-Marker",
       "camera":       "Kamera",
       "keyframes":    "Keyframes",
-      "physics":      "Physik"
+      "physics":      "Physik",
+      "arm":          "Spur scharfschalten",
+      "armed":        "Scharfgeschaltet — wird bei Aufnahme aufgezeichnet"
+    },
+    "glide": {
+      "label":       "Glide",
+      "description": "Wie schnell sich der Parameter dem Ziel annähert (Sekunden). 0 = sofort.",
+      "unit":        "s"
+    },
+    "lfo": {
+      "title":       "Modulator",
+      "enable":      "Modulator aktivieren",
+      "waveform":    "Wellenform",
+      "rate":        "Rate (Hz)",
+      "depth":       "Stärke",
+      "phase":       "Phase",
+      "hint":        "Tipp: entspricht dem Pulse-Regler",
+      "wave": {
+        "sine":     "Sinus",
+        "triangle": "Dreieck",
+        "square":   "Rechteck"
+      }
+    },
+    "recording": {
+      "indicator":     "Aufnahme läuft",
+      "replacePrompt": "Bestehende Keyframes im Aufnahmebereich werden ersetzt"
     },
     "recordComingSoon": "Aufnahme wird in einer kommenden Version verfügbar sein",
     "action": {

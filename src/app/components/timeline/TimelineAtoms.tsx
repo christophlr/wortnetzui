@@ -1,20 +1,12 @@
-/**
- * TimelineAtoms — primitives for the bottom timeline. Exposes:
- *   - TrackLabel: the fixed-width left column shared by SceneMarkerLane,
- *     TrackRow, TrackGroup, GraphEditor, and the ruler's empty cell.
- *   - TimelineTransportButton: square 6×6 ghost button used for the
- *     toolbar transport / zoom / snap / record / undo etc. controls.
- *
- * Other candidates from the master plan (RulerTick, GraphEditorHeader,
- * TrackValueChip, TrackRow itself) stay inlined for now — they're either
- * single-consumer or logic-heavy components, not atoms.
- */
+// TimelineAtoms — primitives for the bottom timeline.
+// Atom contract (plan M3): variant-only props, no className passthrough.
 
 import * as React from 'react';
 import { Button } from '../ui/button';
 import { LABEL_W } from './types';
 import { cn } from '../ui/utils';
 import { Circle } from 'lucide-react';
+import type { ModulatorWaveform } from '../../animation/Modulator';
 
 export type TrackLabelVariant = 'row' | 'stacked';
 export type TrackLabelPadding = 'header' | 'indent';
@@ -99,10 +91,11 @@ export function RecordButton({ isRecording, onToggleRecording, title }: { isReco
     <TimelineTransportButton
       onClick={onToggleRecording}
       title={title}
-      active={false}
-      disabled
+      active={isRecording}
     >
-      <Circle className="w-3 h-3" />
+      <Circle
+        className={cn('w-3 h-3', isRecording && 'fill-wn-timeline-recording text-wn-timeline-recording')}
+      />
     </TimelineTransportButton>
   );
 }
@@ -120,26 +113,77 @@ export function SceneMarkerHandle({ isSelected }: { isSelected: boolean }) {
   );
 }
 
-export function TrackValueChip({ value, colorClass }: { value: number | string; colorClass?: string }) {
+export type TrackValueChipTone = 'cyan' | 'orange' | 'neutral';
+
+export function TrackValueChip({ value, tone = 'neutral' }: { value: number | string; tone?: TrackValueChipTone }) {
+  const toneClass =
+    tone === 'cyan' ? 'text-wn-timeline-cyan-kf-fill'
+    : tone === 'orange' ? 'text-wn-timeline-orange-kf-fill'
+    : 'text-muted-foreground';
   return (
-    <span className={cn("text-[9px] font-mono tabular-nums px-1 py-0.5 rounded-sm bg-wn-control-bg text-muted-foreground", colorClass)}>
+    <span className={cn('text-[9px] font-mono tabular-nums px-1 py-0.5 rounded-sm bg-wn-control-bg', toneClass)}>
       {typeof value === 'number' ? value.toFixed(2) : value}
     </span>
   );
 }
 
-export function TrackEditableNumber({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+export function LfoBadge({ waveform }: { waveform: ModulatorWaveform | null }) {
+  if (!waveform) return null;
+  const glyph = waveform === 'sine' ? '∼' : waveform === 'triangle' ? '△' : '▢';
   return (
-    <span className="text-[10px] font-mono tabular-nums text-foreground cursor-ns-resize hover:text-wn-accent">
-      {value.toFixed(2)}
+    <span
+      className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 text-[10px] leading-none text-wn-accent"
+      title="LFO"
+    >
+      {glyph}
     </span>
   );
 }
 
-export function TrackKeyframeToggle({ active, onClick }: { active: boolean; onClick?: () => void }) {
+export function TrackArmToggle({ armed, onToggle, title }: { armed: boolean; onToggle: () => void; title?: string }) {
   return (
     <button
-      className={cn("w-2 h-2 rotate-45 border transition-colors", active ? "bg-wn-keyframe-active border-wn-keyframe-active" : "border-muted-foreground hover:border-foreground")}
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      title={title}
+      className={cn(
+        'inline-flex h-2 w-2 shrink-0 items-center justify-center rounded-full border transition-colors',
+        armed ? 'bg-wn-timeline-recording border-wn-timeline-recording' : 'border-muted-foreground hover:border-foreground',
+      )}
+    />
+  );
+}
+
+export function RecordingIndicator({ isActive }: { isActive: boolean }) {
+  if (!isActive) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-wn-timeline-recording">
+      <span className="inline-block h-2 w-2 rounded-full bg-wn-timeline-recording animate-pulse" />
+      REC
+    </span>
+  );
+}
+
+export type TrackKeyframeToggleState = 'normal' | 'recorded';
+
+export function TrackKeyframeToggle({
+  active,
+  state = 'normal',
+  onClick,
+}: {
+  active: boolean;
+  state?: TrackKeyframeToggleState;
+  onClick?: () => void;
+}) {
+  const recorded = state === 'recorded';
+  return (
+    <button
+      className={cn(
+        'w-2 h-2 rotate-45 border transition-colors',
+        active && !recorded && 'bg-wn-keyframe-active border-wn-keyframe-active',
+        active && recorded && 'bg-wn-timeline-recording border-wn-timeline-recording',
+        !active && 'border-muted-foreground hover:border-foreground',
+      )}
       onClick={(e) => { e.stopPropagation(); onClick?.(); }}
     />
   );

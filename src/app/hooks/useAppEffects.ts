@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { TIMELINE_DURATION } from '../constants';
 import type { TimelineState } from '../context/WortnetzContextTypes';
 import { resolveSystemTheme } from '../theme/tokens';
+import { Recorder, type RecorderResult } from '../animation/Recorder';
+import type { Network3DHandle } from '../components/Network3D';
 
 export function useOverlayBandOffsets() {
   const [offsets, setOffsets] = useState({ top: 0, bottom: 0 });
@@ -108,6 +110,57 @@ export function useTimecode(playheadPosition: number, setTimecode: (v: string) =
     const h = Math.floor(total / 3600);
     setTimecode(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}:${String(frames).padStart(2,'0')}`);
   }, [playheadPosition, setTimecode]);
+}
+
+/**
+ * useRecorder — samples worker-applied params at ~30 Hz while
+ * `isRecording && isPlaying` and commits a single undo entry on stop.
+ * Sampling reads `network3DRef.current.getEffectivePhysicsParams()` (worker
+ * authoritative). Per-track arming is enforced inside `onCommit`.
+ */
+export function useRecorder(opts: {
+  isRecording: boolean;
+  isPlaying: boolean;
+  playheadRef: React.MutableRefObject<number>;
+  network3DRef: React.RefObject<Network3DHandle | null>;
+  onCommit: (result: RecorderResult) => void;
+}) {
+  const { isRecording, isPlaying, playheadRef, network3DRef, onCommit } = opts;
+  const recorderRef = useRef<Recorder>(new Recorder());
+  const rafRef = useRef<number | null>(null);
+  const onCommitRef = useRef(onCommit);
+  useEffect(() => { onCommitRef.current = onCommit; }, [onCommit]);
+
+  useEffect(() => {
+    const recorder = recorderRef.current;
+    const active = isRecording && isPlaying;
+
+    if (active && !recorder.isActive()) {
+      recorder.start(playheadRef.current);
+    }
+
+    if (active) {
+      const tick = () => {
+        const applied = network3DRef.current?.getEffectivePhysicsParams();
+        if (applied) recorder.sample(playheadRef.current, applied);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+      return () => {
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
+    }
+
+    // Edge: just transitioned out of active → commit
+    if (recorder.isActive()) {
+      const result = recorder.stop();
+      if (result) onCommitRef.current(result);
+    }
+    return undefined;
+  }, [isRecording, isPlaying, playheadRef, network3DRef]);
 }
 
 export function useTimelineResize(timelineHeight: number, setTimelineHeight: (v: number) => void) {
