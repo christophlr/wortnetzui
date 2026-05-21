@@ -2,3 +2,5 @@ node_modules/
 dist/
 .version-build-state.json
 pnpm-lock.yaml
+.DS_Store
+**/.DS_Store

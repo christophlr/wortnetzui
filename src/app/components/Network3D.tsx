@@ -4,9 +4,12 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { defaultGradientSettings, getNetworkLabelStyle, getNetworkThemeBackground, defaultNodeAppearance, getVividColor, type GradientSettings, type NodeShape, type NodeAppearanceSettings } from '../networkTheme';
+import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, GIZMO_COLORS, SCENE_COLORS } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
+import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
+import type { TrackMeta } from '../animation/Track';
+import type { WorkerTrack } from '../animation/evaluateTracks';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -14,7 +17,7 @@ import {
   ContextMenuItem,
 } from './ui/context-menu';
 
-type PhysicsKeyframe = { time: number; value: number; handleIn?: number; handleOut?: number; mode?: 'aligned' | 'broken' };
+import type { PhysicsKeyframe } from './timeline/types';
 
 interface Network3DProps {
   isPlaying: boolean;
@@ -22,10 +25,9 @@ interface Network3DProps {
   inputText?: string;
   viewMode?: '2D' | '3D';
   physicsParams?: PhysicsParams;
-  nodeAppearance?: NodeAppearanceSettings;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
+  trackMeta?: Record<string, TrackMeta>;
   parseMode?: 'sentence' | 'word' | 'both';
-  gradientSettings?: GradientSettings;
   styleSettings?: { edgeOpacity: number; edgeWidth: number; nodeScale: number; nodeShape?: NodeShape; nodeBorderWidth?: number; depthSizeEnabled?: boolean; depthSizeStrength?: number };
   cameraKeyframes?: Array<{
     time: number;
@@ -42,21 +44,15 @@ interface Network3DProps {
   isDark?: boolean;
   onReady?: () => void;
   onProgress?: (progress: number) => void;
-  renderMode?: 'edit' | 'render';
   edgeAppearance?: { color: 'auto' | string };
   timelineHeight?: number;
   visualSettings?: {
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
@@ -104,9 +100,9 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
 
   const invQ = camera.quaternion.clone().invert();
   const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), posColor: '#ef4444', negColor: 'rgba(239,68,68,0.38)', label: 'X' },
-    { dir: new THREE.Vector3(0, 1, 0), posColor: '#22c55e', negColor: 'rgba(34,197,94,0.38)', label: 'Y' },
-    { dir: new THREE.Vector3(0, 0, 1), posColor: '#60a5fa', negColor: 'rgba(96,165,250,0.38)', label: 'Z' },
+    { dir: new THREE.Vector3(1, 0, 0), posColor: GIZMO_COLORS.x.pos, negColor: GIZMO_COLORS.x.neg, label: 'X' },
+    { dir: new THREE.Vector3(0, 1, 0), posColor: GIZMO_COLORS.y.pos, negColor: GIZMO_COLORS.y.neg, label: 'Y' },
+    { dir: new THREE.Vector3(0, 0, 1), posColor: GIZMO_COLORS.z.pos, negColor: GIZMO_COLORS.z.neg, label: 'Z' },
   ];
 
   const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
@@ -159,40 +155,6 @@ function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElem
   });
 }
 
-const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
-  'phys-rep': 'repulsion',
-  'phys-spk': 'springK',
-  'phys-dmp': 'damping',
-  'phys-min': 'minSpeed',
-  'phys-lnk': 'linkDistance',
-  'phys-grv': 'gravity',
-  'phys-trb': 'turbulence',
-  'phys-vto': 'verticalOrder',
-  'phys-pls': 'pulse',
-};
-
-/** Interpolate a physics param from pre-sorted keyframes using Cubic Hermite splines. */
-function interpolatePhysicsParam(sorted: PhysicsKeyframe[], time: number): number | null {
-  if (sorted.length === 0) return null;
-  if (time <= sorted[0].time) return sorted[0].value;
-  if (time >= sorted[sorted.length - 1].time) return sorted[sorted.length - 1].value;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i], b = sorted[i + 1];
-    if (time >= a.time && time <= b.time) {
-      const segDur = b.time - a.time;
-      if (segDur === 0) return a.value;
-      const tRaw = (time - a.time) / segDur;
-      const prevTime = i > 0 ? sorted[i - 1].time : null;
-      const prevVal = i > 0 ? sorted[i - 1].value : null;
-      const nextTime = i + 2 < sorted.length ? sorted[i + 2].time : null;
-      const nextVal = i + 2 < sorted.length ? sorted[i + 2].value : null;
-      const m0 = a.handleOut ?? computeCatmullRomTangent(prevTime, prevVal, a.time, a.value, b.time, b.value);
-      const m1 = b.handleIn ?? computeCatmullRomTangent(a.time, a.value, b.time, b.value, nextTime, nextVal);
-      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
-    }
-  }
-  return null;
-}
 
 export interface Network3DHandle {
   getCameraKeyframe: () => { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null;
@@ -216,29 +178,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     parseMode = 'word',
     physicsParams = DEFAULT_PHYSICS,
     physicsKeyframes,
-    gradientSettings = defaultGradientSettings,
+    trackMeta,
     styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
     cameraKeyframes = [],
     onCameraChange,
     isDark,
     onReady,
     onProgress,
-    renderMode = 'edit',
-    nodeAppearance = defaultNodeAppearance,
     edgeAppearance = { color: 'auto' },
     timelineHeight = 0,
     visualSettings = {
       nodesVisible: true,
-      labelsVisible: true,
       edgesVisible: true,
-      envVisible: true,
-      radialBiasScale: 0.5,
+      radialBiasScale: 0,
       radialBiasOpacity: 0.5,
       gradientOrigin: '#4f46e5',
-      gradientPeriphery: '#10b981',
-      labelWeightMapping: 0.5,
-      edgeFlowAnimation: false,
-      envAtmosphereSeed: 123,
+      gradientPeriphery: '#7c3aed',
       glitchActive: false,
       glitchBrushRadius: 100,
       glitchFeather: 0.5,
@@ -271,15 +226,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const cameraKeyframesRef = useRef(cameraKeyframes);
   const isPlayingRef = useRef(isPlaying);
   const physicsParamsRef = useRef(physicsParams);
-  const effectivePhysicsRef = useRef(physicsParams);
-  const physicsBlendActiveRef = useRef(false);
-  const physicsBlendStartRef = useRef<number>(0);
-  const physicsBlendDurationRef = useRef<number>(30); // Reduced from 60ms for snappier response
-  const physicsBlendFromRef = useRef(physicsParams);
-  const physicsBlendToRef = useRef(physicsParams);
-  const physicsBlendScratchRef = useRef({ ...DEFAULT_PHYSICS });
+  // `effectivePhysicsRef` is now the worker-authoritative `applied` snapshot,
+  // updated on every worker step response. Exposed via `getEffectivePhysicsParams`.
+  const effectivePhysicsRef = useRef<PhysicsParams>({ ...physicsParams });
+  const lastStepNowRef = useRef<number>(performance.now());
   const lastParamsTimeRef = useRef<number>(performance.now());
-  const lastParamsValuesRef = useRef(physicsParams);
+  const lastParamsValuesRef = useRef<PhysicsParams>({ ...physicsParams });
   const physicsVelocityRef = useRef<number>(0);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const hoveredNodeRef = useRef<GraphNode | null>(null);
@@ -311,28 +263,24 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gradientRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const appearanceRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gradientSettingsRef = useRef(gradientSettings);
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(isDark);
   const onReadyRef = useRef(onReady);
   const onProgressRef = useRef(onProgress);
   const onNodeSelectRef = useRef(onNodeSelect);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
-  const renderModeRef = useRef(renderMode);
-  const nodeAppearanceRef = useRef(nodeAppearance);
   const edgeAppearanceRef = useRef(edgeAppearance);
   const onCameraChangeRef = useRef(onCameraChange);
   const physicsKeyframesRef = useRef(physicsKeyframes ?? {});
+  const trackMetaRef = useRef<Record<string, TrackMeta>>(trackMeta ?? {});
+  useEffect(() => { trackMetaRef.current = trackMeta ?? {}; }, [trackMeta]);
+  const tracksDebounceRef = useRef<number | null>(null);
   const visualSettingsRef = useRef(visualSettings);
   useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
   useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
-  useEffect(() => { renderModeRef.current = renderMode; }, [renderMode]);
-  useEffect(() => { nodeAppearanceRef.current = nodeAppearance; }, [nodeAppearance]);
   useEffect(() => { edgeAppearanceRef.current = edgeAppearance; }, [edgeAppearance]);
   useEffect(() => {
     playheadRef.current = playheadPosition;
@@ -343,7 +291,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
   }, [playheadPosition]);
   useEffect(() => {
-    // Pre-sort keyframes once on change instead of per-frame in interpolatePhysicsParam
+    // Pre-sort keyframes so the worker's per-step Hermite eval sees them in order.
     const raw = physicsKeyframes ?? {};
     const sorted: Record<string, PhysicsKeyframe[]> = {};
     for (const [trackId, kfs] of Object.entries(raw)) {
@@ -351,14 +299,45 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
     physicsKeyframesRef.current = sorted;
   }, [physicsKeyframes]);
-  useEffect(() => { gradientSettingsRef.current = gradientSettings; }, [gradientSettings]);
+
+  // Push tracks (keyframes + glide + modulator) to the worker. Debounced so a
+  // drag of a keyframe or LFO slider doesn't flood the message queue. The
+  // worker keys tracks by paramKey ('repulsion', ...) — `PHYS_TRACK_PARAM`
+  // maps trackId → paramKey and is the single source of truth for that.
+  useEffect(() => {
+    if (tracksDebounceRef.current !== null) {
+      window.clearTimeout(tracksDebounceRef.current);
+    }
+    tracksDebounceRef.current = window.setTimeout(() => {
+      const tracksMsg: Record<string, WorkerTrack> = {};
+      const kfs = physicsKeyframesRef.current;
+      const meta = trackMetaRef.current;
+      for (const [trackId, paramKey] of Object.entries(PHYS_TRACK_PARAM)) {
+        const m = meta[trackId];
+        tracksMsg[paramKey] = {
+          trackId,
+          keyframes: kfs[trackId] ?? [],
+          glide: m?.glide ?? 0,
+          modulator: m?.modulator,
+        };
+      }
+      physicsWorkerRef.current?.postMessage({ type: 'updateTracks', tracks: tracksMsg });
+      tracksDebounceRef.current = null;
+    }, 100);
+    return () => {
+      if (tracksDebounceRef.current !== null) {
+        window.clearTimeout(tracksDebounceRef.current);
+        tracksDebounceRef.current = null;
+      }
+    };
+  }, [physicsKeyframes, trackMeta]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
+    // Sidebar slider change: forward the new baseline to the worker on the
+    // next step (sliderParams is included in every step message). Worker glide
+    // = 0 (default) means tracks without keyframes snap instantly to the new
+    // baseline — the old 30 ms easeOut blend was removed in Phase 3.
     physicsParamsRef.current = physicsParams;
-    physicsBlendFromRef.current = effectivePhysicsRef.current;
-    physicsBlendToRef.current = physicsParams;
-    physicsBlendStartRef.current = performance.now();
-    physicsBlendActiveRef.current = true;
     physicsEnabledRef.current = true;
     stillFramesRef.current = 0;
   }, [physicsParams]);
@@ -625,23 +604,38 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       periphery: new THREE.Color(vs.gradientPeriphery)
     };
 
+    // Normalize distance against the actual furthest node so the falloff
+    // spreads across the visible range regardless of graph extent.
+    let maxDistSq = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const n = arr[i];
+      const dSq = n.x * n.x + n.y * n.y + n.z * n.z;
+      if (dSq > maxDistSq) maxDistSq = dSq;
+    }
+    const maxDist = Math.sqrt(maxDistSq) || 1;
+
+    // Quadratic slider response: subtle near zero, dramatic at the extremes.
+    // Sign of the slider chooses growth (right) vs. shrink (left).
+    const falloffMagnitude = vs.radialBiasScale * vs.radialBiasScale * 8;
+
     for (let i = 0; i < arr.length; i++) {
       const node = arr[i];
       if (node.textSprite) {
         node.textSprite.position.set(node.x, node.y, node.z);
-        
+
         // Visibility
         node.textSprite.visible = vs.nodesVisible;
-        
-        // RADIAL BIAS LOGIC
-        // Intensity = BaseValue + (RadialBias * DistanceFromCenter)
-        // Note: Distance is normalized relative to a "viewport center" or global origin
+
         const dist = Math.sqrt(node.x * node.x + node.y * node.y + node.z * node.z);
-        const normDist = Math.min(1.0, dist / 1000); // Normalize to typical graph spread
-        
-        // Scale Radial Bias
+        const normDist = dist / maxDist;
+
+        // Scale Radial Bias — cubic curve concentrates the growth at one
+        // end of the radial axis. Positive slider grows outer nodes,
+        // negative slider grows inner nodes; the other end stays untouched.
         const baseScale = node.textSprite.userData.baseScale * ss.nodeScale;
-        const scaleIntensity = 1.0 + (vs.radialBiasScale * normDist);
+        const t = vs.radialBiasScale >= 0 ? normDist : 1.0 - normDist;
+        const distCurve = t * t * t;
+        const scaleIntensity = 1.0 + (falloffMagnitude * distCurve);
         const aspectRatio = node.textSprite.userData.aspectRatio;
         
         let finalScale = baseScale * scaleIntensity;
@@ -682,11 +676,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           const reveal = 1.0 - THREE.MathUtils.smoothstep(mouseDist, brushRadiusNorm * (1 - feather), brushRadiusNorm);
           node.textSprite.material.opacity *= reveal;
         }
-        
-        // Label Visibility
-        if (!vs.labelsVisible) {
-          node.textSprite.material.opacity *= 0.2;
-        }
       }
     }
 
@@ -702,12 +691,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         pos.setXYZ(idx + 1, edge.b.x, edge.b.y, edge.b.z);
       }
       pos.needsUpdate = true;
-      
-      // Handle flow animation (conceptual for now)
-      if (vs.edgeFlowAnimation) {
-        // This would typically involve a shader update or texture offset
-        // For now we just keep the flag in mind
-      }
     }
     
     // GLITCH PAINT TOOL revealed by distance (conceptual uniform update)
@@ -725,7 +708,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── CANVAS TEXTURE CREATION (fixed dimensions for all states) ── */
-  const EDIT_NODE_COLOR = '#6b7280'; // neutral gray for edit mode
+  const EDIT_NODE_COLOR = SCENE_COLORS.editNodeColor; // neutral gray for edit mode
   // Fixed outline margin — always allocated so all 3 state textures share identical canvas size
   const OUTLINE_STROKE = 3;
   const OUTLINE_GAP = 2;
@@ -734,16 +717,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Use standard DOM canvas elements instead of OffscreenCanvas to bypass WebKit's strict hard limits on OffscreenCanvas contexts,
   // and avoid DataTexture/getImageData to prevent synchronous main-thread pipeline stalls during initialization.
   const createCanvasTexture = (
-    text: string, color: string, highlighted: boolean, selected: boolean, darkOverride?: boolean
+    text: string, highlighted: boolean, selected: boolean, darkOverride?: boolean
   ): { texture: THREE.Texture; baseScale: number; aspectRatio: number } => {
     const dark = darkOverride !== undefined ? darkOverride : isDarkRef.current;
-    const na = nodeAppearanceRef.current;
-    const isEditMode = renderModeRef.current === 'edit';
-    const effectiveColor = isEditMode ? EDIT_NODE_COLOR : color;
-    const effectiveBorderColor = (!isEditMode && na.borderColor !== 'auto') ? na.borderColor : effectiveColor;
-    const effectiveFillColor = (!isEditMode && na.fillColor !== 'auto') ? na.fillColor : (!isEditMode && na.fillColor === 'auto' ? effectiveColor : undefined);
-    const effectiveTextColor = (!isEditMode && na.textColor !== 'auto') ? na.textColor : (!isEditMode && na.textColor === 'auto' ? '#ffffff' : effectiveColor);
-    
+    const effectiveBorderColor = EDIT_NODE_COLOR;
+    const effectiveTextColor = EDIT_NODE_COLOR;
+
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;
 
@@ -768,7 +747,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     const nodeShape = styleSettingsRef.current.nodeShape ?? 'rectangle';
     const bw = styleSettingsRef.current.nodeBorderWidth ?? 2;
-    const fillColor = effectiveFillColor ?? getNetworkLabelStyle(dark).backgroundHex;
+    const fillColor = getNetworkLabelStyle(dark).backgroundHex;
     const cx = OUTLINE_MARGIN + logicalWidth / 2;
     const cy = OUTLINE_MARGIN + logicalHeight / 2;
 
@@ -818,7 +797,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
       const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
       const pathH = logicalHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
-      context.strokeStyle = '#2563eb';
+      context.strokeStyle = SCENE_COLORS.selectionOutline;
       context.lineWidth = OUTLINE_STROKE;
       context.beginPath();
       if (nodeShape === 'ellipse') {
@@ -876,28 +855,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     return sprite;
   };
 
-  const hexLerp = (a: string, b: string, t: number): string => {
-    const p = (h: string) => {
-      const c = h.replace('#', '');
-      return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
-    };
-    const ca = p(a), cb = p(b);
-    const r = Math.round(ca[0] + (cb[0] - ca[0]) * t);
-    const g = Math.round(ca[1] + (cb[1] - ca[1]) * t);
-    const bl = Math.round(ca[2] + (cb[2] - ca[2]) * t);
-    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
-  };
-
-  const getColorFromWordCount = (wordCount: number, min: number, max: number, gs: GradientSettings): string => {
-    const t = max !== min ? (wordCount - min) / (max - min) : 0.5;
-    const inner = getVividColor(gs.innerColor, !!isDark);
-    const outer = getVividColor(gs.outerColor, !!isDark);
-    if (gs.mode === 'solid') return inner;
-    return hexLerp(inner, outer, t);
-  };
-
   /** Build (or rebuild) the 3-state texture cache for all nodes. */
-  const buildTextureCache = (nodes: Map<string, GraphNode>, minW: number, maxW: number, gs: GradientSettings) => {
+  const buildTextureCache = (nodes: Map<string, GraphNode>) => {
     textureCacheRef.current.forEach(entry => {
       entry.normal.dispose();
       entry.highlighted?.dispose();
@@ -905,8 +864,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     });
     const cache = new Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>();
     nodes.forEach(node => {
-      const color = getColorFromWordCount(node.wordCount, minW, maxW, gs);
-      const n = createCanvasTexture(node.label, color, false, false);
+      const n = createCanvasTexture(node.label, false, false);
       cache.set(node.label, {
         normal: n.texture,
         baseScale: n.baseScale, aspectRatio: n.aspectRatio,
@@ -920,24 +878,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (!node.textSprite) return;
     const cached = textureCacheRef.current.get(node.label);
     if (!cached) return;
-    
+
     let tex = cached.normal;
     if (selected) {
       if (!cached.selected) {
-        const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-        const s = createCanvasTexture(node.label, color, false, true);
+        const s = createCanvasTexture(node.label, false, true);
         cached.selected = s.texture;
       }
       tex = cached.selected;
     } else if (highlighted) {
       if (!cached.highlighted) {
-        const color = getColorFromWordCount(node.wordCount, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-        const h = createCanvasTexture(node.label, color, true, false);
+        const h = createCanvasTexture(node.label, true, false);
         cached.highlighted = h.texture;
       }
       tex = cached.highlighted;
     }
-    
+
     node.textSprite.material.map = tex;
     node.textSprite.material.needsUpdate = true;
   };
@@ -964,15 +920,13 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       let tex = cached.normal;
       if (isSelected) {
         if (!cached.selected) {
-          const color = getColorFromWordCount(node.wordCount, minW, maxW, gradientSettingsRef.current);
-          const s = createCanvasTexture(node.label, color, false, true);
+          const s = createCanvasTexture(node.label, false, true);
           cached.selected = s.texture;
         }
         tex = cached.selected;
       } else if (isHovered) {
         if (!cached.highlighted) {
-          const color = getColorFromWordCount(node.wordCount, minW, maxW, gradientSettingsRef.current);
-          const h = createCanvasTexture(node.label, color, true, false);
+          const h = createCanvasTexture(node.label, true, false);
           cached.highlighted = h.texture;
         }
         tex = cached.highlighted;
@@ -1057,7 +1011,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const tgtY = hermite(pp?.target.y ?? null, pp?.time ?? null, prev.target.y, next.target.y, nn?.target.y ?? null, nn?.time ?? null, prev.handleOutTgt?.y, next.handleInTgt?.y);
     const tgtZ = hermite(pp?.target.z ?? null, pp?.time ?? null, prev.target.z, next.target.z, nn?.target.z ?? null, nn?.time ?? null, prev.handleOutTgt?.z, next.handleInTgt?.z);
 
-    cameraRef.current.position.set(camX, camY, camZ);
+    // Cartesian Hermite traces a chord rather than an arc, causing the camera to drift
+    // closer to the target mid-segment. Rescale the offset to the linearly interpolated
+    // distance so rotation moves stay at constant distance and dolly moves still work.
+    const d0 = Math.sqrt((prev.position.x - prev.target.x) ** 2 + (prev.position.y - prev.target.y) ** 2 + (prev.position.z - prev.target.z) ** 2);
+    const d1 = Math.sqrt((next.position.x - next.target.x) ** 2 + (next.position.y - next.target.y) ** 2 + (next.position.z - next.target.z) ** 2);
+    const interpDist = d0 + (d1 - d0) * tRaw;
+    const dx = camX - tgtX, dy = camY - tgtY, dz = camZ - tgtZ;
+    const rawDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const scale = rawDist > 0 ? interpDist / rawDist : 1;
+
+    cameraRef.current.position.set(tgtX + dx * scale, tgtY + dy * scale, tgtZ + dz * scale);
     controlsRef.current.target.set(tgtX, tgtY, tgtZ);
     cameraRef.current.lookAt(controlsRef.current.target);
   };
@@ -1068,17 +1032,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (!containerRef.current) return;
 
     let isCancelled = false;
-    let animFrame: number;
-    let timerId: ReturnType<typeof setTimeout>;
+    let animFrame: number | undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
 
     // Setup scene
     const scene = new THREE.Scene();
-    if (renderMode !== 'edit') {
-      const bgColors = getNetworkThemeBackground(isDarkRef.current);
-      scene.background = new THREE.Color(bgColors.threeColor);
-    } else {
-      scene.background = null;
-    }
+    scene.background = null;
     sceneRef.current = scene;
 
     const is2D = viewMode === '2D';
@@ -1213,7 +1172,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       );
     }
 
-    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number }>) => {
+    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number; applied?: PhysicsParams }>) => {
       if (e.data.type === 'settle_progress') {
         const { progress } = e.data;
         if (progress !== undefined) {
@@ -1241,8 +1200,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
 
       // ── STEP response ──
-      const { posVel, avgMovement } = e.data;
+      const { posVel, avgMovement, applied } = e.data;
       if (!posVel || avgMovement === undefined) return;
+      if (applied) {
+        // Worker is authoritative for `applied`; surfaces it back so the main
+        // thread can drive jolt velocity, recording, and external consumers
+        // via `getEffectivePhysicsParams()`.
+        effectivePhysicsRef.current = applied;
+      }
       const arr = graphNodeArrayRef.current;
       for (let i = 0; i < arr.length; i++) {
         const b = i * 6;
@@ -1302,6 +1267,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       color: edgeColor,
       opacity: styleSettings.edgeOpacity,
       transparent: true,
+      depthTest: true,
+      depthWrite: false,
       linewidth: styleSettings.edgeWidth
     });
 
@@ -1315,11 +1282,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const edgeGeometry = new THREE.BufferGeometry();
     edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
     const edgeLineSegments = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+    edgeLineSegments.renderOrder = 0;
     scene.add(edgeLineSegments);
     edgeLinesRef.current = edgeLineSegments;
 
     // Build 3-state texture cache for all nodes (normal, highlighted, selected)
-    buildTextureCache(nodes, minWords, maxWords, gradientSettings);
+    buildTextureCache(nodes);
 
     // Create nodes with billboarded text from cached normal textures
     nodes.forEach(node => {
@@ -1433,7 +1401,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     renderer.domElement.addEventListener('dblclick', handleDblClick);
 
     // Animation loop
-    let frameCount = 0;
     let lastTime = Date.now();
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -1452,114 +1419,56 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
       if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
-        let paramsForFrame = physicsParamsRef.current;
+        // The worker is now authoritative for keyframe/glide/LFO evaluation.
+        // Main thread tracks parameter-change velocity from the previous frame's
+        // `applied` to drive the jolt + pulse overrides — both are layered on top
+        // of `applied` via `paramOverrides` so the worker stays a pure evaluator.
+        const lastApplied = effectivePhysicsRef.current;
 
-        if (physicsBlendActiveRef.current) {
-          const elapsed = performance.now() - physicsBlendStartRef.current;
-          const tRaw = Math.max(0, Math.min(1, elapsed / physicsBlendDurationRef.current));
-          const t = applyEasing(tRaw, 'easeOut'); // 'easeOut' is instantly responsive, unlike 'easeInOut'
-          const from = physicsBlendFromRef.current;
-          const to = physicsBlendToRef.current;
-
-          // Reuse a scratch object to avoid per-frame allocation during blend
-          physicsBlendScratchRef.current.repulsion   = from.repulsion   + (to.repulsion   - from.repulsion)   * t;
-          physicsBlendScratchRef.current.springK     = from.springK     + (to.springK     - from.springK)     * t;
-          physicsBlendScratchRef.current.damping     = from.damping     + (to.damping     - from.damping)     * t;
-          physicsBlendScratchRef.current.minSpeed    = from.minSpeed    + (to.minSpeed    - from.minSpeed)    * t;
-          physicsBlendScratchRef.current.linkDistance= from.linkDistance+ (to.linkDistance- from.linkDistance)* t;
-          physicsBlendScratchRef.current.gravity     = from.gravity     + (to.gravity     - from.gravity)     * t;
-          physicsBlendScratchRef.current.turbulence  = from.turbulence  + (to.turbulence  - from.turbulence)  * t;
-          physicsBlendScratchRef.current.verticalOrder = from.verticalOrder + (to.verticalOrder - from.verticalOrder) * t;
-          physicsBlendScratchRef.current.pulse       = from.pulse       + (to.pulse       - from.pulse)       * t;
-          paramsForFrame = physicsBlendScratchRef.current;
-
-          if (tRaw >= 1) {
-            physicsBlendActiveRef.current = false;
-            paramsForFrame = physicsBlendToRef.current;
-          }
-        }
-
-        let isDrivenByTimeline = false;
-        // Apply physics keyframe overrides (during playback and when scrubbing)
-        {
-          const pkfs = physicsKeyframesRef.current;
-          const t = playheadRef.current;
-          let overridden = false;
-          const scratch = physicsBlendScratchRef.current;
-          for (const [trackId, param] of Object.entries(PHYS_TRACK_PARAM)) {
-            const val = interpolatePhysicsParam(pkfs[trackId] ?? [], t);
-            if (val !== null) {
-              if (!overridden) {
-                scratch.repulsion    = paramsForFrame.repulsion;
-                scratch.springK      = paramsForFrame.springK;
-                scratch.damping      = paramsForFrame.damping;
-                scratch.minSpeed     = paramsForFrame.minSpeed;
-                scratch.linkDistance = paramsForFrame.linkDistance;
-                scratch.gravity      = paramsForFrame.gravity;
-                scratch.turbulence   = paramsForFrame.turbulence;
-                scratch.verticalOrder = paramsForFrame.verticalOrder;
-                scratch.pulse        = paramsForFrame.pulse;
-                overridden = true;
-              }
-              (scratch as Record<string, number>)[param] = val;
-            }
-          }
-          if (overridden) {
-            paramsForFrame = scratch;
-            stillFramesRef.current = 0; // keep physics active while keyframes are driving values
-            isDrivenByTimeline = true;
-          }
-        }
-
-        // Track per-frame velocity of parameter changes to create a "jolt" effect
         const now = performance.now();
-        const dt = Math.max(1, now - lastParamsTimeRef.current);
+        const dtMs = Math.max(1, now - lastParamsTimeRef.current);
         const prev = lastParamsValuesRef.current;
-        
-        // Sum up the magnitude of changes across all parameters
-        const dRep = Math.abs(paramsForFrame.repulsion - prev.repulsion) / 1000;
-        const dSpr = Math.abs(paramsForFrame.springK - prev.springK) * 20;
-        const dDmp = Math.abs(paramsForFrame.damping - prev.damping) * 20;
-        const dSpd = Math.abs(paramsForFrame.minSpeed - prev.minSpeed);
-        const dLnk = Math.abs(paramsForFrame.linkDistance - prev.linkDistance) / 100;
-        const dGrv = Math.abs(paramsForFrame.gravity - prev.gravity) / 5;
-        const dTrb = Math.abs((paramsForFrame.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
-        const dVto = Math.abs((paramsForFrame.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
-        const dPls = Math.abs((paramsForFrame.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
-        
-        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dt;
-        
-        // Suppress jolt if timeline is driving the animation or we are playing
-        if (!isDrivenByTimeline && !isPlayingRef.current) {
+
+        const dRep = Math.abs(lastApplied.repulsion - prev.repulsion) / 1000;
+        const dSpr = Math.abs(lastApplied.springK - prev.springK) * 20;
+        const dDmp = Math.abs(lastApplied.damping - prev.damping) * 20;
+        const dSpd = Math.abs(lastApplied.minSpeed - prev.minSpeed);
+        const dLnk = Math.abs(lastApplied.linkDistance - prev.linkDistance) / 100;
+        const dGrv = Math.abs(lastApplied.gravity - prev.gravity) / 5;
+        const dTrb = Math.abs((lastApplied.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
+        const dVto = Math.abs((lastApplied.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
+        const dPls = Math.abs((lastApplied.pulse ?? 0) - (prev.pulse ?? 0)) / 10;
+        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto + dPls) / dtMs;
+
+        // Keep jolt tracking velocity from worker-applied values, not sidebar state.
+        if (!isPlayingRef.current) {
           physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
         } else {
-          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8; // Fast decay
+          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8;
         }
-        
+
         lastParamsTimeRef.current = now;
-        lastParamsValuesRef.current = { ...paramsForFrame };
+        lastParamsValuesRef.current = { ...lastApplied };
 
-        effectivePhysicsRef.current = paramsForFrame;
-
-        let sentParams = { ...paramsForFrame, pulse: paramsForFrame.pulse ?? 0, verticalOrder: paramsForFrame.verticalOrder ?? 0 };
-        if ((physicsVelocityRef.current || 0) > 0.01 || sentParams.pulse > 0) {
-          
-          if (sentParams.pulse > 0) {
-             const pulseTime = performance.now() * 0.002;
-             const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
-             const pulseFactor = Math.sin(pulseTime) * sentParams.pulse * 0.15 * joltSuppression;
-             sentParams.repulsion = sentParams.repulsion * (1 + pulseFactor);
-             sentParams.linkDistance = sentParams.linkDistance * (1 + pulseFactor * 0.2);
-          }
-
-          if ((physicsVelocityRef.current || 0) > 0.01) {
-            const jolt = physicsVelocityRef.current || 0;
-            // Temporarily reduce friction, but keep a safe limit (0.92) to prevent numerical explosion
-            const targetDamping = Math.max(sentParams.damping, 0.92);
-            sentParams.damping = sentParams.damping + (targetDamping - sentParams.damping) * Math.min(1, jolt * 1.5);
-            physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80; // Fast decay back to normal
-          }
+        // Pulse + jolt damping floor become per-frame param overrides.
+        const paramOverrides: Partial<PhysicsParams> = {};
+        if (lastApplied.pulse > 0) {
+          const pulseTime = now * 0.002;
+          const joltSuppression = Math.max(0, 1 - (physicsVelocityRef.current || 0) * 2);
+          const pulseFactor = Math.sin(pulseTime) * lastApplied.pulse * 0.15 * joltSuppression;
+          paramOverrides.repulsion = lastApplied.repulsion * (1 + pulseFactor);
+          paramOverrides.linkDistance = lastApplied.linkDistance * (1 + pulseFactor * 0.2);
         }
+        if ((physicsVelocityRef.current || 0) > 0.01) {
+          const jolt = physicsVelocityRef.current || 0;
+          const targetDamping = Math.max(lastApplied.damping, 0.92);
+          paramOverrides.damping = lastApplied.damping + (targetDamping - lastApplied.damping) * Math.min(1, jolt * 1.5);
+          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80;
+        }
+
+        // dt for the worker's glide integrator (seconds since last step, clamped).
+        const dtSeconds = Math.min(0.1, Math.max(0.001, (now - lastStepNowRef.current) / 1000));
+        lastStepNowRef.current = now;
 
         // Pack current positions + velocities into the reusable buffer and transfer to worker
         const pv = workerPosVelRef.current;
@@ -1571,11 +1480,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         }
         workerBusyRef.current = true;
         physicsWorkerRef.current!.postMessage(
-          { type: 'step', posVel: pv, params: sentParams, is2D },
-          [pv.buffer]
+          {
+            type: 'step',
+            posVel: pv,
+            time: playheadRef.current,
+            dt: dtSeconds,
+            sliderParams: physicsParamsRef.current,
+            paramOverrides: Object.keys(paramOverrides).length > 0 ? paramOverrides : undefined,
+            is2D,
+          },
+          [pv.buffer],
         );
       }
-      frameCount++;
 
       if (!is2D) {
         // Camera keyframe animation (3D only)
@@ -1680,8 +1596,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       
       ro.disconnect();
       window.removeEventListener('resize', handleResize);
-      if (timerId) clearTimeout(timerId);
-      if (animFrame) cancelAnimationFrame(animFrame);
+      if (timerId !== undefined) clearTimeout(timerId);
+      if (animFrame !== undefined) cancelAnimationFrame(animFrame);
       
       renderer.domElement.removeEventListener('mousemove', handleHoverMove);
       renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
@@ -1714,41 +1630,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
   }, [inputText, viewMode, parseMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle Environment Background Toggle
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    if (renderMode !== 'edit') {
-      if (visualSettings.envVisible) {
-        const bgColors = getNetworkThemeBackground(isDark);
-        sceneRef.current.background = new THREE.Color(bgColors.threeColor);
-      } else {
-        sceneRef.current.background = new THREE.Color(isDark ? 0x000000 : 0xffffff);
-      }
-    } else {
-      sceneRef.current.background = null;
-    }
-  }, [visualSettings.envVisible, isDark, renderMode]);
-
   // Camera settings removed - OrbitControls handles all camera interaction
-
-  // Update node colors when color settings change — debounced so color picker stays smooth
-  useEffect(() => {
-    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    if (gradientRebuildTimerRef.current) clearTimeout(gradientRebuildTimerRef.current);
-    gradientRebuildTimerRef.current = setTimeout(() => {
-      if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-      refreshAllSpriteTextures();
-      gradientRebuildTimerRef.current = null;
-    }, 80);
-  }, [gradientSettings]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Rebuild textures when render mode switches (edit vs render colors)
-  useEffect(() => {
-    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-    refreshAllSpriteTextures();
-  }, [renderMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update node scale (and depth-size) when relevant style settings change
   useEffect(() => {
@@ -1769,17 +1651,28 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     });
   }, [styleSettings.nodeScale, styleSettings.depthSizeEnabled, styleSettings.depthSizeStrength]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures when node shape or border width changes — debounced for smooth slider
+  // Rebuild textures immediately when node shape changes (discrete button event — no debounce)
+  useEffect(() => {
+    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    if (textureRebuildTimerRef.current) {
+      clearTimeout(textureRebuildTimerRef.current);
+      textureRebuildTimerRef.current = null;
+    }
+    buildTextureCache(graphNodesRef.current);
+    refreshAllSpriteTextures();
+  }, [styleSettings.nodeShape]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rebuild textures debounced when border width changes (potentially slider-driven)
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
     if (textureRebuildTimerRef.current) clearTimeout(textureRebuildTimerRef.current);
     textureRebuildTimerRef.current = setTimeout(() => {
       if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+      buildTextureCache(graphNodesRef.current);
       refreshAllSpriteTextures();
       textureRebuildTimerRef.current = null;
     }, 80);
-  }, [styleSettings.nodeShape, styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update edge material when style settings change
   useEffect(() => {
@@ -1799,30 +1692,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     mat.needsUpdate = true;
   }, [edgeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures when node appearance settings change — debounced for color picker
-  useEffect(() => {
-    if (!sceneRef.current || graphNodesRef.current.size === 0) return;
-    if (appearanceRebuildTimerRef.current) clearTimeout(appearanceRebuildTimerRef.current);
-    appearanceRebuildTimerRef.current = setTimeout(() => {
-      if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
-      refreshAllSpriteTextures();
-      appearanceRebuildTimerRef.current = null;
-    }, 80);
-  }, [nodeAppearance]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Update background color and rebuild textures when theme changes
+  // Rebuild textures when theme changes (light/dark affects label fill background)
   useEffect(() => {
     if (!sceneRef.current) return;
-    if (renderMode !== 'edit') {
-      const bgColors = getNetworkThemeBackground(isDarkRef.current);
-      sceneRef.current.background = new THREE.Color(bgColors.threeColor);
-    } else {
-      sceneRef.current.background = null;
-    }
-
     if (graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current, minWordsRef.current, maxWordsRef.current, gradientSettingsRef.current);
+    buildTextureCache(graphNodesRef.current);
     refreshAllSpriteTextures();
   }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1850,7 +1724,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     setContextMenuNode(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Internal zoom slider deactivated in favor of Inspector control
+  /* Internal zoom slider deactivated in favor of Sidebar control
   const handleZoomSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!cameraRef.current || !controlsRef.current) return;
     const newDist = sliderValToDist(parseFloat(e.target.value));
@@ -2012,7 +1886,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
         {/* Camera Locked Indicator */}
         {cameraLocked && (
-          <div className="absolute top-4 right-4 z-20 bg-blue-500/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
+          <div className="absolute top-4 right-4 z-20 bg-wn-accent/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
             <Lock className="w-3 h-3" />
             CAMERA LOCKED
             <button 

@@ -1,6 +1,15 @@
 // Physics simulation running off the main thread.
 // Operates on a flat Float64Array layout: [x, y, z, vx, vy, vz] × n
 // Receives transferable buffers from the main thread to avoid copies.
+//
+// Phase 3: the worker also owns the per-frame animation clock. Each `step`
+// message carries `time`, `dt`, baseline `sliderParams`, and optional
+// `paramOverrides` (pulse + jolt damping floor from main thread). The worker
+// evaluates per-track Hermite + LFO + glide into a stable `applied` map and
+// runs the force integrator on `applied`-with-overrides. The response carries
+// `applied` so the main thread can drive recording + jolt-velocity tracking.
+
+import { evaluateTracks, type WorkerTrack } from '../animation/evaluateTracks';
 
 interface PhysicsParams {
   repulsion: number;
@@ -14,6 +23,11 @@ interface PhysicsParams {
   pulse: number;
 }
 
+const DEFAULT_PHYSICS: PhysicsParams = {
+  repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5,
+  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0,
+};
+
 interface InitMessage {
   type: 'init';
   edgeIndices: Int32Array;    // [a0, b0, a1, b1, ...] node-index pairs
@@ -25,8 +39,16 @@ interface InitMessage {
 interface StepMessage {
   type: 'step';
   posVel: Float64Array;       // [x,y,z,vx,vy,vz] × nodeCount — transferred
-  params: PhysicsParams;
+  time: number;               // playhead seconds
+  dt: number;                 // seconds since previous step (clamped on main thread)
+  sliderParams: PhysicsParams;
+  paramOverrides?: Partial<PhysicsParams>;
   is2D: boolean;
+}
+
+interface UpdateTracksMessage {
+  type: 'updateTracks';
+  tracks: Record<string, WorkerTrack | undefined>;  // keyed by paramKey
 }
 
 interface SettleMessage {
@@ -40,6 +62,11 @@ let edgeIndices: Int32Array;
 let wordCounts: Int32Array;
 let sharedMatrix: Uint8Array;
 let nodeCount = 0;
+
+// Animation state owned by the worker (Phase 3).
+let tracks: Record<string, WorkerTrack | undefined> = {};
+const applied: PhysicsParams = { ...DEFAULT_PHYSICS };
+let appliedSeeded = false;
 
 function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): number {
   const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence, verticalOrder } = params;
@@ -250,7 +277,7 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   return totalMovement / Math.max(n, 1);
 }
 
-self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage>) => {
+self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage | UpdateTracksMessage>) => {
   const msg = e.data;
 
   if (msg.type === 'init') {
@@ -258,6 +285,11 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage>) =>
     wordCounts   = msg.wordCounts;
     sharedMatrix = msg.sharedPairMatrix;
     nodeCount    = msg.nodeCount;
+    return;
+  }
+
+  if (msg.type === 'updateTracks') {
+    tracks = msg.tracks;
     return;
   }
 
@@ -300,11 +332,28 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage>) =>
   }
 
   // ── STEP ──
-  const { posVel, params, is2D } = msg;
-  const avgMovement = runStep(posVel, params, is2D);
+  const { posVel, time, dt, sliderParams, paramOverrides, is2D } = msg;
 
+  // Seed applied from sliderParams on the very first step so glide doesn't
+  // start from DEFAULT_PHYSICS (which would jolt repulsion etc.).
+  if (!appliedSeeded) {
+    Object.assign(applied, sliderParams);
+    appliedSeeded = true;
+  }
+
+  evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>);
+
+  // Layer main-thread overrides (pulse, jolt damping floor) on top of `applied`.
+  const final: PhysicsParams = paramOverrides
+    ? { ...applied, ...paramOverrides }
+    : applied;
+
+  const avgMovement = runStep(posVel, final, is2D);
+
+  // Send a *copy* of `applied` (worker mutates the live state next frame).
+  const appliedSnapshot: PhysicsParams = { ...applied };
   (self as unknown as Worker).postMessage(
-    { type: 'step', posVel, avgMovement },
+    { type: 'step', posVel, avgMovement, applied: appliedSnapshot },
     [posVel.buffer]
   );
 };

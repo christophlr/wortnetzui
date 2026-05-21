@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,13 +8,15 @@ import {
   DialogFooter,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Plus, Trash2, Command } from 'lucide-react';
+import { DialogFieldRow } from './dialogs/DialogAtoms';
+import { useT } from '../i18n/useT';
 
 interface Shortcut {
   id: string;
   command: string;
   key: string;
+  tKey?: string;
 }
 
 interface ShortcutsDialogProps {
@@ -32,6 +34,7 @@ export function ShortcutsDialog({
   onAddShortcut,
   onRemoveShortcut,
 }: ShortcutsDialogProps) {
+  const { t } = useT();
   const [newCommand, setNewCommand] = useState('');
   const [newKey, setNewKey] = useState('');
 
@@ -47,10 +50,8 @@ export function ShortcutsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Tastaturkürzel verwalten</DialogTitle>
-          <DialogDescription>
-            Hier kannst du Tastaturkürzel einsehen und neue hinzufügen.
-          </DialogDescription>
+          <DialogTitle>{t('dialogs.shortcuts.title')}</DialogTitle>
+          <DialogDescription>{t('dialogs.shortcuts.description')}</DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
@@ -58,7 +59,7 @@ export function ShortcutsDialog({
             {shortcuts.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-2 rounded-md bg-accent/20 border border-border/50">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{s.command}</span>
+                  <span className="text-sm font-medium">{s.tKey ? t(s.tKey) : s.command}</span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Command size={10} /> {s.key}
                   </span>
@@ -76,24 +77,20 @@ export function ShortcutsDialog({
           </div>
 
           <div className="grid grid-cols-7 gap-2 items-end pt-2 border-t">
-            <div className="col-span-3 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Aktion</span>
-              <Input 
-                placeholder="z.B. Speichern" 
-                value={newCommand} 
-                onChange={(e) => setNewCommand(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="col-span-3 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Taste</span>
-              <Input 
-                placeholder="z.B. s" 
-                value={newKey} 
-                onChange={(e) => setNewKey(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
+            <DialogFieldRow
+              label={t('dialogs.shortcuts.field.action.label')}
+              placeholder={t('dialogs.shortcuts.field.action.placeholder')}
+              value={newCommand}
+              onChange={setNewCommand}
+              className="col-span-3 space-y-1"
+            />
+            <DialogFieldRow
+              label={t('dialogs.shortcuts.field.key.label')}
+              placeholder={t('dialogs.shortcuts.field.key.placeholder')}
+              value={newKey}
+              onChange={setNewKey}
+              className="col-span-3 space-y-1"
+            />
             <Button size="icon" className="h-8 w-8" onClick={handleAdd} disabled={!newCommand || !newKey}>
               <Plus size={16} />
             </Button>
@@ -101,7 +98,7 @@ export function ShortcutsDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Fertig</Button>
+          <Button onClick={() => onOpenChange(false)}>{t('dialogs.shortcuts.done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

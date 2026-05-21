@@ -1,6 +1,8 @@
 import { useState, useRef, useMemo } from 'react';
 import { LABEL_W, GRAPH_H, COLOR, inferEasingType, type ViewWindow, type EasingType } from './types';
+import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+import { withinSelection } from './timeUtils';
 
 /**
  * Full Hermite curve editor for a single track.
@@ -119,6 +121,8 @@ export function GraphEditor({
     kfTime: number; startY: number; startValue: number;
   } | null>(null);
 
+  const [dragDelta, setDragDelta] = useState<{ x: number; y: number; dv: number } | null>(null);
+
   // Handle drag — mousemove
   const handleDragMove = (e: MouseEvent) => {
     if (!dragging || !trackRef.current) return;
@@ -188,10 +192,12 @@ export function GraphEditor({
       const dy = startY - ev.clientY;
       const delta = (dy / (GRAPH_H * 0.8)) * valRange;
       onSetValue?.(trackId, kfTime, Math.max(0, startValue + delta));
+      setDragDelta({ x: ev.clientX, y: ev.clientY, dv: delta });
     };
     const upFn = () => {
       onDragEnd?.();
       setDraggingValue(null);
+      setDragDelta(null);
       window.removeEventListener('mousemove', moveFn);
       window.removeEventListener('mouseup', upFn);
     };
@@ -202,7 +208,7 @@ export function GraphEditor({
   return (
     <div className={`flex border-b border-border/50`} style={{ height: GRAPH_H }}>
       {/* Label column */}
-      <div className="shrink-0 flex flex-col justify-between pl-8 pr-2 border-r border-border bg-background py-1 relative z-30" style={{ width: LABEL_W }}>
+      <TrackLabel variant="stacked" padding="indent">
         <div className="flex items-center gap-1.5">
           <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground shrink-0" fill="none" stroke="currentColor" strokeWidth="1.2">
             <path d="M 0 9 C 3 9 7 1 10 1" strokeLinecap="round" />
@@ -217,7 +223,7 @@ export function GraphEditor({
             <span className="text-[8px] tabular-nums text-muted-foreground/50 leading-none mt-auto">{minVal.toFixed(minVal >= 100 ? 0 : 1)}</span>
           </div>
         )}
-      </div>
+      </TrackLabel>
 
       {/* Graph area */}
       <div ref={trackRef} className="flex-1 relative overflow-visible" style={{ background: 'rgba(0,0,0,0.03)' }}>
@@ -251,8 +257,8 @@ export function GraphEditor({
             if (xPct < -5 || xPct > 105) return null;
 
             const y = getNormY(kfVal);
-            const isSelected = selectedKeyframes?.some(s => s.track === trackId && Math.abs(s.time - kf.time) < 0.01);
-            const isHover = false; // TODO: hover state
+            const isSelected = selectedKeyframes?.some(s => s.track === trackId && withinSelection(s.time, kf.time));
+            const isHover = false;
 
             // Tangent computation
             const mode = kf.mode || 'aligned';
@@ -297,35 +303,61 @@ export function GraphEditor({
                   />
                 )}
 
-                {/* Handle dots — only when selected/hovered */}
+                {/* Handle dots — only when selected/hovered. */}
+                {/* Each handle has a transparent r=12 hit-target overlaying the visible r=5 dot. */}
                 {showHandles && tNext !== null && (
-                  <circle
-                    cx={`${xOut}%`} cy={yOut} r="5"
-                    fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
-                    stroke={colorMap.graphStroke} strokeWidth="1.5"
-                    strokeOpacity={isAutoHandles ? 0.4 : 1}
-                    className="cursor-move"
-                    onMouseDown={(e) => startHandleDrag(e, kf, 'out', mOut, handleTimeOut)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
-                  />
+                  <>
+                    <circle
+                      cx={`${xOut}%`} cy={yOut} r="12"
+                      fill="transparent" pointerEvents="all"
+                      className="cursor-move"
+                      onMouseDown={(e) => startHandleDrag(e, kf, 'out', mOut, handleTimeOut)}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
+                    />
+                    <circle
+                      cx={`${xOut}%`} cy={yOut} r="5"
+                      fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
+                      stroke={colorMap.graphStroke} strokeWidth="1.5"
+                      strokeOpacity={isAutoHandles ? 0.4 : 1}
+                      pointerEvents="none"
+                    />
+                  </>
                 )}
                 {showHandles && tPrev !== null && (
-                  <circle
-                    cx={`${xIn}%`} cy={yIn} r="5"
-                    fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
-                    stroke={colorMap.graphStroke} strokeWidth="1.5"
-                    strokeOpacity={isAutoHandles ? 0.4 : 1}
-                    className="cursor-move"
-                    onMouseDown={(e) => startHandleDrag(e, kf, 'in', mIn, handleTimeIn)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
-                  />
+                  <>
+                    <circle
+                      cx={`${xIn}%`} cy={yIn} r="12"
+                      fill="transparent" pointerEvents="all"
+                      className="cursor-move"
+                      onMouseDown={(e) => startHandleDrag(e, kf, 'in', mIn, handleTimeIn)}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSetInterpolation?.(trackId, kf.time, mode === 'aligned' ? 'broken' : 'aligned'); }}
+                    />
+                    <circle
+                      cx={`${xIn}%`} cy={yIn} r="5"
+                      fill={isAutoHandles ? 'transparent' : colorMap.graphStroke}
+                      stroke={colorMap.graphStroke} strokeWidth="1.5"
+                      strokeOpacity={isAutoHandles ? 0.4 : 1}
+                      pointerEvents="none"
+                    />
+                  </>
                 )}
 
+                {/* Selection ring */}
+                {isSelected && (
+                  <circle
+                    cx={`${xPct}%`} cy={y} r={8}
+                    fill="none"
+                    stroke="var(--wn-timeline-kf-selected-outline)"
+                    strokeOpacity={0.3}
+                    strokeWidth={1.5}
+                    pointerEvents="none"
+                  />
+                )}
                 {/* Keyframe dot */}
                 <circle
                   cx={`${xPct}%`} cy={y} r={isSelected ? 6 : 5}
-                  fill={isSelected ? '#3b82f6' : colorMap.graphStroke}
-                  stroke={isSelected ? '#93c5fd' : '#fff'}
+                  fill={isSelected ? 'var(--wn-timeline-kf-selected)' : colorMap.graphStroke}
+                  stroke={isSelected ? 'var(--wn-timeline-kf-selected-outline)' : 'var(--wn-timeline-bg)'}
                   strokeWidth={isSelected ? 2 : 1.5}
                   className={onSetValue && !isTension ? 'cursor-ns-resize' : undefined}
                   onMouseDown={onSetValue && !isTension ? (e) => startValueDrag(e, kf.time, kf.value!) : undefined}
@@ -359,6 +391,14 @@ export function GraphEditor({
           );
         })}
       </div>
+      {dragDelta && (
+        <div
+          className="fixed pointer-events-none z-[10000] px-1.5 py-0.5 rounded text-[10px] font-mono tabular-nums bg-background border border-border text-foreground shadow-md"
+          style={{ left: dragDelta.x + 12, top: dragDelta.y + 12 }}
+        >
+          Δv: {dragDelta.dv >= 0 ? '+' : ''}{dragDelta.dv.toFixed(2)}
+        </div>
+      )}
     </div>
   );
 }

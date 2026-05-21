@@ -1,6 +1,11 @@
-import { GradientSettings, NodeAppearanceSettings, EdgeAppearanceSettings, NodeShape } from '../networkTheme';
+import { EdgeAppearanceSettings, NodeShape } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import type { Network3DHandle } from '../components/Network3D';
+import type { Modulator } from '../animation/Modulator';
+import type { TrackMeta } from '../animation/Track';
+
+export type { Modulator } from '../animation/Modulator';
+export type { Track, TrackMeta } from '../animation/Track';
 
 export type Keyframe = {
   time: number;
@@ -34,6 +39,7 @@ export type TimelineState = {
   cameraKeyframes: Keyframe[];
   physicsKeyframes: Record<string, PhysicsKeyframe[]>;
   sceneMarkers: SceneMarker[];
+  trackMeta: Record<string, TrackMeta>;
 };
 
 export interface WortnetzContextType {
@@ -42,9 +48,9 @@ export interface WortnetzContextType {
   setViewMode: (mode: '2D' | '3D') => void;
   themeMode: 'light' | 'hybrid' | 'dark';
   setThemeMode: (mode: 'light' | 'hybrid' | 'dark') => void;
-  renderMode: 'edit' | 'render';
-  setRenderMode: (mode: 'edit' | 'render') => void;
-  
+  themeAuto: boolean;
+  setThemeAuto: (auto: boolean) => void;
+
   activeTool: ToolId;
   setActiveTool: (tool: ToolId) => void;
   canvasAspectRatio: string;
@@ -54,8 +60,8 @@ export interface WortnetzContextType {
   
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
-  inspectorWidth: number;
-  setInspectorWidth: (width: number) => void;
+  sidebarWidth: number;
+  setSidebarWidth: (width: number) => void;
   timelineHeight: number;
   setTimelineHeight: (height: number) => void;
   
@@ -69,8 +75,6 @@ export interface WortnetzContextType {
   setInputText: (text: string) => void;
   parseMode: 'sentence' | 'word' | 'both';
   setParseMode: (mode: 'sentence' | 'word' | 'both') => void;
-  gradientSettings: GradientSettings;
-  setGradientSettings: (settings: GradientSettings) => void;
   styleSettings: {
     edgeOpacity: number;
     edgeWidth: number;
@@ -113,16 +117,11 @@ export interface WortnetzContextType {
   }>>;
   visualSettings: {
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
@@ -131,28 +130,19 @@ export interface WortnetzContextType {
   };
   setVisualSettings: React.Dispatch<React.SetStateAction<{
     nodesVisible: boolean;
-    labelsVisible: boolean;
     edgesVisible: boolean;
-    envVisible: boolean;
     radialBiasScale: number;
     radialBiasOpacity: number;
     gradientOrigin: string;
     gradientPeriphery: string;
-    labelWeightMapping: number;
-    edgeFlowAnimation: boolean;
-    envAtmosphereSeed: number;
     glitchActive: boolean;
     glitchBrushRadius: number;
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
   }>>;
-  nodeAppearance: NodeAppearanceSettings;
-  setNodeAppearance: (app: NodeAppearanceSettings) => void;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
-  lastAppliedPreset: 'outline'|'filled'|null;
-  setLastAppliedPreset: (preset: 'outline'|'filled'|null) => void;
 
   // Timeline / Playback
   isPlaying: boolean;
@@ -173,6 +163,18 @@ export interface WortnetzContextType {
   selectedKeyframes: { track: string; time: number }[];
   setSelectedKeyframes: React.Dispatch<React.SetStateAction<{ track: string; time: number }[]>>;
 
+  // Track-level animation tuning (Phase 3).
+  // Keyed by trackId (PHYS_TRACK_PARAM key, e.g. 'phys-rep'). Defaults to glide=0, no modulator.
+  trackMeta: Record<string, TrackMeta>;
+  setTrackMeta: React.Dispatch<React.SetStateAction<Record<string, TrackMeta>>>;
+  handleSetTrackGlide: (trackId: string, seconds: number) => void;
+  handleSetTrackModulator: (trackId: string, modulator: Modulator | null) => void;
+
+  // Per-track recording arm (Phase 3.5). Defaults to all tracks armed.
+  armedTracks: ReadonlySet<string>;
+  handleToggleTrackArm: (trackId: string) => void;
+  handleCommitRecording: (result: import('../animation/Recorder').RecorderResult) => void;
+
   // Refs
   network3DRef: React.RefObject<Network3DHandle | null>;
   cameraKeyframesRef: React.MutableRefObject<Keyframe[]>;
@@ -181,6 +183,8 @@ export interface WortnetzContextType {
   selectedKeyframesRef: React.MutableRefObject<{ track: string; time: number }[]>;
   playheadRef: React.MutableRefObject<number>;
   isRecordingRef: React.MutableRefObject<boolean>;
+  trackMetaRef: React.MutableRefObject<Record<string, TrackMeta>>;
+  armedTracksRef: React.MutableRefObject<ReadonlySet<string>>;
 
   selectedNode: any;
   setSelectedNode: (node: any) => void;
@@ -191,9 +195,12 @@ export interface WortnetzContextType {
   uiIsDark: boolean;
   
   // Actions
-  handleCaptureKeyframe: () => void;
+  handleCaptureKeyframe: (atTime?: number) => void;
+  handleCreateKeyframesAtMarker: (time: number) => void;
   handleMoveKeyframe: (trackId: string, oldTime: number, newTime: number) => void;
   handleDeleteKeyframe: (trackId: string, time: number) => void;
+  handleRippleDeleteKeyframe: (trackId: string, time: number) => void;
+  handleResetTrack: (trackId: string) => void;
   handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleClearHandle: (trackId: string, time: number) => void;
   handleSetInterpolation: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
@@ -201,17 +208,19 @@ export interface WortnetzContextType {
   handleAddSceneMarker: (time: number, label?: string) => void;
   handleRenameSceneMarker: (time: number, label?: string) => void;
   handleMoveSceneMarker: (oldTime: number, newTime: number) => void;
-  
+  handleDropSceneMarker: (fromTime: number, toTime: number) => void;
+  handleDeleteSceneMarker: (time: number) => void;
+
   handleSetValue: (trackId: string, time: number, value: number) => void;
   handleSetHandle2D: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleCameraChange: () => void;
-  handleApplyNodeStylePreset: (preset: 'outline' | 'filled' | 'reset') => void;
   handleTogglePhysicsKeyframe: (trackId: string, value: number) => void;
   handleKeyframeSelect: (track: string, time: number, additive: boolean) => void;
   handleSelectKeyframes: (kfs: { track: string; time: number }[]) => void;
   handlePhysicsChange: (params: Partial<WortnetzContextType['physicsParams']>) => void;
   handleDragStart: () => void;
   handleDragEnd: () => void;
+  handleCancelDrag: () => void;
   
   // History
   pushHistory: (next: TimelineState) => void;

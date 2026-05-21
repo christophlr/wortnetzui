@@ -1,4 +1,6 @@
 import type { ReactNode, RefObject } from 'react';
+import type { Modulator } from '../../animation/Modulator';
+import type { TrackMeta } from '../../animation/Track';
 
 /* ── Shared timeline types ── */
 
@@ -79,29 +81,35 @@ export function inferEasingType(kf: {
 export const LABEL_W = 224;
 export const TRACK_H = 26;
 export const GRAPH_H = 120;
-export const EASING_H = 56;      // value graph height (legacy compat)
+export const EASING_H = 56;      // value graph height
 export const MINI_CURVE_H = 18;  // mini-curve height inside dopesheet track
 
 /* ── Track groups ── */
 
+/**
+ * Track-group metadata. `groupKey` resolves to `timeline.track.<groupKey>`.
+ * Physics tracks carry a `paramKey` that maps to the param's display name
+ * via `sidebar.tab.physics.param.<paramKey>.name`. Camera tracks use
+ * `groupKey` directly (`timeline.track.keyframes`).
+ */
 export const TRACK_GROUPS = [
   {
-    id: 'camera', name: 'Camera', color: 'cyan' as const,
+    id: 'camera', groupKey: 'camera', color: 'cyan' as const,
     tracks: [
-      { id: 'camera-keyframes', name: 'Keyframes', kfs: [] as number[], graph: false },
+      { id: 'camera-keyframes', trackKey: 'keyframes', kfs: [] as number[], graph: false },
     ],
   },
   {
-    id: 'physics', name: 'Physics', color: 'orange' as const,
+    id: 'physics', groupKey: 'physics', color: 'orange' as const,
     tracks: [
-      { id: 'phys-rep',  name: 'Streuung',   kfs: [] as number[], graph: false },
-      { id: 'phys-spk',  name: 'Spannung',   kfs: [] as number[], graph: false },
-      { id: 'phys-dmp',  name: 'Reibung',    kfs: [] as number[], graph: false },
-      { id: 'phys-lnk',  name: 'Abstand',    kfs: [] as number[], graph: false },
-      { id: 'phys-grv',  name: 'Schwerkraft',kfs: [] as number[], graph: false },
-      { id: 'phys-trb',  name: 'Bewegung',   kfs: [] as number[], graph: false },
-      { id: 'phys-vto',  name: 'Vertikale Ordnung', kfs: [] as number[], graph: false },
-      { id: 'phys-pls',  name: 'Lebendigkeit', kfs: [] as number[], graph: false },
+      { id: 'phys-rep', paramKey: 'repulsion',    kfs: [] as number[], graph: false },
+      { id: 'phys-spk', paramKey: 'springK',      kfs: [] as number[], graph: false },
+      { id: 'phys-dmp', paramKey: 'damping',      kfs: [] as number[], graph: false },
+      { id: 'phys-lnk', paramKey: 'linkDistance', kfs: [] as number[], graph: false },
+      { id: 'phys-grv', paramKey: 'gravity',      kfs: [] as number[], graph: false },
+      { id: 'phys-trb', paramKey: 'turbulence',   kfs: [] as number[], graph: false },
+      { id: 'phys-vto', paramKey: 'verticalOrder',kfs: [] as number[], graph: false },
+      { id: 'phys-pls', paramKey: 'pulse',        kfs: [] as number[], graph: false },
     ],
   },
 ];
@@ -109,8 +117,8 @@ export const TRACK_GROUPS = [
 /* ── Color maps ── */
 
 export const COLOR = {
-  cyan:   { dot: 'bg-blue-500',   border: 'border-l-blue-500/60',   kf: 'text-blue-400',   kfFill: '#60a5fa', trackBg: 'bg-blue-950/10',   graphStroke: '#3b82f6',  miniCurve: 'rgba(59, 130, 246, 0.25)' },
-  orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: '#fb923c', trackBg: 'bg-orange-950/10', graphStroke: '#f97316', miniCurve: 'rgba(249, 115, 22, 0.25)' },
+  cyan:   { dot: 'bg-blue-500',   border: 'border-l-blue-500/60',   kf: 'text-blue-400',   kfFill: 'var(--wn-timeline-cyan-kf-fill)',   trackBg: 'bg-blue-950/10',   graphStroke: 'var(--wn-timeline-cyan-graph-stroke)',   miniCurve: 'rgba(59, 130, 246, 0.25)' },
+  orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: 'var(--wn-timeline-orange-kf-fill)', trackBg: 'bg-orange-950/10', graphStroke: 'var(--wn-timeline-orange-graph-stroke)', miniCurve: 'rgba(249, 115, 22, 0.25)' },
 };
 
 /* ── Timeline props ── */
@@ -148,6 +156,8 @@ export interface TimelineProps {
   onSetValue?: (trackId: string, time: number, value: number) => void;
   onSetInterpolation?: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
+  onRippleDeleteKeyframe?: (trackId: string, time: number) => void;
+  onResetTrack?: (trackId: string) => void;
   onDuplicateKeyframe?: (trackId: string, srcTime: number, destTime: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -163,6 +173,17 @@ export interface TimelineProps {
   onDropSceneMarker?: (fromTime: number, toTime: number) => void;
   onDeleteSceneMarker?: (time: number) => void;
   onRenameSceneMarker?: (time: number, label?: string) => void;
+  onCreateKeyframesAtMarker?: (time: number) => void;
   isRecording?: boolean;
   onToggleRecording?: () => void;
+  onCancelDrag?: () => void;
+
+  // Per-track Glide + LFO (Phase 3.4)
+  trackMeta?: Record<string, TrackMeta>;
+  onSetTrackGlide?: (trackId: string, seconds: number) => void;
+  onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
+
+  // Per-track recording arm (Phase 3.5)
+  armedTracks?: ReadonlySet<string>;
+  onToggleTrackArm?: (trackId: string) => void;
 }

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle, Square } from 'lucide-react';
-import { Button } from '../ui/button';
 import { TIMELINE_DURATION } from '../../constants';
 import { useTimelineView } from './useTimelineView';
 import { TimelineRuler } from './TimelineRuler';
@@ -9,26 +8,14 @@ import { SceneMarkerLane, TrackRow, TrackGroup } from './TimelineTracks';
 import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
+import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton, RecordingIndicator } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
+import { TrackTuningPanel } from './TrackTuningPanel';
+import { PHYS_TRACK_PARAM } from '../../context/WortnetzContextConstants';
+import { useT } from '../../i18n/useT';
+import { withinSelection } from './timeUtils';
 
 /* ── Small helper components ── */
-
-function TBtn({ children, onClick, disabled, active, title }: {
-  children: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean; title?: string;
-}) {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={`h-6 w-6 p-0 shrink-0 ${active ? 'text-blue-400' : ''} ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      {children}
-    </Button>
-  );
-}
 
 function TCDisplay({ value }: { value: string }) {
   return (
@@ -48,27 +35,37 @@ export function Timeline(props: TimelineProps) {
     cameraKeyframes = [], physicsKeyframes = {},
     onCaptureKeyframe, onMoveKeyframe,
     onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
-    onDeleteKeyframe, onDuplicateKeyframe,
+    onDeleteKeyframe, onDuplicateKeyframe, onRippleDeleteKeyframe, onResetTrack,
     onDragStart, onDragEnd,
     timecode = '00:00:00:00',
     onUndo, onRedo, canUndo, canRedo,
     height = 260,
     sceneMarkers = [],
     onAddSceneMarker, onMoveSceneMarker, onDropSceneMarker, onDeleteSceneMarker,
-    onRenameSceneMarker,
+    onRenameSceneMarker, onCreateKeyframesAtMarker,
     isRecording,
     onToggleRecording,
+    onCancelDrag,
+    trackMeta,
+    onSetTrackGlide,
+    onSetTrackModulator,
+    armedTracks,
+    onToggleTrackArm,
   } = props;
 
+  const { t } = useT();
   const contentRef = useRef<HTMLDivElement>(null);
   const view = useTimelineView(TIMELINE_DURATION);
-  const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration } = view;
+  const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration, setPanStart, duration } = view;
 
   // Graph editor toggle
   const [expandedGraphTracks, setExpandedGraphTracks] = useState<Set<string>>(new Set());
 
   // Context menu target state (synced with Radix open state)
   const [contextMenuTarget, setContextMenuTarget] = useState<ContextMenuTarget | null>(null);
+  // Set to true by inner ctx-menu handlers (keyframe/marker/header) so the background
+  // handler knows to skip — avoids overwriting the target before Radix opens the menu.
+  const innerCtxHandledRef = useRef(false);
 
   // Clipboard
   const [clipboard, setClipboard] = useState<{ track: string; kfData: any } | null>(null);
@@ -90,11 +87,11 @@ export function Timeline(props: TimelineProps) {
     if (selectedKeyframes.length === 0) return;
     const sel = selectedKeyframes[0];
     if (sel.track === 'camera-keyframes') {
-      const kf = cameraKeyframes.find(k => Math.abs(k.time - sel.time) < 0.01);
+      const kf = cameraKeyframes.find(k => withinSelection(k.time, sel.time));
       if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
     } else {
       const arr = physicsKeyframes[sel.track] ?? [];
-      const kf = arr.find(k => Math.abs(k.time - sel.time) < 0.01);
+      const kf = arr.find(k => withinSelection(k.time, sel.time));
       if (kf) setClipboard({ track: sel.track, kfData: { ...kf } });
     }
   }, [selectedKeyframes, cameraKeyframes, physicsKeyframes]);
@@ -109,30 +106,63 @@ export function Timeline(props: TimelineProps) {
     onDuplicateKeyframe?.(clipboard.track, clipboard.kfData.time, playheadPosition);
   }, [clipboard, playheadPosition, onDuplicateKeyframe]);
 
+  const handleSelectAll = useCallback(() => {
+    const all: { track: string; time: number }[] = [];
+    cameraKeyframes.forEach(k => all.push({ track: 'camera-keyframes', time: k.time }));
+    Object.entries(physicsKeyframes).forEach(([tid, kfs]) =>
+      (kfs ?? []).forEach(k => all.push({ track: tid, time: k.time }))
+    );
+    sceneMarkers.forEach(m => all.push({ track: 'scene-markers', time: m.time }));
+    onSelectKeyframes?.(all);
+  }, [cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes]);
+
+  const handleDuplicateAtTarget = useCallback(() => {
+    if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
+    onDuplicateKeyframe?.(contextMenuTarget.track, contextMenuTarget.time, playheadPosition);
+  }, [contextMenuTarget, onDuplicateKeyframe, playheadPosition]);
+
+  const handleRippleDeleteAtTarget = useCallback(() => {
+    if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
+    onRippleDeleteKeyframe?.(contextMenuTarget.track, contextMenuTarget.time);
+  }, [contextMenuTarget, onRippleDeleteKeyframe]);
+
   // Context menu handlers
   const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
+    innerCtxHandledRef.current = true;
     let easingType: any = 'auto';
     if (trackId === 'camera-keyframes') {
-      const kf = cameraKeyframes.find(k => Math.abs(k.time - kfTime) < 0.01);
+      const kf = cameraKeyframes.find(k => withinSelection(k.time, kfTime));
       if (kf) easingType = inferEasingType(kf as any);
     } else {
       const arr = physicsKeyframes[trackId] ?? [];
-      const kf = arr.find(k => Math.abs(k.time - kfTime) < 0.01);
+      const kf = arr.find(k => withinSelection(k.time, kfTime));
       if (kf) easingType = inferEasingType(kf);
     }
     setContextMenuTarget({ mode: 'keyframe', track: trackId, time: kfTime, easingType });
   }, [cameraKeyframes, physicsKeyframes]);
 
   const handleMarkerContextMenu = useCallback((time: number, label: string) => {
+    innerCtxHandledRef.current = true;
     setContextMenuTarget({ mode: 'scene-marker', time, label });
   }, []);
 
+  const handleTrackHeaderContextMenu = useCallback((track: string) => {
+    innerCtxHandledRef.current = true;
+    setContextMenuTarget({ mode: 'track-header', track });
+  }, []);
+
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
-    const t = timeFromClientX(e.clientX, contentRef.current, sceneMarkers.map(m => m.time));
+    // Inner handlers (keyframe/marker/track-header) set this flag synchronously
+    // before the event bubbles here. If set, the target is already correct — skip.
+    if (innerCtxHandledRef.current) {
+      innerCtxHandledRef.current = false;
+      return;
+    }
+    const t = timeFromClientX(e.clientX, contentRef.current, [...sceneMarkers.map(m => m.time), playheadPosition]);
     if (t !== null) {
       setContextMenuTarget({ mode: 'background', time: t });
     }
-  }, [timeFromClientX, sceneMarkers]);
+  }, [timeFromClientX, sceneMarkers, playheadPosition]);
 
   const handleSetEasing = useCallback((type: EasingType) => {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
@@ -177,8 +207,33 @@ export function Timeline(props: TimelineProps) {
     window.addEventListener('mouseup', onUp);
   }, [timeFromClientX, onPlayheadChange, onSelectKeyframes]);
 
-  // Drag-select
+  // Middle-click pan — drag the timeline view horizontally.
   const handleTrackAreaMouseDown = useCallback((e: React.MouseEvent) => {
+    // Middle-click → pan view.
+    if (e.button === 1) {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startPan = view.panStart;
+      const rect = contentRef.current?.getBoundingClientRect();
+      const rightW = rect ? rect.width - LABEL_W : 1;
+      const visibleDuration = viewWindow.end - viewWindow.start;
+      const secondsPerPixel = visibleDuration / rightW;
+      const maxStart = Math.max(0, duration - visibleDuration);
+
+      const onMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX;
+        const newPan = Math.max(0, Math.min(maxStart, startPan - dx * secondsPerPixel));
+        setPanStart(newPan);
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      return;
+    }
+
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('button')) return;
     const startX = e.clientX;
@@ -220,7 +275,7 @@ export function Timeline(props: TimelineProps) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [timeFromClientX, cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes]);
+  }, [timeFromClientX, cameraKeyframes, physicsKeyframes, sceneMarkers, onSelectKeyframes, view.panStart, viewWindow, duration, setPanStart, onPlayheadChange]);
 
   // Auto-extend duration check
   useEffect(() => {
@@ -253,11 +308,42 @@ export function Timeline(props: TimelineProps) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') { handleCopy(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'x') { handleCut(); e.preventDefault(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') { handlePaste(); e.preventDefault(); }
-      if (e.key === 'Escape') { onSelectKeyframes?.([]); e.preventDefault(); }
+      if (e.key === 'Escape') {
+        // Cancel any in-progress drag and clear selection.
+        onCancelDrag?.();
+        onSelectKeyframes?.([]);
+        e.preventDefault();
+      }
+
+      // Cmd-A / Ctrl-A — select all keyframes across all tracks.
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        const all: { track: string; time: number }[] = [];
+        cameraKeyframes.forEach(k => all.push({ track: 'camera-keyframes', time: k.time }));
+        Object.entries(physicsKeyframes).forEach(([tid, kfs]) =>
+          (kfs ?? []).forEach(k => all.push({ track: tid, time: k.time }))
+        );
+        sceneMarkers.forEach(m => all.push({ track: 'scene-markers', time: m.time }));
+        onSelectKeyframes?.(all);
+      }
+
+      // Arrow-key nudge — ±1 frame (1/30s), Shift = ±10 frames.
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && selectedKeyframes.length > 0) {
+        e.preventDefault();
+        const frameSize = 1 / 30;
+        const delta = (e.key === 'ArrowRight' ? 1 : -1) * frameSize * (e.shiftKey ? 10 : 1);
+        onDragStart?.();
+        selectedKeyframes.forEach(s => {
+          if (s.track !== 'scene-markers') {
+            onMoveKeyframe?.(s.track, s.time, Math.max(0, s.time + delta));
+          }
+        });
+        onDragEnd?.();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedKeyframes, onDeleteSelected, handleCopy, handleCut, handlePaste]);
+  }, [selectedKeyframes, cameraKeyframes, physicsKeyframes, sceneMarkers, onDeleteSelected, handleCopy, handleCut, handlePaste, onMoveKeyframe, onDragStart, onDragEnd, onSelectKeyframes]);
 
   // Playhead position as CSS
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -284,62 +370,60 @@ export function Timeline(props: TimelineProps) {
             <div className="flex items-center px-4 border-b border-border bg-background shrink-0 select-none" style={{ height: 40 }}>
               {/* Left: Search/Filter */}
               <div className="w-48 flex items-center shrink-0">
-                <span className="text-sm font-semibold text-foreground">Timeline</span>
+                <span className="text-sm font-semibold text-foreground">{t('timeline.label')}</span>
               </div>
 
               {/* Right: Graph Editor + Zoom + Snap */}
-              <TBtn onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title="Delete Selected">
+              <TimelineTransportButton onClick={onDeleteSelected} disabled={selectedKeyframes.length === 0} title={t('timeline.action.deleteSelected')}>
                 <Trash2 className="w-3 h-3" />
-              </TBtn>
+              </TimelineTransportButton>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={onUndo} disabled={!canUndo} title="Undo"><Undo2 className="w-3 h-3" /></TBtn>
-              <TBtn onClick={onRedo} disabled={!canRedo} title="Redo"><Redo2 className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={onUndo} disabled={!canUndo} title={t('timeline.action.undo')}><Undo2 className="w-3 h-3" /></TimelineTransportButton>
+              <TimelineTransportButton onClick={onRedo} disabled={!canRedo} title={t('timeline.action.redo')}><Redo2 className="w-3 h-3" /></TimelineTransportButton>
 
               {/* Center: Timecode + Transport */}
               <div className="flex-1 flex items-center justify-center gap-2">
-                <TBtn onClick={onStop} title="Stop"><Square className="w-3 h-3 fill-current" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(0)} title="Gehe zum Anfang"><SkipBack className="w-3 h-3" /></TBtn>
-                <TBtn onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title="Previous Frame">
+                <TimelineTransportButton onClick={onStop} title={t('timeline.action.stop')}><Square className="w-3 h-3 fill-current" /></TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(0)} title={t('timeline.action.gotoStart')}><SkipBack className="w-3 h-3" /></TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(Math.max(0, playheadPosition - 1 / 30))} title={t('timeline.action.prevFrame')}>
                   <ChevronLeft className="w-3 h-3" />
-                </TBtn>
+                </TimelineTransportButton>
                 <TCDisplay value={timecode} />
-                <TBtn onClick={onPlayPause} title={isPlaying ? 'Pause' : 'Play'}>
+                <TimelineTransportButton onClick={onPlayPause} title={isPlaying ? t('timeline.action.pause') : t('timeline.action.play')}>
                   {isPlaying ? <Pause className="w-3 h-3" fill="currentColor" /> : <Play className="w-3 h-3" fill="currentColor" />}
-                </TBtn>
-                <TBtn onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title="Next Frame">
+                </TimelineTransportButton>
+                <TimelineTransportButton onClick={() => onPlayheadChange(playheadPosition + 1 / 30)} title={t('timeline.action.nextFrame')}>
                   <ChevronLeft className="w-3 h-3 rotate-180" />
-                </TBtn>
+                </TimelineTransportButton>
                 <div className="w-px h-4 bg-border mx-0.5" />
-                <TBtn 
-                  onClick={onCaptureKeyframe} 
-                  title="Capture Keyframe (All Tracks)" 
+                <TimelineTransportButton
+                  onClick={() => onCaptureKeyframe?.()}
+                  title={t('timeline.action.captureKeyframe')}
                   active={hasKfAtPlayhead}
                 >
-                  <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-blue-400 fill-blue-400' : ''}`} />
-                </TBtn>
-                <TBtn 
-                  onClick={onToggleRecording} 
-                  title="Record (Automation)" 
-                  active={isRecording}
-                >
-                  <Circle className={`w-3 h-3 ${isRecording ? 'text-red-500 fill-red-500 animate-pulse' : ''}`} />
-                </TBtn>
+                  <Diamond className={`w-3 h-3 ${hasKfAtPlayhead ? 'text-wn-timeline-transport-active fill-wn-timeline-transport-active' : ''}`} />
+                </TimelineTransportButton>
+                <RecordButton
+                  isRecording={isRecording ?? false}
+                  onToggleRecording={onToggleRecording ?? (() => {})}
+                  title={t('timeline.recordComingSoon')}
+                />
               </div>
 
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={zoomOut} title="Zoom Out"><ZoomOut className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={zoomOut} title={t('timeline.action.zoomOut')}><ZoomOut className="w-3 h-3" /></TimelineTransportButton>
               <button
                 className="text-[9px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors"
                 onClick={zoomReset}
-                title="Reset zoom"
+                title={t('timeline.action.zoomReset')}
               >
                 {zoom.toFixed(zoom >= 10 ? 0 : 1)}×
               </button>
-              <TBtn onClick={zoomIn} title="Zoom In"><ZoomIn className="w-3 h-3" /></TBtn>
+              <TimelineTransportButton onClick={zoomIn} title={t('timeline.action.zoomIn')}><ZoomIn className="w-3 h-3" /></TimelineTransportButton>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <TBtn onClick={() => setSnap(!snap)} active={snap} title="Snap to Frame">
+              <TimelineTransportButton onClick={() => setSnap(!snap)} active={snap} title={t('timeline.action.snap')}>
                 <Magnet className="w-3 h-3" />
-              </TBtn>
+              </TimelineTransportButton>
             </div>
 
             {/* Scrollable Tracks Area */}
@@ -351,23 +435,14 @@ export function Timeline(props: TimelineProps) {
             >
               {/* Ruler */}
               <div className="flex border-b border-border shrink-0 cursor-pointer sticky top-0 z-60 bg-background" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
-                <div className="shrink-0 border-r border-border bg-background relative z-30" style={{ width: LABEL_W }} />
+                <TrackLabel />
                 <div className="flex-1 relative">
                   {/* Pass absolute zoom (zoom * 12) to ruler for tick density */}
                   <TimelineRuler zoom={zoom * 12} duration={view.duration} viewWindow={viewWindow} />
                   
                   {/* Playhead Marker (Triangle + Ruler Line segment) */}
                   {playheadVisible && (
-                    <div 
-                      className="absolute top-0 w-px h-full bg-red-500 z-20 pointer-events-none"
-                      style={{ left: `${playheadRatio * 100}%` }}
-                    >
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2">
-                        <svg width="10" height="8" viewBox="0 0 10 8">
-                          <polygon points="0,0 10,0 5,8" fill="#ef4444" />
-                        </svg>
-                      </div>
-                    </div>
+                    <PlayheadLine ratio={playheadRatio} withTriangle />
                   )}
                 </div>
               </div>
@@ -385,6 +460,7 @@ export function Timeline(props: TimelineProps) {
                 onContextMenu={handleMarkerContextMenu}
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
+                playheadTime={playheadPosition}
               />
 
               {/* Drag-select marquee (rendered locally to be clipped by timeline) */}
@@ -397,19 +473,19 @@ export function Timeline(props: TimelineProps) {
                 const height = Math.abs(dragSelect.endY - dragSelect.startY);
                 return (
                   <div
-                    className="absolute border border-blue-500/60 bg-blue-500/10 pointer-events-none z-[9999]"
+                    className="absolute border border-wn-timeline-transport-active/60 bg-wn-timeline-drag-select pointer-events-none z-[9999]"
                     style={{ left, top, width, height }}
                   />
                 );
               })()}
 
             {/* Camera track group */}
-            <TrackGroup 
-              id="camera" name="Camera" color="cyan"
+            <TrackGroup
+              id="camera" name={t('timeline.track.camera')} color="cyan"
             >
               <TrackRow
                 trackId="camera-keyframes"
-                name="Keyframes"
+                name={t('timeline.track.keyframes')}
                 color="cyan"
                 keyframeData={cameraKeyframes.map(k => ({
                   time: k.time,
@@ -425,12 +501,15 @@ export function Timeline(props: TimelineProps) {
                 onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has('camera')) n.delete('camera'); else n.add('camera'); return n; })}
                 onSelect={onKeyframeSelect}
                 onMoveKeyframe={onMoveKeyframe}
+                onDuplicateKeyframe={onDuplicateKeyframe}
                 onContextMenu={handleKeyframeContextMenu}
+                onTrackHeaderContextMenu={handleTrackHeaderContextMenu}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 timeFromClientX={timeFromClientX}
                 contentRef={contentRef}
                 sceneMarkers={sceneMarkers}
+                playheadTime={playheadPosition}
               />
               {/* Camera graph editor (tension curve) */}
               {expandedGraphTracks.has('camera') && (
@@ -460,16 +539,19 @@ export function Timeline(props: TimelineProps) {
             </TrackGroup>
 
             {/* Physics track group */}
-            <TrackGroup 
-              id="physics" name="Physics" color="orange"
+            <TrackGroup
+              id="physics" name={t('timeline.track.physics')} color="orange"
             >
               {TRACK_GROUPS[1].tracks.map(track => {
                 const kfArr = physicsKeyframes[track.id] ?? [];
+                const trackName = 'paramKey' in track && track.paramKey
+                  ? t(`sidebar.tab.physics.param.${track.paramKey}.name`)
+                  : track.id;
                 return (
                   <div key={track.id}>
                     <TrackRow
                       trackId={track.id}
-                      name={track.name}
+                      name={trackName}
                       color="orange"
                       keyframeData={kfArr}
                       viewWindow={viewWindow}
@@ -478,30 +560,46 @@ export function Timeline(props: TimelineProps) {
                       onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has(track.id)) n.delete(track.id); else n.add(track.id); return n; })}
                       onSelect={onKeyframeSelect}
                       onMoveKeyframe={onMoveKeyframe}
+                      onDuplicateKeyframe={onDuplicateKeyframe}
                       onContextMenu={handleKeyframeContextMenu}
                       onDragStart={onDragStart}
                       onDragEnd={onDragEnd}
                       timeFromClientX={timeFromClientX}
                       contentRef={contentRef}
                       sceneMarkers={sceneMarkers}
+                      playheadTime={playheadPosition}
+                      modulatorWaveform={trackMeta?.[track.id]?.modulator?.waveform ?? null}
+                      isArmed={armedTracks?.has(track.id)}
+                      onToggleArm={onToggleTrackArm ? () => onToggleTrackArm(track.id) : undefined}
                     />
                     {/* Per-track graph editor */}
                     {expandedGraphTracks.has(track.id) && (
-                      <GraphEditor
-                        trackId={track.id}
-                        color="orange"
-                        keyframeData={kfArr}
-                        viewWindow={viewWindow}
-                        onSetHandle={onSetHandle}
-                        onSetHandle2D={onSetHandle2D}
-                        onSetValue={onSetValue}
-                        onClearHandle={onClearHandle}
-                        onSetInterpolation={onSetInterpolation}
-                        onDragStart={onDragStart}
-                        onDragEnd={onDragEnd}
-                        onContextMenu={handleKeyframeContextMenu}
-                        selectedKeyframes={selectedKeyframes}
-                      />
+                      <>
+                        <GraphEditor
+                          trackId={track.id}
+                          color="orange"
+                          keyframeData={kfArr}
+                          viewWindow={viewWindow}
+                          onSetHandle={onSetHandle}
+                          onSetHandle2D={onSetHandle2D}
+                          onSetValue={onSetValue}
+                          onClearHandle={onClearHandle}
+                          onSetInterpolation={onSetInterpolation}
+                          onDragStart={onDragStart}
+                          onDragEnd={onDragEnd}
+                          onContextMenu={handleKeyframeContextMenu}
+                          selectedKeyframes={selectedKeyframes}
+                        />
+                        {trackMeta && onSetTrackGlide && onSetTrackModulator ? (
+                          <TrackTuningPanel
+                            trackId={track.id}
+                            paramKey={PHYS_TRACK_PARAM[track.id]}
+                            meta={trackMeta[track.id] ?? { glide: 0 }}
+                            onSetGlide={(s) => onSetTrackGlide(track.id, s)}
+                            onSetModulator={(m) => onSetTrackModulator(track.id, m)}
+                          />
+                        ) : null}
+                      </>
                     )}
                   </div>
                 );
@@ -514,10 +612,7 @@ export function Timeline(props: TimelineProps) {
                 className="absolute top-[24px] bottom-0 right-0 pointer-events-none z-50 overflow-hidden"
                 style={{ left: LABEL_W }}
               >
-                <div
-                  className="absolute top-0 bottom-0 w-px bg-red-500"
-                  style={{ left: `${playheadRatio * 100}%` }}
-                />
+                <PlayheadLine ratio={playheadRatio} />
               </div>
             )}
 
@@ -529,12 +624,16 @@ export function Timeline(props: TimelineProps) {
         {contextMenuTarget && (
           <TimelineContextMenuContent
             target={contextMenuTarget}
-            onClose={() => setContextMenuTarget(null)}
             onCopy={handleCopy}
             onCut={handleCut}
             onPaste={clipboard ? handlePaste : undefined}
             onDelete={onDeleteSelected}
+            onDuplicate={handleDuplicateAtTarget}
+            onRippleDelete={handleRippleDeleteAtTarget}
+            onSelectAll={handleSelectAll}
             onAddSceneMarker={onAddSceneMarker}
+            onCreateKeyframesAtMarker={onCreateKeyframesAtMarker}
+            onResetTrack={onResetTrack}
             onSetEasing={handleSetEasing}
           />
         )}

@@ -1,54 +1,66 @@
 import {
-  Save, FolderOpen, Sun, Moon, Undo2, Redo2, Download,
-  Square, Box, MonitorPlay,
+  Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
   Keyboard
 } from 'lucide-react';
-import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel } from './ui/menubar';
-import { Button } from './ui/button';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubContent } from './ui/menubar';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
-
-function NetworkLogo() {
-  return (
-    <svg width="20.4" height="20.4" viewBox="0 0 17 17" fill="none">
-      <circle cx="8.5" cy="8.5" r="2.5" fill="#3b9eff" />
-      <circle cx="2" cy="3" r="1.4" fill="#3b9eff" opacity="0.5" />
-      <circle cx="15" cy="3" r="1.4" fill="#3b9eff" opacity="0.5" />
-      <circle cx="2.5" cy="14" r="1.4" fill="#3b9eff" opacity="0.5" />
-      <circle cx="15" cy="14" r="1.4" fill="#3b9eff" opacity="0.5" />
-      <circle cx="15.5" cy="8.5" r="1.2" fill="#3b9eff" opacity="0.35" />
-      <line x1="8.5" y1="8.5" x2="2" y2="3" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15" y2="3" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="2.5" y2="14" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15" y2="14" stroke="#3b9eff" strokeOpacity="0.28" strokeWidth="0.8" />
-      <line x1="8.5" y1="8.5" x2="15.5" y2="8.5" stroke="#3b9eff" strokeOpacity="0.22" strokeWidth="0.8" />
-      <line x1="2" y1="3" x2="15" y2="3" stroke="#3b9eff" strokeOpacity="0.12" strokeWidth="0.5" />
-      <line x1="2.5" y1="14" x2="15" y2="14" stroke="#3b9eff" strokeOpacity="0.12" strokeWidth="0.5" />
-    </svg>
-  );
-}
+import { TopBarActionButton, TopBarMenuSubTrigger, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
+import { useT } from '../i18n/useT';
+import { LANGUAGE_STORAGE_KEY, LANGUAGE_AUTO_KEY, normalizeLanguage } from '../i18n';
+import { THEME_STORAGE_KEY, THEME_AUTO_KEY, resolveSystemTheme } from '../theme/tokens';
+import faviconUrl from '../../../favicon.svg';
 
 interface TopBarProps {
   onOpenShortcuts?: () => void;
   onExport?: () => void;
-  onApplyNodeStylePreset?: (preset: 'outline' | 'filled' | 'reset') => void;
 }
 
 export function TopBar({
   onOpenShortcuts,
   onExport,
-  onApplyNodeStylePreset
 }: TopBarProps) {
-  const { 
-    viewMode, setViewMode, 
-    themeMode, setThemeMode, 
-    renderMode, setRenderMode,
+  const {
+    viewMode, setViewMode,
+    themeMode, setThemeMode,
+    themeAuto, setThemeAuto,
     setPhysicsParams,
     undo, redo, canUndo, canRedo
   } = useWortnetz();
   
   const { handleSave, handleLoad } = useProject();
+  const { t, language, setLanguage } = useT();
+
+  const handleLanguageChange = (v: string) => {
+    if (v === 'auto') {
+      localStorage.setItem(LANGUAGE_AUTO_KEY, 'true');
+      localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+      setLanguage(normalizeLanguage(navigator.language));
+    } else {
+      localStorage.setItem(LANGUAGE_AUTO_KEY, 'false');
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, v);
+      setLanguage(normalizeLanguage(v));
+    }
+  };
+
+  const autoDetect = localStorage.getItem(LANGUAGE_AUTO_KEY) === 'true';
+  const currentLanguageValue = autoDetect ? 'auto' : language;
+
+  const handleThemeChange = (v: string) => {
+    if (v === 'system') {
+      localStorage.setItem(THEME_AUTO_KEY, 'true');
+      localStorage.removeItem(THEME_STORAGE_KEY);
+      setThemeAuto(true);
+      setThemeMode(resolveSystemTheme());
+    } else {
+      localStorage.setItem(THEME_AUTO_KEY, 'false');
+      localStorage.setItem(THEME_STORAGE_KEY, v);
+      setThemeAuto(false);
+      setThemeMode(v as 'light' | 'dark');
+    }
+  };
+
+  const currentThemeValue = themeAuto ? 'system' : themeMode;
 
   const handleViewModeChange = (mode: '2D' | '3D') => {
     setViewMode(mode);
@@ -58,11 +70,11 @@ export function TopBar({
   return (
     <div className="flex items-start justify-between w-full pointer-events-none select-none">
       {/* Left Pill: Logo & Menubar */}
-      <div className="flex items-center gap-2 px-3 h-11 bg-sidebar border border-sidebar-border shadow-sm rounded-xl pointer-events-auto">
+      <TopBarPill gap="gap-2">
 
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
-          <NetworkLogo />
+          <img src={faviconUrl} alt="Logo" className="w-5 h-5" />
           <span className="text-[12px] font-medium text-foreground tracking-tight whitespace-nowrap">Wortnetze</span>
         </div>
 
@@ -72,17 +84,17 @@ export function TopBar({
         <div className="flex items-center shrink-0">
           <Menubar className="bg-transparent border-none shadow-none h-auto p-0">
             <MenubarMenu>
-              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Datei</MenubarTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.file.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
                   <MenubarItem onSelect={handleSave}>
                     <Save size={12} />
-                    Speichern
+                    {t('topbar.item.save')}
                     <MenubarShortcut>⌘S</MenubarShortcut>
                   </MenubarItem>
                   <MenubarItem onSelect={handleLoad}>
                     <FolderOpen size={12} />
-                    Laden
+                    {t('topbar.item.load')}
                     <MenubarShortcut>⌘O</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
@@ -90,17 +102,17 @@ export function TopBar({
             </MenubarMenu>
 
             <MenubarMenu>
-              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Bearbeiten</MenubarTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.edit.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
                   <MenubarItem onSelect={undo} disabled={!canUndo}>
                     <Undo2 size={12} />
-                    Rückgängig
+                    {t('topbar.item.undo')}
                     <MenubarShortcut>⌘Z</MenubarShortcut>
                   </MenubarItem>
                   <MenubarItem onSelect={redo} disabled={!canRedo}>
                     <Redo2 size={12} />
-                    Wiederholen
+                    {t('topbar.item.redo')}
                     <MenubarShortcut>⌘⇧Z</MenubarShortcut>
                   </MenubarItem>
                 </MenubarGroup>
@@ -108,81 +120,57 @@ export function TopBar({
                 <MenubarGroup>
                   <MenubarItem onSelect={onOpenShortcuts}>
                     <Keyboard size={12} />
-                    Tastaturkürzel...
+                    {t('topbar.item.shortcuts')}
                   </MenubarItem>
                 </MenubarGroup>
               </MenubarContent>
             </MenubarMenu>
 
             <MenubarMenu>
-              <MenubarTrigger className="h-8 hover:bg-accent/50 data-[state=open]:bg-accent/50">Ansicht</MenubarTrigger>
+              <TopBarMenuTrigger>{t('topbar.menu.view.label')}</TopBarMenuTrigger>
               <MenubarContent>
                 <MenubarGroup>
-                  <MenubarLabel>Modus</MenubarLabel>
-                  <MenubarItem onSelect={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}>
-                    <MonitorPlay size={12} strokeWidth={2} className={renderMode === 'render' ? 'text-blue-600' : 'text-muted-foreground'} />
-                    Preview
-                    <MenubarShortcut>{renderMode === 'render' ? 'AN' : 'AUS'}</MenubarShortcut>
-                  </MenubarItem>
+                  <MenubarLabel>{t('topbar.label.theme')}</MenubarLabel>
+                  <MenubarRadioGroup value={currentThemeValue} onValueChange={handleThemeChange}>
+                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />{t('topbar.item.themeLight')}</MenubarRadioItem>
+                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />{t('topbar.item.themeDark')}</MenubarRadioItem>
+                    <MenubarRadioItem value="system"><Monitor size={12} strokeWidth={2} />{t('topbar.item.themeSystem')}</MenubarRadioItem>
+                  </MenubarRadioGroup>
                 </MenubarGroup>
                 <MenubarSeparator />
                 <MenubarGroup>
-                  <MenubarLabel>Design</MenubarLabel>
-                  <MenubarRadioGroup value={themeMode} onValueChange={(v) => setThemeMode(v as any)}>
-                    <MenubarRadioItem value="light"><Sun size={12} strokeWidth={2} />Hell</MenubarRadioItem>
-                    <MenubarRadioItem value="dark"><Moon size={12} strokeWidth={2} />Dunkel</MenubarRadioItem>
-                  </MenubarRadioGroup>
+                  <MenubarSub>
+                    <TopBarMenuSubTrigger>{t('topbar.label.language')}</TopBarMenuSubTrigger>
+                    <MenubarSubContent>
+                      <MenubarRadioGroup value={currentLanguageValue} onValueChange={handleLanguageChange}>
+                        <MenubarRadioItem value="de">{t('topbar.language.de')}</MenubarRadioItem>
+                        <MenubarRadioItem value="en">{t('topbar.language.en')}</MenubarRadioItem>
+                        <MenubarSeparator />
+                        <MenubarRadioItem value="auto">{t('topbar.language.auto')}</MenubarRadioItem>
+                      </MenubarRadioGroup>
+                    </MenubarSubContent>
+                  </MenubarSub>
                 </MenubarGroup>
               </MenubarContent>
             </MenubarMenu>
           </Menubar>
         </div>
-      </div>
+      </TopBarPill>
 
       {/* Right Pill: Toggles & Actions */}
-      <div className="flex items-center gap-3 px-3 h-11 bg-sidebar border border-sidebar-border shadow-sm rounded-xl pointer-events-auto">
-        <ToggleGroup
-          type="single"
+      <TopBarPill gap="gap-3">
+        <TopBarViewToggle
           value={viewMode}
-          onValueChange={(v) => v && handleViewModeChange(v as '2D' | '3D')}
-          className="h-7 gap-0 border border-zinc-200 rounded-md overflow-hidden bg-background/50"
-        >
-          <ToggleGroupItem value="2D" className="h-7 w-8 p-0 text-[11px] hover:bg-accent/50 data-[state=on]:bg-primary/10" title="2D Ansicht">
-            <Square size={13} strokeWidth={2.5} fill={viewMode === '2D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="3D" className="h-7 w-8 p-0 text-[11px] border-l border-zinc-200 hover:bg-accent/50 data-[state=on]:bg-primary/10" title="3D Ansicht">
-            <Box size={13} strokeWidth={2.5} fill={viewMode === '3D' ? 'currentColor' : 'none'} fillOpacity={0.12} />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          onChange={handleViewModeChange}
+          titleTwoD={t('topbar.view.twoD')}
+          titleThreeD={t('topbar.view.threeD')}
+        />
 
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-7 px-3 text-[11px] font-medium transition-all duration-200 ${
-            renderMode === 'render' 
-              ? 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20 hover:text-blue-700' 
-              : 'text-zinc-600 hover:bg-zinc-100 border-zinc-200'
-          }`}
-          onClick={() => setRenderMode(renderMode === 'edit' ? 'render' : 'edit')}
-        >
-          <MonitorPlay 
-            size={12} 
-            strokeWidth={2.5} 
-            className={`mr-1.5 transition-transform duration-300 ${renderMode === 'render' ? 'scale-110' : 'opacity-70'}`}
-          />
-          Vorschau
-        </Button>
-
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="h-7 px-3 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 border-zinc-200 transition-all duration-200" 
-          onClick={onExport}
-        >
+        <TopBarActionButton onClick={onExport}>
           <Download size={12} strokeWidth={2.5} className="mr-1.5 opacity-70" />
-          Exportieren
-        </Button>
-      </div>
+          {t('topbar.action.export')}
+        </TopBarActionButton>
+      </TopBarPill>
     </div>
   );
 }

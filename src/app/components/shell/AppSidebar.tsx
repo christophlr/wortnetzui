@@ -1,33 +1,36 @@
 import React, { ReactNode, useCallback } from 'react';
 import { useWortnetz } from '../../context/WortnetzContext';
+import { DEFAULT_SIDEBAR_WIDTH } from '../../constants';
 
 export function AppSidebar({ children }: { children: ReactNode }) {
-  const { 
-    isSidebarOpen, 
-    inspectorWidth, 
-    setInspectorWidth 
-  } = useWortnetz();
+  const { isSidebarOpen, sidebarWidth, setSidebarWidth } = useWortnetz();
 
-  const startInspectorResize = useCallback((e: React.MouseEvent) => {
+  const startSidebarResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = inspectorWidth;
-    const onMove = (ev: MouseEvent) => setInspectorWidth(Math.max(360, Math.min(600, startWidth + (startX - ev.clientX))));
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const startWidth = sidebarWidth;
+    const onMove = (ev: MouseEvent) =>
+      setSidebarWidth(
+        Math.max(DEFAULT_SIDEBAR_WIDTH, Math.min(600, startWidth + (startX - ev.clientX))),
+      );
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [inspectorWidth, setInspectorWidth]);
+  }, [sidebarWidth, setSidebarWidth]);
 
   return (
-    <div 
-      className="relative h-full flex flex-row border-l border-border bg-sidebar/80 backdrop-blur-md z-40 transition-all duration-300 ease-in-out"
-      style={{ width: isSidebarOpen ? inspectorWidth : 48 }}
+    <div
+      className="relative h-full flex flex-row border-l border-border bg-card z-40 transition-all duration-300 ease-in-out shadow-2xl"
+      style={{ width: isSidebarOpen ? sidebarWidth : 48 }}
     >
-      {/* Resize handle (left edge of sidebar) */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-50"
-          onMouseDown={startInspectorResize}
+          onMouseDown={startSidebarResize}
+          onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
         />
       )}
       {children}

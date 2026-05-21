@@ -1,0 +1,290 @@
+{
+  "topbar": {
+    "menu": {
+      "file": { "label": "File" },
+      "edit": { "label": "Edit" },
+      "view": { "label": "View" }
+    },
+    "item": {
+      "save":         "Save",
+      "load":         "Open",
+      "undo":         "Undo",
+      "redo":         "Redo",
+      "shortcuts":    "Shortcuts...",
+      "themeLight":   "Light",
+      "themeDark":    "Dark",
+      "themeSystem":  "System"
+    },
+    "label": {
+      "theme": "Theme",
+      "language": "Language"
+    },
+    "language": {
+      "de": "German",
+      "en": "English",
+      "auto": "Auto-detect"
+    },
+    "view": {
+      "twoD":   "2D view",
+      "threeD": "3D view"
+    },
+    "action": {
+      "export":    "Export"
+    }
+  },
+  "toolbar": {
+    "tool": {
+      "pointer": "Select",
+      "pan":     "Pan",
+      "paint":   "Brush",
+      "zoom":    "Zoom",
+      "scale":   "Scale",
+      "glitch":  "Glitch brush",
+      "path":    "Path animator"
+    },
+    "shortcut": {
+      "pointer": "V",
+      "pan":     "H",
+      "paint":   "B",
+      "zoom":    "Z",
+      "scale":   "S",
+      "glitch":  "G",
+      "path":    "P"
+    }
+  },
+  "sidebar": {
+    "tab": {
+      "content": {
+        "title": "Content",
+        "section": { "text": "Text", "parseMode": "Parse mode" },
+        "textarea": { "placeholder": "Paste text here..." },
+        "refresh": "Update",
+        "parse": {
+          "sentence": { "label": "Sentence", "desc": "Sentences → word n-grams" },
+          "word":     { "label": "Word",     "desc": "Words → character n-grams" },
+          "both":     { "label": "Both",     "desc": "Words as bridge" }
+        }
+      },
+      "visual":  {
+        "title": "Visual",
+        "section": {
+          "nodes":        "Nodes",
+          "edges":        "Edges",
+          "pathAnimator": "Path animator"
+        },
+        "group": {
+          "shape":              "Shape",
+          "atmosphereGradient": "Gradient"
+        },
+        "shape": {
+          "rectangle":         "Rect",
+          "rounded-rectangle": "Rounded",
+          "ellipse":           "Ellipse"
+        },
+        "slider": {
+          "baseScale":     "Scale",
+          "radialBias":    "Falloff",
+          "globalOpacity": "Global opacity",
+          "brushRadius":   "Brush radius",
+          "feather":       "Feather",
+          "smoothness":    "Smoothness"
+        },
+        "toggle": {
+          "glitchPaint":   "Glitch paint",
+          "cameraFollow":  "Camera follow"
+        },
+        "color": {
+          "origin":    "Origin",
+          "periphery": "Periphery"
+        },
+        "fx": {
+          "title":      "Fx",
+          "active":     "Active",
+          "inactive":   "No effects"
+        },
+        "action": {
+          "randomizeGradient": "Randomize gradient"
+        },
+"pathAnimator": {
+          "emptyHint":         "Click nodes in the preview to build a path.",
+          "playSequence":      "Play sequence",
+          "interpolationNote": "Nodes are interpolated using Catmull-Rom."
+        },
+        "description": {
+          "radialBias": "Boost size of nodes farther from the center"
+        }
+      },
+      "physics": {
+        "title": "Physics",
+        "section": {
+          "forces":   "Forces",
+          "dynamics": "Dynamics",
+          "order":    "Order"
+        },
+        "param": {
+          "repulsion":    { "name": "Spread",          "hint": "Repulsion", "desc": "How strongly elements push each other away." },
+          "springK":      { "name": "Tension",         "hint": "Spring K",  "desc": "How tightly links pull elements together. Higher = snappier." },
+          "damping":      { "name": "Friction",        "hint": "Damping",   "desc": "How quickly motion decays. Lower = bouncier." },
+          "linkDistance": { "name": "Distance",        "hint": "Link",      "desc": "The target rest length of every link." },
+          "gravity":      { "name": "Gravity",         "hint": "",          "desc": "Pulls every element toward the canvas centre." },
+          "turbulence":   { "name": "Wobble",          "hint": "Turbulence","desc": "Creates a steady, organic restlessness." },
+          "pulse":        { "name": "Pulse",           "hint": "Liveness",  "desc": "Organic breathing of node spacing." },
+          "verticalOrder":{ "name": "Vertical order",  "hint": "",          "desc": "Sorts nodes by text length (short top, long bottom)." }
+        },
+        "keyframe": {
+          "set":    "Add keyframe",
+          "remove": "Remove keyframe"
+        }
+      },
+      "camera":  {
+        "title": "Camera",
+        "section": {
+          "rotation": "Rotation (orbit)",
+          "pan":      "Pan view",
+          "zoom":     "Zoom"
+        },
+        "hint": {
+          "orbit": "Orbit: drag / click to snap",
+          "pan":   "Drag to pan",
+          "zoom":  "Slide to zoom (relative)"
+        },
+        "view": {
+          "top":    "Top view (Y)",
+          "left":   "Left view (-X)",
+          "right":  "Right view (X)",
+          "bottom": "Bottom view (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
+        "reset":  "Reset",
+        "resetCamera": "Reset camera"
+      },
+      "canvas":  {
+        "title": "Canvas",
+        "section": { "aspectRatio": "Aspect ratio" },
+        "aspect": {
+          "full": "Fullscreen",
+          "16x9": "16:9 Cinema",
+          "4x3":  "4:3 Standard",
+          "3x2":  "3:2 Classic",
+          "din":  "DIN Landscape"
+        },
+        "hint": "Note: Aspect-ratio settings apply a letterbox effect to the viewport to control composition and framing."
+      }
+    }
+  },
+  "timeline": {
+    "label": "Timeline",
+    "contextMenu": {
+      "addSceneMarker":  "Add scene marker",
+      "pasteAtPlayhead": "Paste at playhead",
+      "copy":            "Copy",
+      "cut":             "Cut",
+      "delete":          "Delete",
+      "duplicate":       "Duplicate",
+      "rippleDelete":    "Ripple delete",
+      "selectAll":       "Select all",
+      "createKeyframesHere": "Create keyframes on all tracks here",
+      "resetTrack":      "Reset to default",
+      "keyframeEasing":  "Keyframe easing",
+      "easing": {
+        "auto":     "Auto (smooth)",
+        "linear":   "Linear",
+        "hold":     "Hold (step)",
+        "easyEase": "Easy ease",
+        "easeIn":   "Ease in",
+        "easeOut":  "Ease out"
+      }
+    },
+    "track": {
+      "sceneMarkers": "Scene markers",
+      "camera":       "Camera",
+      "keyframes":    "Keyframes",
+      "physics":      "Physics",
+      "arm":          "Arm track",
+      "armed":        "Armed — will be recorded"
+    },
+    "glide": {
+      "label":       "Glide",
+      "description": "How quickly the parameter approaches its target (seconds). 0 = instant.",
+      "unit":        "s"
+    },
+    "lfo": {
+      "title":       "Modulator",
+      "enable":      "Enable modulator",
+      "waveform":    "Waveform",
+      "rate":        "Rate (Hz)",
+      "depth":       "Depth",
+      "phase":       "Phase",
+      "hint":        "Tip: matches the Pulse knob",
+      "wave": {
+        "sine":     "Sine",
+        "triangle": "Triangle",
+        "square":   "Square"
+      }
+    },
+    "recording": {
+      "indicator":     "Recording",
+      "replacePrompt": "Existing keyframes in the recorded range will be replaced"
+    },
+    "recordComingSoon": "Recording will be available in a future version",
+    "action": {
+      "deleteSelected":   "Delete selected",
+      "undo":             "Undo",
+      "redo":             "Redo",
+      "stop":             "Stop",
+      "gotoStart":        "Go to start",
+      "prevFrame":        "Previous frame",
+      "nextFrame":        "Next frame",
+      "play":             "Play",
+      "pause":            "Pause",
+      "captureKeyframe":  "Capture keyframe (all tracks)",
+      "record":           "Record (automation)",
+      "zoomOut":          "Zoom out",
+      "zoomIn":           "Zoom in",
+      "zoomReset":        "Reset zoom",
+      "snap":             "Snap to frame",
+      "toggleGraphEditor":"Toggle graph editor"
+    }
+  },
+  "preview": {
+    "loading": {
+      "label": "Initializing"
+    }
+  },
+  "dialogs": {
+    "shortcuts": {
+      "title": "Manage keyboard shortcuts",
+      "description": "Inspect existing shortcuts and add new ones.",
+      "field": {
+        "action": { "label": "Action", "placeholder": "e.g. Save" },
+        "key":    { "label": "Key",    "placeholder": "e.g. s" }
+      },
+      "done": "Done",
+      "command": {
+        "save":          "Save",
+        "load":          "Open",
+        "undo":          "Undo",
+        "redo":          "Redo",
+        "playPause":     "Play / Pause",
+        "record":        "Record",
+        "toggleSidebar": "Toggle sidebar"
+      }
+    }
+  },
+  "common": {
+    "sidebar": {
+      "expand":   "Open sidebar",
+      "collapse": "Collapse sidebar"
+    },
+    "error": {
+      "title":       "Something went wrong",
+      "body":        "The 3D visualisation could not be loaded due to a technical problem.",
+      "bodyFallback":"This may have been caused by a WebGL error or excessive graphics memory usage.",
+      "webglTip":    "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
+      "reload":      "Reload application"
+    }
+  }
+}

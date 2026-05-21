@@ -1,0 +1,290 @@
+{
+  "topbar": {
+    "menu": {
+      "file": { "label": "Datei" },
+      "edit": { "label": "Bearbeiten" },
+      "view": { "label": "Ansicht" }
+    },
+    "item": {
+      "save":         "Speichern",
+      "load":         "Laden",
+      "undo":         "Rückgängig",
+      "redo":         "Wiederholen",
+      "shortcuts":    "Tastaturkürzel...",
+      "themeLight":   "Hell",
+      "themeDark":    "Dunkel",
+      "themeSystem":  "System"
+    },
+    "label": {
+      "theme": "Design",
+      "language": "Sprache"
+    },
+    "language": {
+      "de": "Deutsch",
+      "en": "English",
+      "auto": "Automatisch"
+    },
+    "view": {
+      "twoD":   "2D Ansicht",
+      "threeD": "3D Ansicht"
+    },
+    "action": {
+      "export":    "Exportieren"
+    }
+  },
+  "toolbar": {
+    "tool": {
+      "pointer": "Auswahl",
+      "pan":     "Hand",
+      "paint":   "Pinsel",
+      "zoom":    "Zoom",
+      "scale":   "Skalieren",
+      "glitch":  "Glitch-Pinsel",
+      "path":    "Pfad-Animator"
+    },
+    "shortcut": {
+      "pointer": "V",
+      "pan":     "H",
+      "paint":   "B",
+      "zoom":    "Z",
+      "scale":   "S",
+      "glitch":  "G",
+      "path":    "P"
+    }
+  },
+  "sidebar": {
+    "tab": {
+      "content": {
+        "title": "Inhalt",
+        "section": { "text": "Text", "parseMode": "Parse-Modus" },
+        "textarea": { "placeholder": "Text hier einfügen..." },
+        "refresh": "Aktualisieren",
+        "parse": {
+          "sentence": { "label": "Satzebene", "desc": "Sätze → Wort-N-Gramme" },
+          "word":     { "label": "Wortebene", "desc": "Wörter → Zeichen-N-Gramme" },
+          "both":     { "label": "Beides",    "desc": "Wörter als Brücke" }
+        }
+      },
+      "visual":  {
+        "title": "Visualisierung",
+        "section": {
+          "nodes":        "Knoten",
+          "edges":        "Verbindungen",
+          "pathAnimator": "Path Animator"
+        },
+        "group": {
+          "shape":            "Form",
+          "atmosphereGradient": "Gradient"
+        },
+        "shape": {
+          "rectangle":         "Rect",
+          "rounded-rectangle": "Rounded",
+          "ellipse":           "Ellipse"
+        },
+        "slider": {
+          "baseScale":     "Skalierung",
+          "radialBias":    "Falloff",
+          "globalOpacity": "Globale Deckkraft",
+          "brushRadius":   "Pinselradius",
+          "feather":       "Weiche Kante",
+          "smoothness":    "Glättung"
+        },
+        "toggle": {
+          "glitchPaint":   "Glitch-Pinsel",
+          "cameraFollow":  "Kamera folgen"
+        },
+        "color": {
+          "origin":    "Origin",
+          "periphery": "Periphery"
+        },
+        "fx": {
+          "title":      "Fx",
+          "active":     "Aktiv",
+          "inactive":   "Keine Effekte"
+        },
+        "action": {
+          "randomizeGradient": "Gradient zufällig generieren"
+        },
+"pathAnimator": {
+          "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
+          "playSequence":      "Sequenz abspielen",
+          "interpolationNote": "Knoten werden mittels Catmull-Rom interpoliert."
+        },
+        "description": {
+          "radialBias": "Knoten weiter vom Zentrum entfernt größer darstellen"
+        }
+      },
+      "physics": {
+        "title": "Physik",
+        "section": {
+          "forces":   "Kräfte",
+          "dynamics": "Dynamik",
+          "order":    "Ordnung"
+        },
+        "param": {
+          "repulsion":    { "name": "Streuung",          "hint": "Abstoßung",  "desc": "Wie stark Elemente sich gegenseitig verdrängen." },
+          "springK":      { "name": "Spannung",          "hint": "Tension",    "desc": "Wie straff Verbindungen die Elemente zusammenziehen. Höher = snappier." },
+          "damping":      { "name": "Reibung",           "hint": "Friction",   "desc": "Wie schnell Bewegungen abbremsen. Niedriger = bouncier." },
+          "linkDistance": { "name": "Abstand",           "hint": "Distance",   "desc": "Die gewünschte Grundlänge aller Verbindungen." },
+          "gravity":      { "name": "Schwerkraft",       "hint": "Gravity",    "desc": "Zieht alle Elemente zur Mitte des Canvas." },
+          "turbulence":   { "name": "Bewegung",          "hint": "Wobble",     "desc": "Erzeugt eine stetige, organische Unruhe." },
+          "pulse":        { "name": "Lebendigkeit",      "hint": "Pulse",      "desc": "Organisches Atmen der Knotenabstände." },
+          "verticalOrder":{ "name": "Vertikale Ordnung", "hint": "",           "desc": "Sortiert Knoten nach Textlänge (kurz oben, lang unten)." }
+        },
+        "keyframe": {
+          "set":    "Keyframe setzen",
+          "remove": "Keyframe entfernen"
+        }
+      },
+      "camera":  {
+        "title": "Kamera",
+        "section": {
+          "rotation": "Rotation (Orbit)",
+          "pan":      "Ansicht verschieben (Pan)",
+          "zoom":     "Zoom"
+        },
+        "hint": {
+          "orbit": "Orbit: Ziehen / Klicken zum Einrasten",
+          "pan":   "Ziehen zum Verschieben",
+          "zoom":  "Schieben zum Zoomen (Relativ)"
+        },
+        "view": {
+          "top":    "Draufsicht (Y)",
+          "left":   "Linke Ansicht (-X)",
+          "right":  "Rechte Ansicht (X)",
+          "bottom": "Unteransicht (-Y)",
+          "iso1":   "ISO 1",
+          "iso2":   "ISO 2",
+          "iso3":   "ISO 3",
+          "iso4":   "ISO 4"
+        },
+        "reset":  "Reset",
+        "resetCamera": "Kamera zurücksetzen"
+      },
+      "canvas":  {
+        "title": "Canvas",
+        "section": { "aspectRatio": "Seitenverhältnis" },
+        "aspect": {
+          "full": "Vollbild",
+          "16x9": "16:9 Cinema",
+          "4x3":  "4:3 Standard",
+          "3x2":  "3:2 Classic",
+          "din":  "DIN Landscape"
+        },
+        "hint": "Hinweis: Die Seitenverhältnis-Einstellungen wenden einen Letterbox-Effekt auf das Viewport an, um Komposition und Bildausschnitt zu steuern."
+      }
+    }
+  },
+  "timeline": {
+    "label": "Timeline",
+    "contextMenu": {
+      "addSceneMarker":  "Szenenmarker hinzufügen",
+      "pasteAtPlayhead": "An Abspielkopf einfügen",
+      "copy":            "Kopieren",
+      "cut":             "Ausschneiden",
+      "delete":          "Löschen",
+      "duplicate":       "Duplizieren",
+      "rippleDelete":    "Ripple-Löschen",
+      "selectAll":       "Alle auswählen",
+      "createKeyframesHere": "Keyframes auf allen Spuren hier erstellen",
+      "resetTrack":      "Auf Standard zurücksetzen",
+      "keyframeEasing":  "Keyframe-Interpolation",
+      "easing": {
+        "auto":     "Auto (Weich)",
+        "linear":   "Linear",
+        "hold":     "Halten (Stufe)",
+        "easyEase": "Easy Ease",
+        "easeIn":   "Ease In",
+        "easeOut":  "Ease Out"
+      }
+    },
+    "track": {
+      "sceneMarkers": "Szenen-Marker",
+      "camera":       "Kamera",
+      "keyframes":    "Keyframes",
+      "physics":      "Physik",
+      "arm":          "Spur scharfschalten",
+      "armed":        "Scharfgeschaltet — wird bei Aufnahme aufgezeichnet"
+    },
+    "glide": {
+      "label":       "Glide",
+      "description": "Wie schnell sich der Parameter dem Ziel annähert (Sekunden). 0 = sofort.",
+      "unit":        "s"
+    },
+    "lfo": {
+      "title":       "Modulator",
+      "enable":      "Modulator aktivieren",
+      "waveform":    "Wellenform",
+      "rate":        "Rate (Hz)",
+      "depth":       "Stärke",
+      "phase":       "Phase",
+      "hint":        "Tipp: entspricht dem Pulse-Regler",
+      "wave": {
+        "sine":     "Sinus",
+        "triangle": "Dreieck",
+        "square":   "Rechteck"
+      }
+    },
+    "recording": {
+      "indicator":     "Aufnahme läuft",
+      "replacePrompt": "Bestehende Keyframes im Aufnahmebereich werden ersetzt"
+    },
+    "recordComingSoon": "Aufnahme wird in einer kommenden Version verfügbar sein",
+    "action": {
+      "deleteSelected":   "Auswahl löschen",
+      "undo":             "Rückgängig",
+      "redo":             "Wiederholen",
+      "stop":             "Stop",
+      "gotoStart":        "Gehe zum Anfang",
+      "prevFrame":        "Vorheriger Frame",
+      "nextFrame":        "Nächster Frame",
+      "play":             "Abspielen",
+      "pause":            "Pause",
+      "captureKeyframe":  "Keyframe setzen (alle Tracks)",
+      "record":           "Aufnehmen (Automation)",
+      "zoomOut":          "Verkleinern",
+      "zoomIn":           "Vergrößern",
+      "zoomReset":        "Zoom zurücksetzen",
+      "snap":             "An Frame ausrichten",
+      "toggleGraphEditor":"Graph-Editor umschalten"
+    }
+  },
+  "preview": {
+    "loading": {
+      "label": "Initialisierung"
+    }
+  },
+  "dialogs": {
+    "shortcuts": {
+      "title": "Tastaturkürzel verwalten",
+      "description": "Hier kannst du Tastaturkürzel einsehen und neue hinzufügen.",
+      "field": {
+        "action": { "label": "Aktion", "placeholder": "z.B. Speichern" },
+        "key":    { "label": "Taste",  "placeholder": "z.B. s" }
+      },
+      "done": "Fertig",
+      "command": {
+        "save":          "Speichern",
+        "load":          "Laden",
+        "undo":          "Rückgängig",
+        "redo":          "Wiederholen",
+        "playPause":     "Abspielen / Pause",
+        "record":        "Aufnahme",
+        "toggleSidebar": "Sidebar umschalten"
+      }
+    }
+  },
+  "common": {
+    "sidebar": {
+      "expand":   "Sidebar einblenden",
+      "collapse": "Sidebar ausblenden"
+    },
+    "error": {
+      "title":       "Etwas ist schiefgelaufen",
+      "body":        "Die 3D-Visualisierung konnte aufgrund eines technischen Problems nicht geladen werden.",
+      "bodyFallback":"Dies kann durch einen WebGL-Fehler oder zu hohen Grafikspeicherverbrauch verursacht worden sein.",
+      "webglTip":    "Tipp: Schließen Sie andere Tabs mit 3D-Inhalten oder Grafik-Anwendungen, um WebGL-Ressourcen freizugeben.",
+      "reload":      "Anwendung neu laden"
+    }
+  }
+}
