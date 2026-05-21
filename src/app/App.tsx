@@ -126,7 +126,7 @@ export default function App() {
               onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
               styleSettings={wn.styleSettings}
               onEdgeAppearanceChange={wn.setEdgeAppearance}
-              effectivePhysicsParams={wn.effectivePhysicsParams}
+              effectivePhysicsParams={wn.physicsParams}
               trackMeta={wn.trackMeta}
               onSetTrackModulator={wn.handleSetTrackModulator}
               canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}

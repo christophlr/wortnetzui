@@ -126,20 +126,11 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const playheadRef = useRef(playheadPosition);
   useEffect(() => { playheadRef.current = playheadPosition; }, [playheadPosition]);
 
-  const [effectivePhysicsParams, setEffectivePhysicsParams] = useState(physicsParams);
-  useEffect(() => { setEffectivePhysicsParams(physicsParams); }, [physicsParams]);
-
-  useEffect(() => {
-    const updateEpp = () => {
-      if (network3DRef.current) {
-        setEffectivePhysicsParams(network3DRef.current.getEffectivePhysicsParams());
-      }
-    };
-    // Initial sync
-    updateEpp();
-    const interval = setInterval(updateEpp, 66); // ~15 Hz
-    return () => clearInterval(interval);
-  }, [playheadPosition, isPlaying]); // include isPlaying to re-sync if changed
+  // `effectivePhysicsParams` mirrors physicsParams (user intent). Worker-applied
+  // values are available via network3DRef.current.getEffectivePhysicsParams() for
+  // recording — we do not poll here because setState in a setInterval causes all
+  // context consumers to re-render at the polling rate.
+  const effectivePhysicsParams = physicsParams;
 
   const uiIsDark = themeMode === 'dark';
   const previewIsDark = themeMode === 'dark';

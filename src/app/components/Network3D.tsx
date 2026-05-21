@@ -312,6 +312,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       sorted[trackId] = [...kfs].sort((a, b) => a.time - b.time);
     }
     physicsKeyframesRef.current = sorted;
+    hasAnyKfsRef.current = Object.values(sorted).some(kfs => kfs.length > 0);
   }, [physicsKeyframes]);
 
   // Push tracks (keyframes + glide + modulator) to the worker. Debounced so a
@@ -639,7 +640,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         node.textSprite.visible = vs.nodesVisible;
 
         const distSq = node.x * node.x + node.y * node.y + node.z * node.z;
-        const normDistSqSq = distSq * invMaxDistSq;
+        const normDistSq = distSq * invMaxDistSq;
 
         // Scale Radial Bias — cubic curve concentrates the growth at one
         // end of the radial axis. Positive slider grows outer nodes,
@@ -1465,7 +1466,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       }
 
       // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
-      if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current && (performance.now() - lastStepNowRef.current > 33)) {
+      if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
         // The worker is now authoritative for keyframe/glide/LFO evaluation.
         // Main thread tracks parameter-change velocity from the previous frame's
         // `applied` to drive the jolt overrides — both are layered on top
@@ -1484,6 +1485,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const dGrv = Math.abs(lastApplied.gravity - prev.gravity) / 5;
         const dTrb = Math.abs((lastApplied.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
         const dVto = Math.abs((lastApplied.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
+        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto) / dtMs;
 
         // Keep jolt tracking velocity from worker-applied values, not sidebar state.
         if (!isPlayingRef.current) {
