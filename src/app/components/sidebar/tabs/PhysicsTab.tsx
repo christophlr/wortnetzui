@@ -1,11 +1,15 @@
 import {
   SidebarKeyframeToggle,
+  SidebarModulatorButton,
+  SidebarScrubberRow,
   SidebarSection,
-  SidebarSliderRow,
-  SidebarSliderTrack,
   SidebarTabContent,
 } from '../SidebarAtoms';
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
+import { LfoControlsBody } from '../../timeline/LfoControls';
 import { useT } from '../../../i18n/useT';
+import type { TrackMeta } from '../../../animation/Track';
+import type { Modulator } from '../../../animation/Modulator';
 
 interface PhysicsParam {
   id: string;
@@ -30,11 +34,15 @@ export function PhysicsTab({
   physKfActive,
   onPhysicsChange,
   onTogglePhysicsKeyframe,
+  trackMeta,
+  onSetTrackModulator,
 }: {
   effectivePhysicsParams?: any;
   physKfActive: Record<string, boolean>;
   onPhysicsChange: (params: any) => void;
   onTogglePhysicsKeyframe: (id: string, value: number) => void;
+  trackMeta?: Record<string, TrackMeta>;
+  onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
 }) {
   const { t } = useT();
 
@@ -53,7 +61,6 @@ export function PhysicsTab({
       sectionKey: 'dynamics',
       params: [
         { id: 'phys-trb', paramKey: 'turbulence',   key: 'turbulence',   value: effectivePhysicsParams?.turbulence   ?? 0,    max: 10,   step: 0.1 },
-        { id: 'phys-pls', paramKey: 'pulse',        key: 'pulse',        value: effectivePhysicsParams?.pulse        ?? 0,    max: 1,    step: 0.01 },
       ],
     },
     {
@@ -63,12 +70,6 @@ export function PhysicsTab({
       ],
     },
   ];
-
-  const paramLabel = (paramKey: string): string => {
-    const name = t(`sidebar.tab.physics.param.${paramKey}.name`);
-    const hint = t(`sidebar.tab.physics.param.${paramKey}.hint`);
-    return hint ? `${name} (${hint})` : name;
-  };
 
   return (
     <SidebarTabContent>
@@ -81,30 +82,56 @@ export function PhysicsTab({
           {group.params.map((p) => {
             const active = physKfActive[p.id] ?? false;
             const min = p.min ?? 0;
+            const modulator = trackMeta?.[p.id]?.modulator ?? null;
             return (
-              <SidebarSliderRow
+              <SidebarScrubberRow
                 key={p.id}
-                label={paramLabel(p.paramKey)}
+                label={t(`sidebar.tab.physics.param.${p.paramKey}.name`)}
                 value={p.value}
-                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
                 min={min}
                 max={p.max}
+                step={p.step}
+                onValueChange={(val) => onPhysicsChange({ [p.key]: val })}
+                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
                 description={t(`sidebar.tab.physics.param.${p.paramKey}.desc`)}
                 accessory={
-                  <SidebarKeyframeToggle
-                    active={active}
-                    onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                    title={active ? t('sidebar.tab.physics.keyframe.remove') : t('sidebar.tab.physics.keyframe.set')}
-                  />
-                }
-                slider={
-                  <SidebarSliderTrack
-                    value={[p.value]}
-                    min={min}
-                    max={p.max}
-                    step={p.step}
-                    onValueChange={([val]) => onPhysicsChange({ [p.key]: val })}
-                  />
+                  <>
+                    {trackMeta && onSetTrackModulator ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <SidebarModulatorButton
+                            active={modulator !== null}
+                            title={t('timeline.lfo.title')}
+                            aria-label={t('timeline.lfo.title')}
+                          />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="left"
+                          align="end"
+                          className="bg-popover/95 backdrop-blur-sm p-3"
+                        >
+                          <div className="space-y-3">
+                            <div className="text-[11px] font-semibold text-foreground">
+                              {t('timeline.lfo.title')}
+                            </div>
+                            <div className="space-y-4">
+                              <LfoControlsBody
+                                paramKey={p.paramKey}
+                                trackId={p.id}
+                                value={modulator}
+                                onChange={(m) => onSetTrackModulator(p.id, m)}
+                              />
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    ) : null}
+                    <SidebarKeyframeToggle
+                      active={active}
+                      onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                      title={active ? t('sidebar.tab.physics.keyframe.remove') : t('sidebar.tab.physics.keyframe.set')}
+                    />
+                  </>
                 }
               />
             );

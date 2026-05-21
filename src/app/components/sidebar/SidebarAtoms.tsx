@@ -10,8 +10,8 @@
  *      SidebarRadioCard / SidebarButtonGroupRow
  *                                  one full control block for a single parameter
  *                                  (header row + control body + optional description)
- *   5  SidebarValueChip / SidebarKeyframeToggle / SidebarSliderTrack /
- *      SidebarEditableNumber / SidebarDescription
+ *   5  SidebarValueChip / SidebarKeyframeToggle / SidebarModulatorButton / SidebarSliderTrack /
+ *      SidebarEditableNumber / SidebarDescription / SidebarSegmentedPicker
  *                                  inline pieces that fill the slots of a level-4 row
  *
  * Rhythm & Typography Rules:
@@ -28,8 +28,9 @@
  */
 
 import * as React from 'react';
-import { Diamond, Eye, EyeOff, Minus, Plus } from 'lucide-react';
+import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform } from 'lucide-react';
 import { Slider } from '../ui/slider';
+import { Scrubber, type ScrubberProps } from '../ui/scrubber';
 import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
 import { RadioGroupItem } from '../ui/radio-group';
@@ -236,6 +237,79 @@ export function SidebarSliderTrack({
   return <Slider className={cn('py-2', className)} {...props} />;
 }
 
+/**
+ * SidebarScrubberTrack — level-5 atom. Thin wrapper around `Scrubber` that
+ * forwards all props unchanged. Use as the `slider` slot inside a
+ * `SidebarScrubberRow`, or standalone when you don't need accessory buttons.
+ */
+export function SidebarScrubberTrack({ className, ...props }: ScrubberProps) {
+  return <Scrubber className={cn(className)} {...props} />;
+}
+
+/**
+ * SidebarScrubberRow — level-4 atom. Single-row layout:
+ *   [scrubber track with built-in label + value]  [optional accessory buttons]
+ *
+ * The scrubber takes flex-1 width so accessory buttons (modulator, keyframe)
+ * sit flush to the right without needing a separate header row.
+ */
+export function SidebarScrubberRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  decimals,
+  ticks,
+  onValueChange,
+  onCommit,
+  format,
+  parseInput,
+  accessory,
+  description,
+  className,
+}: {
+  label?: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  decimals?: number;
+  ticks?: number;
+  onValueChange?: (v: number) => void;
+  onCommit?: (v: number) => void;
+  format?: (v: number) => string;
+  parseInput?: (raw: string) => number;
+  accessory?: React.ReactNode;
+  description?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1.5', className)}>
+      <div className="flex items-center gap-1.5">
+        <SidebarScrubberTrack
+          label={label}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          decimals={decimals}
+          ticks={ticks}
+          onValueChange={onValueChange}
+          onCommit={onCommit}
+          format={format}
+          parseInput={parseInput}
+          className="flex-1 min-w-0"
+        />
+        {accessory ? (
+          <div className="flex items-center gap-1 shrink-0">{accessory}</div>
+        ) : null}
+      </div>
+      {description ? <SidebarDescription>{description}</SidebarDescription> : null}
+    </div>
+  );
+}
+
 export function SidebarDescription({
   className,
   ...props
@@ -245,6 +319,42 @@ export function SidebarDescription({
       className={cn('text-[10px] text-muted-foreground leading-tight', className)}
       {...props}
     />
+  );
+}
+
+/**
+ * SidebarSegmentedPicker — a row of mutually-exclusive button segments.
+ * Generic over T so it works for string labels (waveforms) and numeric rates
+ * (BPM subdivisions) alike.  Fills the `slider` slot of `SidebarSliderRow`.
+ */
+export function SidebarSegmentedPicker<T extends string | number>({
+  items,
+  value,
+  onChange,
+}: {
+  items: { label: string; value: T; title?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex gap-1">
+      {items.map((item) => (
+        <button
+          key={String(item.value)}
+          type="button"
+          title={item.title}
+          onClick={() => onChange(item.value)}
+          className={cn(
+            'flex-1 h-6 rounded-sm text-[11px] font-medium border transition-colors',
+            item.value === value
+              ? 'bg-wn-accent-soft border-wn-accent text-foreground'
+              : 'border-wn-divider text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -273,6 +383,28 @@ export function SidebarKeyframeToggle({
     </button>
   );
 }
+
+export const SidebarModulatorButton = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<'button'> & { active: boolean }
+>(function SidebarModulatorButton({ active, className, ...props }, ref) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={cn(
+        'size-5 rounded-full flex items-center justify-center transition-colors',
+        active
+          ? 'text-wn-keyframe-active bg-wn-accent-soft border border-wn-accent/40 shadow-sm'
+          : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-bg',
+        className,
+      )}
+      {...props}
+    >
+      <AudioWaveform className="size-2.5" />
+    </button>
+  );
+});
 
 /**
  * SidebarEditableNumber — click-to-type numeric value button. Commits on
@@ -447,27 +579,19 @@ export function SidebarSliderRow(
   );
 }
 
-export type SidebarSwitchTone = 'neutral' | 'accent' | 'positive';
-
 export function SidebarToggleRow({
   label,
   checked,
   onCheckedChange,
   description,
-  tone = 'neutral',
   className,
 }: {
   label: React.ReactNode;
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
   description?: React.ReactNode;
-  tone?: SidebarSwitchTone;
   className?: string;
 }) {
-  const toneClass =
-    tone === 'accent' || tone === 'positive'
-      ? 'data-[state=checked]:bg-wn-accent'
-      : 'data-[state=checked]:bg-foreground';
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -478,7 +602,7 @@ export function SidebarToggleRow({
         <Switch
           checked={checked}
           onCheckedChange={onCheckedChange}
-          className={cn('scale-90', toneClass)}
+          className="scale-90 data-[state=checked]:bg-wn-accent"
         />
       </div>
       {description ? <SidebarDescription>{description}</SidebarDescription> : null}

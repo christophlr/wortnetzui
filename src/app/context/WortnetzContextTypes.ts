@@ -21,6 +21,7 @@ export type Keyframe = {
   tensionHandleOut?: number;
   tensionHandleInTime?: number;
   tensionHandleOutTime?: number;
+  interpolation?: 'auto' | 'linear' | 'hold';
 };
 
 export type PhysicsKeyframe = {
@@ -31,6 +32,7 @@ export type PhysicsKeyframe = {
   handleInTime?: number;
   handleOutTime?: number;
   mode?: 'aligned' | 'broken';
+  interpolation?: 'auto' | 'linear' | 'hold';
 };
 
 export type SceneMarker = { time: number; label: string };
@@ -102,7 +104,6 @@ export interface WortnetzContextType {
     gravity: number;
     turbulence: number;
     verticalOrder: number;
-    pulse: number;
   };
   setPhysicsParams: React.Dispatch<React.SetStateAction<{
     repulsion: number;
@@ -113,7 +114,6 @@ export interface WortnetzContextType {
     gravity: number;
     turbulence: number;
     verticalOrder: number;
-    pulse: number;
   }>>;
   visualSettings: {
     nodesVisible: boolean;
@@ -204,6 +204,7 @@ export interface WortnetzContextType {
   handleSetHandle: (trackId: string, time: number, side: 'in' | 'out', slope: number, timeOffset?: number) => void;
   handleClearHandle: (trackId: string, time: number) => void;
   handleSetInterpolation: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
+  handleSetKeyframeEasing: (trackId: string, time: number, easing: 'auto' | 'linear' | 'hold') => void;
   handleDuplicateKeyframe: (trackId: string, srcTime: number, destTime: number) => void;
   handleAddSceneMarker: (time: number, label?: string) => void;
   handleRenameSceneMarker: (time: number, label?: string) => void;

@@ -4,7 +4,7 @@
 //
 // Phase 3: the worker also owns the per-frame animation clock. Each `step`
 // message carries `time`, `dt`, baseline `sliderParams`, and optional
-// `paramOverrides` (pulse + jolt damping floor from main thread). The worker
+// `paramOverrides` (jolt damping floor from main thread). The worker
 // evaluates per-track Hermite + LFO + glide into a stable `applied` map and
 // runs the force integrator on `applied`-with-overrides. The response carries
 // `applied` so the main thread can drive recording + jolt-velocity tracking.
@@ -20,12 +20,12 @@ interface PhysicsParams {
   gravity: number;
   turbulence: number;
   verticalOrder: number;
-  pulse: number;
+ 
 }
 
 const DEFAULT_PHYSICS: PhysicsParams = {
   repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5,
-  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0,
+  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0,
 };
 
 interface InitMessage {
@@ -62,6 +62,8 @@ let edgeIndices: Int32Array;
 let wordCounts: Int32Array;
 let sharedMatrix: Uint8Array;
 let nodeCount = 0;
+let gridHead = new Int32Array(8192);
+let gridNext = new Int32Array(0);
 
 // Animation state owned by the worker (Phase 3).
 let tracks: Record<string, WorkerTrack | undefined> = {};
@@ -101,20 +103,20 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   }
 
   // Repulsion
-  if (n >= 2000) {
+  if (n >= 150) {
     // Spatial hash grid (O(n)) for large graphs
     const CELL_SIZE = 150;
-    const grid = new Map<string, number[]>();
+    if (n > gridNext.length) gridNext = new Int32Array(n * 2);
+    gridHead.fill(-1);
 
     for (let i = 0; i < n; i++) {
       const b = i * 6;
       const cx = Math.floor(posVel[b] / CELL_SIZE);
       const cy = Math.floor(posVel[b + 1] / CELL_SIZE);
       const cz = Math.floor(posVel[b + 2] / CELL_SIZE);
-      const key = `${cx},${cy},${cz}`;
-      let cell = grid.get(key);
-      if (!cell) { cell = []; grid.set(key, cell); }
-      cell.push(i);
+      const key = (Math.imul(cx, 73856093) ^ Math.imul(cy, 19349663) ^ Math.imul(cz, 83492791)) & 8191;
+      gridNext[i] = gridHead[key];
+      gridHead[key] = i;
     }
 
     for (let i = 0; i < n; i++) {
@@ -131,13 +133,17 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
       for (let ox = -1; ox <= 1; ox++) {
         for (let oy = -1; oy <= 1; oy++) {
           for (let oz = -1; oz <= 1; oz++) {
-            const key = `${cx + ox},${cy + oy},${cz + oz}`;
-            const cell = grid.get(key);
-            if (!cell) continue;
-
-            for (let cIdx = 0; cIdx < cell.length; cIdx++) {
-              const j = cell[cIdx];
-              if (i === j) continue;
+            const hx = cx + ox;
+            const hy = cy + oy;
+            const hz = cz + oz;
+            const key = (Math.imul(hx, 73856093) ^ Math.imul(hy, 19349663) ^ Math.imul(hz, 83492791)) & 8191;
+            
+            let j = gridHead[key];
+            while (j !== -1) {
+              if (i === j) {
+                j = gridNext[j];
+                continue;
+              }
               const bj = j * 6;
               const dx = x - posVel[bj];
               const dy = y - posVel[bj + 1];
@@ -153,6 +159,8 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
               fx += dx * invDist * force;
               fy += dy * invDist * force;
               fz += dz * invDist * force;
+              
+              j = gridNext[j];
             }
           }
         }
@@ -341,9 +349,10 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage | Up
     appliedSeeded = true;
   }
 
-  evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>);
+  const wallTime = performance.now() / 1000;
+  evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>, wallTime);
 
-  // Layer main-thread overrides (pulse, jolt damping floor) on top of `applied`.
+  // Layer main-thread overrides (jolt damping floor) on top of `applied`.
   const final: PhysicsParams = paramOverrides
     ? { ...applied, ...paramOverrides }
     : applied;

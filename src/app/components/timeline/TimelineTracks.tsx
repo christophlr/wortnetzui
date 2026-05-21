@@ -5,7 +5,7 @@ import { KeyframeIcon } from './KeyframeIcon';
 import {
   LABEL_W, TRACK_H, MINI_CURVE_H,
   COLOR, inferEasingType,
-  type ViewWindow, type PhysicsKeyframe, type SceneMarker,
+  type ViewWindow, type SceneMarker, type KeyframeInterpolation,
 } from './types';
 import { TrackLabel, SceneMarkerHandle, LfoBadge, TrackArmToggle } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
@@ -130,7 +130,7 @@ export function TrackRow({
   trackId: string;
   name: string;
   color: 'cyan' | 'orange';
-  keyframeData: Array<{ time: number; value?: number; handleIn?: number; handleOut?: number; handleInTime?: number; handleOutTime?: number; mode?: 'aligned' | 'broken' }>;
+  keyframeData: Array<{ time: number; value?: number; handleIn?: number; handleOut?: number; handleInTime?: number; handleOutTime?: number; mode?: 'aligned' | 'broken'; interpolation?: KeyframeInterpolation }>;
   viewWindow: ViewWindow;
   selectedKeyframes?: { track: string; time: number }[];
   showMiniCurve?: boolean;
@@ -178,6 +178,7 @@ export function TrackRow({
       const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
       const vNext = i + 2 < keyframes.length ? keyframes[i + 2].value! : null;
 
+      const interpolation = a.interpolation;
       const m0 = a.handleOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, a.value!, b.time, b.value!));
       const m1 = b.handleIn ?? (tNext === null ? 0 : computeCatmullRomTangent(a.time, a.value!, b.time, b.value!, tNext, vNext));
 
@@ -185,7 +186,11 @@ export function TrackRow({
       const steps = 20;
       for (let j = 0; j <= steps; j++) {
         const tRaw = j / steps;
-        const val = evaluateHermite(tRaw, a.value!, m0, b.value!, m1, segDur);
+        const val = interpolation === 'hold'
+          ? a.value!
+          : interpolation === 'linear'
+            ? a.value! + (b.value! - a.value!) * tRaw
+            : evaluateHermite(tRaw, a.value!, m0, b.value!, m1, segDur);
         const tWorld = a.time + tRaw * segDur;
         const xPct = ((tWorld - viewWindow.start) / visibleDuration) * 100;
         pts.push(`${xPct},${getNormY(val)}`);

@@ -10,7 +10,6 @@ import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
 import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton, RecordingIndicator } from './TimelineAtoms';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
-import { TrackTuningPanel } from './TrackTuningPanel';
 import { PHYS_TRACK_PARAM } from '../../context/WortnetzContextConstants';
 import { useT } from '../../i18n/useT';
 import { withinSelection } from './timeUtils';
@@ -34,7 +33,7 @@ export function Timeline(props: TimelineProps) {
     selectedKeyframes, onKeyframeSelect, onSelectKeyframes,
     cameraKeyframes = [], physicsKeyframes = {},
     onCaptureKeyframe, onMoveKeyframe,
-    onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation,
+    onSetHandle, onSetHandle2D, onSetValue, onClearHandle, onSetInterpolation, onSetKeyframeEasing,
     onDeleteKeyframe, onDuplicateKeyframe, onRippleDeleteKeyframe, onResetTrack,
     onDragStart, onDragEnd,
     timecode = '00:00:00:00',
@@ -47,7 +46,6 @@ export function Timeline(props: TimelineProps) {
     onToggleRecording,
     onCancelDrag,
     trackMeta,
-    onSetTrackGlide,
     onSetTrackModulator,
     armedTracks,
     onToggleTrackArm,
@@ -169,7 +167,7 @@ export function Timeline(props: TimelineProps) {
     const { track, time } = contextMenuTarget;
 
     if (type === 'auto' || type === 'linear' || type === 'hold') {
-      onClearHandle?.(track, time);
+      onSetKeyframeEasing?.(track, time, type);
       return;
     }
 
@@ -184,7 +182,7 @@ export function Timeline(props: TimelineProps) {
       onSetHandle?.(track, time, 'out', weight);
       onClearHandle?.(track, time); // Clear in to ensure only out is eased
     }
-  }, [contextMenuTarget, onSetHandle, onClearHandle]);
+  }, [contextMenuTarget, onSetHandle, onSetKeyframeEasing]);
 
   // Playhead scrub
   const handleRulerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -494,6 +492,7 @@ export function Timeline(props: TimelineProps) {
                   handleInTime: k.tensionHandleInTime,
                   handleOutTime: k.tensionHandleOutTime,
                   mode: k.mode,
+                  interpolation: k.interpolation,
                 }))}
                 viewWindow={viewWindow}
                 selectedKeyframes={selectedKeyframes}
@@ -516,15 +515,16 @@ export function Timeline(props: TimelineProps) {
                 <GraphEditor
                   trackId="camera-keyframes"
                   color="cyan"
-                  keyframeData={cameraKeyframes.map(k => ({
-                    time: k.time,
-                    tension: k.tension,
-                    handleIn: k.tensionHandleIn,
-                    handleOut: k.tensionHandleOut,
-                    handleInTime: k.tensionHandleInTime,
-                    handleOutTime: k.tensionHandleOutTime,
-                    mode: k.mode,
-                  }))}
+                    keyframeData={cameraKeyframes.map(k => ({
+                      time: k.time,
+                      tension: k.tension,
+                      handleIn: k.tensionHandleIn,
+                      handleOut: k.tensionHandleOut,
+                      handleInTime: k.tensionHandleInTime,
+                      handleOutTime: k.tensionHandleOutTime,
+                      mode: k.mode,
+                      interpolation: k.interpolation,
+                    }))}
                   viewWindow={viewWindow}
                   onSetHandle={onSetHandle}
                   onSetHandle2D={onSetHandle2D}
@@ -590,15 +590,6 @@ export function Timeline(props: TimelineProps) {
                           onContextMenu={handleKeyframeContextMenu}
                           selectedKeyframes={selectedKeyframes}
                         />
-                        {trackMeta && onSetTrackGlide && onSetTrackModulator ? (
-                          <TrackTuningPanel
-                            trackId={track.id}
-                            paramKey={PHYS_TRACK_PARAM[track.id]}
-                            meta={trackMeta[track.id] ?? { glide: 0 }}
-                            onSetGlide={(s) => onSetTrackGlide(track.id, s)}
-                            onSetModulator={(m) => onSetTrackModulator(track.id, m)}
-                          />
-                        ) : null}
                       </>
                     )}
                   </div>

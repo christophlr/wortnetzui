@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { LABEL_W, GRAPH_H, COLOR, inferEasingType, type ViewWindow, type EasingType } from './types';
+import { LABEL_W, GRAPH_H, COLOR, type ViewWindow, type KeyframeInterpolation } from './types';
 import { TrackLabel } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 import { withinSelection } from './timeUtils';
@@ -29,6 +29,7 @@ export function GraphEditor({
     handleOutTime?: number;
     mode?: 'aligned' | 'broken';
     tension?: number;
+    interpolation?: KeyframeInterpolation;
   }>;
   viewWindow: ViewWindow;
   onSetHandle?: (trackId: string, time: number, side: 'out' | 'in', weight: number) => void;
@@ -81,6 +82,7 @@ export function GraphEditor({
       const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
       const vNext = i + 2 < keyframes.length ? (isTension ? (keyframes[i + 2].tension ?? 1) : keyframes[i + 2].value!) : null;
 
+      const interpolation = a.interpolation;
       const m0 = a.handleOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, aVal, b.time, bVal));
       const m1 = b.handleIn ?? (tNext === null ? 0 : computeCatmullRomTangent(a.time, aVal, b.time, bVal, tNext, vNext));
 
@@ -88,7 +90,11 @@ export function GraphEditor({
       const steps = 30;
       for (let j = 0; j <= steps; j++) {
         const tRaw = j / steps;
-        const val = evaluateHermite(tRaw, aVal, m0, bVal, m1, segDur);
+        const val = interpolation === 'hold'
+          ? aVal
+          : interpolation === 'linear'
+            ? aVal + (bVal - aVal) * tRaw
+            : evaluateHermite(tRaw, aVal, m0, bVal, m1, segDur);
         const tWorld = a.time + tRaw * segDur;
         const xPct = ((tWorld - viewWindow.start) / visibleDuration) * 100;
         pts.push(`${xPct},${getNormY(val)}`);

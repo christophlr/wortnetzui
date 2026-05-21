@@ -23,21 +23,24 @@ export interface WorkerTrack {
 
 export type PhysicsParamsLike = Record<string, number>;
 
+const PARAM_KEYS = ['repulsion', 'springK', 'damping', 'minSpeed', 'linkDistance', 'gravity', 'turbulence', 'verticalOrder'];
+
 export function evaluateTracks(
   tracks: Record<string, WorkerTrack | undefined>,
   sliderParams: PhysicsParamsLike,
   time: number,
   dt: number,
   applied: PhysicsParamsLike,
+  wallTime: number = 0,
 ): PhysicsParamsLike {
-  for (const key of Object.keys(sliderParams)) {
+  for (const key of PARAM_KEYS) {
     const tr = tracks[key];
     const slider = sliderParams[key];
     const interp = tr && tr.keyframes.length > 0
       ? interpolatePhysicsParam(tr.keyframes, time, tr.trackId)
       : null;
     const base = interp !== null ? interp : slider;
-    const target = tr?.modulator ? base + evalLfo(tr.modulator, time) : base;
+    const target = tr?.modulator ? base + evalLfo(tr.modulator, wallTime) : base;
     const glide = tr?.glide ?? 0;
     if (glide > 0) {
       const blend = Math.min(1, dt / glide);

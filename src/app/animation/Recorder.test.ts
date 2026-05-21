@@ -3,7 +3,7 @@ import { Recorder, downsample, type Sample } from './Recorder';
 
 const PHYS = {
   repulsion: 1500, springK: 0.06, damping: 0.88, minSpeed: 0.5,
-  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0, pulse: 0,
+  linkDistance: 80, gravity: 0, turbulence: 0, verticalOrder: 0,
 };
 
 describe('downsample', () => {

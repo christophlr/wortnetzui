@@ -37,7 +37,6 @@ export interface PhysicsParams {
   gravity: number;
   turbulence: number;
   verticalOrder: number;
-  pulse: number;
 }
 
 export const DEFAULT_PHYSICS: PhysicsParams = {
@@ -49,5 +48,4 @@ export const DEFAULT_PHYSICS: PhysicsParams = {
   gravity: 0,
   turbulence: 0,
   verticalOrder: 0,
-  pulse: 0,
 };

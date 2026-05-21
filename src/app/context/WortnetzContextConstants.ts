@@ -20,5 +20,4 @@ export const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
   'phys-grv': 'gravity',
   'phys-trb': 'turbulence',
   'phys-vto': 'verticalOrder',
-  'phys-pls': 'pulse'
 };

@@ -5,14 +5,19 @@
 // `depth` is the additive amplitude in the param's native units (e.g. for
 // repulsion: 0..3000 range, a depth of 200 means ±200 around the target).
 // Scaling to a 0..1 normalized UI slider is the consumer's responsibility.
+//
+// `evalLfo` takes wallTime (real-clock seconds), NOT playhead time, so the
+// LFO always oscillates even when playback is paused.
 
 export type ModulatorWaveform = 'sine' | 'triangle' | 'square';
 
 export type Modulator = {
   waveform: ModulatorWaveform;
-  rate: number;   // Hz; range 0.1..10 in the default UI
+  // Free mode: rate in Hz. BPM mode (bpm set): rate in cycles-per-beat.
+  rate: number;
   depth: number;  // additive amplitude in param-native units
   phase: number;  // radians, [0, 2π)
+  bpm?: number;   // when set, enables BPM-sync mode; rate becomes cycles-per-beat
 };
 
 export const DEFAULT_MODULATOR: Modulator = {
@@ -24,9 +29,11 @@ export const DEFAULT_MODULATOR: Modulator = {
 
 const TWO_PI = Math.PI * 2;
 
-export function evalLfo(m: Modulator, time: number): number {
+// wallTime must be real-clock seconds (performance.now()/1000), not playhead time.
+export function evalLfo(m: Modulator, wallTime: number): number {
   if (m.depth === 0) return 0;
-  const phase = m.phase + TWO_PI * m.rate * time;
+  const effectiveRate = m.bpm != null ? m.rate * m.bpm / 60 : m.rate;
+  const phase = m.phase + TWO_PI * effectiveRate * wallTime;
   let raw: number;
   switch (m.waveform) {
     case 'sine':

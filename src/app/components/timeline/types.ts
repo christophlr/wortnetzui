@@ -4,6 +4,8 @@ import type { TrackMeta } from '../../animation/Track';
 
 /* ── Shared timeline types ── */
 
+export type KeyframeInterpolation = 'auto' | 'linear' | 'hold';
+
 export type PhysicsKeyframe = {
   time: number;
   value: number;
@@ -12,6 +14,7 @@ export type PhysicsKeyframe = {
   handleInTime?: number;
   handleOutTime?: number;
   mode?: 'aligned' | 'broken';
+  interpolation?: KeyframeInterpolation;
 };
 
 export type SceneMarker = { time: number; label: string };
@@ -35,7 +38,10 @@ export function inferEasingType(kf: {
   handleOut?: number;
   handleInTime?: number;
   handleOutTime?: number;
+  interpolation?: KeyframeInterpolation;
 }, prevKf?: { time: number; value?: number } | null, nextKf?: { time: number; value?: number } | null, curValue?: number): EasingType {
+  if (kf.interpolation === 'linear' || kf.interpolation === 'hold') return kf.interpolation;
+  if (kf.interpolation === 'auto') return 'auto';
   const hasIn = kf.handleIn !== undefined;
   const hasOut = kf.handleOut !== undefined;
 
@@ -109,7 +115,6 @@ export const TRACK_GROUPS = [
       { id: 'phys-grv', paramKey: 'gravity',      kfs: [] as number[], graph: false },
       { id: 'phys-trb', paramKey: 'turbulence',   kfs: [] as number[], graph: false },
       { id: 'phys-vto', paramKey: 'verticalOrder',kfs: [] as number[], graph: false },
-      { id: 'phys-pls', paramKey: 'pulse',        kfs: [] as number[], graph: false },
     ],
   },
 ];
@@ -146,6 +151,7 @@ export interface TimelineProps {
     tensionHandleOut?: number;
     tensionHandleInTime?: number;
     tensionHandleOutTime?: number;
+    interpolation?: KeyframeInterpolation;
   }>;
   physicsKeyframes?: Record<string, PhysicsKeyframe[]>;
   onCaptureKeyframe?: () => void;
@@ -155,6 +161,7 @@ export interface TimelineProps {
   onClearHandle?: (trackId: string, time: number) => void;
   onSetValue?: (trackId: string, time: number, value: number) => void;
   onSetInterpolation?: (trackId: string, time: number, mode: 'aligned' | 'broken') => void;
+  onSetKeyframeEasing?: (trackId: string, time: number, easing: KeyframeInterpolation) => void;
   onDeleteKeyframe?: (trackId: string, time: number) => void;
   onRippleDeleteKeyframe?: (trackId: string, time: number) => void;
   onResetTrack?: (trackId: string) => void;
@@ -178,9 +185,8 @@ export interface TimelineProps {
   onToggleRecording?: () => void;
   onCancelDrag?: () => void;
 
-  // Per-track Glide + LFO (Phase 3.4)
+  // Per-track LFO (Phase 3.4)
   trackMeta?: Record<string, TrackMeta>;
-  onSetTrackGlide?: (trackId: string, seconds: number) => void;
   onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
 
   // Per-track recording arm (Phase 3.5)
