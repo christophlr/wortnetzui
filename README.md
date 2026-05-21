@@ -1,7 +1,5 @@
 # Wortnetze 
 
-> **🤖 FOR AI CODING ASSISTANTS:** > Do not generate code based on this README. You must establish your system context by reading `./AGENTS.md` before taking any action.
-
 ## Running the code
 Run `npm i` to install the dependencies.
 
