@@ -4,12 +4,22 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, SCENE_COLORS } from '../networkTheme';
+import { getNetworkThemeBackground, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
 import type { TrackMeta } from '../animation/Track';
 import type { WorkerTrack } from '../animation/evaluateTracks';
+import {
+  type TextureCache,
+  type TextureBuildOptions,
+  createSpriteFromTexture,
+  buildTextureCache,
+  disposeTextureCache,
+  swapSpriteTexture as swapSpriteTextureImpl,
+  refreshAllSpriteTextures,
+  getDepthFactor,
+} from '../network3d/textureCache';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -157,7 +167,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const sharedPairMatrixRef = useRef<Uint8Array>(new Uint8Array(0));
   const spritesArrayRef = useRef<THREE.Object3D[]>([]);
   const edgeLinesRef = useRef<THREE.LineSegments | null>(null);
-  const textureCacheRef = useRef<Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>>(new Map());
+  const textureCacheRef = useRef<TextureCache>(new Map());
   const physicsWorkerRef = useRef<Worker | null>(null);
   const workerBusyRef = useRef(false);
   const prevMaxOverlapRef = useRef(0);
@@ -645,242 +655,28 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── CANVAS TEXTURE CREATION (fixed dimensions for all states) ── */
-  const EDIT_NODE_COLOR = SCENE_COLORS.editNodeColor; // neutral gray for edit mode
-  // Fixed outline margin — always allocated so all 3 state textures share identical canvas size
-  const OUTLINE_STROKE = 3;
-  const OUTLINE_GAP = 2;
-  const OUTLINE_MARGIN = OUTLINE_STROKE + OUTLINE_GAP;
+  const getTextureOpts = (): TextureBuildOptions => ({
+    dark: !!isDarkRef.current,
+    nodeShape: styleSettingsRef.current.nodeShape ?? 'rectangle',
+    nodeBorderWidth: styleSettingsRef.current.nodeBorderWidth ?? 2,
+  });
 
-  // Use standard DOM canvas elements instead of OffscreenCanvas to bypass WebKit's strict hard limits on OffscreenCanvas contexts,
-  // and avoid DataTexture/getImageData to prevent synchronous main-thread pipeline stalls during initialization.
-  const createCanvasTexture = (
-    text: string, highlighted: boolean, selected: boolean, darkOverride?: boolean
-  ): { texture: THREE.Texture; baseScale: number; aspectRatio: number } => {
-    const dark = darkOverride !== undefined ? darkOverride : isDarkRef.current;
-    const effectiveBorderColor = EDIT_NODE_COLOR;
-    const effectiveTextColor = EDIT_NODE_COLOR;
+  const swap = (node: GraphNode, highlighted: boolean, selected: boolean) =>
+    swapSpriteTextureImpl(node, highlighted, selected, textureCacheRef.current, getTextureOpts());
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d') as CanvasRenderingContext2D;
-
-    const words = text.split(' ');
-    const fontSize = 28;
-    const lineHeight = fontSize * 1.2;
-    const padding = 14;
-    const pixelRatio = 3;
-
-    context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-    const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
-    const logicalWidth = maxWidth + padding * 2;
-    const logicalHeight = words.length * lineHeight + padding * 2;
-
-    // Always use fixed outline margin so all states have identical canvas dimensions
-    const canvasLogicalWidth = logicalWidth + OUTLINE_MARGIN * 2;
-    const canvasLogicalHeight = logicalHeight + OUTLINE_MARGIN * 2;
-
-    canvas.width = canvasLogicalWidth * pixelRatio;
-    canvas.height = canvasLogicalHeight * pixelRatio;
-    context.scale(pixelRatio, pixelRatio);
-
-    const nodeShape = styleSettingsRef.current.nodeShape ?? 'rectangle';
-    const bw = styleSettingsRef.current.nodeBorderWidth ?? 2;
-    const fillColor = getNetworkLabelStyle(dark).backgroundHex;
-    const cx = OUTLINE_MARGIN + logicalWidth / 2;
-    const cy = OUTLINE_MARGIN + logicalHeight / 2;
-
-    // Clip to shape so text doesn't bleed outside ellipse
-    context.save();
-    context.beginPath();
-    if (nodeShape === 'ellipse') {
-      context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
-    } else if (nodeShape === 'rounded-rectangle') {
-      context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
-    } else {
-      context.rect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
-    }
-    context.clip();
-
-    // Background fill
-    context.fillStyle = fillColor;
-    if (nodeShape === 'ellipse') {
-      context.beginPath();
-      context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
-      context.fill();
-    } else if (nodeShape === 'rounded-rectangle') {
-      context.beginPath();
-      context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
-      context.fill();
-    } else {
-      context.fillRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
-    }
-    context.restore();
-
-    if (!highlighted && !selected) {
-      if (bw > 0) {
-        context.strokeStyle = effectiveBorderColor;
-        context.lineWidth = bw;
-        context.beginPath();
-        // Outside stroke: path is outset by bw/2 so the inner stroke edge touches the fill boundary
-        if (nodeShape === 'ellipse') {
-          context.ellipse(cx, cy, logicalWidth / 2 + bw / 2, logicalHeight / 2 + bw / 2, 0, 0, Math.PI * 2);
-        } else if (nodeShape === 'rounded-rectangle') {
-          context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 6);
-        } else {
-          context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 3 + bw / 2);
-        }
-        context.stroke();
-      }
-    } else {
-      const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
-      const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
-      const pathH = logicalHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
-      context.strokeStyle = SCENE_COLORS.selectionOutline;
-      context.lineWidth = OUTLINE_STROKE;
-      context.beginPath();
-      if (nodeShape === 'ellipse') {
-        context.ellipse(cx, cy, pathW / 2, pathH / 2, 0, 0, Math.PI * 2);
-      } else if (nodeShape === 'rounded-rectangle') {
-        context.roundRect(pathOff, pathOff, pathW, pathH, 8);
-      } else {
-        context.roundRect(pathOff, pathOff, pathW, pathH, 5);
-      }
-      context.stroke();
-    }
-
-    context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-    context.fillStyle = effectiveTextColor;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    words.forEach((word, i) => {
-      const y = OUTLINE_MARGIN + padding + lineHeight / 2 + i * lineHeight;
-      context.fillText(word, OUTLINE_MARGIN + logicalWidth / 2, y);
-    });
-
-    // Use CanvasTexture, which asynchronously uploads the DOM canvas to the GPU during rendering.
-    // This is much faster than DataTexture + getImageData, avoiding synchronous CPU/GPU stalls.
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-
-    const wordCount = words.length;
-    const scaleFactor = Math.max(0.4, 1 - (wordCount * 0.05));
-    const baseScale = (Math.max(canvasLogicalWidth, canvasLogicalHeight) / 2.5) * scaleFactor;
-    const aspectRatio = canvasLogicalHeight / canvasLogicalWidth;
-
-    return { texture, baseScale, aspectRatio };
-  };
-
-  /** Create a sprite from a pre-built texture. */
-  const createSpriteFromTexture = (
-    texture: THREE.Texture, label: string, baseScale: number, aspectRatio: number, nodeScale: number
-  ): THREE.Sprite => {
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-      map: texture, 
-      transparent: true, 
-      depthTest: true,
-      depthWrite: true,
-      alphaTest: 0.1
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.renderOrder = 1; // always draw sprites on top of edge lines
-    sprite.userData.label = label;
-    sprite.userData.baseScale = baseScale;
-    sprite.userData.aspectRatio = aspectRatio;
-    sprite.scale.set(baseScale * nodeScale, baseScale * nodeScale * aspectRatio, 1);
-    return sprite;
-  };
-
-  /** Build (or rebuild) the 3-state texture cache for all nodes. */
-  const buildTextureCache = (nodes: Map<string, GraphNode>) => {
-    textureCacheRef.current.forEach(entry => {
-      entry.normal.dispose();
-      entry.highlighted?.dispose();
-      entry.selected?.dispose();
-    });
-    const cache = new Map<string, { normal: THREE.Texture; highlighted?: THREE.Texture; selected?: THREE.Texture; baseScale: number; aspectRatio: number }>();
-    nodes.forEach(node => {
-      const n = createCanvasTexture(node.label, false, false);
-      cache.set(node.label, {
-        normal: n.texture,
-        baseScale: n.baseScale, aspectRatio: n.aspectRatio,
-      });
-    });
-    textureCacheRef.current = cache;
-  };
-
-  /** Swap a sprite's texture to the correct cached state (generating on-demand if needed). */
-  const swapSpriteTexture = (node: GraphNode, highlighted: boolean, selected: boolean) => {
-    if (!node.textSprite) return;
-    const cached = textureCacheRef.current.get(node.label);
-    if (!cached) return;
-
-    let tex = cached.normal;
-    if (selected) {
-      if (!cached.selected) {
-        const s = createCanvasTexture(node.label, false, true);
-        cached.selected = s.texture;
-      }
-      tex = cached.selected;
-    } else if (highlighted) {
-      if (!cached.highlighted) {
-        const h = createCanvasTexture(node.label, true, false);
-        cached.highlighted = h.texture;
-      }
-      tex = cached.highlighted;
-    }
-
-    node.textSprite.material.map = tex;
-    node.textSprite.material.needsUpdate = true;
-  };
-
-  const getDepthFactor = (wordCount: number, minW: number, maxW: number, ss: typeof styleSettings): number => {
-    if (!ss.depthSizeEnabled) return 1;
-    const depthT = maxW !== minW ? (wordCount - minW) / (maxW - minW) : 0.5;
-    const strength = (ss.depthSizeStrength ?? 50) / 100;
-    return 1 + strength * 0.5 * (1 - 2 * depthT);
-  };
-
-  /** Update all sprite textures from cache (after cache rebuild). */
-  const refreshAllSpriteTextures = () => {
-    const ss = styleSettingsRef.current;
-    const minW = minWordsRef.current;
-    const maxW = maxWordsRef.current;
-    graphNodesRef.current.forEach(node => {
-      if (!node.textSprite) return;
-      const cached = textureCacheRef.current.get(node.label);
-      if (!cached) return;
-      const isHovered = hoveredNodeRef.current?.label === node.label;
-      const isSelected = selectedNodeRef.current?.label === node.label;
-      
-      let tex = cached.normal;
-      if (isSelected) {
-        if (!cached.selected) {
-          const s = createCanvasTexture(node.label, false, true);
-          cached.selected = s.texture;
-        }
-        tex = cached.selected;
-      } else if (isHovered) {
-        if (!cached.highlighted) {
-          const h = createCanvasTexture(node.label, true, false);
-          cached.highlighted = h.texture;
-        }
-        tex = cached.highlighted;
-      }
-      
-      node.textSprite.material.map = tex;
-      node.textSprite.material.needsUpdate = true;
-      node.textSprite.userData.baseScale = cached.baseScale;
-      node.textSprite.userData.aspectRatio = cached.aspectRatio;
-      const depthFactor = getDepthFactor(node.wordCount, minW, maxW, ss);
-      node.textSprite.scale.set(
-        cached.baseScale * ss.nodeScale * depthFactor,
-        cached.baseScale * ss.nodeScale * depthFactor * cached.aspectRatio,
-        1
-      );
-    });
+  const rebuildAndRefreshTextures = () => {
+    disposeTextureCache(textureCacheRef.current);
+    textureCacheRef.current = buildTextureCache(graphNodesRef.current, getTextureOpts());
+    refreshAllSpriteTextures(
+      graphNodesRef.current,
+      textureCacheRef.current,
+      hoveredNodeRef.current?.label ?? null,
+      selectedNodeRef.current?.label ?? null,
+      styleSettingsRef.current,
+      minWordsRef.current,
+      maxWordsRef.current,
+      getTextureOpts(),
+    );
   };
 
   const applyCameraKeyframes = (
@@ -1250,7 +1046,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     edgeLinesRef.current = edgeLineSegments;
 
     // Build 3-state texture cache for all nodes (normal, highlighted, selected)
-    buildTextureCache(nodes);
+    disposeTextureCache(textureCacheRef.current);
+    textureCacheRef.current = buildTextureCache(nodes, getTextureOpts());
 
     // Create nodes with billboarded text from cached normal textures
     nodes.forEach(node => {
@@ -1290,8 +1087,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const nextNode = hitLabel ? graphNodesRef.current.get(hitLabel) ?? null : null;
 
       if (prevNode?.label === nextNode?.label) return;
-      if (prevNode) swapSpriteTexture(prevNode, false, prevNode.label === selectedNodeRef.current?.label);
-      if (nextNode) swapSpriteTexture(nextNode, true, nextNode.label === selectedNodeRef.current?.label);
+      if (prevNode) swap(prevNode, false, prevNode.label === selectedNodeRef.current?.label);
+      if (nextNode) swap(nextNode, true, nextNode.label === selectedNodeRef.current?.label);
       hoveredNodeRef.current = nextNode;
       renderer.domElement.style.cursor = nextNode ? 'pointer' : 'default';
     };
@@ -1299,7 +1096,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const handleHoverLeave = () => {
       if (hoveredNodeRef.current) {
         const was = hoveredNodeRef.current;
-        swapSpriteTexture(was, false, was.label === selectedNodeRef.current?.label);
+        swap(was, false, was.label === selectedNodeRef.current?.label);
         hoveredNodeRef.current = null;
         renderer.domElement.style.cursor = 'default';
       }
@@ -1318,16 +1115,16 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const prev = selectedNodeRef.current;
 
       if (!hit) {
-        if (prev) swapSpriteTexture(prev, prev.label === hoveredNodeRef.current?.label, false);
+        if (prev) swap(prev, prev.label === hoveredNodeRef.current?.label, false);
         selectedNodeRef.current = null;
         return;
       }
 
-      if (prev && prev.label !== hit.label) swapSpriteTexture(prev, prev.label === hoveredNodeRef.current?.label, false);
+      if (prev && prev.label !== hit.label) swap(prev, prev.label === hoveredNodeRef.current?.label, false);
 
       const selecting = hit.label !== prev?.label;
       selectedNodeRef.current = selecting ? hit : null;
-      swapSpriteTexture(hit, hit.label === hoveredNodeRef.current?.label, selecting);
+      swap(hit, hit.label === hoveredNodeRef.current?.label, selecting);
       
       // Notify parent
       onNodeSelectRef.current?.(selecting ? hit : null);
@@ -1612,8 +1409,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       clearTimeout(textureRebuildTimerRef.current);
       textureRebuildTimerRef.current = null;
     }
-    buildTextureCache(graphNodesRef.current);
-    refreshAllSpriteTextures();
+    rebuildAndRefreshTextures();
   }, [styleSettings.nodeShape]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild textures debounced when border width changes (potentially slider-driven)
@@ -1622,8 +1418,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (textureRebuildTimerRef.current) clearTimeout(textureRebuildTimerRef.current);
     textureRebuildTimerRef.current = setTimeout(() => {
       if (!sceneRef.current) return;
-      buildTextureCache(graphNodesRef.current);
-      refreshAllSpriteTextures();
+      rebuildAndRefreshTextures();
       textureRebuildTimerRef.current = null;
     }, 80);
   }, [styleSettings.nodeBorderWidth]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1650,8 +1445,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   useEffect(() => {
     if (!sceneRef.current) return;
     if (graphNodesRef.current.size === 0) return;
-    buildTextureCache(graphNodesRef.current);
-    refreshAllSpriteTextures();
+    rebuildAndRefreshTextures();
   }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleViewportContextMenu = useCallback((e: React.MouseEvent) => {
