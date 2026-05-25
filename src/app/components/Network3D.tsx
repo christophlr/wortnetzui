@@ -21,6 +21,7 @@ import {
   getDepthFactor,
 } from '../network3d/textureCache';
 import { syncGraphVisuals } from '../network3d/syncVisuals';
+import { useResizeObserver } from '../hooks/useResizeObserver';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -487,7 +488,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (isPlaying) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
   }, [isPlaying]);
 
-
+  const handleResize = useCallback((nw: number, nh: number) => {
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!camera || !renderer) return;
+    if (viewMode === '2D') {
+      const cam = camera as THREE.OrthographicCamera;
+      cam.left = -nw / 2; cam.right = nw / 2;
+      cam.top = nh / 2;   cam.bottom = -nh / 2;
+    } else {
+      (camera as THREE.PerspectiveCamera).aspect = nw / nh;
+    }
+    camera.updateProjectionMatrix();
+    renderer.setSize(nw, nh);
+  }, [viewMode]);
+  useResizeObserver(containerRef, handleResize);
 
   /* ── INITIAL LAYOUT (ORGANIC SPHERE) ── */
   const arrangeNodesCone3D = (nodes: Map<string, GraphNode>, minWords: number, maxWords: number) => {
@@ -1220,33 +1235,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       requestAnimationFrame(() => onReadyRef.current?.());
     }
 
-    // Handle resize
-    const handleResize = () => {
-      if (!containerRef.current || !camera || !renderer) return;
-      const nw = containerRef.current.clientWidth;
-      const nh = containerRef.current.clientHeight;
-      if (nw === 0 || nh === 0) return;
-      if (is2D) {
-        const cam = camera as THREE.OrthographicCamera;
-        cam.left = -nw / 2; cam.right = nw / 2;
-        cam.top = nh / 2;   cam.bottom = -nh / 2;
-      } else {
-        (camera as THREE.PerspectiveCamera).aspect = nw / nh;
-      }
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    };
-
-    const ro = new ResizeObserver(handleResize);
-    if (containerRef.current) ro.observe(containerRef.current);
-    window.addEventListener('resize', handleResize);
-
     return () => {
       isCancelled = true;
       console.log('[Network3D] Effect cleanup running', { inputText: inputText.substring(0, 20) + '...' });
-      
-      ro.disconnect();
-      window.removeEventListener('resize', handleResize);
       if (timerId !== undefined) clearTimeout(timerId);
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
