@@ -78,8 +78,14 @@
   --wn-timeline-bg: #ffffff;                        /* graph-editor dot stroke (was #fff) */
   --wn-timeline-cyan-kf-fill: #60a5fa;              /* COLOR.cyan.kfFill (blue-400) */
   --wn-timeline-cyan-graph-stroke: #3b82f6;         /* COLOR.cyan.graphStroke (blue-500) */
+  --wn-timeline-cyan-dot: #3b82f6;                  /* COLOR.cyan.dot (blue-500) */
+  --wn-timeline-cyan-border: rgba(59, 130, 246, 0.6); /* COLOR.cyan.border (blue-500/60) */
+  --wn-timeline-cyan-track-bg: rgba(23, 37, 84, 0.1); /* COLOR.cyan.trackBg (blue-950/10) */
   --wn-timeline-orange-kf-fill: #fb923c;            /* COLOR.orange.kfFill (orange-400) */
   --wn-timeline-orange-graph-stroke: #f97316;       /* COLOR.orange.graphStroke (orange-500) */
+  --wn-timeline-orange-dot: #f97316;                /* COLOR.orange.dot (orange-500) */
+  --wn-timeline-orange-border: rgba(249, 115, 22, 0.6); /* COLOR.orange.border (orange-500/60) */
+  --wn-timeline-orange-track-bg: rgba(67, 20, 7, 0.1); /* COLOR.orange.trackBg (orange-950/10) */
 }
 
 
@@ -155,8 +161,14 @@
   --wn-timeline-bg: #09090b;
   --wn-timeline-cyan-kf-fill: #60a5fa;
   --wn-timeline-cyan-graph-stroke: #3b82f6;
+  --wn-timeline-cyan-dot: #3b82f6;
+  --wn-timeline-cyan-border: rgba(59, 130, 246, 0.6);
+  --wn-timeline-cyan-track-bg: rgba(23, 37, 84, 0.1);
   --wn-timeline-orange-kf-fill: #fb923c;
   --wn-timeline-orange-graph-stroke: #f97316;
+  --wn-timeline-orange-dot: #f97316;
+  --wn-timeline-orange-border: rgba(249, 115, 22, 0.6);
+  --wn-timeline-orange-track-bg: rgba(67, 20, 7, 0.1);
 }
 
 @theme inline {
@@ -227,8 +239,14 @@
   --color-wn-timeline-bg: var(--wn-timeline-bg);
   --color-wn-timeline-cyan-kf-fill: var(--wn-timeline-cyan-kf-fill);
   --color-wn-timeline-cyan-graph-stroke: var(--wn-timeline-cyan-graph-stroke);
+  --color-wn-timeline-cyan-dot: var(--wn-timeline-cyan-dot);
+  --color-wn-timeline-cyan-border: var(--wn-timeline-cyan-border);
+  --color-wn-timeline-cyan-track-bg: var(--wn-timeline-cyan-track-bg);
   --color-wn-timeline-orange-kf-fill: var(--wn-timeline-orange-kf-fill);
   --color-wn-timeline-orange-graph-stroke: var(--wn-timeline-orange-graph-stroke);
+  --color-wn-timeline-orange-dot: var(--wn-timeline-orange-dot);
+  --color-wn-timeline-orange-border: var(--wn-timeline-orange-border);
+  --color-wn-timeline-orange-track-bg: var(--wn-timeline-orange-track-bg);
 }
 
 @layer base {

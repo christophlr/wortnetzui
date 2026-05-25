@@ -39,6 +39,12 @@ export type CssVarName =
   | '--wn-timeline-kf-selected' | '--wn-timeline-kf-selected-stroke' | '--wn-timeline-kf-selected-outline'
   | '--wn-timeline-marker-fill' | '--wn-timeline-marker-selected'
   | '--wn-timeline-playhead' | '--wn-timeline-recording'
+  // Timeline transport + per-color tracks
+  | '--wn-timeline-transport-active' | '--wn-timeline-drag-select' | '--wn-timeline-bg'
+  | '--wn-timeline-cyan-kf-fill' | '--wn-timeline-cyan-graph-stroke'
+  | '--wn-timeline-cyan-dot' | '--wn-timeline-cyan-border' | '--wn-timeline-cyan-track-bg'
+  | '--wn-timeline-orange-kf-fill' | '--wn-timeline-orange-graph-stroke'
+  | '--wn-timeline-orange-dot' | '--wn-timeline-orange-border' | '--wn-timeline-orange-track-bg'
   // Chart palette (defined in .dark scope)
   | '--chart-1' | '--chart-2' | '--chart-3' | '--chart-4' | '--chart-5';
 

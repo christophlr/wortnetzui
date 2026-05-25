@@ -122,8 +122,8 @@ export const TRACK_GROUPS = [
 /* ── Color maps ── */
 
 export const COLOR = {
-  cyan:   { dot: 'bg-blue-500',   border: 'border-l-blue-500/60',   kf: 'text-blue-400',   kfFill: 'var(--wn-timeline-cyan-kf-fill)',   trackBg: 'bg-blue-950/10',   graphStroke: 'var(--wn-timeline-cyan-graph-stroke)',   miniCurve: 'rgba(59, 130, 246, 0.25)' },
-  orange: { dot: 'bg-orange-500', border: 'border-l-orange-500/60', kf: 'text-orange-400', kfFill: 'var(--wn-timeline-orange-kf-fill)', trackBg: 'bg-orange-950/10', graphStroke: 'var(--wn-timeline-orange-graph-stroke)', miniCurve: 'rgba(249, 115, 22, 0.25)' },
+  cyan:   { dot: 'bg-wn-timeline-cyan-dot',   border: 'border-l-wn-timeline-cyan-border',   kfFill: 'var(--wn-timeline-cyan-kf-fill)',   trackBg: 'bg-wn-timeline-cyan-track-bg',   graphStroke: 'var(--wn-timeline-cyan-graph-stroke)',   miniCurve: 'rgba(59, 130, 246, 0.25)' },
+  orange: { dot: 'bg-wn-timeline-orange-dot', border: 'border-l-wn-timeline-orange-border', kfFill: 'var(--wn-timeline-orange-kf-fill)', trackBg: 'bg-wn-timeline-orange-track-bg', graphStroke: 'var(--wn-timeline-orange-graph-stroke)', miniCurve: 'rgba(249, 115, 22, 0.25)' },
 };
 
 /* ── Timeline props ── */
