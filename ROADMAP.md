@@ -4,10 +4,10 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Animation Phase 4: Network3D slim-composer refactor + segment-evaluator unification + bloom**
-  - Extract hooks and modules from `Network3D.tsx` (1994 lines → ≤800 target).
-  - Unify three Hermite call sites onto a single segment evaluator (`segmentEvaluate.ts`).
-  - Add EffectComposer pipeline (spike-gated) for bloom/post-processing.
+- **Animation Phase 4.1.5: Segment-evaluator unification (next)**
+  - Consolidate three Hermite call sites (`evaluateTracks` worker, camera keyframes, GraphEditor draw) onto a single `animation/segmentEvaluate.ts`.
+- **Animation Phase 4.2: Visual effects pipeline (spike-gated)**
+  - EffectComposer + UnrealBloomPass; add `Effekte` section to Visual tab; keyframeable bloom intensity.
 
 ## Planned
 
@@ -45,3 +45,5 @@ This document outlines the current status of features, planned work, and known t
   - Pulse parameter removed (superseded by LFO on repulsion/linkDistance).
 - **Pre-Phase 4: Simulation stability & render budget**
   - RAF leak fix, GPU teardown, modulation-aware physics wake, allocation hygiene, spatial grid typed-array, 2D overlap gating.
+- **Animation Phase 4.1: Network3D slim-composer extraction**
+  - `Network3D.tsx` 1760 → 1198 lines (−32%). Logic now lives in `network3d/` (`textureCache`, `syncVisuals`, `workerGlue`) and `hooks/` (`useResizeObserver`, `useRaycastHover`, `useCameraFlyTo`, `usePhysicsWorkerSync`).
