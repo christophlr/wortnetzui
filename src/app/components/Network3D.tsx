@@ -493,6 +493,46 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (isPlaying) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
   }, [isPlaying]);
 
+  // Component-scoped helpers — defined here so the hooks below can capture them.
+  const getTextureOpts = (): TextureBuildOptions => ({
+    dark: !!isDarkRef.current,
+    nodeShape: styleSettingsRef.current.nodeShape ?? 'rectangle',
+    nodeBorderWidth: styleSettingsRef.current.nodeBorderWidth ?? 2,
+  });
+
+  const swap = (node: GraphNode, highlighted: boolean, selected: boolean) =>
+    swapSpriteTextureImpl(node, highlighted, selected, textureCacheRef.current, getTextureOpts());
+
+  const rebuildAndRefreshTextures = () => {
+    disposeTextureCache(textureCacheRef.current);
+    textureCacheRef.current = buildTextureCache(graphNodesRef.current, getTextureOpts());
+    refreshAllSpriteTextures(
+      graphNodesRef.current,
+      textureCacheRef.current,
+      hoveredNodeRef.current?.label ?? null,
+      selectedNodeRef.current?.label ?? null,
+      styleSettingsRef.current,
+      minWordsRef.current,
+      maxWordsRef.current,
+      getTextureOpts(),
+    );
+  };
+
+  const sync = (
+    nodeArr?: GraphNode[],
+    vsOverride?: typeof visualSettings,
+    ssOverride?: typeof styleSettings,
+  ) => syncGraphVisuals({
+    nodes: graphNodesRef.current,
+    edges: graphEdgesRef.current,
+    nodeArr,
+    visualSettings: vsOverride ?? visualSettingsRef.current,
+    styleSettings: ssOverride ?? styleSettingsRef.current,
+    camera: cameraRef.current,
+    mousePos: mousePosRef.current,
+    edgeLines: edgeLinesRef.current,
+  });
+
   const handleResize = useCallback((nw: number, nh: number) => {
     const camera = cameraRef.current;
     const renderer = rendererRef.current;
@@ -570,51 +610,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
 
 
-  const sync = (
-    nodeArr?: GraphNode[],
-    vsOverride?: typeof visualSettings,
-    ssOverride?: typeof styleSettings,
-  ) => syncGraphVisuals({
-    nodes: graphNodesRef.current,
-    edges: graphEdgesRef.current,
-    nodeArr,
-    visualSettings: vsOverride ?? visualSettingsRef.current,
-    styleSettings: ssOverride ?? styleSettingsRef.current,
-    camera: cameraRef.current,
-    mousePos: mousePosRef.current,
-    edgeLines: edgeLinesRef.current,
-  });
-
   // Immediate sync when visual/style settings change
   useEffect(() => {
     if (graphNodesRef.current) {
       sync(undefined, visualSettings, styleSettings);
     }
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const getTextureOpts = (): TextureBuildOptions => ({
-    dark: !!isDarkRef.current,
-    nodeShape: styleSettingsRef.current.nodeShape ?? 'rectangle',
-    nodeBorderWidth: styleSettingsRef.current.nodeBorderWidth ?? 2,
-  });
-
-  const swap = (node: GraphNode, highlighted: boolean, selected: boolean) =>
-    swapSpriteTextureImpl(node, highlighted, selected, textureCacheRef.current, getTextureOpts());
-
-  const rebuildAndRefreshTextures = () => {
-    disposeTextureCache(textureCacheRef.current);
-    textureCacheRef.current = buildTextureCache(graphNodesRef.current, getTextureOpts());
-    refreshAllSpriteTextures(
-      graphNodesRef.current,
-      textureCacheRef.current,
-      hoveredNodeRef.current?.label ?? null,
-      selectedNodeRef.current?.label ?? null,
-      styleSettingsRef.current,
-      minWordsRef.current,
-      maxWordsRef.current,
-      getTextureOpts(),
-    );
-  };
 
   const applyCameraKeyframes = (
     keyframes: Array<{
