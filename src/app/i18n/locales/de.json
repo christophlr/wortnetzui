@@ -289,5 +289,15 @@
       "webglTip":    "Tipp: Schließen Sie andere Tabs mit 3D-Inhalten oder Grafik-Anwendungen, um WebGL-Ressourcen freizugeben.",
       "reload":      "Anwendung neu laden"
     }
+  },
+  "network3d": {
+    "camera": {
+      "locked": "Kamera gesperrt",
+      "unlock": "Entsperren"
+    },
+    "contextMenu": {
+      "centerView": "Ansicht zentrieren",
+      "lockCamera": "Kamera auf Knoten sperren"
+    }
   }
 }

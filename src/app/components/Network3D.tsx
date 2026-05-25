@@ -18,6 +18,7 @@ import {
 } from './ui/context-menu';
 
 import type { PhysicsKeyframe } from './timeline/types';
+import i18n from '../i18n';
 
 
 const _colorA = new THREE.Color();
@@ -1931,7 +1932,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         {cameraLocked && (
           <div className="absolute top-4 right-4 z-20 bg-wn-accent/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-2 shadow-lg animate-in slide-in-from-top-4 duration-300">
             <Lock className="w-3 h-3" />
-            CAMERA LOCKED
+            {i18n.t('network3d.camera.locked')}
             <button 
               className="ml-1 hover:bg-white/20 rounded px-1 transition-colors"
               onClick={() => {
@@ -1939,7 +1940,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
                 lockedNodeRef.current = null;
               }}
             >
-              UNLOCK
+              {i18n.t('network3d.camera.unlock')}
             </button>
           </div>
         )}
@@ -1956,7 +1957,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
             }}
           >
             <Crosshair className="w-3.5 h-3.5 mr-2" />
-            Center View
+            {i18n.t('network3d.contextMenu.centerView')}
           </ContextMenuItem>
           <ContextMenuItem
             onClick={() => {
@@ -1983,7 +1984,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
             }}
           >
             <Lock className="w-3.5 h-3.5 mr-2" />
-            Lock Camera to Node
+            {i18n.t('network3d.contextMenu.lockCamera')}
           </ContextMenuItem>
         </ContextMenuContent>
       )}

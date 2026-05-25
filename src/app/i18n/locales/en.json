@@ -289,5 +289,15 @@
       "webglTip":    "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
       "reload":      "Reload application"
     }
+  },
+  "network3d": {
+    "camera": {
+      "locked": "Camera locked",
+      "unlock": "Unlock"
+    },
+    "contextMenu": {
+      "centerView": "Center view",
+      "lockCamera": "Lock camera to node"
+    }
   }
 }
