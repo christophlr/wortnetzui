@@ -204,7 +204,8 @@
       "keyframes":    "Keyframes",
       "physics":      "Physics",
       "arm":          "Arm track",
-      "armed":        "Armed — will be recorded"
+      "armed":        "Armed — will be recorded",
+      "tuning":       "Track tuning"
     },
     "glide": {
       "label":       "Glide",

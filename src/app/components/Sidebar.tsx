@@ -48,6 +48,7 @@ interface SidebarProps {
   onTogglePhysicsKeyframe: (track: string, val: number) => void;
   trackMeta?: Record<string, TrackMeta>;
   onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
+  onSetTrackGlide?: (trackId: string, seconds: number) => void;
   viewMode: '2D' | '3D';
   onDeleteKeyframe: (time: number) => void;
   onCollapse?: () => void;
@@ -83,7 +84,7 @@ export function Sidebar({
   onPhysicsChange, onTextChange, inputText = "", parseMode, onParsingChange,
   onStyleChange, onEdgeAppearanceChange,
   canvasAspectRatio = 'full', onCanvasAspectRatioChange, effectivePhysicsParams,
-  currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe, trackMeta, onSetTrackModulator,
+  currentTime, cameraKeyframes, physicsKeyframes, onTogglePhysicsKeyframe, trackMeta, onSetTrackModulator, onSetTrackGlide,
   viewMode, onDeleteKeyframe, onCollapse, isSidebarOpen = true, onToggleSidebar,
   onPanView, onRotateView, onSetRotation, onResetView, styleSettings,
   onZoomChange, zoomValue,
@@ -218,6 +219,7 @@ export function Sidebar({
                 onTogglePhysicsKeyframe={onTogglePhysicsKeyframe}
                 trackMeta={trackMeta}
                 onSetTrackModulator={onSetTrackModulator}
+                onSetTrackGlide={onSetTrackGlide}
               />
             )}
 

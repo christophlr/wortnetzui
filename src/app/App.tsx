@@ -129,6 +129,7 @@ export default function App() {
               effectivePhysicsParams={wn.physicsParams}
               trackMeta={wn.trackMeta}
               onSetTrackModulator={wn.handleSetTrackModulator}
+              onSetTrackGlide={wn.handleSetTrackGlide}
               canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
             currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}
             physicsKeyframes={wn.physicsKeyframes} onTogglePhysicsKeyframe={wn.handleTogglePhysicsKeyframe}

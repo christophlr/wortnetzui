@@ -204,7 +204,8 @@
       "keyframes":    "Keyframes",
       "physics":      "Physik",
       "arm":          "Spur scharfschalten",
-      "armed":        "Scharfgeschaltet — wird bei Aufnahme aufgezeichnet"
+      "armed":        "Scharfgeschaltet — wird bei Aufnahme aufgezeichnet",
+      "tuning":       "Spureinstellungen"
     },
     "glide": {
       "label":       "Glide",

@@ -11,6 +11,9 @@ import { useT } from '../../../i18n/useT';
 import type { TrackMeta } from '../../../animation/Track';
 import type { Modulator } from '../../../animation/Modulator';
 
+const GLIDE_MAX_S = 5;
+const GLIDE_STEP_S = 0.05;
+
 interface PhysicsParam {
   id: string;
   /** i18n key under `sidebar.tab.physics.param.<paramKey>`. */
@@ -36,6 +39,7 @@ export function PhysicsTab({
   onTogglePhysicsKeyframe,
   trackMeta,
   onSetTrackModulator,
+  onSetTrackGlide,
 }: {
   effectivePhysicsParams?: any;
   physKfActive: Record<string, boolean>;
@@ -43,6 +47,7 @@ export function PhysicsTab({
   onTogglePhysicsKeyframe: (id: string, value: number) => void;
   trackMeta?: Record<string, TrackMeta>;
   onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
+  onSetTrackGlide?: (trackId: string, seconds: number) => void;
 }) {
   const { t } = useT();
 
@@ -100,9 +105,9 @@ export function PhysicsTab({
                       <Popover>
                         <PopoverTrigger asChild>
                           <SidebarModulatorButton
-                            active={modulator !== null}
-                            title={t('timeline.lfo.title')}
-                            aria-label={t('timeline.lfo.title')}
+                            active={modulator !== null || (trackMeta?.[p.id]?.glide ?? 0) > 0}
+                            title={t('timeline.track.tuning')}
+                            aria-label={t('timeline.track.tuning')}
                           />
                         </PopoverTrigger>
                         <PopoverContent
@@ -112,9 +117,22 @@ export function PhysicsTab({
                         >
                           <div className="space-y-3">
                             <div className="text-[11px] font-semibold text-foreground">
-                              {t('timeline.lfo.title')}
+                              {t('timeline.track.tuning')}
                             </div>
                             <div className="space-y-4">
+                              {onSetTrackGlide ? (
+                                <SidebarScrubberRow
+                                  label={t('timeline.glide.label')}
+                                  value={trackMeta?.[p.id]?.glide ?? 0}
+                                  min={0}
+                                  max={GLIDE_MAX_S}
+                                  step={GLIDE_STEP_S}
+                                  format={(v) => `${v.toFixed(2)} ${t('timeline.glide.unit')}`}
+                                  onValueChange={(v) => onSetTrackGlide(p.id, v)}
+                                  onCommit={(v) => onSetTrackGlide(p.id, Math.max(0, v))}
+                                  description={t('timeline.glide.description')}
+                                />
+                              ) : null}
                               <LfoControlsBody
                                 paramKey={p.paramKey}
                                 trackId={p.id}
