@@ -24,14 +24,11 @@ import { syncGraphVisuals } from '../network3d/syncVisuals';
 import {
   buildInitPayload,
   buildSettlePayload,
-  packStepBuffer,
-  unpackStepBuffer,
-  unpackSettleBuffer,
-  applyOverlapSeparation,
 } from '../network3d/workerGlue';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useRaycastHover } from '../hooks/useRaycastHover';
 import { useCameraFlyTo } from '../hooks/useCameraFlyTo';
+import { usePhysicsWorkerSync } from '../hooks/usePhysicsWorkerSync';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -533,6 +530,32 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     edgeLines: edgeLinesRef.current,
   });
 
+  const physicsSync = usePhysicsWorkerSync({
+    graphNodeArrayRef,
+    workerPosVelRef,
+    effectivePhysicsRef,
+    physicsParamsRef,
+    playheadRef,
+    isPlayingRef,
+    hasAnyKfsRef,
+    hasAnyModulatorRef,
+    prevMaxOverlapRef,
+    stillFramesRef,
+    physicsEnabledRef,
+    workerBusyRef,
+    physicsVelocityRef,
+    lastStepNowRef,
+    lastParamsTimeRef,
+    lastParamsValuesRef,
+    sync,
+    onSettled: () => {
+      fitToView(true);
+      if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
+      requestAnimationFrame(() => onReadyRef.current?.());
+    },
+    onProgress: (p) => onProgressRef.current?.(p),
+  });
+
   const handleResize = useCallback((nw: number, nh: number) => {
     const camera = cameraRef.current;
     const renderer = rendererRef.current;
@@ -838,68 +861,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       worker.postMessage(settle, [settle.posVel.buffer]);
     }
 
-    worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number; applied?: PhysicsParams }>) => {
-      if (e.data.type === 'settle_progress') {
-        const { progress } = e.data;
-        if (progress !== undefined) {
-          onProgressRef.current?.(progress);
-        }
-        return;
-      }
-
-      if (e.data.type === 'settled') {
-        const { posVel } = e.data;
-        if (!posVel) return;
-        const arr = graphNodeArrayRef.current;
-        unpackSettleBuffer(posVel, arr);
-        workerPosVelRef.current = posVel;
-        sync(arr);
-        fitToView(true);
-        if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
-        requestAnimationFrame(() => onReadyRef.current?.());
-        return;
-      }
-
-      // ── STEP response ──
-      const { posVel, avgMovement, applied } = e.data;
-      if (!posVel || avgMovement === undefined) return;
-      if (applied) {
-        // Worker is authoritative for `applied`; surfaces it back so the main
-        // thread can drive jolt velocity, recording, and external consumers
-        // via `getEffectivePhysicsParams()`.
-        effectivePhysicsRef.current = applied;
-      }
-      const arr = graphNodeArrayRef.current;
-      unpackStepBuffer(posVel, arr);
-
-      // Reclaim the transferred buffer for reuse on the next step
-      workerPosVelRef.current = posVel;
-
-      // 2D sprite-based overlap separation (must run on main thread — reads sprite scales)
-      const maxOverlap = (is2D && (avgMovement > 0.5 || prevMaxOverlapRef.current > 0))
-        ? applyOverlapSeparation(arr)
-        : 0;
-      prevMaxOverlapRef.current = maxOverlap;
-
-      const hasActiveModulationLoc = (isPlayingRef.current && hasAnyKfsRef.current) || hasAnyModulatorRef.current;
-      if (avgMovement > 0.05 || maxOverlap > 0 || hasActiveModulationLoc) {
-        sync(arr);
-      }
-
-      // Auto-stop heuristic
-      const curParams = effectivePhysicsRef.current;
-      const hasActiveModulation = (isPlayingRef.current && hasAnyKfsRef.current) || hasAnyModulatorRef.current;
-      if (curParams.turbulence > 0 || maxOverlap > 1 || hasActiveModulation) {
-        stillFramesRef.current = 0;
-      } else if (avgMovement < 0.5) {
-        stillFramesRef.current++;
-        if (stillFramesRef.current > 60) physicsEnabledRef.current = false;
-      } else {
-        stillFramesRef.current = 0;
-      }
-
-      workerBusyRef.current = false;
-    };
+    worker.onmessage = (e) => physicsSync.handleMessage(e, is2D);
 
     // Create edges — single merged LineSegments (1 draw call for all edges)
     const edgeColor = edgeAppearance.color !== 'auto' 
@@ -971,68 +933,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         if (hasKfs || hasModulator) { physicsEnabledRef.current = true; stillFramesRef.current = 0; }
       }
 
-      // Dispatch a physics step to the worker when idle — result arrives in worker.onmessage
-      if (delta < 5 && physicsEnabledRef.current && !workerBusyRef.current) {
-        // The worker is now authoritative for keyframe/glide/LFO evaluation.
-        // Main thread tracks parameter-change velocity from the previous frame's
-        // `applied` to drive the jolt overrides — both are layered on top
-        // of `applied` via `paramOverrides` so the worker stays a pure evaluator.
-        const lastApplied = effectivePhysicsRef.current;
-
-        const now = performance.now();
-        const dtMs = Math.max(1, now - lastParamsTimeRef.current);
-        const prev = lastParamsValuesRef.current;
-
-        const dRep = Math.abs(lastApplied.repulsion - prev.repulsion) / 1000;
-        const dSpr = Math.abs(lastApplied.springK - prev.springK) * 20;
-        const dDmp = Math.abs(lastApplied.damping - prev.damping) * 20;
-        const dSpd = Math.abs(lastApplied.minSpeed - prev.minSpeed);
-        const dLnk = Math.abs(lastApplied.linkDistance - prev.linkDistance) / 100;
-        const dGrv = Math.abs(lastApplied.gravity - prev.gravity) / 5;
-        const dTrb = Math.abs((lastApplied.turbulence ?? 0) - (prev.turbulence ?? 0)) / 5;
-        const dVto = Math.abs((lastApplied.verticalOrder ?? 0) - (prev.verticalOrder ?? 0)) / 2;
-        const velocity = (dRep + dSpr + dDmp + dSpd + dLnk + dGrv + dTrb + dVto) / dtMs;
-
-        // Keep jolt tracking velocity from worker-applied values, not sidebar state.
-        if (!isPlayingRef.current) {
-          physicsVelocityRef.current = Math.min(1.0, (physicsVelocityRef.current || 0) + velocity * 150);
-        } else {
-          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.8;
-        }
-
-        lastParamsTimeRef.current = now;
-        Object.assign(lastParamsValuesRef.current, lastApplied);
-
-        // Jolt damping floor become per-frame param overrides.
-        const paramOverrides: Partial<PhysicsParams> = {};
-        if ((physicsVelocityRef.current || 0) > 0.01) {
-          const jolt = physicsVelocityRef.current || 0;
-          const targetDamping = Math.max(lastApplied.damping, 0.92);
-          paramOverrides.damping = lastApplied.damping + (targetDamping - lastApplied.damping) * Math.min(1, jolt * 1.5);
-          physicsVelocityRef.current = (physicsVelocityRef.current || 0) * 0.80;
-        }
-
-        // dt for the worker's glide integrator (seconds since last step, clamped).
-        const dtSeconds = Math.min(0.1, Math.max(0.001, (now - lastStepNowRef.current) / 1000));
-        lastStepNowRef.current = now;
-
-        // Pack current positions + velocities into the reusable buffer and transfer to worker
-        const pv = workerPosVelRef.current;
-        packStepBuffer(pv, graphNodeArrayRef.current);
-        workerBusyRef.current = true;
-        physicsWorkerRef.current!.postMessage(
-          {
-            type: 'step',
-            posVel: pv,
-            time: playheadRef.current,
-            dt: dtSeconds,
-            sliderParams: physicsParamsRef.current,
-            paramOverrides: Object.keys(paramOverrides).length > 0 ? paramOverrides : undefined,
-            is2D,
-          },
-          [pv.buffer],
-        );
-      }
+      physicsSync.dispatchStep(worker, is2D, delta);
 
       if (!is2D) {
         // Camera keyframe animation (3D only)
