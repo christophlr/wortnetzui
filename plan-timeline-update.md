@@ -2,7 +2,7 @@
 
 > **Amendment log** — REMEDY-TL-2026-05-18: Applied Tier B blueprint amendments (B-MANDATE, B-FREEZE, B-PHASE1, B-WORKER, B-PHASE4-REFS, B-PHASE4-BLOOM, B-PHASE5-OVERRIDE, B-TEST-GATE, B-WORTNETZ) plus four adversarial-review corrections (jolt mechanism, sidebar blend regression, B-FREEZE scope, null-guard canonicalisation). Phase 0 remediation must complete before any Phase 2+ work resumes.
 >
-> **Doc status (2026-05-19)** — Phases 1, 2, and 3 are implemented (Phase 3 *except* the Glide timeline UI — see §3.6, design pending). The Context block below is a **historical audit snapshot** taken pre-Phase 1; many of the listed bugs are now fixed in code. The next active section is **Pre-Phase 4** (operational stabilisation), followed by Phase 4 (slim-composer extraction + segment-evaluator unification + bloom).
+> **Doc status (2026-05-25)** — Phases 1, 2, 3, and Pre-Phase 4 are implemented. The Context block below is a **historical audit snapshot** taken pre-Phase 1; many of the listed bugs are now fixed in code. The next active section is **Phase 4** (slim-composer extraction + segment-evaluator unification + bloom).
 
 ## Context
 
@@ -498,7 +498,9 @@ Extract pure modules (Haiku-tier each — pure code moves):
 - `network3d/syncVisuals.ts` — `syncGraphVisuals` body + dependents.
 - *Camera Hermite* extraction goes via Phase 4.1.5, not into `network3d/keyframeInterpolation.ts`. The intermediate filename is intentionally avoided so segment math doesn't briefly live under `network3d/` before moving again.
 
-Remove dead code (Haiku-tier): `applyingKeyframe` (set never read), `frameCount` (incremented never read), commented gizmo block.
+Remove dead code (Haiku-tier): `frameCount` (incremented never read), commented gizmo block.
+
+**Note:** `applyingKeyframe` is **not dead code** despite earlier audit claims — it is a local variable inside the setup effect that gates `onCameraChangeRef.current?.()` during programmatic camera moves via `applyCameraKeyframes`, preventing infinite feedback loops. Do not delete.
 
 **Line gate:** Network3D.tsx ≤800 lines OR ≤400 lines with logic in `src/app/network3d/*` — enforced by import graph review, not `wc -l` alone.
 

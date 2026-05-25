@@ -1,39 +1,47 @@
 # Wortnetze — Roadmap
 
-This document outlines the current status of features, planned work, and known technical debt.
+This document outlines the current status of features, planned work, and known technical debt. For the detailed implementation plan, see `plan-timeline-update.md`.
 
 ## Active
 
-- **Phase 5: Documentation overhaul & cleanup**
-  - Rewriting standing orders, style guides, and architecture documentation to reflect the post-Phase-4 atomic structure.
-  - Deleting orphaned files, lockfile cleanup, and auditing unused UI components.
+- **Animation Phase 4: Network3D slim-composer refactor + segment-evaluator unification + bloom**
+  - Extract hooks and modules from `Network3D.tsx` (1994 lines → ≤800 target).
+  - Unify three Hermite call sites onto a single segment evaluator (`segmentEvaluate.ts`).
+  - Add EffectComposer pipeline (spike-gated) for bloom/post-processing.
 
 ## Planned
 
-- **Phase 6 / Future Work**
-  - **Auto-Detect Language Activation**: Enable the browser language detector feature behind an opt-in toggle so that the application can automatically select between English and German.
-  - **App.tsx Size Reduction**: Achieve the stretch goal of `wc -l src/app/App.tsx ≤ 100` by fully abstracting any remaining layout logic.
-  - **Shadcn Pruning**: Physically delete all unused Shadcn UI components from the codebase to reduce bloat.
+- **Animation Phase 5: Toolbar functionality**
+  - Wire `activeTool` to canvas event handlers (currently dead UI).
+  - Paint brush, navigation tools, glitch tool.
+- **Future / Phase 6**
+  - BPM / musical time, MIDI mapping, additional shader effects.
+  - Auto-detect language activation (browser language behind opt-in toggle).
 
 ## Known Gaps
 
-- **Timeline Context Menu Localization**: Ensure deeply nested context menus fully adopt the i18n keys instead of localized English strings.
-- **PathAnimatorUI**: Currently relies on legacy class structures. While not immediately planned for an atom pack, it remains an outlier from the global style system.
-- **Component File Overrides**: We must ensure that absolutely no tabs or surfaces are overriding atom class names.
+- **Timeline COLOR map**: `dot`, `border`, `trackBg` fields still use raw Tailwind strings (migration to CSS vars in progress).
+- **Network3D i18n**: Context menu and camera-lock UI have hardcoded English strings (fix in progress).
+- **Zombie timeline atoms**: `TrackValueChip`, `TrackKeyframeToggle` exported but unwired in `TimelineTracks.tsx`.
+- **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle.
+- **Glide UI**: Worker-side glide works but no timeline UI surfaces it (design pending per §3.6).
+- **PathAnimatorUI**: Relies on legacy structures, not yet on the atomic pattern.
 
 ## Completed
 
-- **Phase 1: Rename & Hierarchy Fix**
-  - Replaced the old "Inspector" with "Sidebar".
-  - Standardized the component cascade (`SidebarSection` → `SidebarGroup` → `SidebarRow`).
-- **Phase 2: Atomic Composition & Shell**
-  - Successfully moved all five sidebar tabs onto the `SidebarAtoms` foundation.
-  - Implemented semantic `--wn-*` CSS variables to remove hardcoded hex and Tailwind color strings.
-  - Abstracted the main window layout into `AppShell`, `AppCanvas`, and `AppSidebar`.
-- **Phase 3: Extended Atom Packs**
-  - Built atomic components for the TopBar, Toolbar, Timeline, Preview, and Dialogs.
-  - Executed a global sweep to remove remaining legacy color variables.
-- **Phase 4: Internationalization (i18n)**
-  - Replaced all hardcoded German UI text with `i18next` translation keys.
-  - Established English as the code source-of-truth and German as the displayed default.
-  - Created a language switcher in the TopBar and persisted user preference.
+- **Sidebar Refactor (Phases 1–4)**
+  - Renamed Inspector → Sidebar, standardised cascade (`SidebarSection` → `SidebarGroup` → `SidebarRow`).
+  - Atomic composition across all 5 tabs, semantic `--wn-*` CSS variables.
+  - Shell extraction (`AppShell`, `AppCanvas`, `AppSidebar`), extended atom packs (TopBar, Toolbar, Timeline, Preview, Dialogs).
+  - Full i18n with `i18next` (English source-of-truth, German default).
+- **Animation Phase 1: Timeline correctness + atomization**
+  - Unified undo via `useUndoStack.ts`, fixed history commit gaps, disabled recording (later rebuilt in Phase 3).
+  - Expanded `TimelineAtoms.tsx`, partial hardcoded color sweep (marker/playhead/recording tokens done).
+- **Animation Phase 2: Timeline interaction parity**
+  - Arrow-key nudge, Cmd-A select all, Esc cancel drag, drag-to-pan, drag delta chip, track reset, context menu expansion, scene marker bulk-keyframe action.
+- **Animation Phase 3: Worker-owned animation + Glide + LFO + Recording v2**
+  - Single clock for param signals inside physics worker. Main thread: UI, render, message I/O.
+  - Per-track LFO modulators, `Recorder.ts` sampling worker `appliedParams` at 30 Hz, per-track arm toggles.
+  - Pulse parameter removed (superseded by LFO on repulsion/linkDistance).
+- **Pre-Phase 4: Simulation stability & render budget**
+  - RAF leak fix, GPU teardown, modulation-aware physics wake, allocation hygiene, spatial grid typed-array, 2D overlap gating.

@@ -54,9 +54,9 @@ The global state is divided into logical slices inside the context provider.
 - `timeline`: Playback state, current time, duration.
 - `tracks` & `keyframes`: The actual animation data.
 
-### 2.2 Undo/Redo (`useTimelineHistory`)
-- **Scope**: Tracks timeline state only (camera keyframes, physics keyframes, scene markers). It does not track text input or global visual settings.
-- **Implementation**: Uses a capped stack (max 50) of serialized state snapshots. It implements a debounced commit strategy to group rapid changes (like scrubbing a value).
+### 2.2 Undo/Redo (`useUndoStack`)
+- **Scope**: Tracks timeline state: camera keyframes, physics keyframes, scene markers, and track metadata (glide, modulators). Does not track text input or global visual settings.
+- **Implementation**: Capped stack (max 30) of `structuredClone` snapshots. Drag gestures are bracketed via `preDragStateRef` / `handleDragStart` / `handleDragEnd` so each gesture commits exactly once. High-frequency slider mutations use `pushDebounced(ms)` (setTimeout-based coalescing) to avoid stack flooding.
 
 ### 2.3 Save/Load (`useWorkspaceIO`)
 - **Serialization**: Packages the current text, settings, layout mode, and all keyframe data into a unified JSON structure (`.wortnetz` file).

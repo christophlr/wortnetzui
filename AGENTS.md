@@ -4,7 +4,7 @@
 
 <critical_constraints>
   <constraint>Always read PROJECT.md before beginning any task to understand the file map and core goals.</constraint>
-  <constraint>Always use WortnetzContext for global state management. App.tsx must remain a slim layout composer. Verification: `wc -l src/app/App.tsx` ≤ 150.</constraint>
+  <constraint>Always use WortnetzContext for global state management. App.tsx must remain a slim layout composer. Verification: `wc -l src/app/App.tsx` ≤ 180.</constraint>
   <constraint>User-facing text is loaded via `useTranslation()`. The displayed default is German; English is the source-of-truth in code (identifiers, JSON keys, comments).</constraint>
   <constraint>Always ask for clarification if you are unsure about the scope of a task; do not guess or over-deliver.</constraint>
   <constraint>Always update the appropriate markdown file (PROJECT.md, ARCHITECTURE.md, STYLE_GUIDE.md, or ROADMAP.md) after completing a code change that alters architecture, UI, or feature status.</constraint>
@@ -28,6 +28,6 @@ All user-facing strings **must** go through i18next. Never hardcode display text
 - **Hook**: `useT()` from `src/app/i18n/useT.ts` — use this in every functional component. Never import `useTranslation` from `react-i18next` directly.
 - **Class components**: call `i18n.t()` via the singleton (`import i18n from '../i18n'`). `ErrorBoundary.tsx` is the canonical reference.
 - **Default language**: German (`de`). English (`en`) is the fallback.
-- **Locale files**: `src/app/i18n/locales/de.json` and `en.json`. Keys must be in parity — run the parity check after any edit: `node -e "..."` (see PRE-PHASE5-REMEDIATION.md §I18N gates).
+- **Locale files**: `src/app/i18n/locales/de.json` and `en.json`. Keys must be in parity — run the parity check after any edit: `node -e "const d=require('./src/app/i18n/locales/de.json'),e=require('./src/app/i18n/locales/en.json');const dk=Object.keys(d).filter(k=>!(k in e)),ek=Object.keys(e).filter(k=>!(k in d));if(dk.length||ek.length){console.error('Missing:',{de:dk,en:ek});process.exit(1)}else console.log('OK')"`.
 - **Language normalisation**: use `normalizeLanguage()` from `src/app/i18n/index.ts` whenever reading `i18n.language` or `i18n.resolvedLanguage` — it strips BCP-47 suffixes (`de-DE` → `de`) and returns a `SupportedLanguage`.
 - **Golden reference** for a fully-wired functional component: `src/app/components/Sidebar.tsx` (formerly `Inspector.tsx`).

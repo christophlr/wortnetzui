@@ -37,8 +37,10 @@ The aesthetic target is a professional creative application (Figma / After Effec
 | `.github/prompts/sidebar-violations-review.prompt.md` | Slash prompt that outputs only sidebar violations and acceptance checklist status. |
 | `.github/skills/sidebar-patch-summary/SKILL.md` | Skill for per-file before/after sidebar refactor patch summaries. |
 | `graph/` | N-gram extraction (`parsing.ts`) and off-thread physics (`physics.worker.ts`). |
+| `animation/` | Animation engine: `evaluateTracks.ts`, `interpolatePhysicsParam.ts`, `Track.ts`, `Modulator.ts`, `Recorder.ts`. |
+| `context/WortnetzContextTypes.ts` | Type definitions for the global context (split from `WortnetzContext.tsx`). |
+| `context/WortnetzContextConstants.ts` | Constants and param-to-track mappings used by the context. |
 | `networkTheme.ts` & `constants.ts` | 3D scene colour tokens and global constants. |
-| `PRE-PHASE5-REMEDIATION.md` | Pre-phase 5 remediation plan tracking the audit and remediation steps. |
 
 ## Reverse Index
 
