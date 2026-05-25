@@ -21,6 +21,14 @@ import {
   getDepthFactor,
 } from '../network3d/textureCache';
 import { syncGraphVisuals } from '../network3d/syncVisuals';
+import {
+  buildInitPayload,
+  buildSettlePayload,
+  packStepBuffer,
+  unpackStepBuffer,
+  unpackSettleBuffer,
+  applyOverlapSeparation,
+} from '../network3d/workerGlue';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useRaycastHover } from '../hooks/useRaycastHover';
 import { useCameraFlyTo } from '../hooks/useCameraFlyTo';
@@ -813,44 +821,20 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const nodeArr = physCache.nodeArray;
     const nodeCount = nodeArr.length;
 
-    // Map node labels to stable indices for edge encoding
-    const labelToIdx = new Map<string, number>();
-    nodeArr.forEach((node, i) => labelToIdx.set(node.label, i));
-
-    const edgeIdxArr = new Int32Array(edges.length * 2);
-    edges.forEach((edge, ei) => {
-      edgeIdxArr[ei * 2]     = labelToIdx.get(edge.a.label)!;
-      edgeIdxArr[ei * 2 + 1] = labelToIdx.get(edge.b.label)!;
-    });
-
-    const wordCountArr = new Int32Array(nodeArr.map(n => n.wordCount));
-    const spm = physCache.sharedPairMatrix;
-
     // Reusable position+velocity buffer (transferred back and forth — zero GC)
     workerPosVelRef.current = new Float64Array(nodeCount * 6);
 
     const worker = new Worker(new URL('../graph/physics.worker.ts', import.meta.url), { type: 'module' });
     physicsWorkerRef.current = worker;
 
-    worker.postMessage(
-      { type: 'init', edgeIndices: edgeIdxArr, wordCounts: wordCountArr, sharedPairMatrix: spm, nodeCount },
-    );
+    worker.postMessage(buildInitPayload(nodeArr, edges, physCache.sharedPairMatrix));
 
     if (!is2D) {
-      // 3D settle: hand initial node positions to the worker so it can run up to 500
-      // physics iterations off the main thread. The loading overlay covers the initial
-      // unsettled state until the worker reports back.
-      const settleBuffer = new Float64Array(nodeCount * 6);
-      nodeArr.forEach((node, i) => {
-        settleBuffer[i * 6]     = node.x;
-        settleBuffer[i * 6 + 1] = node.y;
-        settleBuffer[i * 6 + 2] = node.z;
-        // vx/vy/vz stay 0
-      });
-      worker.postMessage(
-        { type: 'settle', posVel: settleBuffer, params: DEFAULT_PHYSICS, maxIterations: 500 },
-        [settleBuffer.buffer],
-      );
+      // 3D settle: run up to 500 physics iterations off the main thread.
+      // The loading overlay covers the initial unsettled state until the
+      // worker reports back.
+      const settle = buildSettlePayload(nodeArr, DEFAULT_PHYSICS, 500);
+      worker.postMessage(settle, [settle.posVel.buffer]);
     }
 
     worker.onmessage = (e: MessageEvent<{ type: string; posVel?: Float64Array; avgMovement?: number; progress?: number; applied?: PhysicsParams }>) => {
@@ -866,12 +850,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const { posVel } = e.data;
         if (!posVel) return;
         const arr = graphNodeArrayRef.current;
-        // Write settled positions back and reveal the scene
-        for (let i = 0; i < arr.length; i++) {
-          const b = i * 6;
-          arr[i].x = posVel[b]; arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
-          arr[i].vx = 0; arr[i].vy = 0; arr[i].vz = 0;
-        }
+        unpackSettleBuffer(posVel, arr);
         workerPosVelRef.current = posVel;
         sync(arr);
         fitToView(true);
@@ -890,41 +869,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         effectivePhysicsRef.current = applied;
       }
       const arr = graphNodeArrayRef.current;
-      for (let i = 0; i < arr.length; i++) {
-        const b = i * 6;
-        arr[i].x = posVel[b];     arr[i].y = posVel[b + 1]; arr[i].z = posVel[b + 2];
-        arr[i].vx = posVel[b + 3]; arr[i].vy = posVel[b + 4]; arr[i].vz = posVel[b + 5];
-      }
+      unpackStepBuffer(posVel, arr);
 
       // Reclaim the transferred buffer for reuse on the next step
       workerPosVelRef.current = posVel;
 
       // 2D sprite-based overlap separation (must run on main thread — reads sprite scales)
-      let maxOverlap = 0;
-      if (is2D && (avgMovement > 0.5 || prevMaxOverlapRef.current > 0)) {
-        const n2 = arr.length;
-        const maxPasses = n2 > 300 ? 1 : (n2 > 150 ? 2 : 4);
-        for (let pass = 0; pass < maxPasses; pass++) {
-          for (let i = 0; i < n2; i++) {
-            for (let j = i + 1; j < n2; j++) {
-              const a = arr[i], b2 = arr[j];
-              const dx = a.x - b2.x, dy = a.y - b2.y;
-              const distSep = Math.sqrt(dx * dx + dy * dy) + 0.001;
-              const rA = a.textSprite ? (a.textSprite.scale.x + a.textSprite.scale.y) / 4 : 30;
-              const rB = b2.textSprite ? (b2.textSprite.scale.x + b2.textSprite.scale.y) / 4 : 30;
-              const minSep = rA + rB + 6;
-              if (distSep < minSep) {
-                const overlap = minSep - distSep;
-                if (overlap > maxOverlap) maxOverlap = overlap;
-                const push = overlap * 0.5 / distSep;
-                a.x += dx * push;   a.y += dy * push;
-                b2.x -= dx * push;  b2.y -= dy * push;
-              }
-            }
-          }
-        }
-      }
-
+      const maxOverlap = (is2D && (avgMovement > 0.5 || prevMaxOverlapRef.current > 0))
+        ? applyOverlapSeparation(arr)
+        : 0;
       prevMaxOverlapRef.current = maxOverlap;
 
       const hasActiveModulationLoc = (isPlayingRef.current && hasAnyKfsRef.current) || hasAnyModulatorRef.current;
@@ -1064,12 +1017,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
         // Pack current positions + velocities into the reusable buffer and transfer to worker
         const pv = workerPosVelRef.current;
-        const dispArr = graphNodeArrayRef.current;
-        for (let i = 0; i < dispArr.length; i++) {
-          const b = i * 6;
-          pv[b]     = dispArr[i].x;  pv[b + 1] = dispArr[i].y;  pv[b + 2] = dispArr[i].z;
-          pv[b + 3] = dispArr[i].vx; pv[b + 4] = dispArr[i].vy; pv[b + 5] = dispArr[i].vz;
-        }
+        packStepBuffer(pv, graphNodeArrayRef.current);
         workerBusyRef.current = true;
         physicsWorkerRef.current!.postMessage(
           {
