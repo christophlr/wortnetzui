@@ -23,6 +23,7 @@ import {
 import { syncGraphVisuals } from '../network3d/syncVisuals';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useRaycastHover } from '../hooks/useRaycastHover';
+import { useCameraFlyTo } from '../hooks/useCameraFlyTo';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -188,13 +189,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const hoveredNodeRef = useRef<GraphNode | null>(null);
   const selectedNodeRef = useRef<GraphNode | null>(null);
   const lockedNodeRef = useRef<GraphNode | null>(null);
-  const flyToTargetRef = useRef<THREE.Vector3 | null>(null);
   const zoomAnimRef = useRef<{ from: number; to: number; startTime: number; duration: number } | null>(null);
-  const cameraFlyRef = useRef<{
-    fromPos: THREE.Vector3; toPos: THREE.Vector3;
-    fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
-    startTime: number; duration: number;
-  } | null>(null);
+  const { cameraFlyRef, flyToTargetRef, tick: tickCameraFly } = useCameraFlyTo({ cameraRef, controlsRef });
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
   const mousePosRef = useRef(new THREE.Vector2(0, 0));
@@ -1111,25 +1107,10 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           if (t >= 1) zoomAnimRef.current = null;
         }
 
-        // Camera fly-to (gizmo double-click reset)
-        if (cameraFlyRef.current) {
-          const { fromPos, toPos, fromTarget, toTarget, startTime, duration } = cameraFlyRef.current;
-          const t = Math.min(1, (performance.now() - startTime) / duration);
-          const eased = 1 - Math.pow(1 - t, 3);
-          camera.position.lerpVectors(fromPos, toPos, eased);
-          controls.target.lerpVectors(fromTarget, toTarget, eased);
-          if (t >= 1) cameraFlyRef.current = null;
-        }
       }
 
-      // Smooth fly-to target (node center — works in both modes)
-      if (flyToTargetRef.current && controlsRef.current) {
-        controlsRef.current.target.lerp(flyToTargetRef.current, 0.08);
-        if (controlsRef.current.target.distanceTo(flyToTargetRef.current) < 0.5) {
-          controlsRef.current.target.copy(flyToTargetRef.current);
-          flyToTargetRef.current = null;
-        }
-      }
+      // Camera fly-to + smooth target lerp — handles both 3D fly and 2D target snap
+      tickCameraFly();
 
       // Locked camera: translate camera + target together to follow the node
       if (lockedNodeRef.current && controlsRef.current && !flyToTargetRef.current && !cameraFlyRef.current) {
