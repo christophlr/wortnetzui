@@ -7,7 +7,7 @@ import {
   COLOR, inferEasingType,
   type ViewWindow, type SceneMarker, type KeyframeInterpolation,
 } from './types';
-import { TrackLabel, SceneMarkerHandle, LfoBadge, TrackArmToggle } from './TimelineAtoms';
+import { TrackLabel, SceneMarkerHandle, LfoBadge, TrackArmToggle, TrackValueChip, TrackKeyframeToggle } from './TimelineAtoms';
 import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
 import { useT } from '../../i18n/useT';
 import { sameTime, withinSelection, withinSnap } from './timeUtils';
@@ -126,6 +126,8 @@ export function TrackRow({
   modulatorWaveform,
   isArmed,
   onToggleArm,
+  showValueAtPlayhead = false,
+  onToggleKeyframeAtPlayhead,
 }: {
   trackId: string;
   name: string;
@@ -150,6 +152,8 @@ export function TrackRow({
   modulatorWaveform?: 'sine' | 'triangle' | 'square' | null;
   isArmed?: boolean;
   onToggleArm?: () => void;
+  showValueAtPlayhead?: boolean;
+  onToggleKeyframeAtPlayhead?: (trackId: string, time: number, currentValue: number | null) => void;
 }) {
   const { t } = useT();
   const visibleDuration = viewWindow.end - viewWindow.start;
@@ -200,6 +204,41 @@ export function TrackRow({
     }
     return d;
   }, [keyframes, viewWindow, visibleDuration, showMiniCurve]);
+
+  // Interpolated value at the current playhead — used by TrackValueChip + the
+  // keyframe-toggle's "capture current value" path. Only meaningful for physics
+  // tracks (keyframes carry numeric `value`). Returns null when undefined.
+  const valueAtPlayhead = useMemo<number | null>(() => {
+    if (!showValueAtPlayhead || playheadTime === undefined || keyframes.length === 0) return null;
+    if (keyframes[0].value === undefined) return null;
+    const t = playheadTime;
+    if (t <= keyframes[0].time) return keyframes[0].value ?? null;
+    if (t >= keyframes[keyframes.length - 1].time) return keyframes[keyframes.length - 1].value ?? null;
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      const a = keyframes[i];
+      const b = keyframes[i + 1];
+      if (t < a.time || t > b.time) continue;
+      if (a.value === undefined || b.value === undefined) return null;
+      const segDur = b.time - a.time;
+      if (segDur <= 0) return a.value;
+      const tRaw = (t - a.time) / segDur;
+      if (a.interpolation === 'hold') return a.value;
+      if (a.interpolation === 'linear') return a.value + (b.value - a.value) * tRaw;
+      const tPrev = i > 0 ? keyframes[i - 1].time : null;
+      const vPrev = i > 0 ? (keyframes[i - 1].value ?? null) : null;
+      const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
+      const vNext = i + 2 < keyframes.length ? (keyframes[i + 2].value ?? null) : null;
+      const m0 = a.handleOut ?? (tPrev === null || vPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, a.value, b.time, b.value));
+      const m1 = b.handleIn ?? (tNext === null || vNext === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, tNext, vNext));
+      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
+    }
+    return null;
+  }, [keyframes, playheadTime, showValueAtPlayhead]);
+
+  const hasKeyframeAtPlayhead = useMemo(() => {
+    if (playheadTime === undefined) return false;
+    return keyframes.some(k => sameTime(k.time, playheadTime));
+  }, [keyframes, playheadTime]);
 
   // Drag state for keyframe movement
   const handleKfMouseDown = (e: React.MouseEvent, kfTime: number) => {
@@ -273,6 +312,16 @@ export function TrackRow({
           />
         )}
         <span className="text-[11px] text-muted-foreground truncate flex-1">{name}</span>
+        {showValueAtPlayhead && valueAtPlayhead !== null && (
+          <TrackValueChip value={valueAtPlayhead} tone={color} />
+        )}
+        {onToggleKeyframeAtPlayhead && playheadTime !== undefined && (
+          <TrackKeyframeToggle
+            active={hasKeyframeAtPlayhead}
+            state={isArmed ? 'recorded' : 'normal'}
+            onClick={() => onToggleKeyframeAtPlayhead(trackId, playheadTime, valueAtPlayhead)}
+          />
+        )}
         <LfoBadge waveform={modulatorWaveform ?? null} />
         {onToggleGraphEditor && (
           <button

@@ -20,9 +20,6 @@ This document outlines the current status of features, planned work, and known t
 
 ## Known Gaps
 
-- **Timeline COLOR map**: `dot`, `border`, `trackBg` fields still use raw Tailwind strings (migration to CSS vars in progress).
-- **Network3D i18n**: Context menu and camera-lock UI have hardcoded English strings (fix in progress).
-- **Zombie timeline atoms**: `TrackValueChip`, `TrackKeyframeToggle` exported but unwired in `TimelineTracks.tsx`.
 - **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle.
 - **Glide UI**: Worker-side glide works but no timeline UI surfaces it (design pending per §3.6).
 - **PathAnimatorUI**: Relies on legacy structures, not yet on the atomic pattern.

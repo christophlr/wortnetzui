@@ -12,7 +12,7 @@ import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton, Record
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 import { PHYS_TRACK_PARAM } from '../../context/WortnetzContextConstants';
 import { useT } from '../../i18n/useT';
-import { withinSelection } from './timeUtils';
+import { withinSelection, sameTime } from './timeUtils';
 
 /* ── Small helper components ── */
 
@@ -123,6 +123,17 @@ export function Timeline(props: TimelineProps) {
     if (!contextMenuTarget || contextMenuTarget.mode !== 'keyframe') return;
     onRippleDeleteKeyframe?.(contextMenuTarget.track, contextMenuTarget.time);
   }, [contextMenuTarget, onRippleDeleteKeyframe]);
+
+  // Per-track keyframe toggle at playhead — stamp current value if no kf, else delete.
+  const handleToggleKeyframeAtPlayhead = useCallback((trackId: string, time: number, currentValue: number | null) => {
+    const arr = physicsKeyframes[trackId] ?? [];
+    const existing = arr.find(k => sameTime(k.time, time));
+    if (existing) {
+      onDeleteKeyframe?.(trackId, existing.time);
+    } else if (currentValue !== null && onSetValue) {
+      onSetValue(trackId, time, currentValue);
+    }
+  }, [physicsKeyframes, onDeleteKeyframe, onSetValue]);
 
   // Context menu handlers
   const handleKeyframeContextMenu = useCallback((trackId: string, kfTime: number) => {
@@ -571,6 +582,8 @@ export function Timeline(props: TimelineProps) {
                       modulatorWaveform={trackMeta?.[track.id]?.modulator?.waveform ?? null}
                       isArmed={armedTracks?.has(track.id)}
                       onToggleArm={onToggleTrackArm ? () => onToggleTrackArm(track.id) : undefined}
+                      showValueAtPlayhead
+                      onToggleKeyframeAtPlayhead={handleToggleKeyframeAtPlayhead}
                     />
                     {/* Per-track graph editor */}
                     {expandedGraphTracks.has(track.id) && (
