@@ -20,6 +20,7 @@ import {
   refreshAllSpriteTextures,
   getDepthFactor,
 } from '../network3d/textureCache';
+import { syncGraphVisuals } from '../network3d/syncVisuals';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -29,13 +30,6 @@ import {
 
 import type { PhysicsKeyframe } from './timeline/types';
 import i18n from '../i18n';
-
-
-const _colorA = new THREE.Color();
-const _colorB = new THREE.Color();
-const _scratchColor = new THREE.Color();
-const _scratchVec1 = new THREE.Vector3();
-const _scratchVec2 = new THREE.Vector3();
 
 
 interface Network3DProps {
@@ -542,116 +536,25 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
 
 
-  const syncGraphVisuals = (nodes: Map<string, GraphNode>, edges: GraphEdge[], nodeArr?: GraphNode[], vsOverride?: any, ssOverride?: any) => {
-    const arr = nodeArr ?? Array.from(nodes.values());
-    const vs = vsOverride ?? visualSettingsRef.current;
-    const ss = ssOverride ?? styleSettingsRef.current;
-    
-    // Preparation for uDistMap (conceptual for now as requested)
-    _colorA.set(vs.gradientOrigin);
-    _colorB.set(vs.gradientPeriphery);
-
-    // Normalize distance against the actual furthest node so the falloff
-    // spreads across the visible range regardless of graph extent.
-    let maxDistSq = 0;
-    for (let i = 0; i < arr.length; i++) {
-      const n = arr[i];
-      const dSq = n.x * n.x + n.y * n.y + n.z * n.z;
-      if (dSq > maxDistSq) maxDistSq = dSq;
-    }
-    const invMaxDistSq = 1 / (maxDistSq || 1);
-
-    // Quadratic slider response: subtle near zero, dramatic at the extremes.
-    // Sign of the slider chooses growth (right) vs. shrink (left).
-    const falloffMagnitude = vs.radialBiasScale * vs.radialBiasScale * 8;
-
-    for (let i = 0; i < arr.length; i++) {
-      const node = arr[i];
-      if (node.textSprite) {
-        node.textSprite.position.set(node.x, node.y, node.z);
-
-        // Visibility
-        node.textSprite.visible = vs.nodesVisible;
-
-        const distSq = node.x * node.x + node.y * node.y + node.z * node.z;
-        const normDistSq = distSq * invMaxDistSq;
-
-        // Scale Radial Bias — cubic curve concentrates the growth at one
-        // end of the radial axis. Positive slider grows outer nodes,
-        // negative slider grows inner nodes; the other end stays untouched.
-        const baseScale = node.textSprite.userData.baseScale * ss.nodeScale;
-        const t = vs.radialBiasScale >= 0 ? normDistSq : 1.0 - normDistSq;
-        const distCurve = t * t * t;
-        const scaleIntensity = 1.0 + (falloffMagnitude * distCurve);
-        const aspectRatio = node.textSprite.userData.aspectRatio;
-        
-        let finalScale = baseScale * scaleIntensity;
-        // Instance Override
-        if (node.unlinkedScale && node.scaleOverride !== undefined) {
-          finalScale = node.textSprite.userData.baseScale * node.scaleOverride;
-        }
-        
-        node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
-        
-        // Opacity Radial Bias
-        let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDistSq));
-        // Instance Override
-        if (node.unlinkedOpacity && node.opacityOverride !== undefined) {
-          finalOpacity = node.opacityOverride;
-        }
-        node.textSprite.material.opacity = finalOpacity;
-        
-        // MESH GRADIENT (uDistMap simulation)
-        // Interpolate between Origin and Periphery based on distance
-        const nodeColor = _scratchColor.lerpColors(_colorA, _colorB, normDistSq);
-        // Apply color - since we use textures, we might need to adjust the sprite's material color
-        // if the texture itself is white/grayscale, or swap textures if they are color-baked.
-        // For now, let's tint the sprite material.
-        node.textSprite.material.color.copy(nodeColor);
-
-        // GLITCH PAINT LOGIC (Reveal by distance from mouse)
-        if (vs.glitchActive) {
-          // Calculate distance from mouse in world space or screen space
-          // This is a simplified JS version of the shader logic requested
-          _scratchVec1.copy(node.textSprite.position).project(cameraRef.current!);
-          _scratchVec2.set(mousePosRef.current.x, mousePosRef.current.y, _scratchVec1.z);
-          const mouseDist = _scratchVec1.distanceTo(_scratchVec2);
-          
-          // Revealed radius based on brush size (normalized)
-          const brushRadiusNorm = vs.glitchBrushRadius / 500; 
-          const feather = vs.glitchFeather;
-          
-          const reveal = 1.0 - THREE.MathUtils.smoothstep(mouseDist, brushRadiusNorm * (1 - feather), brushRadiusNorm);
-          node.textSprite.material.opacity *= reveal;
-        }
-      }
-    }
-
-    // Update merged edge positions buffer (single LineSegments object)
-    const edgeLines = edgeLinesRef.current;
-    if (edgeLines) {
-      edgeLines.visible = vs.edgesVisible;
-      const pos = edgeLines.geometry.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < edges.length; i++) {
-        const edge = edges[i];
-        const idx = i * 2;
-        pos.setXYZ(idx, edge.a.x, edge.a.y, edge.a.z);
-        pos.setXYZ(idx + 1, edge.b.x, edge.b.y, edge.b.z);
-      }
-      pos.needsUpdate = true;
-    }
-    
-    // GLITCH PAINT TOOL revealed by distance (conceptual uniform update)
-    if (vs.glitchActive) {
-      // In a real implementation, we would pass uMousePos and vs.glitchBrushRadius/glitchFeather
-      // to the node shader here.
-    }
-  };
+  const sync = (
+    nodeArr?: GraphNode[],
+    vsOverride?: typeof visualSettings,
+    ssOverride?: typeof styleSettings,
+  ) => syncGraphVisuals({
+    nodes: graphNodesRef.current,
+    edges: graphEdgesRef.current,
+    nodeArr,
+    visualSettings: vsOverride ?? visualSettingsRef.current,
+    styleSettings: ssOverride ?? styleSettingsRef.current,
+    camera: cameraRef.current,
+    mousePos: mousePosRef.current,
+    edgeLines: edgeLinesRef.current,
+  });
 
   // Immediate sync when visual/style settings change
   useEffect(() => {
     if (graphNodesRef.current) {
-      syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, undefined, visualSettings, styleSettings);
+      sync(undefined, visualSettings, styleSettings);
     }
   }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -944,7 +847,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           arr[i].vx = 0; arr[i].vy = 0; arr[i].vz = 0;
         }
         workerPosVelRef.current = posVel;
-        syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+        sync(arr);
         fitToView(true);
         if (rendererRef.current) rendererRef.current.domElement.style.opacity = '1';
         requestAnimationFrame(() => onReadyRef.current?.());
@@ -1000,7 +903,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
       const hasActiveModulationLoc = (isPlayingRef.current && hasAnyKfsRef.current) || hasAnyModulatorRef.current;
       if (avgMovement > 0.05 || maxOverlap > 0 || hasActiveModulationLoc) {
-        syncGraphVisuals(graphNodesRef.current, graphEdgesRef.current, arr);
+        sync(arr);
       }
 
       // Auto-stop heuristic

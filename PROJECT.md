@@ -39,6 +39,7 @@ The aesthetic target is a professional creative application (Figma / After Effec
 | `graph/` | N-gram extraction (`parsing.ts`) and off-thread physics (`physics.worker.ts`). |
 | `animation/` | Animation engine: `evaluateTracks.ts`, `interpolatePhysicsParam.ts`, `Track.ts`, `Modulator.ts`, `Recorder.ts`. |
 | `network3d/textureCache.ts` | Pure label-texture builder + 3-state sprite cache (normal/highlighted/selected). Extracted from `Network3D.tsx` (Phase 4.1). |
+| `network3d/syncVisuals.ts` | Pure per-frame visual sync (sprite position/scale/opacity/color + edge buffer update). Extracted from `Network3D.tsx` (Phase 4.1). |
 | `context/WortnetzContextTypes.ts` | Type definitions for the global context (split from `WortnetzContext.tsx`). |
 | `context/WortnetzContextConstants.ts` | Constants and param-to-track mappings used by the context. |
 | `networkTheme.ts` & `constants.ts` | 3D scene colour tokens and global constants. |
