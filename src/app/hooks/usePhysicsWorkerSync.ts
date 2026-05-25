@@ -79,6 +79,10 @@ export function usePhysicsWorkerSync(opts: PhysicsWorkerSyncOpts): PhysicsWorker
       const arr = bag.graphNodeArrayRef.current!;
       unpackSettleBuffer(posVel, arr);
       bag.workerPosVelRef.current = posVel;
+      // Apply visualSettings (gradient, radial bias, opacity) before fit/ready
+      // so the first painted frame matches the sidebar state — without this,
+      // 3D loads with default white sprites until any sidebar tweak triggers sync.
+      bag.sync(arr);
       bag.onSettled(posVel);
       return;
     }
