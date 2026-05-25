@@ -16,7 +16,7 @@ The aesthetic target is a professional creative application (Figma / After Effec
 |---|---|
 | `App.tsx` | Slim layout composer. Delegates all state and logic to `WortnetzContext`. |
 | `context/WortnetzContext.tsx` | **Single source of truth.** Owns all React state and core handlers. |
-| `hooks/` | Contains `useUndoStack.ts` (undo/redo), `useWorkspaceIO.ts` (save/load), and `useResizeObserver.ts` (container size sync). |
+| `hooks/` | Contains `useUndoStack.ts` (undo/redo), `useWorkspaceIO.ts` (save/load), `useResizeObserver.ts` (container size sync), and `useRaycastHover.ts` (sprite hover/click/dblclick). |
 | `components/shell/` | Modular layout components: `AppShell`, `AppSidebar`, `AppCanvas`. |
 | `Network3D.tsx` | Three.js scene, RAF loop, camera, physics worker, hover/select. |
 | `Preview.tsx` | Artboard wrapper, canvas mode, pasteboard, version/badge. |

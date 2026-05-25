@@ -22,6 +22,7 @@ import {
 } from '../network3d/textureCache';
 import { syncGraphVisuals } from '../network3d/syncVisuals';
 import { useResizeObserver } from '../hooks/useResizeObserver';
+import { useRaycastHover } from '../hooks/useRaycastHover';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -504,6 +505,20 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }, [viewMode]);
   useResizeObserver(containerRef, handleResize);
 
+  const attachRaycastHover = useRaycastHover({
+    cameraRef,
+    spritesArrayRef,
+    graphNodesRef,
+    hoveredNodeRef,
+    selectedNodeRef,
+    cameraFlyRef,
+    flyToTargetRef,
+    controlsRef,
+    swap,
+    onNodeSelectRef,
+    viewMode,
+  });
+
   /* ── INITIAL LAYOUT (ORGANIC SPHERE) ── */
   const arrangeNodesCone3D = (nodes: Map<string, GraphNode>, minWords: number, maxWords: number) => {
     const nodeArray = Array.from(nodes.values());
@@ -983,100 +998,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       .map(n => n.textSprite)
       .filter(Boolean) as THREE.Object3D[];
 
-    // Hover detection via raycasting (throttled to ~30fps)
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let lastRaycastTime = 0;
-
-
-    const handleHoverMove = (e: MouseEvent) => {
-      const now = performance.now();
-      if (now - lastRaycastTime < 33) return; // ~30fps throttle
-      lastRaycastTime = now;
-
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-
-      const intersects = raycaster.intersectObjects(spritesArrayRef.current);
-      const hitLabel = intersects.length > 0 ? (intersects[0].object as THREE.Sprite).userData.label as string : null;
-      const prevNode = hoveredNodeRef.current;
-      const nextNode = hitLabel ? graphNodesRef.current.get(hitLabel) ?? null : null;
-
-      if (prevNode?.label === nextNode?.label) return;
-      if (prevNode) swap(prevNode, false, prevNode.label === selectedNodeRef.current?.label);
-      if (nextNode) swap(nextNode, true, nextNode.label === selectedNodeRef.current?.label);
-      hoveredNodeRef.current = nextNode;
-      renderer.domElement.style.cursor = nextNode ? 'pointer' : 'default';
-    };
-
-    const handleHoverLeave = () => {
-      if (hoveredNodeRef.current) {
-        const was = hoveredNodeRef.current;
-        swap(was, false, was.label === selectedNodeRef.current?.label);
-        hoveredNodeRef.current = null;
-        renderer.domElement.style.cursor = 'default';
-      }
-    };
-
-    renderer.domElement.addEventListener('mousemove', handleHoverMove);
-    renderer.domElement.addEventListener('mouseleave', handleHoverLeave);
-
-    const handleClick = (e: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(spritesArrayRef.current);
-      const hit = intersects.length > 0 ? graphNodesRef.current.get((intersects[0].object as THREE.Sprite).userData.label) ?? null : null;
-      const prev = selectedNodeRef.current;
-
-      if (!hit) {
-        if (prev) swap(prev, prev.label === hoveredNodeRef.current?.label, false);
-        selectedNodeRef.current = null;
-        return;
-      }
-
-      if (prev && prev.label !== hit.label) swap(prev, prev.label === hoveredNodeRef.current?.label, false);
-
-      const selecting = hit.label !== prev?.label;
-      selectedNodeRef.current = selecting ? hit : null;
-      swap(hit, hit.label === hoveredNodeRef.current?.label, selecting);
-      
-      // Notify parent
-      onNodeSelectRef.current?.(selecting ? hit : null);
-    };
-
-    const handleDblClick = (e: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(spritesArrayRef.current);
-      const hit = intersects.length > 0 ? graphNodesRef.current.get((intersects[0].object as THREE.Sprite).userData.label) ?? null : null;
-      if (!hit) return;
-      const nodePos = new THREE.Vector3(hit.x, hit.y, hit.z);
-      if (!is2D && cameraRef.current && controlsRef.current) {
-        const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
-        cameraFlyRef.current = {
-          fromPos: cameraRef.current.position.clone(),
-          toPos: nodePos.clone().addScaledVector(dir, 150),
-          fromTarget: controlsRef.current.target.clone(),
-          toTarget: nodePos.clone(),
-          startTime: performance.now(),
-          duration: 700,
-        };
-      } else if (is2D && cameraRef.current) {
-        flyToTargetRef.current = nodePos.clone();
-        const cam = cameraRef.current as THREE.OrthographicCamera;
-        cam.zoom = Math.max(cam.zoom, 5);
-        cam.updateProjectionMatrix();
-      }
-    };
-
-    renderer.domElement.addEventListener('click', handleClick);
-    renderer.domElement.addEventListener('dblclick', handleDblClick);
+    const detachRaycastHover = attachRaycastHover(renderer.domElement);
 
     // Animation loop
     let lastTime = performance.now();
@@ -1244,10 +1166,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         animationFrameRef.current = null;
       }
       
-      renderer.domElement.removeEventListener('mousemove', handleHoverMove);
-      renderer.domElement.removeEventListener('mouseleave', handleHoverLeave);
-      renderer.domElement.removeEventListener('click', handleClick);
-      renderer.domElement.removeEventListener('dblclick', handleDblClick);
+      detachRaycastHover();
       
       if (renderer.domElement.parentNode === containerRef.current) {
         containerRef.current?.removeChild(renderer.domElement);
