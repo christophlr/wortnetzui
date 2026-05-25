@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
-import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, GIZMO_COLORS, SCENE_COLORS } from '../networkTheme';
+import { getNetworkLabelStyle, getNetworkThemeBackground, type NodeShape, SCENE_COLORS } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
@@ -97,72 +97,7 @@ function sliderValToDist(s: number): number {
   return Math.exp(Math.log(MAX_ZOOM_DIST) - (s / 100) * (Math.log(MAX_ZOOM_DIST) - Math.log(MIN_ZOOM_DIST)));
 }
 
-/* ── ORIENTATION GIZMO ── */
-function drawGizmoCanvas(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement, hoveredLabel: string | null = null, activeLabel: string | null = null): void {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const size = canvas.width;
-  const c = size / 2;
-  const r = size * 0.36;
 
-  ctx.clearRect(0, 0, size, size);
-
-  const invQ = camera.quaternion.clone().invert();
-  const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), posColor: GIZMO_COLORS.x.pos, negColor: GIZMO_COLORS.x.neg, label: 'X' },
-    { dir: new THREE.Vector3(0, 1, 0), posColor: GIZMO_COLORS.y.pos, negColor: GIZMO_COLORS.y.neg, label: 'Y' },
-    { dir: new THREE.Vector3(0, 0, 1), posColor: GIZMO_COLORS.z.pos, negColor: GIZMO_COLORS.z.neg, label: 'Z' },
-  ];
-
-  const segs: { x: number; y: number; z: number; color: string; label: string }[] = [];
-  axes.forEach(({ dir, posColor, negColor, label }) => {
-    const pos = dir.clone().applyQuaternion(invQ);
-    const neg = dir.clone().negate().applyQuaternion(invQ);
-    segs.push({ x: c + pos.x * r, y: c - pos.y * r, z: pos.z, color: posColor, label });
-    segs.push({ x: c + neg.x * r, y: c - neg.y * r, z: neg.z, color: negColor, label: '' });
-  });
-
-  segs.sort((a, b) => a.z - b.z);
-
-  segs.forEach(({ x, y, color, label }) => {
-    const isHovered = label && label === hoveredLabel;
-    const isActive = label && label === activeLabel;
-    
-    ctx.beginPath();
-    ctx.moveTo(c, c);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = isActive ? 3.5 : (isHovered ? 3 : 2.5);
-    ctx.stroke();
-
-    if (label) {
-      // Draw flat translucent halo for hover/active states
-      if (isActive || isHovered) {
-        ctx.beginPath();
-        ctx.arc(x, y, isActive ? 14 : 12, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.globalAlpha = isActive ? 0.4 : 0.2;
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
-      }
-
-      let rad = 9;
-      if (isActive) rad = 10.5;
-      else if (isHovered) rad = 9.5;
-      
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      
-      ctx.font = 'bold 11px system-ui,sans-serif';
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, x, y + 0.5);
-    }
-  });
-}
 
 
 export interface Network3DHandle {
@@ -248,24 +183,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const selectedNodeRef = useRef<GraphNode | null>(null);
   const lockedNodeRef = useRef<GraphNode | null>(null);
   const flyToTargetRef = useRef<THREE.Vector3 | null>(null);
-  const gizmoCanvasRef = useRef<HTMLCanvasElement>(null);
-  const zoomSliderRef = useRef<HTMLInputElement>(null);
   const zoomAnimRef = useRef<{ from: number; to: number; startTime: number; duration: number } | null>(null);
   const cameraFlyRef = useRef<{
     fromPos: THREE.Vector3; toPos: THREE.Vector3;
     fromTarget: THREE.Vector3; toTarget: THREE.Vector3;
     startTime: number; duration: number;
   } | null>(null);
-  const gizmoDragRef = useRef<{
-    isDragging: boolean;
-    startX: number;
-    startY: number;
-    lastX: number;
-    lastY: number;
-    hasMoved: boolean;
-  }>({ isDragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0, hasMoved: false });
-  const gizmoHoverRef = useRef<string | null>(null);
-  const gizmoActiveRef = useRef<string | null>(null);
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
   const mousePosRef = useRef(new THREE.Vector2(0, 0));
@@ -1130,11 +1053,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const handleCameraChange = () => {
       if (!applyingKeyframe) {
         onCameraChangeRef.current?.();
-        if (!is2D && zoomSliderRef.current) {
-          zoomSliderRef.current.value = distToSliderVal(
-            camera.position.distanceTo(controls.target)
-          ).toString();
-        }
       }
     };
     controls.addEventListener('change', handleCameraChange);
@@ -1553,7 +1471,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           const dist = from + (to - from) * eased;
           const dir = camera.position.clone().sub(controls.target).normalize();
           camera.position.copy(controls.target).addScaledVector(dir, dist);
-          if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(dist).toString();
           if (t >= 1) zoomAnimRef.current = null;
         }
 
@@ -1564,7 +1481,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
           const eased = 1 - Math.pow(1 - t, 3);
           camera.position.lerpVectors(fromPos, toPos, eased);
           controls.target.lerpVectors(fromTarget, toTarget, eased);
-          if (zoomSliderRef.current) zoomSliderRef.current.value = distToSliderVal(camera.position.distanceTo(controls.target)).toString();
           if (t >= 1) cameraFlyRef.current = null;
         }
       }
@@ -1594,12 +1510,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       applyingKeyframe = false;
 
       renderer.render(scene, camera);
-
-      /* Gizmo deactivated per user request
-      if (!is2D && gizmoCanvasRef.current) {
-        drawGizmoCanvas(camera as THREE.PerspectiveCamera, gizmoCanvasRef.current, gizmoHoverRef.current, gizmoActiveRef.current);
-      }
-      */
     };
     animate();
     // 2D: reveal immediately after the first frame.
@@ -1768,121 +1678,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     setContextMenuNode(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Internal zoom slider deactivated in favor of Sidebar control
-  const handleZoomSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    const newDist = sliderValToDist(parseFloat(e.target.value));
-    const dir = cameraRef.current.position.clone().sub(controlsRef.current.target).normalize();
-    cameraRef.current.position.copy(controlsRef.current.target).addScaledVector(dir, newDist);
-    controlsRef.current.update();
-  };
-  */
-
-  const getGizmoAxisAtPoint = (clientX: number, clientY: number): { dir: THREE.Vector3; label: string } | null => {
-    if (!cameraRef.current || !gizmoCanvasRef.current) return null;
-    const canvas = gizmoCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const mx = clientX - rect.left;
-    const my = clientY - rect.top;
-
-    const size = canvas.width;
-    const c = size / 2;
-    const r = size * 0.42;
-    const invQ = cameraRef.current.quaternion.clone().invert();
-    
-    const axes = [
-      { dir: new THREE.Vector3(1, 0, 0), label: 'X' },
-      { dir: new THREE.Vector3(0, 1, 0), label: 'Y' },
-      { dir: new THREE.Vector3(0, 0, 1), label: 'Z' },
-    ];
-
-    let closestHit: { dir: THREE.Vector3; label: string } | null = null;
-    let maxZ = -Infinity;
-
-    axes.forEach(({ dir, label }) => {
-      const pos = dir.clone().applyQuaternion(invQ);
-      const px = c + pos.x * r;
-      const py = c - pos.y * r;
-      const dist = Math.sqrt(Math.pow(mx - px, 2) + Math.pow(my - py, 2));
-      
-      if (dist <= 12 && pos.z > maxZ) {
-        maxZ = pos.z;
-        closestHit = { dir, label };
-      }
-    });
-
-    return closestHit;
-  };
-
-  /* Gizmo event handlers deactivated
-  const handleGizmoMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    gizmoDragRef.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      lastX: e.clientX,
-      lastY: e.clientY,
-      hasMoved: false,
-    };
-    const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
-    gizmoActiveRef.current = hit ? hit.label : 'center';
-  };
-
-  const handleGizmoMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const drag = gizmoDragRef.current;
-    if (!drag.isDragging) {
-      const hit = getGizmoAxisAtPoint(e.clientX, e.clientY);
-      gizmoHoverRef.current = hit ? hit.label : null;
-      return;
-    }
-    if (!cameraRef.current || !controlsRef.current) return;
-    
-    const dx = e.clientX - drag.lastX;
-    const dy = e.clientY - drag.lastY;
-    
-    if (Math.abs(e.clientX - drag.startX) > 3 || Math.abs(e.clientY - drag.startY) > 3) {
-      drag.hasMoved = true;
-    }
-
-    if (drag.hasMoved) {
-      const cam = cameraRef.current;
-      const target = controlsRef.current.target;
-      const angleX = -dx * 0.01;
-      const angleY = -dy * 0.01;
-      const offset = cam.position.clone().sub(target);
-      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleX);
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
-      offset.applyAxisAngle(right, angleY);
-      cam.position.copy(target).add(offset);
-      cam.lookAt(target);
-      controlsRef.current.update();
-    }
-    drag.lastX = e.clientX;
-    drag.lastY = e.clientY;
-  };
-
-  const handleGizmoMouseUp = () => {
-    const drag = gizmoDragRef.current;
-    gizmoActiveRef.current = null;
-    if (!drag.isDragging) return;
-    drag.isDragging = false;
-    if (!drag.hasMoved) {
-      const hit = getGizmoAxisAtPoint(drag.startX, drag.startY);
-      if (hit && cameraRef.current && controlsRef.current) {
-        const dist = cameraRef.current.position.distanceTo(controlsRef.current.target);
-        const newOffset = hit.dir.clone().multiplyScalar(dist);
-        cameraFlyRef.current = {
-          fromPos: cameraRef.current.position.clone(),
-          toPos: controlsRef.current.target.clone().add(newOffset),
-          fromTarget: controlsRef.current.target.clone(),
-          toTarget: controlsRef.current.target.clone(),
-          startTime: performance.now(),
-          duration: 400,
-        };
-      }
-    }
-  };
-  */
 
   return (
     <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuNode(null); }}>
@@ -1897,36 +1692,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         >
           {/* Three.js Canvas will be here */}
         </ContextMenuTrigger>
-
-
-        {/* Orientation Gizmo (Bottom Right) - Deactivated */}
-        {/*
-        <div className="absolute right-4 bottom-4 z-20 flex flex-col items-center gap-3">
-          <div className="bg-background/80 backdrop-blur-md border border-border p-2 rounded-full shadow-xl h-32 flex flex-col items-center group">
-            <div className="text-[9px] font-bold text-muted-foreground mb-1 opacity-0 group-hover:opacity-100 transition-opacity">Z</div>
-            <input 
-              ref={zoomSliderRef}
-              type="range" 
-              className="appearance-none bg-muted-foreground/20 w-1 h-24 rounded-full accent-blue-500 orientation-vertical"
-              style={{ WebkitAppearance: 'slider-vertical' } as any}
-              onChange={handleZoomSlider}
-              min="0" max="100" step="0.1"
-            />
-          </div>
-          
-          <div className="relative w-24 h-24 bg-background/40 backdrop-blur-[2px] rounded-full border border-border/40 shadow-inner">
-            <canvas 
-              ref={gizmoCanvasRef} 
-              width={96} height={96} 
-              className="cursor-pointer"
-              onMouseDown={handleGizmoMouseDown}
-              onMouseMove={handleGizmoMouseMove}
-              onMouseUp={handleGizmoMouseUp}
-              onMouseLeave={handleGizmoMouseUp}
-            />
-          </div>
-        </div>
-        */}
 
         {/* Camera Locked Indicator */}
         {cameraLocked && (
