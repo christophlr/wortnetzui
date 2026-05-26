@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Circle, Dices, RectangleHorizontal, Square, Plus, Minus, Eye, EyeOff, Settings2, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Circle, Dices, RectangleHorizontal, Square, Plus, Minus, Eye, EyeOff, Settings2, SlidersHorizontal, Trash2, Paintbrush } from 'lucide-react';
 import { useWortnetz } from '../../../context/WortnetzContext';
 import type { NodeShape } from '../../../networkTheme';
 import {
@@ -310,13 +310,37 @@ export function VisualTab({
           {...trackProps}
         />
 
-        {Object.keys(paintedOverrides).length > 0 && (
-          <SidebarToggleRow
-            label={t('sidebar.tab.visual.group.brushEdits')}
-            checked={visualSettings.showPaintedOverrides !== false}
-            onCheckedChange={(checked) => setVisual({ showPaintedOverrides: checked })}
-          />
-        )}
+        {Object.keys(paintedOverrides).length > 0 && (() => {
+          const visible = visualSettings.showPaintedOverrides !== false;
+          return (
+            <div className="flex items-center gap-1.5 p-1 bg-wn-control-bg border border-wn-divider rounded-md w-full">
+              <div className="p-1 rounded-md text-muted-foreground shrink-0">
+                <Paintbrush size={13} />
+              </div>
+              <div className="flex-1 min-w-0 text-[11px] text-foreground font-medium px-1">
+                {t('sidebar.tab.visual.group.brushEdits')}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setVisual({ showPaintedOverrides: !visible })}
+                  title={t('sidebar.tab.visual.action.toggleBrushEdits')}
+                  className={`p-1 transition-colors rounded hover:bg-wn-control-hover ${visible ? 'text-foreground' : 'text-muted-foreground'}`}
+                >
+                  {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearPaintedOverrides}
+                  title={t('sidebar.tab.visual.action.clearBrushEdits')}
+                  className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-wn-control-hover transition-colors"
+                >
+                  <Minus size={13} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
           <SidebarButtonGroupRow<NodeShape>
@@ -654,6 +678,12 @@ export function VisualTab({
           label={t('sidebar.tab.visual.toggle.cameraFollow')}
           checked={visualSettings.pathCameraFollow}
           onCheckedChange={(checked) => setVisual({ pathCameraFollow: checked })}
+        />
+
+        <SidebarToggleRow
+          label={t('sidebar.tab.visual.toggle.pathLoop')}
+          checked={visualSettings.pathLoop}
+          onCheckedChange={(checked) => setVisual({ pathLoop: checked })}
         />
 
         <TrackScrubber

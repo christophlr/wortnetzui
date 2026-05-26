@@ -132,6 +132,7 @@
         "toggle": {
           "glitchPaint": "Glitch paint",
           "cameraFollow": "Camera follow",
+          "pathLoop": "Loop sequence",
           "bloom": "Bloom",
           "selectiveBloom": "Selective bloom"
         },

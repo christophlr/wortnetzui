@@ -131,6 +131,7 @@ export interface WortnetzContextType {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    pathLoop: boolean;
     bloomEnabled: boolean;
     bloomIntensity: number;
     bloomRadius: number;
@@ -157,6 +158,7 @@ export interface WortnetzContextType {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    pathLoop: boolean;
     bloomEnabled: boolean;
     bloomIntensity: number;
     bloomRadius: number;

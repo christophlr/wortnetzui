@@ -172,24 +172,61 @@ export function ToolbarPathItem({
   index,
   label,
   onRemove,
+  onReorder,
 }: {
   index: number;
   label: string;
   onRemove: () => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
 }) {
+  const [isDragOver, setIsDragOver] = React.useState(false);
+
   return (
-    <div className="group flex items-center gap-2 p-1.5 bg-wn-control-bg border border-wn-divider rounded-lg hover:border-wn-accent/50 transition-all shadow-sm">
-      <div className="text-muted-foreground/40">
+    <div
+      draggable={!!onReorder}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+      }}
+      onDragOver={(e) => {
+        if (onReorder) {
+          e.preventDefault();
+          setIsDragOver(true);
+        }
+      }}
+      onDragLeave={() => {
+        setIsDragOver(false);
+      }}
+      onDrop={(e) => {
+        if (onReorder) {
+          e.preventDefault();
+          setIsDragOver(false);
+          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+          if (!isNaN(fromIndex) && fromIndex !== index) {
+            onReorder(fromIndex, index);
+          }
+        }
+      }}
+      onDragEnd={() => {
+        setIsDragOver(false);
+      }}
+      className={cn(
+        "group flex items-center gap-2 p-1.5 bg-wn-control-bg border rounded-lg hover:border-wn-accent/50 transition-all shadow-sm",
+        onReorder ? "cursor-grab active:cursor-grabbing" : "",
+        isDragOver ? "border-wn-accent bg-wn-control-bg/60 scale-[1.02]" : "border-wn-divider"
+      )}
+    >
+      <div className="text-muted-foreground/40 shrink-0">
         <GripVertical size={11} />
       </div>
       <div className="size-4 rounded-full bg-wn-accent/10 border border-wn-accent/20 flex items-center justify-center text-[8px] font-bold text-wn-accent shrink-0">
         {index + 1}
       </div>
-      <span className="flex-1 text-[10px] font-medium text-foreground truncate">{label}</span>
+      <span className="flex-1 text-[10px] font-medium text-foreground truncate select-none">{label}</span>
       <button
         type="button"
         onClick={onRemove}
-        className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+        className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer shrink-0"
       >
         <Trash2 size={11} />
       </button>

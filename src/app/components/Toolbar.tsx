@@ -56,8 +56,16 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
     paintBlend, setPaintBlend,
     paintMode, setPaintMode,
     clearPaintedOverrides,
-    pathNodes, isPathPlaying, setIsPathPlaying, removePathNode, clearPath
+    pathNodes, isPathPlaying, setIsPathPlaying, reorderPathNodes, removePathNode, clearPath,
+    visualSettings, setVisualSettings
   } = useWortnetz();
+
+  const handleReorderPathNodes = (fromIndex: number, toIndex: number) => {
+    const next = [...pathNodes];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    reorderPathNodes(next);
+  };
 
   const primary: ToolId[] = ['pointer', 'pan', 'paint', 'zoom'];
   const advanced: ToolId[] = ['glitch', 'path'];
@@ -222,6 +230,7 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
                     index={index}
                     label={node.label}
                     onRemove={() => removePathNode(index)}
+                    onReorder={handleReorderPathNodes}
                   />
                 ))
               )}
@@ -229,6 +238,17 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
 
             {/* Playback action block */}
             <div className="p-3 bg-wn-control-bg/40 border-t border-wn-divider space-y-2">
+              <div className="flex items-center justify-between px-1 py-0.5">
+                <span className="text-[10px] font-medium text-foreground">
+                  {t('sidebar.tab.visual.toggle.pathLoop')}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={visualSettings.pathLoop}
+                  onChange={(e) => setVisualSettings(prev => ({ ...prev, pathLoop: e.target.checked }))}
+                  className="scale-90 accent-wn-accent cursor-pointer"
+                />
+              </div>
               <Button 
                 size="sm" 
                 onClick={() => setIsPathPlaying(p => !p)}

@@ -758,7 +758,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     if (graphNodesRef.current) {
       sync(undefined, visualSettings, styleSettings);
     }
-  }, [visualSettings, styleSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visualSettings, styleSettings, paintedOverrides]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyCameraKeyframes = (
     keyframes: Array<{
@@ -1142,10 +1142,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         pathPlaybackProgressRef.current += dtSeconds / totalDuration;
         
         if (pathPlaybackProgressRef.current >= 1.0) {
-          pathPlaybackProgressRef.current = 1.0;
-          pathPlayingRef.current = false;
-          if (onPathPlaybackFinishedRef.current) {
-            requestAnimationFrame(() => onPathPlaybackFinishedRef.current?.());
+          if (visualSettingsRef.current.pathLoop) {
+            pathPlaybackProgressRef.current = pathPlaybackProgressRef.current % 1.0;
+          } else {
+            pathPlaybackProgressRef.current = 1.0;
+            pathPlayingRef.current = false;
+            if (onPathPlaybackFinishedRef.current) {
+              requestAnimationFrame(() => onPathPlaybackFinishedRef.current?.());
+            }
           }
         }
         

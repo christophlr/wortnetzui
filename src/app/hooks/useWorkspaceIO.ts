@@ -49,7 +49,7 @@ export default function useWorkspaceIO(
     const blob = new Blob([JSON.stringify(persisted, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `sprachvernetzungen-${Date.now()}.json`; a.click();
+    a.href = url; a.download = `wortnetze-${Date.now()}.json`; a.click();
     URL.revokeObjectURL(url);
   }, [getWorkspaceState]);
 
