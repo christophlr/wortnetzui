@@ -36,6 +36,7 @@ import { Input } from '../ui/input';
 import { RadioGroupItem } from '../ui/radio-group';
 import { cn } from '../ui/utils';
 import { pad } from '../../theme/tokens';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 
 type DivProps = React.ComponentProps<'div'>;
 
@@ -338,22 +339,37 @@ export function SidebarSegmentedPicker<T extends string | number>({
 }) {
   return (
     <div className="flex gap-1 w-full">
-      {items.map((item) => (
-        <button
-          key={String(item.value)}
-          type="button"
-          title={item.title}
-          onClick={() => onChange(item.value)}
-          className={cn(
-            'flex-1 h-6 rounded-sm text-[11px] font-medium border transition-colors flex items-center justify-center',
-            item.value === value
-              ? 'bg-wn-accent-soft border-wn-accent text-foreground'
-              : 'border-wn-divider text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {item.label}
-        </button>
-      ))}
+      {items.map((item) => {
+        const button = (
+          <button
+            type="button"
+            onClick={() => onChange(item.value)}
+            className={cn(
+              'flex-1 h-6 rounded-sm text-[11px] font-medium border transition-colors flex items-center justify-center cursor-pointer',
+              item.value === value
+                ? 'bg-wn-accent-soft border-wn-accent text-foreground'
+                : 'border-wn-divider text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {item.label}
+          </button>
+        );
+
+        if (item.title) {
+          return (
+            <Tooltip key={String(item.value)}>
+              <TooltipTrigger asChild>
+                {button}
+              </TooltipTrigger>
+              <TooltipContent hideArrow side="top" sideOffset={6}>
+                {item.title}
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+
+        return <React.Fragment key={String(item.value)}>{button}</React.Fragment>;
+      })}
     </div>
   );
 }
