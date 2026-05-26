@@ -4,18 +4,9 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 5.1 — Phase 5 defect fixes** (see `PLAN.md` for full detail):
-  - A1/A2: Extend `TimelineState` with `paintedOverrides` + `pathNodes`; push undo history at stroke-end / path-mutation.
-  - A3: Extract shared `PaintedOverride` type; sync `colorBlend` into `WorkspaceState`.
-  - B1: Fix glitch-tool raycast (camera-aligned plane through COM, not hardcoded z=0).
-  - B2: Remove dead `undefined` writes in paint hot-path.
-  - B3: Move `[`/`]` brush hotkeys into `useShortcuts.ts`.
-  - C1–C3: Shortcut ToolId typing, `readOverride()` helper, path-tool toggle alignment.
-  - D: Extract 5 new `ToolbarAtoms`; replace inline `VisualTab` brush card with `SidebarToggleRow`.
-
-- **Phase 5.5 — Pre-Phase 6 audits** (parallel, after 5.1):
+- **Phase 5.5 — Pre-Phase 6 audits** (parallel):
   - Audit α: FPS counter + performance baseline doc.
-  - Audit β: Atomic extraction pass (subsumes D above).
+  - Audit β: Atomic extraction pass.
 
 ## Planned
 
@@ -30,10 +21,17 @@ This document outlines the current status of features, planned work, and known t
 ## Known Gaps
 
 - **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle. Explicitly deferred.
-- **Toolbar atomic debt**: `Toolbar.tsx` popover content is inline JSX (no atoms for segmented-picker, popover rows, path items). Addressed in Phase 5.1-D.
 
 ## Completed
 
+- **Phase 5.1 — Defect fixes & Toolbar Atomization**:
+  - A1/A2: Extended `TimelineState` with `paintedOverrides` + `pathNodes`; push undo history at stroke-end / path-mutation.
+  - A3: Extracted shared `PaintedOverride` type; sync `colorBlend` into `WorkspaceState`.
+  - B1: Fixed glitch-tool raycast (camera-aligned plane through COM, not hardcoded z=0).
+  - B2: Removed dead `undefined` writes in paint hot-path.
+  - B3: Moved `[`/`]` brush hotkeys into `useShortcuts.ts`.
+  - C1–C3: Shortcut ToolId typing, `readOverride()` helper, path-tool toggle alignment.
+  - D: Extracted 5 new `ToolbarAtoms`; replaced inline `VisualTab` brush card with `SidebarToggleRow`.
 - **Animation Phase 5: Toolbar functionality**:
   - Wired `activeTool` to canvas event handlers via the new `useToolHandlers` hook in `Network3D.tsx`.
   - Implemented 6 interactive canvas tools: `pointer` (clicking selects nodes, double-clicking flies camera), `pan` (left-mouse camera panning), `zoom` (vertical drag dolly), `paint` (paint brush overrides for node color, scale, opacity, and eraser), `glitch` (radial shockwave impulse applied directly to physical node velocities), and `path` (click to select nodes for the path animator).

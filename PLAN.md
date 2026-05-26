@@ -1,7 +1,7 @@
 # Plan: Phase 5 Audit, Fix-ups, and Phase 6 Sequencing
 
 > **Status: ACTIVE — approved 2026-05-26**
-> Next step: start with Phase 5.1 A1 (extend `TimelineState`, extract `PaintedOverride` type).
+> Next step: Phase 5.5 — Pre-Phase 6 audits (FPS counter & performance baseline, atomic audit verification).
 
 ## Context
 
