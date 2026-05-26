@@ -1,7 +1,7 @@
 # Plan: Phase 5 Audit, Fix-ups, and Phase 6 Sequencing
 
 > **Status: ACTIVE — approved 2026-05-26**
-> Next step: Phase 6.3 — Node shapes & centered picker, then 6.3b — Hover-reveal reorder handle. (6.3a Shape-switch performance ✅ done.)
+> Next step: Phase 6.3 — Node shapes & centered picker. (6.3a Shape-switch performance ✅ done. 6.3b Hover-reveal reorder handle ✅ done, shipped ahead of 6.3 by request.)
 
 ## Context
 

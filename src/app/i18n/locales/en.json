@@ -180,7 +180,8 @@
           "randomizeGradient": "Randomize gradient",
           "toggleBackground": "Toggle canvas background",
           "toggleBrushEdits": "Toggle brush edits",
-          "clearBrushEdits": "Clear brush edits"
+          "clearBrushEdits": "Clear brush edits",
+          "reorderEffect": "Reorder effect"
         },
         "pathAnimator": {
           "emptyHint": "Click nodes in the preview to build a path.",

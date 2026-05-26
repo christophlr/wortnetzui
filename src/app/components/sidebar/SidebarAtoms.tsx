@@ -28,7 +28,7 @@
  */
 
 import * as React from 'react';
-import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform } from 'lucide-react';
+import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform, GripVertical } from 'lucide-react';
 import { Slider } from '../ui/slider';
 import { Scrubber, type ScrubberProps } from '../ui/scrubber';
 import { Switch } from '../ui/switch';
@@ -963,6 +963,86 @@ export function SidebarViewPresetButton({
     >
       {label}
     </button>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SidebarReorderRow — wraps a sidebar list row with a hover-reveal grip on
+// the left edge. The grip is the only drag handle; the whole row is the
+// drop target. Modeled on Figma's Fill panel.
+// ──────────────────────────────────────────────────────────────────────────
+
+export function SidebarReorderRow({
+  index,
+  onReorder,
+  ariaLabel,
+  className,
+  children,
+}: {
+  index: number;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+  ariaLabel?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [isDragOver, setIsDragOver] = React.useState(false);
+  const dragArmed = React.useRef(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        if (!dragArmed.current) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        if (!isNaN(fromIndex) && fromIndex !== index) {
+          onReorder(fromIndex, index);
+        }
+      }}
+      onDragEnd={() => {
+        setIsDragOver(false);
+        dragArmed.current = false;
+      }}
+      className={cn('group relative flex items-stretch', className)}
+    >
+      {isDragOver ? (
+        <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-wn-accent" />
+      ) : null}
+      <button
+        type="button"
+        role="button"
+        aria-label={ariaLabel ?? 'Reorder'}
+        tabIndex={0}
+        onMouseDown={() => { dragArmed.current = true; }}
+        onMouseUp={() => { dragArmed.current = false; }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp' && index > 0) {
+            e.preventDefault();
+            onReorder(index, index - 1);
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            onReorder(index, index + 1);
+          }
+        }}
+        className="flex w-3 shrink-0 items-center justify-center text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-60 focus-visible:opacity-100 focus:outline-none cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical size={11} />
+      </button>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
   );
 }
 

@@ -160,7 +160,8 @@
           "randomizeGradient": "Gradient zufällig generieren",
           "toggleBackground":  "Leinwand-Hintergrund umschalten",
           "toggleBrushEdits":  "Pinselstriche umschalten",
-          "clearBrushEdits":   "Pinselstriche löschen"
+          "clearBrushEdits":   "Pinselstriche löschen",
+          "reorderEffect":     "Effekt neu anordnen"
         },
         "pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",

@@ -4,11 +4,6 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 6.3b — Hover-reveal reorder handle**:
-  - New `SidebarReorderRow` atom: grip indicator appears on the left edge of sidebar list rows on hover (modeled on Figma's Fill panel).
-  - HTML5 drag-and-drop reorders rows; keyboard `↑`/`↓` on focused grip moves the row.
-  - Wired to the Effects list in `VisualTab.tsx` via a new `reorderEffect` context mutator that splices `effectsList`.
-  - Order persists through workspace save/load (already serialized).
 - **Phase 6.3 — Node shapes & centered picker**:
   - Widen `NodeShape` from string union to discriminated object; add triangle, hexagon, octagon, and parametric star (arms 3-12, inner ratio 0.2-0.8).
   - Per-shape area compensation so inscribed shapes match rectangle visual size.
@@ -31,6 +26,12 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Phase 6.3b — Hover-reveal reorder handle**:
+  - New `SidebarReorderRow` atom in `SidebarAtoms.tsx`: grip indicator (`GripVertical`) appears on the left edge of sidebar list rows on hover (modeled on Figma's Fill panel) with a reserved 12px gutter so layout doesn't shift.
+  - Drag handle is the grip only (`onMouseDown` arms drag); whole row is the drop target. HTML5 drag-and-drop, no new dependency.
+  - 1px accent-color drop indicator at the target row's top edge during dragover.
+  - Keyboard: focused grip accepts `↑`/`↓` to reorder by one position.
+  - Wired to the Effects list in `VisualTab.tsx`; a local `reorderEffect(fromIndex, toIndex)` splices `effectsList` through the existing `setVisual` flow. Order persists through workspace save/load.
 - **Phase 6.3a — Shape-switch performance**:
   - Async-chunked texture rebuild in `Network3D.tsx`: cancellable in-flight rebuild token, first 32-node batch synchronous for immediate visual feedback, remaining batches dispatched via `requestIdleCallback` (fallback `setTimeout(_, 0)`).
   - Shape-only fast path in `textureCache.ts`: each cache entry stores `LayoutMetrics` (`logicalWidth`, `logicalHeight`, `words`); shape / border / theme rebuilds reuse them through `createCanvasTextureFromLayout`, skipping `measureText`.

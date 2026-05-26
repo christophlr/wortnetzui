@@ -14,6 +14,7 @@ import {
   SidebarVisibilityToggle,
   SidebarKeyframeToggle,
   SidebarModulatorButton,
+  SidebarReorderRow,
 } from '../SidebarAtoms';
 import { useT } from '../../../i18n/useT';
 import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '../../ui/popover';
@@ -511,8 +512,23 @@ export function VisualTab({
                 setVisual(patch);
               };
 
+              const reorderEffect = (fromIndex: number, toIndex: number) => {
+                const list = [...(visualSettings.effectsList ?? [])];
+                const clamped = Math.max(0, Math.min(toIndex, list.length - 1));
+                if (fromIndex === clamped) return;
+                const [moved] = list.splice(fromIndex, 1);
+                list.splice(clamped, 0, moved);
+                setVisual({ effectsList: list });
+              };
+
               return (
-                <Popover key={`${effectType}-${index}`}>
+                <SidebarReorderRow
+                  key={`${effectType}-${index}`}
+                  index={index}
+                  onReorder={reorderEffect}
+                  ariaLabel={t('sidebar.tab.visual.action.reorderEffect')}
+                >
+                <Popover>
                   <PopoverAnchor asChild>
                     <div className="flex items-center gap-1.5 p-1 bg-wn-control-bg border border-wn-divider rounded-md w-full">
                       <PopoverTrigger asChild>
@@ -806,6 +822,7 @@ export function VisualTab({
                     )}
                   </PopoverContent>
                 </Popover>
+                </SidebarReorderRow>
               );
             })}
           </div>
