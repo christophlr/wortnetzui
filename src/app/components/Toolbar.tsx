@@ -9,6 +9,7 @@ import {
   ColorPicker,
   ColorPickerContent,
   ColorPickerHueSlider,
+  ColorPickerPresets,
   ColorPickerSwatch,
   ColorPickerTrigger,
   ColorPickerArea,
@@ -31,17 +32,6 @@ const TOOL_ICONS = {
   path: Route,
 } as const satisfies Record<ToolId, unknown>;
 
-const PRESET_SWATCHES = [
-  '#4f46e5', // Indigo
-  '#7c3aed', // Violet
-  '#06b6d4', // Cyan
-  '#10b981', // Emerald
-  '#eab308', // Yellow
-  '#f97316', // Orange
-  '#f43f5e', // Rose
-  '#ffffff', // White
-  '#09090b', // Charcoal
-];
 
 function toolLabel(t: (key: string) => string, id: ToolId): string {
   return `${t(`toolbar.tool.${id}`)} (${t(`toolbar.shortcut.${id}`)})`;
@@ -136,18 +126,7 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
                     <ColorPickerContent align="center" side="right">
                       <ColorPickerArea />
                       <ColorPickerHueSlider />
-                      {/* Swatches preset grid */}
-                      <div className="grid grid-cols-5 gap-1.5 pt-2 border-t border-wn-divider">
-                        {PRESET_SWATCHES.map((swatch) => (
-                          <button
-                            key={swatch}
-                            type="button"
-                            onClick={() => setPaintColor(swatch)}
-                            className="size-5 rounded-full border border-black/10 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
-                            style={{ backgroundColor: swatch }}
-                          />
-                        ))}
-                      </div>
+                      <ColorPickerPresets />
                     </ColorPickerContent>
                   </ColorPicker>
                 </div>

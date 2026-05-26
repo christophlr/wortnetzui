@@ -433,7 +433,7 @@ function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div
         className
       )}
       style={{
-        backgroundImage: "linear-gradient(to right,#ff0000_0%,#ffff00_16.67%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.67%,#ff00ff_83.33%,#ff0000_100%)",
+        backgroundImage: "linear-gradient(to right, #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%)",
         ...props.style
       }}
       onPointerDown={(e) => {
@@ -444,18 +444,6 @@ function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <span
-        className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[11px] font-medium text-white mix-blend-difference whitespace-nowrap leading-none"
-        style={{ left: 8, zIndex: 4 }}
-      >
-        Hue
-      </span>
-      <span
-        className="pointer-events-none absolute top-1/2 -translate-y-1/2 font-mono text-[10px] font-medium text-white mix-blend-difference"
-        style={{ right: 6, zIndex: 4 }}
-      >
-        {Math.round(hsv.h)}°
-      </span>
       <div
         className="pointer-events-none absolute top-1/2"
         style={{
@@ -466,13 +454,12 @@ function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div
       >
         <motion.div
           animate={{
-            opacity: isActive ? 1.0 : 0.5,
-            scaleX: isActive ? 1 : 0.75,
-            scaleY: isActive ? 1 : 0.75,
+            scaleY: isActive ? 1 : 0.85,
+            opacity: isActive ? 1 : 0.85,
           }}
           transition={spring}
-          className="bg-white rounded-full shadow-[0_0_2px_rgba(0,0,0,0.5)] border border-black/10"
-          style={{ width: 2, height: 18 }}
+          className="bg-white rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.35),0_1px_2px_rgba(0,0,0,0.25)]"
+          style={{ width: 6, height: 22 }}
         />
       </div>
     </div>
@@ -602,6 +589,49 @@ function ColorPickerEyeDropper({ className, ...props }: React.ComponentProps<typ
   );
 }
 
+const DEFAULT_PRESET_SWATCHES = [
+  '#4f46e5',
+  '#7c3aed',
+  '#06b6d4',
+  '#10b981',
+  '#eab308',
+  '#f97316',
+  '#f43f5e',
+  '#ffffff',
+  '#09090b',
+];
+
+function ColorPickerPresets({
+  presets = DEFAULT_PRESET_SWATCHES,
+  className,
+}: {
+  presets?: string[];
+  className?: string;
+}) {
+  const { value, onValueChange } = useColorPickerContext();
+
+  return (
+    <div className={cn("grid grid-cols-5 place-items-center gap-1.5 mt-1 pt-3 border-t border-wn-divider", className)}>
+      {presets.map((preset) => {
+        const isActive = value.toLowerCase() === preset.toLowerCase();
+        return (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onValueChange(preset)}
+            className={cn(
+              "size-7 rounded-sm cursor-pointer transition-all duration-100",
+              "border border-black/10 hover:scale-[1.08] active:scale-95",
+              isActive && "ring-2 ring-inset ring-white/60"
+            )}
+            style={{ backgroundColor: preset }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export {
   ColorPicker,
   ColorPickerArea,
@@ -611,6 +641,7 @@ export {
   ColorPickerFormatSelect,
   ColorPickerHueSlider,
   ColorPickerInput,
+  ColorPickerPresets,
   ColorPickerSwatch,
   ColorPickerTrigger,
 };

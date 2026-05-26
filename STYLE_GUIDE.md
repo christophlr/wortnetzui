@@ -133,6 +133,8 @@ restore them before submitting.
 | **Version badge** | Bottom-left of Canvas viewport panel | - |
 | **Keyframe Icons** | Semantic SVG shapes · 10px size | `--wn-timeline-keyframe-fill` |
 | **Context Menu Style** | `bg-popover/95` · `backdrop-blur-sm` · `border-border` | - |
+| **Color preset swatches** | `ColorPickerPresets` atom (`color-picker.tsx`) — `size-7 rounded-sm` squares in a centered 5-col grid, never circles. Cohesive with the trigger swatch (same `rounded-sm`, slightly larger) | - |
+| **Color trigger swatch** | `size-3.5 rounded-sm` (sidebar) / `size-4 rounded-sm` (toolbar) — via `ColorPickerSwatch` atom | - |
 
 ---
 
