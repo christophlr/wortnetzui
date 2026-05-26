@@ -80,6 +80,11 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - Never use custom portals or floating divs for context menus.
 - Menus must have `bg-popover/95` and `backdrop-blur-sm` for a professional, integrated look.
 
+### Tooltip Design Rule
+- When adding or upgrading tooltips for interactive icons or buttons (e.g. `SidebarSegmentedPicker`, `ToolButton`), use the custom `<Tooltip>` wrapper from `@src/components/ui/tooltip.tsx`.
+- Disable the default arrow styling by passing the `hideArrow` prop.
+- Set appropriate positioning (`side="top"` or `side="right"`) and offset (`sideOffset={6}` or `sideOffset={8}`) to avoid visual overlap.
+
 ### Timeline Track Tuning
 - The timeline’s per-track tuning panel (beneath the Graph Editor) shows **Modulator** controls only; Glide tuning is not displayed in timeline tracks.
 
