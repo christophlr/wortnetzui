@@ -28,10 +28,11 @@ import {
   buildSettlePayload,
 } from '../network3d/workerGlue';
 import { useResizeObserver } from '../hooks/useResizeObserver';
-import { useRaycastHover } from '../hooks/useRaycastHover';
+import { useToolHandlers } from '../hooks/useToolHandlers';
 import { useCameraFlyTo } from '../hooks/useCameraFlyTo';
 import { usePhysicsWorkerSync } from '../hooks/usePhysicsWorkerSync';
 import { setupEffectsPipeline } from '../network3d/effectsPipeline';
+import { useWortnetz } from '../context/WortnetzContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -189,6 +190,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     isPathPlaying = false,
     onPathPlaybackFinished,
   } = props;
+  const {
+    activeTool,
+    brushRadius,
+    paintColor,
+    paintScale,
+    paintOpacity,
+    paintMode,
+    paintedOverrides,
+    setPaintedOverrides
+  } = useWortnetz();
+
+  const paintedOverridesRef = useRef(paintedOverrides);
+  useEffect(() => {
+    paintedOverridesRef.current = paintedOverrides;
+  }, [paintedOverrides]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera | null>(null);

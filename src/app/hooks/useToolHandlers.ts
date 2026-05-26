@@ -233,18 +233,27 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
 
       if (bag.activeTool === 'paint') {
         performPaint(e);
+      } else if (bag.activeTool === 'pan') {
+        domElement.style.cursor = 'grabbing';
       }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button !== 0) return;
       isMouseDown = false;
+      const bag = bagRef.current;
+      if (bag.activeTool === 'pan') {
+        domElement.style.cursor = 'grab';
+      }
     };
 
     const handleMouseLeave = () => {
       isMouseDown = false;
       const bag = bagRef.current;
       bag.setMouseCoords(null);
+      if (bag.activeTool === 'pan') {
+        domElement.style.cursor = 'grab';
+      }
 
       if (bag.hoveredNodeRef.current) {
         const was = bag.hoveredNodeRef.current;
