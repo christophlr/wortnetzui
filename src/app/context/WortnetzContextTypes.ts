@@ -37,11 +37,15 @@ export type PhysicsKeyframe = {
 
 export type SceneMarker = { time: number; label: string };
 
+export type PaintedOverride = { color?: string; colorBlend?: number; scale?: number; opacity?: number };
+
 export type TimelineState = {
   cameraKeyframes: Keyframe[];
   physicsKeyframes: Record<string, PhysicsKeyframe[]>;
   sceneMarkers: SceneMarker[];
   trackMeta: Record<string, TrackMeta>;
+  paintedOverrides: Record<string, PaintedOverride>;
+  pathNodes: { id: string; label: string }[];
 };
 
 export interface WortnetzContextType {
@@ -237,9 +241,11 @@ export interface WortnetzContextType {
   setPaintBlend: (val: number) => void;
   paintMode: 'color' | 'scale' | 'opacity' | 'erase';
   setPaintMode: (m: 'color' | 'scale' | 'opacity' | 'erase') => void;
-  paintedOverrides: Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>;
-  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>>;
+  paintedOverrides: Record<string, PaintedOverride>;
+  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, PaintedOverride>>>;
   clearPaintedOverrides: () => void;
+  onStrokeStart?: () => void;
+  onStrokeEnd?: () => void;
 
   // Derived
   effectivePhysicsParams: any;

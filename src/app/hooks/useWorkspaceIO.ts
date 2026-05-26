@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { Modulator } from '../animation/Modulator';
+import type { PaintedOverride } from '../context/WortnetzContextTypes';
 
 export type WorkspaceState = {
   // Schema version. Absent → v0 (pre-Phase 3). Current writer is v1.
@@ -19,7 +20,7 @@ export type WorkspaceState = {
   visualSettings?: any;
   pathNodes?: { id: string; label: string }[];
   // Phase 5 additions
-  paintedOverrides?: Record<string, { color?: string; scale?: number; opacity?: number }>;
+  paintedOverrides?: Record<string, PaintedOverride>;
 };
 
 export function serializeTrackMeta(meta: Record<string, { glide: number; modulator?: Modulator }> | undefined) {

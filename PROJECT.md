@@ -44,11 +44,13 @@ The aesthetic target is a professional creative application (Figma / After Effec
 | `context/WortnetzContextTypes.ts` | Type definitions for the global context (split from `WortnetzContext.tsx`). |
 | `context/WortnetzContextConstants.ts` | Constants and param-to-track mappings used by the context. |
 | `networkTheme.ts` & `constants.ts` | 3D scene colour tokens and global constants. |
+| `NODE_MODULATION.md` | Architecture design proposal for the node-based modulation/patchbay system. |
 
 ## Reverse Index
 
 | Concept | File Location |
 |---|---|
+| Where does the node modulation design live? | `NODE_MODULATION.md` |
 | Where does undo/redo live? | `hooks/useUndoStack.ts` |
 | Where is the project saved/loaded? | `hooks/useWorkspaceIO.ts` |
 | Where are shortcuts defined? | `hooks/useShortcuts.ts` |

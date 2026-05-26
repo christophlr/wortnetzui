@@ -12,6 +12,7 @@ import {
   WortnetzContextType,
   TrackMeta,
   Modulator,
+  PaintedOverride,
 } from './WortnetzContextTypes';
 
 import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM, VISUAL_TRACK_IDS, VISUAL_TRACK_PARAM } from './WortnetzContextConstants';
@@ -103,7 +104,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [paintOpacity, setPaintOpacity] = useState(1.0);
   const [paintBlend, setPaintBlend] = useState(0.0);
   const [paintMode, setPaintMode] = useState<'color' | 'scale' | 'opacity' | 'erase'>('color');
-  const [paintedOverrides, setPaintedOverrides] = useState<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>({});
+  const [paintedOverrides, setPaintedOverrides] = useState<Record<string, PaintedOverride>>({});
 
   const clearPaintedOverrides = useCallback(() => {
     setPaintedOverrides({});
@@ -136,11 +137,32 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const styleSettingsRef = useRef(styleSettings);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
 
+  const paintedOverridesRef = useRef(paintedOverrides);
+  useEffect(() => { paintedOverridesRef.current = paintedOverrides; }, [paintedOverrides]);
+
+  const pathNodesRef = useRef(pathNodes);
+  useEffect(() => { pathNodesRef.current = pathNodes; }, [pathNodes]);
+
+  const prePaintStateRef = useRef<TimelineState | null>(null);
+
+  const handleStrokeStart = useCallback(() => {
+    prePaintStateRef.current = {
+      cameraKeyframes: cameraKeyframesRef.current,
+      physicsKeyframes: physicsKeyframesRef.current,
+      sceneMarkers: sceneMarkersRef.current,
+      trackMeta: trackMetaRef.current,
+      paintedOverrides: paintedOverridesRef.current,
+      pathNodes: pathNodesRef.current,
+    };
+  }, []);
+
   const getTimelineState = useCallback((): TimelineState => ({
     cameraKeyframes: cameraKeyframesRef.current,
     physicsKeyframes: physicsKeyframesRef.current,
     sceneMarkers: sceneMarkersRef.current,
     trackMeta: trackMetaRef.current,
+    paintedOverrides: paintedOverridesRef.current,
+    pathNodes: pathNodesRef.current,
   }), []);
 
   const applyTimelineState = useCallback((state: TimelineState) => {
@@ -148,6 +170,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     setPhysicsKeyframes(state.physicsKeyframes ?? EMPTY_PHYSICS_KFS);
     setSceneMarkers(state.sceneMarkers ?? []);
     setTrackMeta(state.trackMeta ?? { ...DEFAULT_TRACK_META });
+    setPaintedOverrides(state.paintedOverrides ?? {});
+    setPathNodes(state.pathNodes ?? []);
   }, []);
 
   const { push: pushHistory, pushDebounced: pushHistoryDebounced, undo, redo, canUndo, canRedo } = useUndoStack<TimelineState>(
@@ -155,6 +179,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     applyTimelineState,
     { capacity: 30 }
   );
+
+  const handleStrokeEnd = useCallback(() => {
+    if (prePaintStateRef.current) {
+      pushHistory(getTimelineState());
+      prePaintStateRef.current = null;
+    }
+  }, [getTimelineState, pushHistory]);
 
   const network3DRef = useRef<Network3DHandle>(null);
   const playheadRef = useRef(playheadPosition);
@@ -970,27 +1001,39 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const handleNodeSelect = useCallback((node: any) => {
     if (activeTool === 'path') {
       if (node) {
+        const prevTimelineState = getTimelineState();
         setPathNodes(prev => {
           if (prev.length > 0 && prev[prev.length - 1].id === node.label) return prev;
-          return [...prev, { id: node.label, label: node.label }];
+          const next = [...prev, { id: node.label, label: node.label }];
+          pushHistory({ ...prevTimelineState, pathNodes: next });
+          return next;
         });
       }
     } else {
       setSelectedNode(node);
     }
-  }, [activeTool]);
+  }, [activeTool, getTimelineState, pushHistory]);
 
   const reorderPathNodes = useCallback((newNodes: { id: string; label: string }[]) => {
+    const prev = getTimelineState();
     setPathNodes(newNodes);
-  }, []);
+    pushHistory({ ...prev, pathNodes: newNodes });
+  }, [getTimelineState, pushHistory]);
 
   const removePathNode = useCallback((index: number) => {
-    setPathNodes(prev => prev.filter((_, i) => i !== index));
-  }, []);
+    const prev = getTimelineState();
+    setPathNodes(prevNodes => {
+      const next = prevNodes.filter((_, i) => i !== index);
+      pushHistory({ ...prev, pathNodes: next });
+      return next;
+    });
+  }, [getTimelineState, pushHistory]);
 
   const clearPath = useCallback(() => {
+    const prev = getTimelineState();
     setPathNodes([]);
-  }, []);
+    pushHistory({ ...prev, pathNodes: [] });
+  }, [getTimelineState, pushHistory]);
 
   return (
     <WortnetzContext.Provider value={{
@@ -1013,6 +1056,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       paintMode, setPaintMode,
       paintedOverrides, setPaintedOverrides,
       clearPaintedOverrides,
+      onStrokeStart: handleStrokeStart,
+      onStrokeEnd: handleStrokeEnd,
       trackMeta, setTrackMeta, handleSetTrackGlide, handleSetTrackModulator,
       armedTracks, handleToggleTrackArm, handleCommitRecording,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,

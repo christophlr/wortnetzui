@@ -19,6 +19,9 @@ This document outlines the current status of features, planned work, and known t
 
 ## Planned
 
+- **Node-Based Modulation (Patchbay) System (Future)**:
+  - Transition from static modulators to a visual patching system. Detailed design proposal: [NODE_MODULATION.md](file:///Users/christoph/Documents/Code/wortnetzui/NODE_MODULATION.md).
+  - Highlights: custom glassmorphic node UI, bidirectional sidebar inspector tabs, topological compiler, and 60Hz worker execution.
 - **Phase 6** (order: shaders → BPM → MIDI):
   - 6.1: Additional shader effects (Vignette, Chromatic Aberration, Film Grain — `EffectComposer` pattern already established).
   - 6.2: BPM / musical time (`Modulator.bpm` scaffold exists; needs beat-ruler UI + global BPM context).
