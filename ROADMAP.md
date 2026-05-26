@@ -1,20 +1,33 @@
 # Wortnetze — Roadmap
 
-This document outlines the current status of features, planned work, and known technical debt. For the detailed implementation plan, see `plan-timeline-update.md`.
+This document outlines the current status of features, planned work, and known technical debt. Full implementation plan: see `PLAN.md`.
 
 ## Active
 
-*(No active tasks — currently planning Phase 6)*
+- **Phase 5.1 — Phase 5 defect fixes** (see `PLAN.md` for full detail):
+  - A1/A2: Extend `TimelineState` with `paintedOverrides` + `pathNodes`; push undo history at stroke-end / path-mutation.
+  - A3: Extract shared `PaintedOverride` type; sync `colorBlend` into `WorkspaceState`.
+  - B1: Fix glitch-tool raycast (camera-aligned plane through COM, not hardcoded z=0).
+  - B2: Remove dead `undefined` writes in paint hot-path.
+  - B3: Move `[`/`]` brush hotkeys into `useShortcuts.ts`.
+  - C1–C3: Shortcut ToolId typing, `readOverride()` helper, path-tool toggle alignment.
+  - D: Extract 5 new `ToolbarAtoms`; replace inline `VisualTab` brush card with `SidebarToggleRow`.
+
+- **Phase 5.5 — Pre-Phase 6 audits** (parallel, after 5.1):
+  - Audit α: FPS counter + performance baseline doc.
+  - Audit β: Atomic extraction pass (subsumes D above).
 
 ## Planned
 
-- **Future / Phase 6**
-  - BPM / musical time, MIDI mapping, additional shader effects.
-  - Auto-detect language activation (browser language behind opt-in toggle).
+- **Phase 6** (order: shaders → BPM → MIDI):
+  - 6.1: Additional shader effects (Vignette, Chromatic Aberration, Film Grain — `EffectComposer` pattern already established).
+  - 6.2: BPM / musical time (`Modulator.bpm` scaffold exists; needs beat-ruler UI + global BPM context).
+  - 6.3: MIDI mapping (no groundwork — Web MIDI API, learn mode, serialization).
 
 ## Known Gaps
 
-- **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle.
+- **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle. Explicitly deferred.
+- **Toolbar atomic debt**: `Toolbar.tsx` popover content is inline JSX (no atoms for segmented-picker, popover rows, path items). Addressed in Phase 5.1-D.
 
 ## Completed
 
