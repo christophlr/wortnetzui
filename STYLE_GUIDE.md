@@ -117,6 +117,7 @@ restore them before submitting.
 | **Edge opacity** | `0.35` | - |
 | **Edge width** | `2px` | - |
 | **Edge render order** | Always behind nodes | - |
+| **Bloom defaults (when enabled)** | Intensity `0.15` · Radius `0.4` · Threshold `0.85` · pass enabled when in FX list | - |
 | **3D background — dark** | `oklch(0.16 0 0)` (refined dark charcoal) | - |
 | **3D background — light** | `#ffffff` | - |
 | **Dot grid** | 24px cells · radial-gradient · dark `rgba(255,255,255,0.08)` / light `rgba(0,0,0,0.05)` | - |

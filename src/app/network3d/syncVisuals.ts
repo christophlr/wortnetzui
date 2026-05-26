@@ -135,7 +135,7 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       }
 
       // Selective bloom: boost selected nodes' colors above 1.0 so they exceed the bloom threshold
-      if (vs.bloomSelective) {
+      if (vs.bloomEnabled && vs.bloomSelective) {
         let isGlowing = false;
         const ratio = vs.bloomSelectiveRatio;
         switch (vs.bloomGlowMode) {

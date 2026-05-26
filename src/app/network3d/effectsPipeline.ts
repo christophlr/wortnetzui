@@ -199,7 +199,6 @@ export function setupEffectsPipeline(
     0.4, // radius
     0.0  // threshold
   );
-  bloomPass.enabled = false;
 
   // Initialize Vignette, Chromatic Aberration, Film Grain, and Pixelation passes
   const vignettePass = new ShaderPass(VignetteShader);
