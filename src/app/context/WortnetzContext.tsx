@@ -105,6 +105,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [paintBlend, setPaintBlend] = useState(0.0);
   const [paintMode, setPaintMode] = useState<'color' | 'scale' | 'opacity' | 'erase'>('color');
   const [paintedOverrides, setPaintedOverrides] = useState<Record<string, PaintedOverride>>({});
+  const [showFps, setShowFps] = useState(false);
 
   const clearPaintedOverrides = useCallback(() => {
     setPaintedOverrides({});
@@ -1056,6 +1057,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       paintMode, setPaintMode,
       paintedOverrides, setPaintedOverrides,
       clearPaintedOverrides,
+      showFps, setShowFps,
       onStrokeStart: handleStrokeStart,
       onStrokeEnd: handleStrokeEnd,
       trackMeta, setTrackMeta, handleSetTrackGlide, handleSetTrackModulator,

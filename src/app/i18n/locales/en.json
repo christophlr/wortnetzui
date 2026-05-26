@@ -19,11 +19,13 @@
       "shortcuts": "Shortcuts...",
       "themeLight": "Light",
       "themeDark": "Dark",
-      "themeSystem": "System"
+      "themeSystem": "System",
+      "showFps": "Show FPS"
     },
     "label": {
       "theme": "Theme",
-      "language": "Language"
+      "language": "Language",
+      "debug": "Debug"
     },
     "language": {
       "de": "German",

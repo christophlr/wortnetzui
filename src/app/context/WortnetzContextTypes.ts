@@ -250,6 +250,8 @@ export interface WortnetzContextType {
   onStrokeEnd?: () => void;
 
   // Derived
+  showFps: boolean;
+  setShowFps: (show: boolean) => void;
   effectivePhysicsParams: any;
   previewIsDark: boolean;
   uiIsDark: boolean;

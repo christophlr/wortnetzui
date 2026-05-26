@@ -205,9 +205,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     setPaintedOverrides,
     onStrokeStart,
     onStrokeEnd,
+    showFps,
   } = useWortnetz();
 
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
+
+  const fpsDomRef = useRef<HTMLDivElement>(null);
+  const showFpsRef = useRef(showFps);
+  useEffect(() => { showFpsRef.current = showFps; }, [showFps]);
 
   const paintedOverridesRef = useRef(paintedOverrides);
   useEffect(() => {
@@ -1045,9 +1050,26 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     // Animation loop
     let lastTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+
     const animate = () => {
       if (isCancelled) return;
       animationFrameRef.current = requestAnimationFrame(animate);
+
+      // Calculate FPS if enabled
+      if (showFpsRef.current) {
+        frameCount++;
+        const now = performance.now();
+        if (now - lastFpsUpdate >= 500) {
+          const fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+          if (fpsDomRef.current) {
+            fpsDomRef.current.innerText = `${fps} FPS`;
+          }
+          frameCount = 0;
+          lastFpsUpdate = now;
+        }
+      }
 
       // Apply physics every frame (with delta time for stability)
       const now = performance.now();
@@ -1471,6 +1493,14 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
               {i18n.t('network3d.camera.unlock')}
             </button>
           </div>
+        )}
+
+        {/* FPS Counter Overlay */}
+        {showFps && (
+          <div 
+            ref={fpsDomRef}
+            className="absolute top-4 left-4 z-20 bg-black/60 border border-wn-divider text-green-400 font-mono text-[10px] px-2 py-0.5 rounded-md pointer-events-none select-none font-bold shadow-md animate-in fade-in duration-200"
+          />
         )}
 
       </div>

@@ -2,7 +2,7 @@ import {
   Save, FolderOpen, Sun, Moon, Monitor, Undo2, Redo2, Download,
   Keyboard
 } from 'lucide-react';
-import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubContent } from './ui/menubar';
+import { Menubar, MenubarMenu, MenubarContent, MenubarGroup, MenubarItem, MenubarSeparator, MenubarShortcut, MenubarRadioGroup, MenubarRadioItem, MenubarLabel, MenubarSub, MenubarSubContent, MenubarCheckboxItem } from './ui/menubar';
 import { useWortnetz } from '../context/WortnetzContext';
 import { useProject } from '../hooks/useProject';
 import { TopBarActionButton, TopBarMenuSubTrigger, TopBarMenuTrigger, TopBarPill, TopBarViewToggle } from './topbar/TopBarAtoms';
@@ -25,7 +25,8 @@ export function TopBar({
     themeMode, setThemeMode,
     themeAuto, setThemeAuto,
     setPhysicsParams,
-    undo, redo, canUndo, canRedo
+    undo, redo, canUndo, canRedo,
+    showFps, setShowFps
   } = useWortnetz();
   
   const { handleSave, handleLoad } = useProject();
@@ -148,6 +149,17 @@ export function TopBar({
                         <MenubarSeparator />
                         <MenubarRadioItem value="auto">{t('topbar.language.auto')}</MenubarRadioItem>
                       </MenubarRadioGroup>
+                    </MenubarSubContent>
+                  </MenubarSub>
+                </MenubarGroup>
+                <MenubarSeparator />
+                <MenubarGroup>
+                  <MenubarSub>
+                    <TopBarMenuSubTrigger>{t('topbar.label.debug')}</TopBarMenuSubTrigger>
+                    <MenubarSubContent>
+                      <MenubarCheckboxItem checked={showFps} onCheckedChange={setShowFps}>
+                        {t('topbar.item.showFps')}
+                      </MenubarCheckboxItem>
                     </MenubarSubContent>
                   </MenubarSub>
                 </MenubarGroup>

@@ -13,11 +13,13 @@
       "shortcuts":    "Tastaturkürzel...",
       "themeLight":   "Hell",
       "themeDark":    "Dunkel",
-      "themeSystem":  "System"
+      "themeSystem":  "System",
+      "showFps":      "FPS anzeigen"
     },
     "label": {
       "theme": "Design",
-      "language": "Sprache"
+      "language": "Sprache",
+      "debug": "Debug"
     },
     "language": {
       "de": "Deutsch",
