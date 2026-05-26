@@ -10,6 +10,7 @@ import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, bu
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM, VISUAL_TRACK_IDS, VISUAL_TRACK_PARAM } from '../context/WortnetzContextConstants';
 import type { TrackMeta } from '../animation/Track';
+import type { WortnetzContextType } from '../context/WortnetzContextTypes';
 import { evalLfo } from '../animation/Modulator';
 import type { WorkerTrack } from '../animation/evaluateTracks';
 import {
@@ -71,32 +72,7 @@ interface Network3DProps {
   onProgress?: (progress: number) => void;
   edgeAppearance?: { color: 'auto' | string };
   timelineHeight?: number;
-  visualSettings?: {
-    nodesVisible: boolean;
-    edgesVisible: boolean;
-    radialBiasScale: number;
-    radialBiasOpacity: number;
-    gradientOrigin: string;
-    gradientPeriphery: string;
-    glitchActive: boolean;
-    glitchBrushRadius: number;
-    glitchFeather: number;
-    pathSmoothness: number;
-    pathCameraFollow: boolean;
-    bloomEnabled: boolean;
-    bloomIntensity: number;
-    bloomSelective: boolean;
-    bloomSelectiveRatio: number;
-    bloomGlowMode: 'deterministic' | 'flicker' | 'index';
-    bloomFlickerSpeed: number;
-    gradientHueShift: number;
-    bloomRadius?: number;
-    bloomThreshold?: number;
-    effectsList?: ('bloom' | 'glitch')[];
-    bloomPreset?: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
-    backgroundColor?: string;
-    showPaintedOverrides?: boolean;
-  };
+  visualSettings?: WortnetzContextType['visualSettings'];
   onNodeSelect?: (node: any) => void;
   pathNodes?: { id: string; label: string }[];
   isPathPlaying?: boolean;
@@ -186,6 +162,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       gradientHueShift: 0.0,
       effectsList: [],
       showPaintedOverrides: true,
+      globalBpm: 120,
+      globalBpmEnabled: false,
+      timelineGridSubdivision: 1,
     },
     onNodeSelect,
     pathNodes = [],
@@ -351,11 +330,18 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       const meta = trackMetaRef.current;
       for (const [trackId, paramKey] of Object.entries(PHYS_TRACK_PARAM)) {
         const m = meta[trackId];
+        const mod = m?.modulator;
+        const resolvedModulator = mod
+          ? {
+              ...mod,
+              bpm: mod.bpmSync ? (visualSettings.globalBpm ?? 120) : mod.bpm,
+            }
+          : undefined;
         tracksMsg[paramKey] = {
           trackId,
           keyframes: kfs[trackId] ?? [],
           glide: m?.glide ?? 0,
-          modulator: m?.modulator,
+          modulator: resolvedModulator,
         };
       }
       physicsWorkerRef.current?.postMessage({ type: 'updateTracks', tracks: tracksMsg });
@@ -367,7 +353,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         tracksDebounceRef.current = null;
       }
     };
-  }, [physicsKeyframes, trackMeta]);
+  }, [physicsKeyframes, trackMeta, visualSettings.globalBpm]);
   useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
   useEffect(() => {
     // Sidebar slider change: forward the new baseline to the worker on the
@@ -1240,7 +1226,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         // Layer on LFO modulator if active
         const meta = trackMetaRef.current?.[trackId];
         const finalVal = meta?.modulator
-          ? Math.max(0, baseVal + evalLfo(meta.modulator, nowSec))
+          ? Math.max(0, baseVal + evalLfo(meta.modulator, nowSec, vsBase.globalBpm))
           : baseVal;
         // Write to the appropriate override object
         if (paramKey in vsBase) {

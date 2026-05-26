@@ -5,11 +5,20 @@ import { TIMELINE_DURATION } from '../../constants';
 // Base zoom multiplier. User's "1x" = 12.0 internal zoom.
 const ZOOM_SCALE = 12;
 
+export type BeatSnapOptions = {
+  bpm: number;
+  gridSubdivision: number; // 0.25 = whole, 0.5 = half, 1 = quarter, 2 = 8th, 4 = 16th
+  enabled: boolean;
+};
+
 /**
  * Shared hook for timeline view window state: zoom, pan, snap, and helpers.
  * Consolidates the scattered zoom/pan/snap state from the main Timeline component.
+ *
+ * `beatSnap` lets the consumer switch the snap grid from 30fps frames to musical
+ * subdivisions of a global BPM. Falls back to frame snap when disabled.
  */
-export function useTimelineView(initialDuration = TIMELINE_DURATION) {
+export function useTimelineView(initialDuration = TIMELINE_DURATION, beatSnap?: BeatSnapOptions) {
   const [zoom, setZoom] = useState(1);
   const [panStart, setPanStart] = useState(0);
   const [snap, setSnap] = useState(true);
@@ -61,11 +70,16 @@ export function useTimelineView(initialDuration = TIMELINE_DURATION) {
 
       if (bestPoint !== -1) return bestPoint;
 
-      // 2. Fallback to frame grid
+      // 2. Beat-grid snap (if enabled), else 30 fps frame grid.
+      if (beatSnap?.enabled && beatSnap.bpm > 0 && beatSnap.gridSubdivision > 0) {
+        const beatDuration = 60 / beatSnap.bpm;
+        const step = beatDuration / beatSnap.gridSubdivision;
+        return Math.round(clamped / step) * step;
+      }
       return Math.round(clamped * 30) / 30;
     }
     return clamped;
-  }, [snap, duration, viewWindow]);
+  }, [snap, duration, viewWindow, beatSnap?.enabled, beatSnap?.bpm, beatSnap?.gridSubdivision]);
 
   /** Wheel handler for cursor-anchored zoom + trackpad pan. Attach to the content element. */
   const handleWheel = useCallback((e: WheelEvent, contentEl: HTMLElement) => {

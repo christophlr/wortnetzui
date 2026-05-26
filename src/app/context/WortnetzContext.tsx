@@ -102,6 +102,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     grainColored: false,
     pixelateEnabled: false,
     pixelSize: 1,
+    globalBpm: 120,
+    globalBpmEnabled: false,
+    timelineGridSubdivision: 1,
   });
   const [pathNodes, setPathNodes] = useState<{ id: string; label: string }[]>([]);
   const [isPathPlaying, setIsPathPlaying] = useState(false);
@@ -228,6 +231,16 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
         if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
         if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+        let extractedBpm = 120;
+        if (s.trackMeta) {
+          for (const m of Object.values(s.trackMeta)) {
+            if (m?.modulator?.bpm) {
+              extractedBpm = m.modulator.bpm;
+              break;
+            }
+          }
+        }
+
         if (s.visualSettings) {
           const baseVisual = {
             nodesVisible: true, edgesVisible: true,
@@ -255,6 +268,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
             grainColored: false,
             pixelateEnabled: false,
             pixelSize: 1,
+            globalBpm: extractedBpm,
+            globalBpmEnabled: false,
+            timelineGridSubdivision: 1,
           };
           const loadedVisual = s.visualSettings;
           const autoList: ('bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate')[] = [...(loadedVisual.effectsList ?? [])];
@@ -289,7 +305,11 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         const baseMeta = { ...DEFAULT_TRACK_META };
         if (s.trackMeta) {
           for (const [trackId, m] of Object.entries(s.trackMeta)) {
-            baseMeta[trackId] = { glide: m.glide ?? 0, modulator: m.modulator };
+            let mod = m.modulator;
+            if (mod && mod.bpm !== undefined && mod.bpmSync === undefined) {
+              mod = { ...mod, bpmSync: true };
+            }
+            baseMeta[trackId] = { glide: m.glide ?? 0, modulator: mod };
           }
         }
         setTrackMeta(baseMeta);

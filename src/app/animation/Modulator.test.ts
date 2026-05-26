@@ -127,6 +127,14 @@ describe('evalLfo', () => {
     const m = { waveform: 'sine' as const, rate: 1, depth: 1, phase: Math.PI / 2 };
     expect(evalLfo(m, 0)).toBeCloseTo(1, 10);
   });
+
+  it('supports global BPM sync when bpmSync is true', () => {
+    const m = { waveform: 'sine' as const, rate: 1, depth: 1, phase: 0, bpmSync: true };
+    // at 120 BPM, rate = 1 means 2 Hz. Period = 0.5s. Peak (0.25 period) is at 0.125s
+    expect(evalLfo(m, 0.125, 120)).toBeCloseTo(1, 10);
+    // at 60 BPM, rate = 1 means 1 Hz. Period = 1.0s. Peak (0.25 period) is at 0.25s
+    expect(evalLfo(m, 0.25, 60)).toBeCloseTo(1, 10);
+  });
 });
 
 describe('isDefaultModulator', () => {

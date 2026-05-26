@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle, Square } from 'lucide-react';
+import { Play, Pause, SkipBack, ChevronLeft, Undo2, Redo2, ZoomIn, ZoomOut, Magnet, Trash2, Diamond, Circle, Square, Music } from 'lucide-react';
 import { TIMELINE_DURATION } from '../../constants';
 import { useTimelineView } from './useTimelineView';
 import { TimelineRuler } from './TimelineRuler';
@@ -9,10 +9,22 @@ import { GraphEditor } from './GraphEditor';
 import { ContextMenu, ContextMenuTrigger } from '../ui/context-menu';
 import { TimelineContextMenuContent, type ContextMenuTarget } from './ContextMenu';
 import { TrackLabel, TimelineTransportButton, PlayheadLine, RecordButton, RecordingIndicator } from './TimelineAtoms';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+} from '../ui/dropdown-menu';
 import { inferEasingType, LABEL_W, TRACK_H, TRACK_GROUPS, type TimelineProps, type EasingType } from './types';
 import { PHYS_TRACK_PARAM } from '../../context/WortnetzContextConstants';
 import { useT } from '../../i18n/useT';
+import { useWortnetz } from '../../context/WortnetzContext';
 import { withinSelection, sameTime } from './timeUtils';
+
+const SUBDIVISION_ITEMS: { label: string; value: number }[] = [
+  { label: '1/1', value: 0.25 },
+  { label: '1/2', value: 0.5 },
+  { label: '1/4', value: 1 },
+  { label: '1/8', value: 2 },
+  { label: '1/16', value: 4 },
+];
 
 /* ── Small helper components ── */
 
@@ -21,6 +33,58 @@ function TCDisplay({ value }: { value: string }) {
     <span className="font-mono text-xs tabular-nums text-foreground select-none whitespace-nowrap">
       {value}
     </span>
+  );
+}
+
+function BpmDisplay({
+  value,
+  onCommit,
+  title,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+  title: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { if (!editing) setDraft(String(value)); }, [value, editing]);
+  if (editing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        min={20}
+        max={300}
+        step={1}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const parsed = parseInt(draft, 10);
+          if (!Number.isNaN(parsed)) onCommit(Math.max(20, Math.min(300, parsed)));
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter' || e.key === 'Tab') {
+            const parsed = parseInt(draft, 10);
+            if (!Number.isNaN(parsed)) onCommit(Math.max(20, Math.min(300, parsed)));
+            setEditing(false);
+          } else if (e.key === 'Escape') {
+            setEditing(false);
+          }
+        }}
+        className="w-12 h-5 text-[10px] tabular-nums text-center bg-background border border-border rounded px-1"
+      />
+    );
+  }
+  return (
+    <button
+      className="text-[10px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors font-mono"
+      onClick={() => setEditing(true)}
+      title={title}
+    >
+      {Math.round(value)} BPM
+    </button>
   );
 }
 
@@ -52,8 +116,26 @@ export function Timeline(props: TimelineProps) {
   } = props;
 
   const { t } = useT();
+  const { visualSettings, setVisualSettings } = useWortnetz();
+  const globalBpm = visualSettings.globalBpm ?? 120;
+  const globalBpmEnabled = visualSettings.globalBpmEnabled ?? false;
+  const gridSubdivision = visualSettings.timelineGridSubdivision ?? 1;
+  const setGlobalBpm = useCallback((bpm: number) => {
+    setVisualSettings((prev: typeof visualSettings) => ({ ...prev, globalBpm: bpm }));
+  }, [setVisualSettings]);
+  const setGlobalBpmEnabled = useCallback((enabled: boolean) => {
+    setVisualSettings((prev: typeof visualSettings) => ({ ...prev, globalBpmEnabled: enabled }));
+  }, [setVisualSettings]);
+  const setGridSubdivision = useCallback((sub: number) => {
+    setVisualSettings((prev: typeof visualSettings) => ({ ...prev, timelineGridSubdivision: sub }));
+  }, [setVisualSettings]);
+
   const contentRef = useRef<HTMLDivElement>(null);
-  const view = useTimelineView(TIMELINE_DURATION);
+  const view = useTimelineView(TIMELINE_DURATION, {
+    bpm: globalBpm,
+    gridSubdivision,
+    enabled: globalBpmEnabled,
+  });
   const { viewWindow, zoom, snap, setSnap, timeFromClientX, handleWheel, zoomIn, zoomOut, zoomReset, autoExtendDuration, setPanStart, duration } = view;
 
   // Graph editor toggle
@@ -433,6 +515,47 @@ export function Timeline(props: TimelineProps) {
               <TimelineTransportButton onClick={() => setSnap(!snap)} active={snap} title={t('timeline.action.snap')}>
                 <Magnet className="w-3 h-3" />
               </TimelineTransportButton>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              {/* BPM section: fixed layout so toggling beat mode doesn't shift toolbar */}
+              <div className="flex items-center shrink-0">
+                <TimelineTransportButton
+                  onClick={() => setGlobalBpmEnabled(!globalBpmEnabled)}
+                  active={globalBpmEnabled}
+                  title={t('timeline.action.beatMode')}
+                >
+                  <Music className="w-3 h-3" />
+                </TimelineTransportButton>
+                <BpmDisplay
+                  value={globalBpm}
+                  onCommit={setGlobalBpm}
+                  title={t('timeline.action.bpm')}
+                />
+                {/* Always reserve space — hidden when beat mode is off */}
+                <div style={{ visibility: globalBpmEnabled ? 'visible' : 'hidden' }}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="text-[10px] tabular-nums text-muted-foreground hover:text-foreground px-1 transition-colors font-mono"
+                        title={t('timeline.action.subdivision')}
+                      >
+                        {SUBDIVISION_ITEMS.find(i => i.value === gridSubdivision)?.label ?? '1/4'}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuRadioGroup
+                        value={String(gridSubdivision)}
+                        onValueChange={(v) => setGridSubdivision(parseFloat(v))}
+                      >
+                        {SUBDIVISION_ITEMS.map(item => (
+                          <DropdownMenuRadioItem key={item.label} value={String(item.value)}>
+                            {item.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             </div>
 
             {/* Scrollable Tracks Area */}
@@ -447,7 +570,12 @@ export function Timeline(props: TimelineProps) {
                 <TrackLabel />
                 <div className="flex-1 relative">
                   {/* Pass absolute zoom (zoom * 12) to ruler for tick density */}
-                  <TimelineRuler zoom={zoom * 12} duration={view.duration} viewWindow={viewWindow} />
+                  <TimelineRuler
+                    zoom={zoom * 12}
+                    duration={view.duration}
+                    viewWindow={viewWindow}
+                    beatMode={globalBpmEnabled ? { bpm: globalBpm, gridSubdivision: gridSubdivision } : undefined}
+                  />
                   
                   {/* Playhead Marker (Triangle + Ruler Line segment) */}
                   {playheadVisible && (

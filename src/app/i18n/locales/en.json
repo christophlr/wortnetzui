@@ -379,6 +379,9 @@
       "zoomIn": "Zoom in",
       "zoomReset": "Reset zoom",
       "snap": "Snap to frame",
+      "beatMode": "Toggle beat mode (snap to musical grid)",
+      "bpm": "Global BPM (tempo)",
+      "subdivision": "Grid subdivision",
       "toggleGraphEditor": "Toggle graph editor"
     }
   },

@@ -4,16 +4,31 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 6.2 — BPM / musical time**:
-  - Global BPM context, Timeline beat-ruler, Hz ↔ beat-division modulators.
+- **Phase 6.3a — Shape-switch performance** (lands before 6.3):
+  - Async-chunked texture rebuild in `Network3D.tsx`; first batch immediate, rest dispatched via `requestIdleCallback`.
+  - Shape-only fast path in `textureCache.ts` that reuses cached layout metrics when only `nodeShape` changes.
+  - Debounce parametric-shape deps (`arms`, `innerRatio`) on the same 80ms cadence as `nodeBorderWidth`.
+  - Extend `docs/phase-6-perf-baseline.md` with a "shape-switch (300 nodes)" scenario.
+- **Phase 6.3b — Hover-reveal reorder handle**:
+  - New `SidebarReorderRow` atom: grip indicator appears on the left edge of sidebar list rows on hover (modeled on Figma's Fill panel).
+  - HTML5 drag-and-drop reorders rows; keyboard `↑`/`↓` on focused grip moves the row.
+  - Wired to the Effects list in `VisualTab.tsx` via a new `reorderEffect` context mutator that splices `effectsList`.
+  - Order persists through workspace save/load (already serialized).
+- **Phase 6.3 — Node shapes & centered picker**:
+  - Widen `NodeShape` from string union to discriminated object; add triangle, hexagon, octagon, and parametric star (arms 3-12, inner ratio 0.2-0.8).
+  - Per-shape area compensation so inscribed shapes match rectangle visual size.
+  - New `SidebarCenteredPicker` atom modeled on Figma's Effects dropdown — the active option is vertically centered on the trigger when opened, giving a cycling feel.
+  - Migrate Shape control and post-FX kind selectors in `VisualTab.tsx` to the new atom; reveal arms/innerRatio sliders only when `kind === 'star'`.
+  - Workspace migration for legacy string-shape values.
 
 ## Planned
+
+- **Phase 6.4 — MIDI mapping**:
+  - Web MIDI device enumeration, MIDI Learn mode, CC normalisation, workspace serialization.
 
 - **Node-Based Modulation (Patchbay) System (Future)**:
   - Transition from static modulators to a visual patching system. Detailed design proposal: [NODE_MODULATION.md](file:///Users/christoph/Documents/Code/wortnetzui/NODE_MODULATION.md).
   - Highlights: custom glassmorphic node UI, bidirectional sidebar inspector tabs, topological compiler, and 60Hz worker execution.
-- **Phase 6** (order: BPM → MIDI):
-  - 6.3: MIDI mapping (no groundwork — Web MIDI API, learn mode, serialization).
 
 ## Known Gaps
 
@@ -21,6 +36,12 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Phase 6.2 — BPM / musical time**:
+  - Added global `globalBpm`, `globalBpmEnabled`, and `timelineGridSubdivision` to `visualSettings`, serialized in workspace.
+  - Extended `Modulator` with `bpmSync?` flag; `evalLfo(m, t, globalBpm)` now uses the live global tempo when sync is enabled. Legacy `bpm?` values migrate to `bpmSync: true` on load.
+  - `TimelineRuler` switches to Bar.Beat labels in beat mode; `useTimelineView` snaps to the chosen musical subdivision.
+  - Timeline transport toolbar gained a Music-icon beat-mode toggle, an inline BPM editor (20–300), and a subdivision dropdown (1/1 … 1/16).
+  - `LfoControls` BPM scrubber writes through to the global context, so all synced modulators retime in unison.
 - **Phase 6.1 — Additional shader effects**:
   - Implemented dynamic-reordering post-processing pipeline supporting Unreal Bloom, Vignette, Chromatic Aberration (Radial/Horizontal), Film Grain (Color/Monochrome), and Pixelation.
   - Exposed keyframeable intensity, offset, and size parameters on the timeline and added fully localized control cards in the Sidebar's Visual tab.

@@ -7,6 +7,7 @@
 import { useT } from '../../i18n/useT';
 import type { Modulator, ModulatorWaveform } from '../../animation/Modulator';
 import { DEFAULT_MODULATOR } from '../../animation/Modulator';
+import { useWortnetz } from '../../context/WortnetzContext';
 import {
   SidebarCollapsiblePanel,
   SidebarScrubberRow,
@@ -49,7 +50,6 @@ const BPM_SUB_ITEMS: { label: string; value: number }[] = [
   { label: '2',   value: 0.125 },
 ];
 
-const DEFAULT_BPM = 120;
 const DEFAULT_BPM_RATE = 1; // quarter note
 
 export function LfoControlsBody({
@@ -64,8 +64,10 @@ export function LfoControlsBody({
   onChange: (m: Modulator | null) => void;
 }) {
   const { t } = useT();
+  const { visualSettings, setVisualSettings } = useWortnetz();
+  const globalBpm = visualSettings.globalBpm ?? 120;
   const current: Modulator = value ?? { ...DEFAULT_MODULATOR, depth: depthMaxFor(paramKey) * 0.1 };
-  const bpmEnabled = current.bpm != null;
+  const bpmSyncEnabled = current.bpmSync === true;
   const waveformItems = WAVEFORMS.map(w => {
     const Icon = WAVEFORM_ICONS[w];
     return {
@@ -89,25 +91,25 @@ export function LfoControlsBody({
       />
       <SidebarToggleRow
         label={t('timeline.lfo.bpmSync')}
-        checked={bpmEnabled}
+        checked={bpmSyncEnabled}
         onCheckedChange={(v) => onChange(
           v
-            ? { ...current, bpm: DEFAULT_BPM, rate: DEFAULT_BPM_RATE }
-            : { ...current, bpm: undefined, rate: 1 },
+            ? { ...current, bpmSync: true, bpm: undefined, rate: DEFAULT_BPM_RATE }
+            : { ...current, bpmSync: false, bpm: undefined, rate: 1 },
         )}
       />
-      {bpmEnabled ? (
+      {bpmSyncEnabled ? (
         <>
           <SidebarScrubberRow
             label={t('timeline.lfo.bpm')}
-            value={current.bpm!}
+            value={globalBpm}
             min={20}
             max={300}
             step={1}
             decimals={0}
             format={(v) => String(Math.round(v))}
-            onValueChange={(v) => onChange({ ...current, bpm: Math.round(v) })}
-            onCommit={(v) => onChange({ ...current, bpm: Math.round(Math.max(20, Math.min(300, v))) })}
+            onValueChange={(v) => setVisualSettings((prev: typeof visualSettings) => ({ ...prev, globalBpm: Math.round(v) }))}
+            onCommit={(v) => setVisualSettings((prev: typeof visualSettings) => ({ ...prev, globalBpm: Math.round(Math.max(20, Math.min(300, v))) }))}
           />
           <SidebarSliderRow
             label={t('timeline.lfo.subdivision')}

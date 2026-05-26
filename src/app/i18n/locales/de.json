@@ -325,6 +325,9 @@
       "zoomIn":           "Vergrößern",
       "zoomReset":        "Zoom zurücksetzen",
       "snap":             "An Frame ausrichten",
+      "beatMode":         "Beat-Modus umschalten (am musikalischen Raster ausrichten)",
+      "bpm":              "Globales Tempo (BPM)",
+      "subdivision":      "Raster-Unterteilung",
       "toggleGraphEditor":"Graph-Editor umschalten"
     }
   },

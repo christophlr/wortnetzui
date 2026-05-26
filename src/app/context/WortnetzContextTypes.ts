@@ -157,6 +157,9 @@ export interface WortnetzContextType {
     grainColored: boolean;
     pixelateEnabled: boolean;
     pixelSize: number;
+    globalBpm: number;
+    globalBpmEnabled: boolean;
+    timelineGridSubdivision: number;
   };
   setVisualSettings: React.Dispatch<React.SetStateAction<{
     nodesVisible: boolean;
@@ -196,6 +199,9 @@ export interface WortnetzContextType {
     grainColored: boolean;
     pixelateEnabled: boolean;
     pixelSize: number;
+    globalBpm: number;
+    globalBpmEnabled: boolean;
+    timelineGridSubdivision: number;
   }>>;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;

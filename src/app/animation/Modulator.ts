@@ -13,11 +13,12 @@ export type ModulatorWaveform = 'sine' | 'triangle' | 'sawtooth' | 'sawtoothDown
 
 export type Modulator = {
   waveform: ModulatorWaveform;
-  // Free mode: rate in Hz. BPM mode (bpm set): rate in cycles-per-beat.
+  // Free mode: rate in Hz. BPM mode (bpm set or bpmSync active): rate in cycles-per-beat.
   rate: number;
   depth: number;  // additive amplitude in param-native units
   phase: number;  // radians, [0, 2π)
-  bpm?: number;   // when set, enables BPM-sync mode; rate becomes cycles-per-beat
+  bpm?: number;   // legacy local bpm
+  bpmSync?: boolean; // toggles global BPM sync
 };
 
 export const DEFAULT_MODULATOR: Modulator = {
@@ -36,9 +37,10 @@ function hash(x: number): number {
 }
 
 // wallTime must be real-clock seconds (performance.now()/1000), not playhead time.
-export function evalLfo(m: Modulator, wallTime: number): number {
+export function evalLfo(m: Modulator, wallTime: number, globalBpm?: number): number {
   if (m.depth === 0) return 0;
-  const effectiveRate = m.bpm != null ? m.rate * m.bpm / 60 : m.rate;
+  const effectiveBpm = m.bpmSync ? (globalBpm ?? m.bpm ?? 120) : m.bpm;
+  const effectiveRate = effectiveBpm != null ? (m.rate * effectiveBpm) / 60 : m.rate;
   const phase = m.phase + TWO_PI * effectiveRate * wallTime;
   let raw: number;
   switch (m.waveform) {
