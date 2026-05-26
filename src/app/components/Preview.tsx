@@ -176,13 +176,15 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
       }}
     >
       {/* Dot Grid Background */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'} 1.2px, transparent 1.2px)`,
-          backgroundSize: '24px 24px',
-        }}
-      />
+      {!visualSettings?.backgroundColor && (
+        <div
+          className="absolute inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(circle, ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'} 1.2px, transparent 1.2px)`,
+            backgroundSize: '24px 24px',
+          }}
+        />
+      )}
 
       {mounted && (
         <AspectRatioGuide aspectRatio={canvasAspectRatio} rect={rect}>
