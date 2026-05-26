@@ -310,6 +310,35 @@ export function VisualTab({
           {...trackProps}
         />
 
+        {Object.keys(paintedOverrides).length > 0 && (() => {
+          const visible = visualSettings.showPaintedOverrides !== false;
+          return (
+            <div className="flex items-center gap-1.5 p-1 bg-wn-control-bg border border-wn-divider rounded-md w-full">
+              <div className="flex-1 min-w-0 px-2 text-[11px] text-foreground">
+                {t('sidebar.tab.visual.group.brushEdits')}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setVisual({ showPaintedOverrides: !visible })}
+                  title={t('sidebar.tab.visual.action.toggleBrushEdits')}
+                  className={`p-1 transition-colors rounded hover:bg-wn-control-hover ${visible ? 'text-foreground' : 'text-muted-foreground'}`}
+                >
+                  {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearPaintedOverrides}
+                  title={t('sidebar.tab.visual.action.clearBrushEdits')}
+                  className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-wn-control-hover transition-colors"
+                >
+                  <Minus size={13} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
           <SidebarButtonGroupRow<NodeShape>
             value={styleSettings.nodeShape}
@@ -341,31 +370,6 @@ export function VisualTab({
           description={t('sidebar.tab.visual.description.radialBias')}
           {...trackProps}
         />
-
-        {Object.keys(paintedOverrides).length > 0 && (
-          <SidebarGroup
-            title={t('sidebar.tab.visual.group.paintedOverrides')}
-            stack="snug"
-            actions={
-              <>
-                <SidebarVisibilityToggle
-                  visible={visualSettings.showPaintedOverrides !== false}
-                  onToggle={() => setVisual({ showPaintedOverrides: visualSettings.showPaintedOverrides === false })}
-                  title={t('sidebar.tab.visual.action.togglePaintedOverrides')}
-                />
-                <SidebarSectionActionButton
-                  icon={Trash2}
-                  title={t('sidebar.tab.visual.action.clearPaintedOverrides')}
-                  onClick={clearPaintedOverrides}
-                />
-              </>
-            }
-          >
-            <div className="text-[10px] text-muted-foreground italic">
-              {t('sidebar.tab.visual.paintedOverrides.activeReminder', { count: Object.keys(paintedOverrides).length })}
-            </div>
-          </SidebarGroup>
-        )}
 
         <SidebarGroup
           title={t('sidebar.tab.visual.group.canvasBackground')}

@@ -88,7 +88,7 @@
           "shape":            "Form",
           "atmosphereGradient": "Gradient",
           "canvasBackground":   "Leinwand-Hintergrund",
-          "paintedOverrides":   "Gemalte Übersteuerungen"
+          "brushEdits":         "Pinselstriche"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -138,12 +138,8 @@
         "action": {
           "randomizeGradient": "Gradient zufällig generieren",
           "toggleBackground":  "Leinwand-Hintergrund umschalten",
-          "togglePaintedOverrides": "Gemalte Übersteuerungen umschalten",
-          "clearPaintedOverrides":  "Gemalte Übersteuerungen löschen"
-        },
-        "paintedOverrides": {
-          "activeReminder":        "{{count}} Übersteuerung aktiv",
-          "activeReminder_plural": "{{count}} Übersteuerungen aktiv"
+          "toggleBrushEdits":  "Pinselstriche umschalten",
+          "clearBrushEdits":   "Pinselstriche löschen"
         },
         "pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
