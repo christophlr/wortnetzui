@@ -7,7 +7,21 @@
       "WebSearch",
       "Bash(awk '{print $2}')",
       "Bash(xargs '-I{}' sh -c ' *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s https://code.claude.com/docs/llms.txt)",
+      "WebFetch(domain:codelabs.developers.google.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:agentpedia.codes)",
+      "Bash(cat)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(cat > *)",
+      "Bash(mkdir -p /Users/christoph/Documents/Code/wortnetzui/.claude/skills)",
+      "Bash(grep -n \"^export\\\\|^function\\\\|^const\\\\|^}$\" /Users/christoph/Documents/Code/wortnetzui/src/app/components/ui/dropdown-menu.tsx)"
+    ],
+    "additionalDirectories": [
+      "/Users/christoph/Documents/Code/wortnetzui/.claude/agents",
+      "/Users/christoph/Documents/Code/wortnetzui/.claude",
+      "/Users/christoph/Documents/Code/wortnetzui/.claude/skills"
     ]
   }
 }
