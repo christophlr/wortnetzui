@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Circle, Dices, RectangleHorizontal, Square, Plus, Minus, Eye, EyeOff, Settings2, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { useWortnetz } from '../../../context/WortnetzContext';
 import type { NodeShape } from '../../../networkTheme';
 import {
   SidebarButtonGroupRow,
@@ -213,6 +214,7 @@ export function VisualTab({
   isDark?: boolean;
 }) {
   const { t } = useT();
+  const { paintedOverrides, clearPaintedOverrides } = useWortnetz();
 
   const setVisual = (patch: Record<string, unknown>) =>
     onVisualSettingsChange?.({ ...visualSettings, ...patch });
@@ -339,6 +341,31 @@ export function VisualTab({
           description={t('sidebar.tab.visual.description.radialBias')}
           {...trackProps}
         />
+
+        {Object.keys(paintedOverrides).length > 0 && (
+          <SidebarGroup
+            title={t('sidebar.tab.visual.group.paintedOverrides')}
+            stack="snug"
+            actions={
+              <>
+                <SidebarVisibilityToggle
+                  visible={visualSettings.showPaintedOverrides !== false}
+                  onToggle={() => setVisual({ showPaintedOverrides: visualSettings.showPaintedOverrides === false })}
+                  title={t('sidebar.tab.visual.action.togglePaintedOverrides')}
+                />
+                <SidebarSectionActionButton
+                  icon={Trash2}
+                  title={t('sidebar.tab.visual.action.clearPaintedOverrides')}
+                  onClick={clearPaintedOverrides}
+                />
+              </>
+            }
+          >
+            <div className="text-[10px] text-muted-foreground italic">
+              {t('sidebar.tab.visual.paintedOverrides.activeReminder', { count: Object.keys(paintedOverrides).length })}
+            </div>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup
           title={t('sidebar.tab.visual.group.canvasBackground')}

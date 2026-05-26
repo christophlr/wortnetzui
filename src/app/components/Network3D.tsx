@@ -95,6 +95,7 @@ interface Network3DProps {
     effectsList?: ('bloom' | 'glitch')[];
     bloomPreset?: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
     backgroundColor?: string;
+    showPaintedOverrides?: boolean;
   };
   onNodeSelect?: (node: any) => void;
   pathNodes?: { id: string; label: string }[];
@@ -183,7 +184,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       bloomGlowMode: 'deterministic' as const,
       bloomFlickerSpeed: 1.0,
       gradientHueShift: 0.0,
-      effectsList: []
+      effectsList: [],
+      showPaintedOverrides: true,
     },
     onNodeSelect,
     pathNodes = [],

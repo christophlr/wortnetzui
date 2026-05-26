@@ -17,6 +17,7 @@ export interface SyncVisualSettings {
   bloomFlickerSpeed: number;
   bloomIntensity: number;
   gradientHueShift: number;
+  showPaintedOverrides?: boolean;
 }
 
 export interface SyncStyleSettings {
@@ -90,7 +91,7 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       const aspectRatio = node.textSprite.userData.aspectRatio;
 
       let overrideScale = node.scaleOverride;
-      if (paintedOverrides && paintedOverrides[node.label]?.scale !== undefined) {
+      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.scale !== undefined) {
         overrideScale = paintedOverrides[node.label].scale;
       }
       let finalScale = baseScale * scaleIntensity;
@@ -101,7 +102,7 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
 
       let overrideOpacity = node.opacityOverride;
-      if (paintedOverrides && paintedOverrides[node.label]?.opacity !== undefined) {
+      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.opacity !== undefined) {
         overrideOpacity = paintedOverrides[node.label].opacity;
       }
       let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDistSq));
@@ -112,7 +113,7 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
 
       let overrideColor = node.colorOverride;
       let overrideColorBlend = 0.0;
-      if (paintedOverrides && paintedOverrides[node.label]?.color !== undefined) {
+      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.color !== undefined) {
         overrideColor = paintedOverrides[node.label].color;
         overrideColorBlend = paintedOverrides[node.label].colorBlend ?? 0.0;
       }

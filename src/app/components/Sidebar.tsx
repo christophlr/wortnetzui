@@ -77,6 +77,7 @@ interface SidebarProps {
     pathSmoothness: number;
     pathCameraFollow: boolean;
     backgroundColor?: string;
+    showPaintedOverrides?: boolean;
   };
   onVisualSettingsChange?: (vs: any) => void;
   isDark?: boolean;

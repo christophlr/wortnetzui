@@ -107,7 +107,8 @@
         "group": {
           "shape": "Shape",
           "atmosphereGradient": "Gradient",
-          "canvasBackground": "Canvas Background"
+          "canvasBackground": "Canvas Background",
+          "paintedOverrides": "Painted Overrides"
         },
         "shape": {
           "rectangle": "Rect",
@@ -156,7 +157,13 @@
         },
         "action": {
           "randomizeGradient": "Randomize gradient",
-          "toggleBackground": "Toggle canvas background"
+          "toggleBackground": "Toggle canvas background",
+          "togglePaintedOverrides": "Toggle painted overrides",
+          "clearPaintedOverrides": "Clear painted overrides"
+        },
+        "paintedOverrides": {
+          "activeReminder": "{{count}} override active",
+          "activeReminder_plural": "{{count}} overrides active"
         },
         "pathAnimator": {
           "emptyHint": "Click nodes in the preview to build a path.",

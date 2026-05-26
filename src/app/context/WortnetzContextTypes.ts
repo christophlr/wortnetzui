@@ -139,6 +139,7 @@ export interface WortnetzContextType {
     effectsList: ('bloom' | 'glitch')[];
     bloomPreset: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
     backgroundColor: string;
+    showPaintedOverrides: boolean;
   };
   setVisualSettings: React.Dispatch<React.SetStateAction<{
     nodesVisible: boolean;
@@ -164,6 +165,7 @@ export interface WortnetzContextType {
     effectsList: ('bloom' | 'glitch')[];
     bloomPreset: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
     backgroundColor: string;
+    showPaintedOverrides: boolean;
   }>>;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;

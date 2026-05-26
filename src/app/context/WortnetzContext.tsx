@@ -87,7 +87,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     gradientHueShift: 0.0,
     effectsList: [] as ('bloom' | 'glitch')[],
     bloomPreset: 'custom' as const,
-    backgroundColor: ''
+    backgroundColor: '',
+    showPaintedOverrides: true,
   });
   const [pathNodes, setPathNodes] = useState<{ id: string; label: string }[]>([]);
   const [isPathPlaying, setIsPathPlaying] = useState(false);
@@ -192,7 +193,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
             bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
             effectsList: [] as ('bloom' | 'glitch')[],
             bloomPreset: 'custom' as const,
-            backgroundColor: ''
+            backgroundColor: '',
+            showPaintedOverrides: true,
           };
           const loadedVisual = s.visualSettings;
           const autoList: ('bloom' | 'glitch')[] = [...(loadedVisual.effectsList ?? [])];
@@ -203,7 +205,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           setVisualSettings({
             ...baseVisual,
             ...loadedVisual,
-            effectsList: autoList
+            effectsList: autoList,
+            showPaintedOverrides: loadedVisual.showPaintedOverrides ?? true,
           });
         }
         if (s.pathNodes) {
