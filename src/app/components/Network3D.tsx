@@ -197,6 +197,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     paintColor,
     paintScale,
     paintOpacity,
+    paintBlend,
     paintMode,
     paintedOverrides,
     setPaintedOverrides
@@ -713,6 +714,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     paintColor,
     paintScale,
     paintOpacity,
+    paintBlend,
     paintMode,
     setPaintedOverrides,
     physicsVelocityRef,

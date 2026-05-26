@@ -231,10 +231,12 @@ export interface WortnetzContextType {
   setPaintScale: (s: number) => void;
   paintOpacity: number;
   setPaintOpacity: (o: number) => void;
+  paintBlend: number;
+  setPaintBlend: (val: number) => void;
   paintMode: 'color' | 'scale' | 'opacity' | 'erase';
   setPaintMode: (m: 'color' | 'scale' | 'opacity' | 'erase') => void;
-  paintedOverrides: Record<string, { color?: string; scale?: number; opacity?: number }>;
-  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; scale?: number; opacity?: number }>>>;
+  paintedOverrides: Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>;
+  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>>;
   clearPaintedOverrides: () => void;
 
   // Derived

@@ -100,8 +100,9 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [paintColor, setPaintColor] = useState('#ef4444');
   const [paintScale, setPaintScale] = useState(1.5);
   const [paintOpacity, setPaintOpacity] = useState(1.0);
+  const [paintBlend, setPaintBlend] = useState(0.0);
   const [paintMode, setPaintMode] = useState<'color' | 'scale' | 'opacity' | 'erase'>('color');
-  const [paintedOverrides, setPaintedOverrides] = useState<Record<string, { color?: string; scale?: number; opacity?: number }>>({});
+  const [paintedOverrides, setPaintedOverrides] = useState<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>({});
 
   const clearPaintedOverrides = useCallback(() => {
     setPaintedOverrides({});
@@ -1005,6 +1006,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       paintColor, setPaintColor,
       paintScale, setPaintScale,
       paintOpacity, setPaintOpacity,
+      paintBlend, setPaintBlend,
       paintMode, setPaintMode,
       paintedOverrides, setPaintedOverrides,
       clearPaintedOverrides,

@@ -59,6 +59,7 @@
       "color": "Farbe",
       "scale": "Pinselgröße",
       "opacity": "Deckkraft",
+      "blend": "Farbmischung",
       "clearAll": "Alles zurücksetzen"
     }
   },
@@ -324,7 +325,13 @@
         "redo":          "Wiederholen",
         "playPause":     "Abspielen / Pause",
         "record":        "Aufnahme",
-        "toggleSidebar": "Sidebar umschalten"
+        "toggleSidebar": "Sidebar umschalten",
+        "toolPointer":   "Auswahl-Werkzeug",
+        "toolPan":       "Hand-Werkzeug",
+        "toolPaint":     "Pinsel-Werkzeug",
+        "toolZoom":      "Zoom-Werkzeug",
+        "toolGlitch":    "Glitch-Werkzeug",
+        "toolPath":      "Pfad-Werkzeug"
       }
     }
   },

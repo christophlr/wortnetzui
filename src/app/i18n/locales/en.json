@@ -1,19 +1,25 @@
 {
   "topbar": {
     "menu": {
-      "file": { "label": "File" },
-      "edit": { "label": "Edit" },
-      "view": { "label": "View" }
+      "file": {
+        "label": "File"
+      },
+      "edit": {
+        "label": "Edit"
+      },
+      "view": {
+        "label": "View"
+      }
     },
     "item": {
-      "save":         "Save",
-      "load":         "Open",
-      "undo":         "Undo",
-      "redo":         "Redo",
-      "shortcuts":    "Shortcuts...",
-      "themeLight":   "Light",
-      "themeDark":    "Dark",
-      "themeSystem":  "System"
+      "save": "Save",
+      "load": "Open",
+      "undo": "Undo",
+      "redo": "Redo",
+      "shortcuts": "Shortcuts...",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System"
     },
     "label": {
       "theme": "Theme",
@@ -25,29 +31,29 @@
       "auto": "Auto-detect"
     },
     "view": {
-      "twoD":   "2D view",
+      "twoD": "2D view",
       "threeD": "3D view"
     },
     "action": {
-      "export":    "Export"
+      "export": "Export"
     }
   },
   "toolbar": {
     "tool": {
       "pointer": "Select",
-      "pan":     "Pan",
-      "paint":   "Brush",
-      "zoom":    "Zoom",
-      "glitch":  "Glitch brush",
-      "path":    "Path animator"
+      "pan": "Pan",
+      "paint": "Brush",
+      "zoom": "Zoom",
+      "glitch": "Glitch brush",
+      "path": "Path animator"
     },
     "shortcut": {
       "pointer": "V",
-      "pan":     "H",
-      "paint":   "B",
-      "zoom":    "Z",
-      "glitch":  "G",
-      "path":    "P"
+      "pan": "H",
+      "paint": "B",
+      "zoom": "Z",
+      "glitch": "G",
+      "path": "P"
     },
     "brush": {
       "mode": "Mode",
@@ -59,6 +65,7 @@
       "color": "Color",
       "scale": "Brush Size",
       "opacity": "Opacity",
+      "blend": "Paint Blend",
       "clearAll": "Reset All"
     }
   },
@@ -66,81 +73,95 @@
     "tab": {
       "content": {
         "title": "Content",
-        "section": { "text": "Text", "parseMode": "Parse mode" },
-        "textarea": { "placeholder": "Paste text here..." },
+        "section": {
+          "text": "Text",
+          "parseMode": "Parse mode"
+        },
+        "textarea": {
+          "placeholder": "Paste text here..."
+        },
         "refresh": "Update",
         "parse": {
-          "sentence": { "label": "Sentence", "desc": "Sentences → word n-grams" },
-          "word":     { "label": "Word",     "desc": "Words → character n-grams" },
-          "both":     { "label": "Both",     "desc": "Words as bridge" }
+          "sentence": {
+            "label": "Sentence",
+            "desc": "Sentences → word n-grams"
+          },
+          "word": {
+            "label": "Word",
+            "desc": "Words → character n-grams"
+          },
+          "both": {
+            "label": "Both",
+            "desc": "Words as bridge"
+          }
         }
       },
-      "visual":  {
+      "visual": {
         "title": "Visual",
         "section": {
-          "nodes":        "Nodes",
-          "edges":        "Edges",
+          "nodes": "Nodes",
+          "edges": "Edges",
           "pathAnimator": "Path animator",
-          "effects":      "Effects"
+          "effects": "Effects"
         },
         "group": {
-          "shape":              "Shape",
+          "shape": "Shape",
           "atmosphereGradient": "Gradient",
-          "canvasBackground":   "Canvas Background"
+          "canvasBackground": "Canvas Background"
         },
         "shape": {
-          "rectangle":         "Rect",
+          "rectangle": "Rect",
           "rounded-rectangle": "Rounded",
-          "ellipse":           "Ellipse"
+          "ellipse": "Ellipse"
         },
         "slider": {
-          "baseScale":     "Scale",
-          "radialBias":    "Falloff",
+          "baseScale": "Scale",
+          "radialBias": "Falloff",
           "globalOpacity": "Global opacity",
-          "brushRadius":   "Brush radius",
-          "feather":       "Feather",
-          "smoothness":    "Smoothness",
+          "brushRadius": "Brush radius",
+          "feather": "Feather",
+          "smoothness": "Smoothness",
           "bloomIntensity": "Bloom intensity",
           "bloomRadius": "Bloom radius",
           "bloomThreshold": "Bloom threshold",
           "selectiveRatio": "Selective ratio",
-          "flickerSpeed":   "Flicker speed",
-          "hueShift":       "Hue shift"
+          "flickerSpeed": "Flicker speed",
+          "hueShift": "Hue shift"
         },
         "toggle": {
-          "glitchPaint":     "Glitch paint",
-          "cameraFollow":    "Camera follow",
-          "bloom":           "Bloom",
-          "selectiveBloom":  "Selective bloom"
+          "glitchPaint": "Glitch paint",
+          "cameraFollow": "Camera follow",
+          "bloom": "Bloom",
+          "selectiveBloom": "Selective bloom"
         },
         "color": {
-          "origin":    "Origin",
+          "origin": "Origin",
           "periphery": "Periphery",
           "background": "Color"
         },
         "fx": {
-          "title":          "Fx",
-          "active":         "Active",
-          "inactive":       "No effects",
-          "add":            "Add Effect",
-          "noEffects":      "No active effects",
-          "bloom":          "Bloom",
-          "glitch":         "Glitch Paint",
-          "bloomSettings":  "Bloom Settings",
+          "title": "Fx",
+          "active": "Active",
+          "inactive": "No effects",
+          "add": "Add Effect",
+          "noEffects": "No active effects",
+          "bloom": "Bloom",
+          "glitch": "Glitch Paint",
+          "bloomSettings": "Bloom Settings",
           "glitchSettings": "Glitch Settings",
-          "glowMode":       "Glow mode",
+          "glowMode": "Glow mode",
           "glowModeDeterministic": "Deterministic",
-          "glowModeFlicker":      "Flicker",
-          "glowModeIndex":        "Index"
+          "glowModeFlicker": "Flicker",
+          "glowModeIndex": "Index"
         },
         "action": {
           "randomizeGradient": "Randomize gradient",
-          "toggleBackground":  "Toggle canvas background"
+          "toggleBackground": "Toggle canvas background"
         },
         "pathAnimator": {
-          "emptyHint":         "Click nodes in the preview to build a path.",
-          "playSequence":      "Play sequence",
-          "stopSequence":      "Stop sequence",
+          "emptyHint": "Click nodes in the preview to build a path.",
+          "playSequence": "Play sequence",
+          "stopSequence": "Stop sequence",
           "interpolationNote": "Nodes are interpolated using Catmull-Rom."
         },
         "description": {
@@ -150,59 +171,93 @@
       "physics": {
         "title": "Physics",
         "section": {
-          "forces":   "Forces",
+          "forces": "Forces",
           "dynamics": "Dynamics",
-          "order":    "Order"
+          "order": "Order"
         },
         "param": {
-          "repulsion":    { "name": "Spread",          "hint": "Repulsion", "desc": "How strongly elements push each other away." },
-          "springK":      { "name": "Tension",         "hint": "Spring K",  "desc": "How tightly links pull elements together. Higher = snappier." },
-          "damping":      { "name": "Friction",        "hint": "Damping",   "desc": "How quickly motion decays. Lower = bouncier." },
-          "linkDistance": { "name": "Distance",        "hint": "Link",      "desc": "The target rest length of every link." },
-          "gravity":      { "name": "Gravity",         "hint": "",          "desc": "Pulls every element toward the canvas centre." },
-          "turbulence":   { "name": "Wobble",          "hint": "Turbulence","desc": "Creates a steady, organic restlessness." },
-          "pulse":        { "name": "Pulse",           "hint": "Liveness",  "desc": "Organic breathing of node spacing." },
-          "verticalOrder":{ "name": "Vertical order",  "hint": "",          "desc": "Sorts nodes by text length (short top, long bottom)." }
+          "repulsion": {
+            "name": "Spread",
+            "hint": "Repulsion",
+            "desc": "How strongly elements push each other away."
+          },
+          "springK": {
+            "name": "Tension",
+            "hint": "Spring K",
+            "desc": "How tightly links pull elements together. Higher = snappier."
+          },
+          "damping": {
+            "name": "Friction",
+            "hint": "Damping",
+            "desc": "How quickly motion decays. Lower = bouncier."
+          },
+          "linkDistance": {
+            "name": "Distance",
+            "hint": "Link",
+            "desc": "The target rest length of every link."
+          },
+          "gravity": {
+            "name": "Gravity",
+            "hint": "",
+            "desc": "Pulls every element toward the canvas centre."
+          },
+          "turbulence": {
+            "name": "Wobble",
+            "hint": "Turbulence",
+            "desc": "Creates a steady, organic restlessness."
+          },
+          "pulse": {
+            "name": "Pulse",
+            "hint": "Liveness",
+            "desc": "Organic breathing of node spacing."
+          },
+          "verticalOrder": {
+            "name": "Vertical order",
+            "hint": "",
+            "desc": "Sorts nodes by text length (short top, long bottom)."
+          }
         },
         "keyframe": {
-          "set":    "Add keyframe",
+          "set": "Add keyframe",
           "remove": "Remove keyframe"
         }
       },
-      "camera":  {
+      "camera": {
         "title": "Camera",
         "section": {
           "rotation": "Rotation",
-          "pan":      "Pan view",
-          "zoom":     "Zoom"
+          "pan": "Pan view",
+          "zoom": "Zoom"
         },
         "hint": {
           "orbit": "Orbit: drag / click to snap",
-          "pan":   "Drag to pan",
-          "zoom":  "Slide to zoom (relative)"
+          "pan": "Drag to pan",
+          "zoom": "Slide to zoom (relative)"
         },
         "view": {
-          "top":    "Top view (Y)",
-          "left":   "Left view (-X)",
-          "right":  "Right view (X)",
+          "top": "Top view (Y)",
+          "left": "Left view (-X)",
+          "right": "Right view (X)",
           "bottom": "Bottom view (-Y)",
-          "iso1":   "ISO 1",
-          "iso2":   "ISO 2",
-          "iso3":   "ISO 3",
-          "iso4":   "ISO 4"
+          "iso1": "ISO 1",
+          "iso2": "ISO 2",
+          "iso3": "ISO 3",
+          "iso4": "ISO 4"
         },
-        "reset":  "Reset",
+        "reset": "Reset",
         "resetCamera": "Reset camera"
       },
-      "canvas":  {
+      "canvas": {
         "title": "Canvas",
-        "section": { "aspectRatio": "Aspect ratio" },
+        "section": {
+          "aspectRatio": "Aspect ratio"
+        },
         "aspect": {
           "full": "Fullscreen",
           "16x9": "16:9 Cinema",
-          "4x3":  "4:3 Standard",
-          "3x2":  "3:2 Classic",
-          "din":  "DIN Landscape"
+          "4x3": "4:3 Standard",
+          "3x2": "3:2 Classic",
+          "din": "DIN Landscape"
         },
         "hint": "Note: Aspect-ratio settings apply a letterbox effect to the viewport to control composition and framing."
       }
@@ -211,96 +266,96 @@
   "timeline": {
     "label": "Timeline",
     "contextMenu": {
-      "addSceneMarker":  "Add scene marker",
+      "addSceneMarker": "Add scene marker",
       "pasteAtPlayhead": "Paste at playhead",
-      "copy":            "Copy",
-      "cut":             "Cut",
-      "delete":          "Delete",
-      "duplicate":       "Duplicate",
-      "rippleDelete":    "Ripple delete",
-      "selectAll":       "Select all",
+      "copy": "Copy",
+      "cut": "Cut",
+      "delete": "Delete",
+      "duplicate": "Duplicate",
+      "rippleDelete": "Ripple delete",
+      "selectAll": "Select all",
       "createKeyframesHere": "Create keyframes on all tracks here",
-      "resetTrack":      "Reset to default",
-      "keyframeEasing":  "Keyframe easing",
+      "resetTrack": "Reset to default",
+      "keyframeEasing": "Keyframe easing",
       "easing": {
-        "auto":     "Auto (smooth)",
-        "linear":   "Linear",
-        "hold":     "Hold (step)",
+        "auto": "Auto (smooth)",
+        "linear": "Linear",
+        "hold": "Hold (step)",
         "easyEase": "Easy ease",
-        "easeIn":   "Ease in",
-        "easeOut":  "Ease out"
+        "easeIn": "Ease in",
+        "easeOut": "Ease out"
       }
     },
     "track": {
       "sceneMarkers": "Scene markers",
-      "camera":       "Camera",
-      "keyframes":    "Keyframes",
-      "physics":      "Physics",
-      "effects":      "Effects",
-      "bloomIntensity":    "Bloom Intensity",
-      "bloomRadius":       "Bloom Radius",
-      "bloomThreshold":    "Bloom Threshold",
-      "selectiveRatio":    "Selective Ratio",
-      "flickerSpeed":      "Flicker Speed",
-      "nodeScale":         "Node Scale",
-      "edgeOpacity":       "Edge Opacity",
-      "radialBias":        "Radial Bias",
+      "camera": "Camera",
+      "keyframes": "Keyframes",
+      "physics": "Physics",
+      "effects": "Effects",
+      "bloomIntensity": "Bloom Intensity",
+      "bloomRadius": "Bloom Radius",
+      "bloomThreshold": "Bloom Threshold",
+      "selectiveRatio": "Selective Ratio",
+      "flickerSpeed": "Flicker Speed",
+      "nodeScale": "Node Scale",
+      "edgeOpacity": "Edge Opacity",
+      "radialBias": "Radial Bias",
       "glitchBrushRadius": "Glitch Radius",
-      "glitchFeather":     "Glitch Feather",
-      "pathSmoothness":    "Path Smoothness",
-      "hueShift":          "Hue Shift",
-      "arm":          "Arm track",
-      "armed":        "Armed — will be recorded",
-      "tuning":       "Track tuning"
+      "glitchFeather": "Glitch Feather",
+      "pathSmoothness": "Path Smoothness",
+      "hueShift": "Hue Shift",
+      "arm": "Arm track",
+      "armed": "Armed — will be recorded",
+      "tuning": "Track tuning"
     },
     "glide": {
-      "label":       "Glide",
+      "label": "Glide",
       "description": "How quickly the parameter approaches its target (seconds). 0 = instant.",
-      "unit":        "s"
+      "unit": "s"
     },
     "lfo": {
-      "title":       "Modulator",
-      "enable":      "Enable modulator",
-      "waveform":    "Waveform",
-      "rate":        "Rate",
-      "depth":       "Depth",
-      "phase":       "Phase",
-      "hint":        "Tip: matches the Pulse knob",
-      "bpmSync":     "BPM Sync",
-      "bpm":         "BPM",
+      "title": "Modulator",
+      "enable": "Enable modulator",
+      "waveform": "Waveform",
+      "rate": "Rate",
+      "depth": "Depth",
+      "phase": "Phase",
+      "hint": "Tip: matches the Pulse knob",
+      "bpmSync": "BPM Sync",
+      "bpm": "BPM",
       "subdivision": "Division",
       "wave": {
-        "sine":         "Sine",
-        "triangle":     "Triangle",
-        "sawtooth":     "Sawtooth Up",
+        "sine": "Sine",
+        "triangle": "Triangle",
+        "sawtooth": "Sawtooth Up",
         "sawtoothDown": "Sawtooth Down",
-        "square":       "Square",
-        "random":       "Step Random",
-        "noise":        "Smooth Random"
+        "square": "Square",
+        "random": "Step Random",
+        "noise": "Smooth Random"
       }
     },
     "recording": {
-      "indicator":     "Recording",
+      "indicator": "Recording",
       "replacePrompt": "Existing keyframes in the recorded range will be replaced"
     },
     "recordComingSoon": "Recording will be available in a future version",
     "action": {
-      "deleteSelected":   "Delete selected",
-      "undo":             "Undo",
-      "redo":             "Redo",
-      "stop":             "Stop",
-      "gotoStart":        "Go to start",
-      "prevFrame":        "Previous frame",
-      "nextFrame":        "Next frame",
-      "play":             "Play",
-      "pause":            "Pause",
-      "captureKeyframe":  "Capture keyframe (all tracks)",
-      "record":           "Record (automation)",
-      "zoomOut":          "Zoom out",
-      "zoomIn":           "Zoom in",
-      "zoomReset":        "Reset zoom",
-      "snap":             "Snap to frame",
-      "toggleGraphEditor":"Toggle graph editor"
+      "deleteSelected": "Delete selected",
+      "undo": "Undo",
+      "redo": "Redo",
+      "stop": "Stop",
+      "gotoStart": "Go to start",
+      "prevFrame": "Previous frame",
+      "nextFrame": "Next frame",
+      "play": "Play",
+      "pause": "Pause",
+      "captureKeyframe": "Capture keyframe (all tracks)",
+      "record": "Record (automation)",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "zoomReset": "Reset zoom",
+      "snap": "Snap to frame",
+      "toggleGraphEditor": "Toggle graph editor"
     }
   },
   "preview": {
@@ -313,32 +368,44 @@
       "title": "Manage keyboard shortcuts",
       "description": "Inspect existing shortcuts and add new ones.",
       "field": {
-        "action": { "label": "Action", "placeholder": "e.g. Save" },
-        "key":    { "label": "Key",    "placeholder": "e.g. s" }
+        "action": {
+          "label": "Action",
+          "placeholder": "e.g. Save"
+        },
+        "key": {
+          "label": "Key",
+          "placeholder": "e.g. s"
+        }
       },
       "done": "Done",
       "command": {
-        "save":          "Save",
-        "load":          "Open",
-        "undo":          "Undo",
-        "redo":          "Redo",
-        "playPause":     "Play / Pause",
-        "record":        "Record",
-        "toggleSidebar": "Toggle sidebar"
+        "save": "Save",
+        "load": "Open",
+        "undo": "Undo",
+        "redo": "Redo",
+        "playPause": "Play / Pause",
+        "record": "Record",
+        "toggleSidebar": "Toggle sidebar",
+        "toolPointer": "Select tool",
+        "toolPan": "Pan tool",
+        "toolPaint": "Brush tool",
+        "toolZoom": "Zoom tool",
+        "toolGlitch": "Glitch tool",
+        "toolPath": "Path tool"
       }
     }
   },
   "common": {
     "sidebar": {
-      "expand":   "Open sidebar",
+      "expand": "Open sidebar",
       "collapse": "Collapse sidebar"
     },
     "error": {
-      "title":       "Something went wrong",
-      "body":        "The 3D visualisation could not be loaded due to a technical problem.",
-      "bodyFallback":"This may have been caused by a WebGL error or excessive graphics memory usage.",
-      "webglTip":    "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
-      "reload":      "Reload application"
+      "title": "Something went wrong",
+      "body": "The 3D visualisation could not be loaded due to a technical problem.",
+      "bodyFallback": "This may have been caused by a WebGL error or excessive graphics memory usage.",
+      "webglTip": "Tip: Close other tabs with 3D content or graphics applications to free up WebGL resources.",
+      "reload": "Reload application"
     }
   },
   "network3d": {

@@ -7,7 +7,6 @@ import { AppCanvas } from './components/shell/AppCanvas';
 import { AppSidebar } from './components/shell/AppSidebar';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar } from './components/Toolbar';
-import { PathAnimatorUI } from './components/PathAnimatorUI';
 import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
 import {
@@ -32,7 +31,8 @@ export default function App() {
     onTogglePlay: () => wn.setIsPlaying((p: boolean) => !p),
     onToggleRecord: () => wn.setIsRecording((p: boolean) => !p),
     onToggleSidebar: () => wn.setIsSidebarOpen(!wn.isSidebarOpen),
-  }), [wn.handleSave, wn.handleLoad, wn.undo, wn.redo, wn.setIsPlaying, wn.setIsRecording, wn.setIsSidebarOpen, wn.isSidebarOpen]));
+    onSelectTool: wn.setActiveTool,
+  }), [wn.handleSave, wn.handleLoad, wn.undo, wn.redo, wn.setIsPlaying, wn.setIsRecording, wn.setIsSidebarOpen, wn.isSidebarOpen, wn.setActiveTool]));
 
   return (
     <>
@@ -62,13 +62,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {wn.activeTool === 'path' && (
-                    <div className="absolute left-20 top-24 z-50 pointer-events-none">
-                      <div className="pointer-events-auto">
-                        <PathAnimatorUI nodes={wn.pathNodes} onReorder={wn.reorderPathNodes} onRemove={wn.removePathNode} onClose={() => wn.setActiveTool('pointer')} onPlay={() => wn.setIsPathPlaying(p => !p)} isPlaying={wn.isPathPlaying} />
-                      </div>
-                    </div>
-                  )}
+
 
                   <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none p-2 flex justify-center">
                     <div className="pointer-events-auto w-full">

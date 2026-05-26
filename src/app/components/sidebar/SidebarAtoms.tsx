@@ -37,6 +37,26 @@ import { RadioGroupItem } from '../ui/radio-group';
 import { cn } from '../ui/utils';
 import { pad } from '../../theme/tokens';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import {
+  ColorPicker,
+  ColorPickerContent,
+  ColorPickerHueSlider,
+  ColorPickerSwatch,
+  ColorPickerTrigger,
+  ColorPickerArea,
+} from '../ui/color-picker';
+
+const PRESET_SWATCHES = [
+  '#4f46e5', // Indigo
+  '#7c3aed', // Violet
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#eab308', // Yellow
+  '#f97316', // Orange
+  '#f43f5e', // Rose
+  '#ffffff', // White
+  '#09090b', // Charcoal
+];
 
 type DivProps = React.ComponentProps<'div'>;
 
@@ -642,16 +662,34 @@ export function SidebarColorRow({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <label className="text-[10px] font-semibold text-muted-foreground">
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         {label}
       </label>
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full h-8 rounded cursor-pointer"
-      />
+      <ColorPicker value={value} onValueChange={onChange}>
+        <ColorPickerTrigger asChild>
+          <button className="flex h-7 items-center gap-2 px-2 rounded-md border border-wn-divider hover:bg-wn-control-hover w-full bg-wn-control-bg cursor-pointer text-left">
+            <ColorPickerSwatch className="size-3.5 rounded-sm border border-black/10" />
+            <span className="text-[10px] font-mono text-muted-foreground">{value}</span>
+          </button>
+        </ColorPickerTrigger>
+        <ColorPickerContent align="start" side="bottom">
+          <ColorPickerArea />
+          <ColorPickerHueSlider />
+          {/* Swatches preset grid */}
+          <div className="grid grid-cols-5 gap-1.5 pt-2 border-t border-wn-divider">
+            {PRESET_SWATCHES.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                onClick={() => onChange(swatch)}
+                className="size-5 rounded-full border border-black/10 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                style={{ backgroundColor: swatch }}
+              />
+            ))}
+          </div>
+        </ColorPickerContent>
+      </ColorPicker>
     </div>
   );
 }

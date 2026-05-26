@@ -17,6 +17,7 @@ interface Shortcut {
   command: string;
   key: string;
   tKey?: string;
+  noMod?: boolean;
 }
 
 interface ShortcutsDialogProps {
@@ -61,7 +62,7 @@ export function ShortcutsDialog({
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{s.tKey ? t(s.tKey) : s.command}</span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Command size={10} /> {s.key}
+                    {!s.noMod && <Command size={10} />} {s.key.toUpperCase()}
                   </span>
                 </div>
                 <Button 

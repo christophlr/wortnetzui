@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Pipette } from "lucide-react";
+import { motion } from "motion/react";
 
 import { Button } from "./button";
 import { Input } from "./input";
@@ -286,7 +287,7 @@ function ColorPickerContent({ className, align = "start", sideOffset = 8, ...pro
       data-slot="color-picker-content"
       align={align}
       sideOffset={sideOffset}
-      className={cn("w-80 rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-950", className)}
+      className={cn("w-64 rounded-xl border border-wn-divider bg-popover/95 backdrop-blur-sm p-3 shadow-xl z-50 space-y-3", className)}
       {...props}
     />
   );
@@ -299,7 +300,7 @@ function ColorPickerSwatch({ className, ...props }: React.ComponentProps<"span">
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 shadow-sm dark:border-zinc-700",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-wn-divider shadow-sm",
         className,
       )}
       style={{
@@ -354,7 +355,7 @@ function ColorPickerArea({ className, ...props }: React.ComponentProps<"div">) {
     <div
       ref={ref}
       className={cn(
-        "relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
+        "relative aspect-square overflow-hidden rounded-lg border border-wn-divider bg-wn-control-bg shadow-sm",
         className,
       )}
       style={{
@@ -382,30 +383,97 @@ function ColorPickerArea({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"input">) {
+function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div">) {
   const { parsed, onValueChange } = useColorPickerContext();
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const [isHovering, setIsHovering] = React.useState(false);
   const hsv = React.useMemo(() => rgbToHsv(parsed.r, parsed.g, parsed.b), [parsed.b, parsed.g, parsed.r]);
 
+  const updateFromPoint = React.useCallback(
+    (clientX: number) => {
+      const element = ref.current;
+      if (!element) return;
+
+      const rect = element.getBoundingClientRect();
+      const pct = clamp((clientX - rect.left) / rect.width, 0, 1);
+      const nextHue = pct * 360;
+      const rgb = hsvToRgb(nextHue, hsv.s, hsv.v);
+      onValueChange(colorToOutput({ ...rgb, a: parsed.a }));
+    },
+    [hsv.s, hsv.v, onValueChange, parsed.a],
+  );
+
+  React.useEffect(() => {
+    if (!dragging) return;
+
+    const handlePointerMove = (event: PointerEvent) => updateFromPoint(event.clientX);
+    const handlePointerUp = () => setDragging(false);
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [dragging, updateFromPoint]);
+
+  const pct = (hsv.h / 360) * 100;
+  const isActive = dragging || isHovering;
+  const spring = { type: "spring", duration: 0.25, bounce: 0.1 } as const;
+
   return (
-    <input
-      aria-label="Hue"
-      type="range"
-      min={0}
-      max={360}
-      step={1}
-      value={hsv.h}
-      onChange={(event) => {
-        const nextHue = Number.parseFloat(event.target.value);
-        const rgb = hsvToRgb(nextHue, hsv.s, hsv.v);
-        onValueChange(colorToOutput({ ...rgb, a: parsed.a }));
-      }}
+    <div
+      ref={ref}
       className={cn(
-        "h-2 w-full cursor-pointer appearance-none rounded-full outline-none",
-        "bg-[linear-gradient(to_right,#ff0000_0%,#ffff00_16.67%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.67%,#ff00ff_83.33%,#ff0000_100%)]",
-        className,
+        "relative h-7 w-full overflow-hidden rounded-md border border-wn-divider cursor-ew-resize select-none touch-none",
+        className
       )}
+      style={{
+        backgroundImage: "linear-gradient(to right,#ff0000_0%,#ffff00_16.67%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.67%,#ff00ff_83.33%,#ff0000_100%)"
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        setDragging(true);
+        updateFromPoint(event.clientX);
+      }}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
       {...props}
-    />
+    >
+      <span
+        className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[11px] font-medium text-white mix-blend-difference whitespace-nowrap leading-none"
+        style={{ left: 8, zIndex: 4 }}
+      >
+        Hue
+      </span>
+      <span
+        className="pointer-events-none absolute top-1/2 -translate-y-1/2 font-mono text-[10px] font-medium text-white mix-blend-difference"
+        style={{ right: 6, zIndex: 4 }}
+      >
+        {Math.round(hsv.h)}°
+      </span>
+      <div
+        className="pointer-events-none absolute top-1/2"
+        style={{
+          left: `${pct}%`,
+          transform: "translateX(-50%) translateY(-50%)",
+          zIndex: 3,
+        }}
+      >
+        <motion.div
+          animate={{
+            opacity: isActive ? 1.0 : 0.5,
+            scaleX: isActive ? 1 : 0.75,
+            scaleY: isActive ? 1 : 0.75,
+          }}
+          transition={spring}
+          className="bg-white rounded-full shadow-[0_0_2px_rgba(0,0,0,0.5)] border border-black/10"
+          style={{ width: 2, height: 18 }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -482,7 +550,7 @@ function ColorPickerFormatSelect({ className, ...props }: React.ComponentProps<"
       value={format}
       onChange={(event) => setFormat(event.target.value as ColorFormat)}
       className={cn(
-        "h-8 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-[11px] text-zinc-700 outline-none transition-colors hover:bg-zinc-100 focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800",
+        "h-8 rounded-md border border-wn-divider bg-wn-control-bg px-2 text-[11px] text-foreground outline-none transition-colors hover:bg-wn-control-hover focus:border-wn-accent",
         className,
       )}
       {...props}
@@ -505,7 +573,7 @@ function ColorPickerEyeDropper({ className, ...props }: React.ComponentProps<typ
       size="icon"
       disabled={!supported}
       aria-label="Pick a color from the screen"
-      className={cn("size-8 shrink-0 border-zinc-200 bg-zinc-50 text-zinc-600 shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300", className)}
+      className={cn("size-8 shrink-0 border-wn-divider bg-wn-control-bg text-foreground shadow-none hover:bg-wn-control-hover", className)}
       onClick={async () => {
         if (!supported) return;
 

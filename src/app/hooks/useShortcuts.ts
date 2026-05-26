@@ -8,6 +8,7 @@ type ShortcutActionDefinitions = {
   onTogglePlay: () => void;
   onToggleRecord: () => void;
   onToggleSidebar: () => void;
+  onSelectTool?: (tool: 'pointer' | 'pan' | 'paint' | 'zoom' | 'glitch' | 'path') => void;
 };
 
 export function useShortcuts(actions: ShortcutActionDefinitions) {
@@ -19,42 +20,52 @@ export function useShortcuts(actions: ShortcutActionDefinitions) {
     { id: '4', command: 'Wiederholen',     key: 'Z', tKey: 'dialogs.shortcuts.command.redo' },
     { id: '5', command: 'Abspielen/Pause', key: ' ', tKey: 'dialogs.shortcuts.command.playPause' },
     { id: '6', command: 'Aufnahme',        key: 'r', tKey: 'dialogs.shortcuts.command.record' },
+    { id: '7', command: 'Auswahl-Werkzeug', key: 'v', tKey: 'dialogs.shortcuts.command.toolPointer', noMod: true },
+    { id: '8', command: 'Hand-Werkzeug',    key: 'h', tKey: 'dialogs.shortcuts.command.toolPan', noMod: true },
+    { id: '9', command: 'Pinsel-Werkzeug',  key: 'b', tKey: 'dialogs.shortcuts.command.toolPaint', noMod: true },
+    { id: '10', command: 'Zoom-Werkzeug',    key: 'z', tKey: 'dialogs.shortcuts.command.toolZoom', noMod: true },
+    { id: '11', command: 'Glitch-Werkzeug',  key: 'g', tKey: 'dialogs.shortcuts.command.toolGlitch', noMod: true },
+    { id: '12', command: 'Pfad-Werkzeug',    key: 'p', tKey: 'dialogs.shortcuts.command.toolPath', noMod: true },
   ]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.getAttribute('contenteditable') === 'true');
       if (isInput) return;
 
       const isMod = e.metaKey || e.ctrlKey;
       
-      const match = shortcuts.find(s => {
-        if (s.key === ' ' && e.code === 'Space') return true;
-        if (s.key.toLowerCase() === 'r' && e.key.toLowerCase() === 'r' && !isMod) return true;
-        if (s.key === 'Z' && e.key === 'Z' && isMod && e.shiftKey) return true;
-        if (s.key === 'z' && e.key === 'z' && isMod && !e.shiftKey) return true;
-        return isMod && e.key.toLowerCase() === s.key.toLowerCase() && !e.shiftKey;
-      });
-
-      if (match) {
-        e.preventDefault();
-        switch (match.command) {
-          case 'Speichern': actions.onSave(); break;
-          case 'Laden': actions.onLoad(); break;
-          case 'Rückgängig': actions.onUndo(); break;
-          case 'Wiederholen': actions.onRedo(); break;
-          case 'Abspielen/Pause': actions.onTogglePlay(); break;
-          case 'Aufnahme': actions.onToggleRecord(); break;
-          case 'Sidebar umschalten': actions.onToggleSidebar(); break;
+      // 1. Mod key shortcuts (Save, Load, Undo, Redo)
+      if (isMod) {
+        if (e.key === 's') { e.preventDefault(); actions.onSave(); return; }
+        if (e.key === 'o') { e.preventDefault(); actions.onLoad(); return; }
+        if (e.key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) actions.onRedo();
+          else actions.onUndo();
+          return;
         }
-      } else if (isMod && e.key === 'y') {
-        e.preventDefault();
-        actions.onRedo();
+        if (e.key === 'y') { e.preventDefault(); actions.onRedo(); return; }
+        return;
+      }
+
+      // 2. Single-key shortcuts
+      if (e.key === ' ') { e.preventDefault(); actions.onTogglePlay(); return; }
+      if (e.key.toLowerCase() === 'r') { e.preventDefault(); actions.onToggleRecord(); return; }
+      
+      if (actions.onSelectTool) {
+        const key = e.key.toLowerCase();
+        if (key === 'v') { e.preventDefault(); actions.onSelectTool('pointer'); return; }
+        if (key === 'h') { e.preventDefault(); actions.onSelectTool('pan'); return; }
+        if (key === 'b') { e.preventDefault(); actions.onSelectTool('paint'); return; }
+        if (key === 'z') { e.preventDefault(); actions.onSelectTool('zoom'); return; }
+        if (key === 'g') { e.preventDefault(); actions.onSelectTool('glitch'); return; }
+        if (key === 'p') { e.preventDefault(); actions.onSelectTool('path'); return; }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [shortcuts, actions]);
+  }, [actions]);
 
   const addShortcut = (command: string, key: string) => {
     setShortcuts(prev => [...prev, { id: Date.now().toString(), command, key }]);

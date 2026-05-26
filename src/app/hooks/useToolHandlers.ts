@@ -28,8 +28,9 @@ export interface ToolHandlersOpts {
   paintColor: string;
   paintScale: number;
   paintOpacity: number;
+  paintBlend: number;
   paintMode: 'color' | 'scale' | 'opacity' | 'erase';
-  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; scale?: number; opacity?: number }>>>;
+  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>>;
 
   // Glitch jolt controls
   physicsVelocityRef: MutableRefObject<number>;
@@ -141,7 +142,7 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
       const heightHalf = height / 2;
       const tempV = new THREE.Vector3();
 
-      const newOverrides: Record<string, { color?: string; scale?: number; opacity?: number }> = {};
+      const newOverrides: Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }> = {};
       let changed = false;
 
       for (let i = 0; i < arr.length; i++) {
@@ -159,9 +160,9 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
         if (dist <= bag.brushRadius) {
           changed = true;
           if (bag.paintMode === 'erase') {
-            newOverrides[node.label] = { color: undefined, scale: undefined, opacity: undefined };
+            newOverrides[node.label] = { color: undefined, colorBlend: undefined, scale: undefined, opacity: undefined };
           } else if (bag.paintMode === 'color') {
-            newOverrides[node.label] = { color: bag.paintColor };
+            newOverrides[node.label] = { color: bag.paintColor, colorBlend: bag.paintBlend };
           } else if (bag.paintMode === 'scale') {
             newOverrides[node.label] = { scale: bag.paintScale };
           } else if (bag.paintMode === 'opacity') {

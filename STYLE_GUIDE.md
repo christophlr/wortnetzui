@@ -39,6 +39,10 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - Clicking the Modulator button auto-enables a default modulator (if none was active) and opens a Popover containing the Glide and LFO controls.
 - Inside the popover, an "Enable modulator" toggle switch lets the user disable/enable the modulator. This design keeps the sidebar and visual settings clean and avoids layout clipping.
 
+### Toolbar Popovers Pattern
+- Creative tools requiring active parameters or sequence lists (like the Paintbrush and Path Animator) anchor their setting/list overlays as side popovers attached to their respective toolbar buttons.
+- These popovers must use `bg-popover/95` and `backdrop-blur-sm` for a premium, integrated aesthetic. Floating canvas cards are prohibited.
+
 ### Colour Rule
 - **UI**: `hsl(var(--...))` CSS variables. Never hardcode hex in React components.
 - **3D scene**: use `networkTheme.ts` functions. Never hardcode scene colours inline.

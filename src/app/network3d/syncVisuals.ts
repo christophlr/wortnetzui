@@ -41,6 +41,7 @@ export interface SyncVisualsArgs {
 const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
 const _scratchColor = new THREE.Color();
+const _scratchColor2 = new THREE.Color();
 const _scratchVec1 = new THREE.Vector3();
 const _scratchVec2 = new THREE.Vector3();
 const _hslA = { h: 0, s: 0, l: 0 };
@@ -110,14 +111,16 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       node.textSprite.material.opacity = finalOpacity;
 
       let overrideColor = node.colorOverride;
+      let overrideColorBlend = 0.0;
       if (paintedOverrides && paintedOverrides[node.label]?.color !== undefined) {
         overrideColor = paintedOverrides[node.label].color;
+        overrideColorBlend = paintedOverrides[node.label].colorBlend ?? 0.0;
       }
       const nodeColor = _scratchColor;
+      nodeColor.lerpColors(_colorA, _colorB, normDistSq);
       if (overrideColor !== undefined) {
-        nodeColor.set(overrideColor);
-      } else {
-        nodeColor.lerpColors(_colorA, _colorB, normDistSq);
+        _scratchColor2.set(overrideColor);
+        nodeColor.lerp(_scratchColor2, 1.0 - overrideColorBlend);
       }
 
       // Selective bloom: boost selected nodes' colors above 1.0 so they exceed the bloom threshold
