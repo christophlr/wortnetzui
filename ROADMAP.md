@@ -4,11 +4,6 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 6.3a — Shape-switch performance** (lands before 6.3):
-  - Async-chunked texture rebuild in `Network3D.tsx`; first batch immediate, rest dispatched via `requestIdleCallback`.
-  - Shape-only fast path in `textureCache.ts` that reuses cached layout metrics when only `nodeShape` changes.
-  - Debounce parametric-shape deps (`arms`, `innerRatio`) on the same 80ms cadence as `nodeBorderWidth`.
-  - Extend `docs/phase-6-perf-baseline.md` with a "shape-switch (300 nodes)" scenario.
 - **Phase 6.3b — Hover-reveal reorder handle**:
   - New `SidebarReorderRow` atom: grip indicator appears on the left edge of sidebar list rows on hover (modeled on Figma's Fill panel).
   - HTML5 drag-and-drop reorders rows; keyboard `↑`/`↓` on focused grip moves the row.
@@ -36,6 +31,11 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Phase 6.3a — Shape-switch performance**:
+  - Async-chunked texture rebuild in `Network3D.tsx`: cancellable in-flight rebuild token, first 32-node batch synchronous for immediate visual feedback, remaining batches dispatched via `requestIdleCallback` (fallback `setTimeout(_, 0)`).
+  - Shape-only fast path in `textureCache.ts`: each cache entry stores `LayoutMetrics` (`logicalWidth`, `logicalHeight`, `words`); shape / border / theme rebuilds reuse them through `createCanvasTextureFromLayout`, skipping `measureText`.
+  - Highlighted / selected variants now also reuse cached layout instead of recomputing it.
+  - Extended `docs/phase-6-perf-baseline.md` with the "Shape-Switch (300 Nodes)" scenario and memory-allocation notes.
 - **Phase 6.2 — BPM / musical time**:
   - Added global `globalBpm`, `globalBpmEnabled`, and `timelineGridSubdivision` to `visualSettings`, serialized in workspace.
   - Extended `Modulator` with `bpmSync?` flag; `evalLfo(m, t, globalBpm)` now uses the live global tempo when sync is enabled. Legacy `bpm?` values migrate to `bpmSync: true` on load.

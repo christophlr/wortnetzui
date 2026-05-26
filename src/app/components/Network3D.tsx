@@ -15,12 +15,14 @@ import { evalLfo } from '../animation/Modulator';
 import type { WorkerTrack } from '../animation/evaluateTracks';
 import {
   type TextureCache,
+  type TextureCacheEntry,
   type TextureBuildOptions,
   createSpriteFromTexture,
+  createCanvasTexture,
+  createCanvasTextureFromLayout,
   buildTextureCache,
   disposeTextureCache,
   swapSpriteTexture as swapSpriteTextureImpl,
-  refreshAllSpriteTextures,
   getDepthFactor,
 } from '../network3d/textureCache';
 import { syncGraphVisuals } from '../network3d/syncVisuals';
@@ -273,6 +275,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const [cameraLocked, setCameraLocked] = useState(false);
   const setCameraLockedRef = useRef(setCameraLocked);
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rebuildCancelRef = useRef<{ cancelled: boolean } | null>(null);
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(true);
   const onReadyRef = useRef(onReady);
@@ -593,18 +596,86 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     swapSpriteTextureImpl(node, highlighted, selected, textureCacheRef.current, getTextureOpts());
 
   const rebuildAndRefreshTextures = () => {
-    disposeTextureCache(textureCacheRef.current);
-    textureCacheRef.current = buildTextureCache(graphNodesRef.current, getTextureOpts());
-    refreshAllSpriteTextures(
-      graphNodesRef.current,
-      textureCacheRef.current,
-      hoveredNodeRef.current?.label ?? null,
-      selectedNodeRef.current?.label ?? null,
-      styleSettingsRef.current,
-      minWordsRef.current,
-      maxWordsRef.current,
-      getTextureOpts(),
-    );
+    if (rebuildCancelRef.current) rebuildCancelRef.current.cancelled = true;
+    const token = { cancelled: false };
+    rebuildCancelRef.current = token;
+
+    const nodes = Array.from(graphNodesRef.current.values());
+    const opts = getTextureOpts();
+    const oldCache = textureCacheRef.current;
+    const newCache: TextureCache = new Map();
+    textureCacheRef.current = newCache;
+
+    const hoveredLabel = hoveredNodeRef.current?.label ?? null;
+    const selectedLabel = selectedNodeRef.current?.label ?? null;
+
+    const processNode = (node: typeof nodes[0]) => {
+      const oldEntry = oldCache.get(node.label);
+      // P2: reuse cached layout metrics to skip measureText on shape/border/theme rebuilds
+      let texture: THREE.Texture;
+      let baseScale: number;
+      let aspectRatio: number;
+      let layout;
+      if (oldEntry?.layout) {
+        const r = createCanvasTextureFromLayout(oldEntry.layout, false, false, opts);
+        texture = r.texture; baseScale = r.baseScale; aspectRatio = r.aspectRatio;
+        layout = oldEntry.layout;
+      } else {
+        const r = createCanvasTexture(node.label, false, false, opts);
+        texture = r.texture; baseScale = r.baseScale; aspectRatio = r.aspectRatio;
+        layout = r.layout;
+      }
+      const entry: TextureCacheEntry = { normal: texture, baseScale, aspectRatio, layout };
+      newCache.set(node.label, entry);
+
+      if (oldEntry) {
+        oldEntry.normal.dispose();
+        oldEntry.highlighted?.dispose();
+        oldEntry.selected?.dispose();
+      }
+
+      if (node.textSprite) {
+        // Eagerly generate highlighted/selected variants if this node is currently in that state
+        if (selectedLabel === node.label) {
+          entry.selected = createCanvasTextureFromLayout(layout, false, true, opts).texture;
+          node.textSprite.material.map = entry.selected;
+        } else if (hoveredLabel === node.label) {
+          entry.highlighted = createCanvasTextureFromLayout(layout, true, false, opts).texture;
+          node.textSprite.material.map = entry.highlighted;
+        } else {
+          node.textSprite.material.map = entry.normal;
+        }
+        node.textSprite.material.needsUpdate = true;
+        node.textSprite.userData.baseScale = baseScale;
+        node.textSprite.userData.aspectRatio = aspectRatio;
+      }
+    };
+
+    const BATCH_SIZE = 32;
+    const scheduleNext = typeof requestIdleCallback !== 'undefined'
+      ? (cb: () => void) => requestIdleCallback(() => cb())
+      : (cb: () => void) => setTimeout(cb, 0);
+
+    const processBatch = (startIdx: number) => {
+      if (token.cancelled) return;
+      const end = Math.min(startIdx + BATCH_SIZE, nodes.length);
+      for (let i = startIdx; i < end; i++) processNode(nodes[i]);
+      if (end < nodes.length) {
+        scheduleNext(() => processBatch(end));
+      } else {
+        rebuildCancelRef.current = null;
+        // Dispose entries for any labels that are no longer in the new cache
+        oldCache.forEach((entry, label) => {
+          if (!newCache.has(label)) {
+            entry.normal.dispose();
+            entry.highlighted?.dispose();
+            entry.selected?.dispose();
+          }
+        });
+      }
+    };
+
+    processBatch(0); // first batch runs synchronously for immediate visual feedback
   };
 
   const sync = (
@@ -1331,7 +1402,12 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
-      
+
+      if (rebuildCancelRef.current) {
+        rebuildCancelRef.current.cancelled = true;
+        rebuildCancelRef.current = null;
+      }
+
       detachToolHandlers();
       
       if (renderer.domElement.parentNode === containerRef.current) {

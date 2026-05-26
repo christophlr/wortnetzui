@@ -2,12 +2,19 @@ import * as THREE from 'three';
 import { getNetworkLabelStyle, type NodeShape, SCENE_COLORS } from '../networkTheme';
 import type { GraphNode } from '../graph';
 
+export interface LayoutMetrics {
+  logicalWidth: number;
+  logicalHeight: number;
+  words: string[];
+}
+
 export interface TextureCacheEntry {
   normal: THREE.Texture;
   highlighted?: THREE.Texture;
   selected?: THREE.Texture;
   baseScale: number;
   aspectRatio: number;
+  layout: LayoutMetrics;
 }
 
 export type TextureCache = Map<string, TextureCacheEntry>;
@@ -32,8 +39,24 @@ const OUTLINE_STROKE = 3;
 const OUTLINE_GAP = 2;
 const OUTLINE_MARGIN = OUTLINE_STROKE + OUTLINE_GAP;
 
-export function createCanvasTexture(
-  text: string,
+function computeLayout(text: string): LayoutMetrics {
+  const words = text.split(' ');
+  const fontSize = 28;
+  const lineHeight = fontSize * 1.2;
+  const padding = 14;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+  context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
+  const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
+  return {
+    logicalWidth: maxWidth + padding * 2,
+    logicalHeight: words.length * lineHeight + padding * 2,
+    words,
+  };
+}
+
+export function createCanvasTextureFromLayout(
+  layout: LayoutMetrics,
   highlighted: boolean,
   selected: boolean,
   opts: TextureBuildOptions,
@@ -42,25 +65,19 @@ export function createCanvasTexture(
   const effectiveBorderColor = EDIT_NODE_COLOR;
   const effectiveTextColor = EDIT_NODE_COLOR;
 
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d') as CanvasRenderingContext2D;
-
-  const words = text.split(' ');
+  const { logicalWidth, logicalHeight, words } = layout;
   const fontSize = 28;
   const lineHeight = fontSize * 1.2;
   const padding = 14;
   const pixelRatio = 3;
 
-  context.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
-  const maxWidth = Math.max(...words.map(w => context.measureText(w).width));
-  const logicalWidth = maxWidth + padding * 2;
-  const logicalHeight = words.length * lineHeight + padding * 2;
-
   const canvasLogicalWidth = logicalWidth + OUTLINE_MARGIN * 2;
   const canvasLogicalHeight = logicalHeight + OUTLINE_MARGIN * 2;
 
+  const canvas = document.createElement('canvas');
   canvas.width = canvasLogicalWidth * pixelRatio;
   canvas.height = canvasLogicalHeight * pixelRatio;
+  const context = canvas.getContext('2d') as CanvasRenderingContext2D;
   context.scale(pixelRatio, pixelRatio);
 
   const bw = nodeBorderWidth;
@@ -147,6 +164,17 @@ export function createCanvasTexture(
   return { texture, baseScale, aspectRatio };
 }
 
+export function createCanvasTexture(
+  text: string,
+  highlighted: boolean,
+  selected: boolean,
+  opts: TextureBuildOptions,
+): { texture: THREE.Texture; baseScale: number; aspectRatio: number; layout: LayoutMetrics } {
+  const layout = computeLayout(text);
+  const { texture, baseScale, aspectRatio } = createCanvasTextureFromLayout(layout, highlighted, selected, opts);
+  return { texture, baseScale, aspectRatio, layout };
+}
+
 export function createSpriteFromTexture(
   texture: THREE.Texture,
   label: string,
@@ -181,6 +209,7 @@ export function buildTextureCache(
       normal: n.texture,
       baseScale: n.baseScale,
       aspectRatio: n.aspectRatio,
+      layout: n.layout,
     });
   });
   return cache;
@@ -208,14 +237,12 @@ export function swapSpriteTexture(
   let tex = cached.normal;
   if (selected) {
     if (!cached.selected) {
-      const s = createCanvasTexture(node.label, false, true, opts);
-      cached.selected = s.texture;
+      cached.selected = createCanvasTextureFromLayout(cached.layout, false, true, opts).texture;
     }
     tex = cached.selected;
   } else if (highlighted) {
     if (!cached.highlighted) {
-      const h = createCanvasTexture(node.label, true, false, opts);
-      cached.highlighted = h.texture;
+      cached.highlighted = createCanvasTextureFromLayout(cached.layout, true, false, opts).texture;
     }
     tex = cached.highlighted;
   }
@@ -256,14 +283,12 @@ export function refreshAllSpriteTextures(
     let tex = cached.normal;
     if (isSelected) {
       if (!cached.selected) {
-        const s = createCanvasTexture(node.label, false, true, opts);
-        cached.selected = s.texture;
+        cached.selected = createCanvasTextureFromLayout(cached.layout, false, true, opts).texture;
       }
       tex = cached.selected;
     } else if (isHovered) {
       if (!cached.highlighted) {
-        const h = createCanvasTexture(node.label, true, false, opts);
-        cached.highlighted = h.texture;
+        cached.highlighted = createCanvasTextureFromLayout(cached.layout, true, false, opts).texture;
       }
       tex = cached.highlighted;
     }

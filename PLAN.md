@@ -1,7 +1,7 @@
 # Plan: Phase 5 Audit, Fix-ups, and Phase 6 Sequencing
 
 > **Status: ACTIVE — approved 2026-05-26**
-> Next step: Phase 6.3a — Shape-switch performance, then 6.3 — Node shapes & centered picker, then 6.3b — Hover-reveal reorder handle.
+> Next step: Phase 6.3 — Node shapes & centered picker, then 6.3b — Hover-reveal reorder handle. (6.3a Shape-switch performance ✅ done.)
 
 ## Context
 
@@ -101,7 +101,7 @@ This is item D above — execute as one focused pass. α and β touch different 
 - `Modulator.bpmSync?` replaces the legacy `bpm?` field: modulators with `bpmSync: true` follow the global BPM live; legacy `bpm` values migrate to `bpmSync: true` on workspace load.
 - `LfoControls` BPM scrubber writes through to the global context, so all synced modulators retime in unison.
 
-### 6.3a — Shape-switch performance (perf-only, lands before 6.3)
+### 6.3a — Shape-switch performance ✅ DONE
 
 Today, changing `nodeShape` triggers a synchronous full-cache rebuild ([Network3D.tsx:1411-1418](src/app/components/Network3D.tsx#L1411-L1418)) — N canvas redraws + N GPU uploads in one frame. At ~300 nodes this is a ~120-250ms block. Adding parametric shapes in 6.3 makes this path hotter (arm-count slider would rebuild on every tick if uncontrolled), so the fix lands first.
 
