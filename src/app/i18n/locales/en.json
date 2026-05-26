@@ -38,7 +38,6 @@
       "pan":     "Pan",
       "paint":   "Brush",
       "zoom":    "Zoom",
-      "scale":   "Scale",
       "glitch":  "Glitch brush",
       "path":    "Path animator"
     },
@@ -47,9 +46,20 @@
       "pan":     "H",
       "paint":   "B",
       "zoom":    "Z",
-      "scale":   "S",
       "glitch":  "G",
       "path":    "P"
+    },
+    "brush": {
+      "mode": "Mode",
+      "modeColor": "Color",
+      "modeScale": "Size",
+      "modeOpacity": "Opacity",
+      "modeErase": "Eraser",
+      "radius": "Brush Radius",
+      "color": "Color",
+      "scale": "Brush Size",
+      "opacity": "Opacity",
+      "clearAll": "Reset All"
     }
   },
   "sidebar": {
@@ -125,7 +135,7 @@
         },
         "action": {
           "randomizeGradient": "Randomize gradient",
-          "resetBackground":    "Reset to default"
+          "toggleBackground":  "Toggle canvas background"
         },
         "pathAnimator": {
           "emptyHint":         "Click nodes in the preview to build a path.",
@@ -260,9 +270,13 @@
       "bpm":         "BPM",
       "subdivision": "Division",
       "wave": {
-        "sine":     "Sine",
-        "triangle": "Triangle",
-        "square":   "Square"
+        "sine":         "Sine",
+        "triangle":     "Triangle",
+        "sawtooth":     "Sawtooth Up",
+        "sawtoothDown": "Sawtooth Down",
+        "square":       "Square",
+        "random":       "Step Random",
+        "noise":        "Smooth Random"
       }
     },
     "recording": {

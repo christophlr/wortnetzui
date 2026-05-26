@@ -38,7 +38,6 @@
       "pan":     "Hand",
       "paint":   "Pinsel",
       "zoom":    "Zoom",
-      "scale":   "Skalieren",
       "glitch":  "Glitch-Pinsel",
       "path":    "Pfad-Animator"
     },
@@ -47,9 +46,20 @@
       "pan":     "H",
       "paint":   "B",
       "zoom":    "Z",
-      "scale":   "S",
       "glitch":  "G",
       "path":    "P"
+    },
+    "brush": {
+      "mode": "Modus",
+      "modeColor": "Farbe",
+      "modeScale": "Größe",
+      "modeOpacity": "Deckkraft",
+      "modeErase": "Radieren",
+      "radius": "Pinselradius",
+      "color": "Farbe",
+      "scale": "Pinselgröße",
+      "opacity": "Deckkraft",
+      "clearAll": "Alles zurücksetzen"
     }
   },
   "sidebar": {
@@ -125,7 +135,7 @@
         },
         "action": {
           "randomizeGradient": "Gradient zufällig generieren",
-          "resetBackground":    "Zurücksetzen"
+          "toggleBackground":  "Leinwand-Hintergrund umschalten"
         },
         "pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
@@ -260,9 +270,13 @@
       "bpm":         "BPM",
       "subdivision": "Unterteilung",
       "wave": {
-        "sine":     "Sinus",
-        "triangle": "Dreieck",
-        "square":   "Rechteck"
+        "sine":         "Sinus",
+        "triangle":     "Dreieck",
+        "sawtooth":     "Sägezahn auf",
+        "sawtoothDown": "Sägezahn ab",
+        "square":       "Rechteck",
+        "random":       "Zufallstreppe",
+        "noise":        "Rauschen"
       }
     },
     "recording": {

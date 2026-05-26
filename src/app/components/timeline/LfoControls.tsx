@@ -15,11 +15,29 @@ import {
   SidebarToggleRow,
   SidebarDescription,
 } from '../sidebar/SidebarAtoms';
+import { Spline, Triangle, Square, TrendingUp, TrendingDown, Dice5, Waves } from 'lucide-react';
 
 const TWO_PI = Math.PI * 2;
 
-const WAVEFORMS: ModulatorWaveform[] = ['sine', 'triangle', 'square'];
-const WAVEFORM_LABELS: Record<ModulatorWaveform, string> = { sine: '∼', triangle: '△', square: '▢' };
+const WAVEFORMS: ModulatorWaveform[] = [
+  'sine',
+  'triangle',
+  'sawtooth',
+  'sawtoothDown',
+  'square',
+  'random',
+  'noise',
+];
+
+const WAVEFORM_ICONS: Record<ModulatorWaveform, React.ComponentType<{ className?: string }>> = {
+  sine: Spline,
+  triangle: Triangle,
+  sawtooth: TrendingUp,
+  sawtoothDown: TrendingDown,
+  square: Square,
+  random: Dice5,
+  noise: Waves,
+};
 
 // cycles-per-beat values for standard musical subdivisions.
 // Rate=2 at 120 BPM → 2 * 120/60 = 4 Hz (8th note).
@@ -48,11 +66,14 @@ export function LfoControlsBody({
   const { t } = useT();
   const current: Modulator = value ?? { ...DEFAULT_MODULATOR, depth: depthMaxFor(paramKey) * 0.1 };
   const bpmEnabled = current.bpm != null;
-  const waveformItems = WAVEFORMS.map(w => ({
-    label: WAVEFORM_LABELS[w],
-    value: w,
-    title: t(`timeline.lfo.wave.${w}`),
-  }));
+  const waveformItems = WAVEFORMS.map(w => {
+    const Icon = WAVEFORM_ICONS[w];
+    return {
+      label: <Icon className="size-3.5" />,
+      value: w,
+      title: t(`timeline.lfo.wave.${w}`),
+    };
+  });
 
   return (
     <>

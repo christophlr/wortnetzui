@@ -217,6 +217,23 @@ export function VisualTab({
   const setVisual = (patch: Record<string, unknown>) =>
     onVisualSettingsChange?.({ ...visualSettings, ...patch });
 
+  const [lastColor, setLastColor] = React.useState(
+    visualSettings.backgroundColor || (isDark ? '#09090b' : '#f8fafc')
+  );
+
+  const handleColorChange = (value: string) => {
+    setLastColor(value);
+    setVisual({ backgroundColor: value });
+  };
+
+  const handleToggleBackground = () => {
+    if (visualSettings.backgroundColor) {
+      setVisual({ backgroundColor: '' });
+    } else {
+      setVisual({ backgroundColor: lastColor });
+    }
+  };
+
   // Shared props for TrackScrubber wiring
   const trackProps = {
     currentTime,
@@ -327,20 +344,20 @@ export function VisualTab({
           title={t('sidebar.tab.visual.group.canvasBackground')}
           stack="snug"
           actions={
-            visualSettings.backgroundColor ? (
-              <SidebarSectionActionButton
-                icon={Trash2}
-                title={t('sidebar.tab.visual.action.resetBackground')}
-                onClick={() => setVisual({ backgroundColor: '' })}
-              />
-            ) : null
+            <SidebarVisibilityToggle
+              visible={!!visualSettings.backgroundColor}
+              onToggle={handleToggleBackground}
+              title={t('sidebar.tab.visual.action.toggleBackground')}
+            />
           }
         >
-          <SidebarColorRow
-            label={t('sidebar.tab.visual.color.background')}
-            value={visualSettings.backgroundColor || (isDark ? '#09090b' : '#f8fafc')}
-            onChange={(value) => setVisual({ backgroundColor: value })}
-          />
+          <div className={!visualSettings.backgroundColor ? 'opacity-40 pointer-events-none' : ''}>
+            <SidebarColorRow
+              label={t('sidebar.tab.visual.color.background')}
+              value={visualSettings.backgroundColor || (isDark ? '#09090b' : '#f8fafc')}
+              onChange={handleColorChange}
+            />
+          </div>
         </SidebarGroup>
       </SidebarSection>
 

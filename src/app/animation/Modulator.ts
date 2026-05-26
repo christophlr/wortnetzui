@@ -9,7 +9,7 @@
 // `evalLfo` takes wallTime (real-clock seconds), NOT playhead time, so the
 // LFO always oscillates even when playback is paused.
 
-export type ModulatorWaveform = 'sine' | 'triangle' | 'square';
+export type ModulatorWaveform = 'sine' | 'triangle' | 'sawtooth' | 'sawtoothDown' | 'square' | 'random' | 'noise';
 
 export type Modulator = {
   waveform: ModulatorWaveform;
@@ -29,6 +29,12 @@ export const DEFAULT_MODULATOR: Modulator = {
 
 const TWO_PI = Math.PI * 2;
 
+// Simple deterministic float generator seeded by an integer. Returns value in [0, 1).
+function hash(x: number): number {
+  const sin = Math.sin(x) * 43758.5453123;
+  return sin - Math.floor(sin);
+}
+
 // wallTime must be real-clock seconds (performance.now()/1000), not playhead time.
 export function evalLfo(m: Modulator, wallTime: number): number {
   if (m.depth === 0) return 0;
@@ -45,9 +51,35 @@ export function evalLfo(m: Modulator, wallTime: number): number {
       raw = 1 - 4 * Math.abs(((u + 0.25) % 1) - 0.5);
       break;
     }
+    case 'sawtooth': {
+      const u = ((phase / TWO_PI) % 1 + 1) % 1;
+      raw = 2 * u - 1;
+      break;
+    }
+    case 'sawtoothDown': {
+      const u = ((phase / TWO_PI) % 1 + 1) % 1;
+      raw = 1 - 2 * u;
+      break;
+    }
     case 'square':
       raw = Math.sin(phase) >= 0 ? 1 : -1;
       break;
+    case 'random': {
+      const cycle = Math.floor(phase / TWO_PI);
+      raw = hash(cycle) * 2 - 1;
+      break;
+    }
+    case 'noise': {
+      const tVal = phase / TWO_PI;
+      const cycle = Math.floor(tVal);
+      const frac = tVal - cycle;
+      const y0 = hash(cycle) * 2 - 1;
+      const y1 = hash(cycle + 1) * 2 - 1;
+      // Cosine interpolation
+      const smoothFrac = (1 - Math.cos(frac * Math.PI)) / 2;
+      raw = y0 + (y1 - y0) * smoothFrac;
+      break;
+    }
   }
   return raw * m.depth;
 }

@@ -35,6 +35,7 @@ export interface SyncVisualsArgs {
   edgeLines: THREE.LineSegments | null;
   /** Current time in seconds (performance.now() / 1000). Used for flicker mode. */
   time?: number;
+  paintedOverrides?: Record<string, { color?: string; scale?: number; opacity?: number }>;
 }
 
 const _colorA = new THREE.Color();
@@ -46,7 +47,7 @@ const _hslA = { h: 0, s: 0, l: 0 };
 const _hslB = { h: 0, s: 0, l: 0 };
 
 export function syncGraphVisuals(args: SyncVisualsArgs): void {
-  const { nodes, edges, nodeArr, visualSettings: vs, styleSettings: ss, camera, mousePos, edgeLines, time = 0 } = args;
+  const { nodes, edges, nodeArr, visualSettings: vs, styleSettings: ss, camera, mousePos, edgeLines, time = 0, paintedOverrides } = args;
   const arr = nodeArr ?? Array.from(nodes.values());
 
   // Apply hue shift to gradient colors
@@ -87,20 +88,37 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       const scaleIntensity = 1.0 + (falloffMagnitude * distCurve);
       const aspectRatio = node.textSprite.userData.aspectRatio;
 
+      let overrideScale = node.scaleOverride;
+      if (paintedOverrides && paintedOverrides[node.label]?.scale !== undefined) {
+        overrideScale = paintedOverrides[node.label].scale;
+      }
       let finalScale = baseScale * scaleIntensity;
-      if (node.unlinkedScale && node.scaleOverride !== undefined) {
-        finalScale = node.textSprite.userData.baseScale * node.scaleOverride;
+      if (overrideScale !== undefined) {
+        finalScale = node.textSprite.userData.baseScale * overrideScale;
       }
 
       node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
 
+      let overrideOpacity = node.opacityOverride;
+      if (paintedOverrides && paintedOverrides[node.label]?.opacity !== undefined) {
+        overrideOpacity = paintedOverrides[node.label].opacity;
+      }
       let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDistSq));
-      if (node.unlinkedOpacity && node.opacityOverride !== undefined) {
-        finalOpacity = node.opacityOverride;
+      if (overrideOpacity !== undefined) {
+        finalOpacity = overrideOpacity;
       }
       node.textSprite.material.opacity = finalOpacity;
 
-      const nodeColor = _scratchColor.lerpColors(_colorA, _colorB, normDistSq);
+      let overrideColor = node.colorOverride;
+      if (paintedOverrides && paintedOverrides[node.label]?.color !== undefined) {
+        overrideColor = paintedOverrides[node.label].color;
+      }
+      const nodeColor = _scratchColor;
+      if (overrideColor !== undefined) {
+        nodeColor.set(overrideColor);
+      } else {
+        nodeColor.lerpColors(_colorA, _colorB, normDistSq);
+      }
 
       // Selective bloom: boost selected nodes' colors above 1.0 so they exceed the bloom threshold
       if (vs.bloomSelective) {

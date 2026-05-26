@@ -332,12 +332,12 @@ export function SidebarSegmentedPicker<T extends string | number>({
   value,
   onChange,
 }: {
-  items: { label: string; value: T; title?: string }[];
+  items: { label: React.ReactNode; value: T; title?: string }[];
   value: T;
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1 w-full">
       {items.map((item) => (
         <button
           key={String(item.value)}
@@ -345,7 +345,7 @@ export function SidebarSegmentedPicker<T extends string | number>({
           title={item.title}
           onClick={() => onChange(item.value)}
           className={cn(
-            'flex-1 h-6 rounded-sm text-[11px] font-medium border transition-colors',
+            'flex-1 h-6 rounded-sm text-[11px] font-medium border transition-colors flex items-center justify-center',
             item.value === value
               ? 'bg-wn-accent-soft border-wn-accent text-foreground'
               : 'border-wn-divider text-muted-foreground hover:text-foreground',

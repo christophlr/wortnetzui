@@ -20,6 +20,11 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Modulator Waveforms & UI Icons Upgrade**:
+  - Implemented four new modulator waveforms (Sawtooth Up `sawtooth`, Sawtooth Down `sawtoothDown`, Step Random `random`, and Smooth Random `noise`).
+  - Added a deterministic pseudo-random `hash` generator to ensure Step Random and Smooth Random animations are scrubbable and repeatable.
+  - Upgraded the modulator waveform picker to use Lucide React icons (`Spline`, `Triangle`, `Square`, `TrendingUp`, `TrendingDown`, `Dice5`, and `Waves`).
+  - Generalized the shared `SidebarSegmentedPicker` to support custom `React.ReactNode` labels.
 - **Canvas Background Customization**:
   - Added a dedicated "Canvas Background" configuration group under the "Nodes" section in the Visuals tab.
   - Implemented color picker with automatic theme default fallbacks (dark: `#09090b`, light: `#f8fafc`) and a quick-reset trash button to clear custom backgrounds.

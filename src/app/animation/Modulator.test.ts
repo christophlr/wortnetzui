@@ -55,6 +55,74 @@ describe('evalLfo', () => {
     });
   });
 
+  describe('sawtooth waveform', () => {
+    const m = { waveform: 'sawtooth' as const, rate: 1, depth: 1, phase: 0 };
+    it('starts at -depth', () => {
+      expect(evalLfo(m, 0)).toBeCloseTo(-1, 10);
+    });
+    it('rises linearly', () => {
+      expect(evalLfo(m, 0.25)).toBeCloseTo(-0.5, 10);
+      expect(evalLfo(m, 0.5)).toBeCloseTo(0, 10);
+      expect(evalLfo(m, 0.75)).toBeCloseTo(0.5, 10);
+    });
+    it('peaks and resets at cycle boundary', () => {
+      expect(evalLfo(m, 0.999)).toBeCloseTo(0.998, 3);
+      expect(evalLfo(m, 1.0)).toBeCloseTo(-1, 10);
+    });
+  });
+
+  describe('sawtoothDown waveform', () => {
+    const m = { waveform: 'sawtoothDown' as const, rate: 1, depth: 1, phase: 0 };
+    it('starts at +depth', () => {
+      expect(evalLfo(m, 0)).toBeCloseTo(1, 10);
+    });
+    it('falls linearly', () => {
+      expect(evalLfo(m, 0.25)).toBeCloseTo(0.5, 10);
+      expect(evalLfo(m, 0.5)).toBeCloseTo(0, 10);
+      expect(evalLfo(m, 0.75)).toBeCloseTo(-0.5, 10);
+    });
+    it('troughs and resets at cycle boundary', () => {
+      expect(evalLfo(m, 0.999)).toBeCloseTo(-0.998, 3);
+      expect(evalLfo(m, 1.0)).toBeCloseTo(1, 10);
+    });
+  });
+
+  describe('random waveform', () => {
+    const m = { waveform: 'random' as const, rate: 1, depth: 1, phase: 0 };
+    it('is constant within a cycle', () => {
+      const v1 = evalLfo(m, 0.1);
+      const v2 = evalLfo(m, 0.4);
+      expect(v1).toBe(v2);
+      expect(v1).toBeGreaterThanOrEqual(-1);
+      expect(v1).toBeLessThanOrEqual(1);
+    });
+    it('changes across cycles and is deterministic', () => {
+      const v1 = evalLfo(m, 0.2);
+      const v2 = evalLfo(m, 1.2);
+      expect(v1).not.toBe(v2);
+
+      // Determinism check
+      expect(evalLfo(m, 0.2)).toBe(v1);
+      expect(evalLfo(m, 1.2)).toBe(v2);
+    });
+  });
+
+  describe('noise waveform', () => {
+    const m = { waveform: 'noise' as const, rate: 1, depth: 1, phase: 0 };
+    it('interpolates smoothly between cycle boundaries', () => {
+      const vStart = evalLfo(m, 0.0);
+      const vMid = evalLfo(m, 0.5);
+      const vEnd = evalLfo(m, 1.0);
+
+      expect(vStart).toBeCloseTo(evalLfo({ waveform: 'random' as const, rate: 1, depth: 1, phase: 0 }, 0), 10);
+      expect(vEnd).toBeCloseTo(evalLfo({ waveform: 'random' as const, rate: 1, depth: 1, phase: 0 }, 1), 10);
+      expect(vMid).toBeCloseTo((vStart + vEnd) / 2, 10);
+
+      // Determinism check
+      expect(evalLfo(m, 0.5)).toBe(vMid);
+    });
+  });
+
   it('respects phase offset', () => {
     const m = { waveform: 'sine' as const, rate: 1, depth: 1, phase: Math.PI / 2 };
     expect(evalLfo(m, 0)).toBeCloseTo(1, 10);
