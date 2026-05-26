@@ -353,6 +353,7 @@ function ColorPickerArea({ className, ...props }: React.ComponentProps<"div">) {
 
   return (
     <div
+      {...props}
       ref={ref}
       className={cn(
         "relative aspect-square overflow-hidden rounded-lg border border-wn-divider bg-wn-control-bg shadow-sm",
@@ -363,13 +364,13 @@ function ColorPickerArea({ className, ...props }: React.ComponentProps<"div">) {
           "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0))",
           `linear-gradient(to right, rgba(255,255,255,1), hsl(${hsv.h} 100% 50%))`,
         ].join(", "),
+        ...props.style,
       }}
       onPointerDown={(event) => {
         event.preventDefault();
         setDragging(true);
         updateFromPoint(event.clientX, event.clientY);
       }}
-      {...props}
     >
       <span
         className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-[0_0_0_1px_rgba(0,0,0,0.28)]"
@@ -386,7 +387,7 @@ function ColorPickerArea({ className, ...props }: React.ComponentProps<"div">) {
 function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div">) {
   const { parsed, onValueChange } = useColorPickerContext();
   const ref = React.useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = React.useState(false);
+  const [isDragging, setIsDragging] = React.useState(false);
   const [isHovering, setIsHovering] = React.useState(false);
   const hsv = React.useMemo(() => rgbToHsv(parsed.r, parsed.g, parsed.b), [parsed.b, parsed.g, parsed.r]);
 
@@ -405,10 +406,10 @@ function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div
   );
 
   React.useEffect(() => {
-    if (!dragging) return;
+    if (!isDragging) return;
 
-    const handlePointerMove = (event: PointerEvent) => updateFromPoint(event.clientX);
-    const handlePointerUp = () => setDragging(false);
+    const handlePointerMove = (e: PointerEvent) => updateFromPoint(e.clientX);
+    const handlePointerUp = () => setIsDragging(false);
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp, { once: true });
@@ -417,30 +418,31 @@ function ColorPickerHueSlider({ className, ...props }: React.ComponentProps<"div
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [dragging, updateFromPoint]);
+  }, [isDragging, updateFromPoint]);
 
   const pct = (hsv.h / 360) * 100;
-  const isActive = dragging || isHovering;
+  const isActive = isDragging || isHovering;
   const spring = { type: "spring", duration: 0.25, bounce: 0.1 } as const;
 
   return (
     <div
+      {...props}
       ref={ref}
       className={cn(
         "relative h-7 w-full overflow-hidden rounded-md border border-wn-divider cursor-ew-resize select-none touch-none",
         className
       )}
       style={{
-        backgroundImage: "linear-gradient(to right,#ff0000_0%,#ffff00_16.67%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.67%,#ff00ff_83.33%,#ff0000_100%)"
+        backgroundImage: "linear-gradient(to right,#ff0000_0%,#ffff00_16.67%,#00ff00_33.33%,#00ffff_50%,#0000ff_66.67%,#ff00ff_83.33%,#ff0000_100%)",
+        ...props.style
       }}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        setDragging(true);
-        updateFromPoint(event.clientX);
+      onPointerDown={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+        updateFromPoint(e.clientX);
       }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      {...props}
     >
       <span
         className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[11px] font-medium text-white mix-blend-difference whitespace-nowrap leading-none"
