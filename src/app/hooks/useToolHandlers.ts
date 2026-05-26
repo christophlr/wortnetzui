@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, type RefObject, type MutableRefObject }
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GraphNode, ToolId } from '../components/Toolbar';
+import type { PaintedOverride } from '../context/WortnetzContextTypes';
 
 export interface ToolHandlersOpts {
   activeTool: ToolId;
@@ -30,7 +31,9 @@ export interface ToolHandlersOpts {
   paintOpacity: number;
   paintBlend: number;
   paintMode: 'color' | 'scale' | 'opacity' | 'erase';
-  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }>>>;
+  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, PaintedOverride>>>;
+  onStrokeStart?: () => void;
+  onStrokeEnd?: () => void;
 
   // Glitch jolt controls
   physicsVelocityRef: MutableRefObject<number>;
@@ -42,6 +45,15 @@ export interface ToolHandlersOpts {
   // Callback to display the SVG brush circle
   setMouseCoords: (coords: { x: number; y: number } | null) => void;
 }
+
+// Module-scoped structures to avoid allocations inside high-frequency frames and clicks
+const SHARED_PLANE = new THREE.Plane();
+const SHARED_CLICK_POINT = new THREE.Vector3();
+const SHARED_CAM_DIR = new THREE.Vector3();
+const SHARED_COM = new THREE.Vector3();
+const SHARED_NODE_POS = new THREE.Vector3();
+const SHARED_DIR = new THREE.Vector3();
+const SCRATCH_ERASE_LABELS: string[] = [];
 
 /**
  * Custom hook that handles mouse event routing on the WebGL canvas DOM element
@@ -142,7 +154,8 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
       const heightHalf = height / 2;
       const tempV = new THREE.Vector3();
 
-      const newOverrides: Record<string, { color?: string; colorBlend?: number; scale?: number; opacity?: number }> = {};
+      SCRATCH_ERASE_LABELS.length = 0;
+      const newOverrides: Record<string, PaintedOverride> = {};
       let changed = false;
 
       for (let i = 0; i < arr.length; i++) {
@@ -160,7 +173,7 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
         if (dist <= bag.brushRadius) {
           changed = true;
           if (bag.paintMode === 'erase') {
-            newOverrides[node.label] = { color: undefined, colorBlend: undefined, scale: undefined, opacity: undefined };
+            SCRATCH_ERASE_LABELS.push(node.label);
           } else if (bag.paintMode === 'color') {
             newOverrides[node.label] = { color: bag.paintColor, colorBlend: bag.paintBlend };
           } else if (bag.paintMode === 'scale') {
@@ -174,16 +187,18 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
       if (changed) {
         bag.setPaintedOverrides(prev => {
           const next = { ...prev };
-          Object.entries(newOverrides).forEach(([label, po]) => {
-            if (bag.paintMode === 'erase') {
-              delete next[label];
-            } else {
+          if (bag.paintMode === 'erase') {
+            for (let i = 0; i < SCRATCH_ERASE_LABELS.length; i++) {
+              delete next[SCRATCH_ERASE_LABELS[i]];
+            }
+          } else {
+            Object.entries(newOverrides).forEach(([label, po]) => {
               next[label] = {
                 ...next[label],
                 ...po
               };
-            }
-          });
+            });
+          }
           return next;
         });
         // Immediately sync visual overrides for responsive drag-painting
@@ -233,6 +248,7 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
       const bag = bagRef.current;
 
       if (bag.activeTool === 'paint') {
+        bag.onStrokeStart?.();
         performPaint(e);
       } else if (bag.activeTool === 'pan') {
         domElement.style.cursor = 'grabbing';
@@ -241,19 +257,26 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button !== 0) return;
+      const wasMouseDown = isMouseDown;
       isMouseDown = false;
       const bag = bagRef.current;
-      if (bag.activeTool === 'pan') {
+      if (bag.activeTool === 'paint' && wasMouseDown) {
+        bag.onStrokeEnd?.();
+      } else if (bag.activeTool === 'pan') {
         domElement.style.cursor = 'grab';
       }
     };
 
     const handleMouseLeave = () => {
-      isMouseDown = false;
       const bag = bagRef.current;
+      const wasMouseDown = isMouseDown;
+      isMouseDown = false;
       bag.setMouseCoords(null);
       if (bag.activeTool === 'pan') {
         domElement.style.cursor = 'grab';
+      }
+      if (bag.activeTool === 'paint' && wasMouseDown) {
+        bag.onStrokeEnd?.();
       }
 
       if (bag.hoveredNodeRef.current) {
@@ -273,9 +296,7 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
         const prev = bag.selectedNodeRef.current;
 
         if (activeTool === 'path') {
-          if (hit) {
-            bag.onNodeSelectRef.current?.(hit);
-          }
+          bag.onNodeSelectRef.current?.(hit);
           return;
         }
 
@@ -309,32 +330,52 @@ export function useToolHandlers(opts: ToolHandlersOpts): (domElement: HTMLElemen
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
 
-        const clickPoint = new THREE.Vector3();
-        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-        raycaster.ray.intersectPlane(plane, clickPoint);
+        // Calculate Center of Mass (COM) dynamically
+        let sumX = 0;
+        let sumY = 0;
+        let sumZ = 0;
+        const count = arr.length;
+        for (let i = 0; i < count; i++) {
+          const b = i * 6;
+          sumX += posVel[b];
+          sumY += posVel[b + 1];
+          sumZ += posVel[b + 2];
+        }
+        SHARED_COM.set(
+          count > 0 ? sumX / count : 0,
+          count > 0 ? sumY / count : 0,
+          count > 0 ? sumZ / count : 0
+        );
+
+        camera.getWorldDirection(SHARED_CAM_DIR);
+        SHARED_CAM_DIR.negate();
+        SHARED_PLANE.setFromNormalAndCoplanarPoint(SHARED_CAM_DIR, SHARED_COM);
+
+        if (!raycaster.ray.intersectPlane(SHARED_PLANE, SHARED_CLICK_POINT)) {
+          return;
+        }
 
         const glitchRadius = 250;
-        const nodePos = new THREE.Vector3();
         let hitAny = false;
 
         // 2. Iterate and apply outward velocity impulse
         for (let i = 0; i < arr.length; i++) {
           const node = arr[i];
-          nodePos.set(node.x, node.y, node.z);
-          const dist = nodePos.distanceTo(clickPoint);
+          SHARED_NODE_POS.set(node.x, node.y, node.z);
+          const dist = SHARED_NODE_POS.distanceTo(SHARED_CLICK_POINT);
 
           if (dist <= glitchRadius) {
             hitAny = true;
             const b = i * 6;
-            const dir = nodePos.clone().sub(clickPoint);
+            SHARED_DIR.copy(SHARED_NODE_POS).sub(SHARED_CLICK_POINT);
             const distSafe = dist || 1;
-            dir.divideScalar(distSafe); // Normalize
+            SHARED_DIR.divideScalar(distSafe); // Normalize
 
             // Stronger push for nodes closer to click point
             const force = (1.0 - dist / glitchRadius) * 35.0;
-            posVel[b + 3] += dir.x * force;
-            posVel[b + 4] += dir.y * force;
-            posVel[b + 5] += dir.z * force;
+            posVel[b + 3] += SHARED_DIR.x * force;
+            posVel[b + 4] += SHARED_DIR.y * force;
+            posVel[b + 5] += SHARED_DIR.z * force;
           }
         }
 

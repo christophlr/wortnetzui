@@ -394,7 +394,9 @@
         "toolPaint": "Brush tool",
         "toolZoom": "Zoom tool",
         "toolGlitch": "Glitch tool",
-        "toolPath": "Path tool"
+        "toolPath": "Path tool",
+        "brushDecrease": "Decrease brush size",
+        "brushIncrease": "Increase brush size"
       }
     }
   },

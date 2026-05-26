@@ -202,7 +202,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     paintBlend,
     paintMode,
     paintedOverrides,
-    setPaintedOverrides
+    setPaintedOverrides,
+    onStrokeStart,
+    onStrokeEnd,
   } = useWortnetz();
 
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
@@ -211,31 +213,6 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   useEffect(() => {
     paintedOverridesRef.current = paintedOverrides;
   }, [paintedOverrides]);
-
-  // Adjust brush radius using global hotkeys when not focused on an input/editable element
-  useEffect(() => {
-    if (activeTool !== 'paint') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      if (activeEl && (
-        activeEl.tagName === 'INPUT' ||
-        activeEl.tagName === 'TEXTAREA' ||
-        activeEl.getAttribute('contenteditable') === 'true'
-      )) {
-        return;
-      }
-
-      if (e.key === '[') {
-        setBrushRadius(Math.max(10, brushRadius - 5));
-      } else if (e.key === ']') {
-        setBrushRadius(Math.min(300, brushRadius + 5));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTool, brushRadius, setBrushRadius]);
 
   // Sync initial canvas style cursor immediately when the active tool changes
   useEffect(() => {
@@ -719,6 +696,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     paintBlend,
     paintMode,
     setPaintedOverrides,
+    onStrokeStart,
+    onStrokeEnd,
     physicsVelocityRef,
     stillFramesRef,
     physicsEnabledRef,

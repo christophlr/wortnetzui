@@ -334,7 +334,9 @@
         "toolPaint":     "Pinsel-Werkzeug",
         "toolZoom":      "Zoom-Werkzeug",
         "toolGlitch":    "Glitch-Werkzeug",
-        "toolPath":      "Pfad-Werkzeug"
+        "toolPath":      "Pfad-Werkzeug",
+        "brushDecrease": "Pinsel verkleinern",
+        "brushIncrease": "Pinsel vergrößern"
       }
     }
   },

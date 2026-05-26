@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { ToolId } from '../components/Toolbar';
 
 type ShortcutActionDefinitions = {
   onSave: () => void;
@@ -8,7 +9,10 @@ type ShortcutActionDefinitions = {
   onTogglePlay: () => void;
   onToggleRecord: () => void;
   onToggleSidebar: () => void;
-  onSelectTool?: (tool: 'pointer' | 'pan' | 'paint' | 'zoom' | 'glitch' | 'path') => void;
+  onSelectTool?: (tool: ToolId) => void;
+  onIncreaseBrushSize?: () => void;
+  onDecreaseBrushSize?: () => void;
+  activeTool?: ToolId;
 };
 
 export function useShortcuts(actions: ShortcutActionDefinitions) {
@@ -26,6 +30,8 @@ export function useShortcuts(actions: ShortcutActionDefinitions) {
     { id: '10', command: 'Zoom-Werkzeug',    key: 'z', tKey: 'dialogs.shortcuts.command.toolZoom', noMod: true },
     { id: '11', command: 'Glitch-Werkzeug',  key: 'g', tKey: 'dialogs.shortcuts.command.toolGlitch', noMod: true },
     { id: '12', command: 'Pfad-Werkzeug',    key: 'p', tKey: 'dialogs.shortcuts.command.toolPath', noMod: true },
+    { id: '13', command: 'Pinsel verkleinern', key: '[', tKey: 'dialogs.shortcuts.command.brushDecrease', noMod: true },
+    { id: '14', command: 'Pinsel vergrößern', key: ']', tKey: 'dialogs.shortcuts.command.brushIncrease', noMod: true },
   ]);
 
   useEffect(() => {
@@ -53,6 +59,20 @@ export function useShortcuts(actions: ShortcutActionDefinitions) {
       if (e.key === ' ') { e.preventDefault(); actions.onTogglePlay(); return; }
       if (e.key.toLowerCase() === 'r') { e.preventDefault(); actions.onToggleRecord(); return; }
       
+      // Brush size adjustments: only when activeTool is 'paint'
+      if (actions.activeTool === 'paint') {
+        if (e.key === '[') {
+          e.preventDefault();
+          actions.onDecreaseBrushSize?.();
+          return;
+        }
+        if (e.key === ']') {
+          e.preventDefault();
+          actions.onIncreaseBrushSize?.();
+          return;
+        }
+      }
+
       if (actions.onSelectTool) {
         const key = e.key.toLowerCase();
         if (key === 'v') { e.preventDefault(); actions.onSelectTool('pointer'); return; }

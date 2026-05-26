@@ -32,7 +32,10 @@ export default function App() {
     onToggleRecord: () => wn.setIsRecording((p: boolean) => !p),
     onToggleSidebar: () => wn.setIsSidebarOpen(!wn.isSidebarOpen),
     onSelectTool: wn.setActiveTool,
-  }), [wn.handleSave, wn.handleLoad, wn.undo, wn.redo, wn.setIsPlaying, wn.setIsRecording, wn.setIsSidebarOpen, wn.isSidebarOpen, wn.setActiveTool]));
+    onIncreaseBrushSize: () => wn.setBrushRadius(Math.min(300, wn.brushRadius + 5)),
+    onDecreaseBrushSize: () => wn.setBrushRadius(Math.max(10, wn.brushRadius - 5)),
+    activeTool: wn.activeTool,
+  }), [wn.handleSave, wn.handleLoad, wn.undo, wn.redo, wn.setIsPlaying, wn.setIsRecording, wn.setIsSidebarOpen, wn.isSidebarOpen, wn.setActiveTool, wn.setBrushRadius, wn.brushRadius, wn.activeTool]));
 
   return (
     <>

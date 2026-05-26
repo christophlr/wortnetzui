@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { GraphNode, GraphEdge } from '../graph';
+import type { PaintedOverride } from '../context/WortnetzContextTypes';
 
 export interface SyncVisualSettings {
   nodesVisible: boolean;
@@ -36,7 +37,7 @@ export interface SyncVisualsArgs {
   edgeLines: THREE.LineSegments | null;
   /** Current time in seconds (performance.now() / 1000). Used for flicker mode. */
   time?: number;
-  paintedOverrides?: Record<string, { color?: string; scale?: number; opacity?: number }>;
+  paintedOverrides?: Record<string, PaintedOverride>;
 }
 
 const _colorA = new THREE.Color();
@@ -47,6 +48,21 @@ const _scratchVec1 = new THREE.Vector3();
 const _scratchVec2 = new THREE.Vector3();
 const _hslA = { h: 0, s: 0, l: 0 };
 const _hslB = { h: 0, s: 0, l: 0 };
+
+function readOverride<K extends keyof PaintedOverride>(
+  node: GraphNode,
+  field: K,
+  vs: SyncVisualSettings,
+  paintedOverrides?: Record<string, PaintedOverride>
+): PaintedOverride[K] | undefined {
+  if (vs.showPaintedOverrides !== false && paintedOverrides) {
+    const override = paintedOverrides[node.label];
+    if (override && override[field] !== undefined) {
+      return override[field];
+    }
+  }
+  return undefined;
+}
 
 export function syncGraphVisuals(args: SyncVisualsArgs): void {
   const { nodes, edges, nodeArr, visualSettings: vs, styleSettings: ss, camera, mousePos, edgeLines, time = 0, paintedOverrides } = args;
@@ -90,10 +106,8 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       const scaleIntensity = 1.0 + (falloffMagnitude * distCurve);
       const aspectRatio = node.textSprite.userData.aspectRatio;
 
-      let overrideScale = node.scaleOverride;
-      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.scale !== undefined) {
-        overrideScale = paintedOverrides[node.label].scale;
-      }
+      const paintedScale = readOverride(node, 'scale', vs, paintedOverrides);
+      const overrideScale = paintedScale !== undefined ? paintedScale : node.scaleOverride;
       let finalScale = baseScale * scaleIntensity;
       if (overrideScale !== undefined) {
         finalScale = node.textSprite.userData.baseScale * overrideScale;
@@ -101,22 +115,18 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
 
       node.textSprite.scale.set(finalScale, finalScale * aspectRatio, 1);
 
-      let overrideOpacity = node.opacityOverride;
-      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.opacity !== undefined) {
-        overrideOpacity = paintedOverrides[node.label].opacity;
-      }
+      const paintedOpacity = readOverride(node, 'opacity', vs, paintedOverrides);
+      const overrideOpacity = paintedOpacity !== undefined ? paintedOpacity : node.opacityOverride;
       let finalOpacity = Math.max(0.0, 1.0 - (vs.radialBiasOpacity * normDistSq));
       if (overrideOpacity !== undefined) {
         finalOpacity = overrideOpacity;
       }
       node.textSprite.material.opacity = finalOpacity;
 
-      let overrideColor = node.colorOverride;
-      let overrideColorBlend = 0.0;
-      if (vs.showPaintedOverrides !== false && paintedOverrides && paintedOverrides[node.label]?.color !== undefined) {
-        overrideColor = paintedOverrides[node.label].color;
-        overrideColorBlend = paintedOverrides[node.label].colorBlend ?? 0.0;
-      }
+      const paintedColor = readOverride(node, 'color', vs, paintedOverrides);
+      const overrideColor = paintedColor !== undefined ? paintedColor : node.colorOverride;
+      const overrideColorBlend = paintedColor !== undefined ? (readOverride(node, 'colorBlend', vs, paintedOverrides) ?? 0.0) : 0.0;
+      
       const nodeColor = _scratchColor;
       nodeColor.lerpColors(_colorA, _colorB, normDistSq);
       if (overrideColor !== undefined) {
