@@ -1499,7 +1499,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         {showFps && (
           <div 
             ref={fpsDomRef}
-            className="absolute top-4 left-4 z-20 bg-black/60 border border-wn-divider text-green-400 font-mono text-[10px] px-2 py-0.5 rounded-md pointer-events-none select-none font-bold shadow-md animate-in fade-in duration-200"
+            className="absolute top-16 left-6 z-20 bg-black/60 border border-wn-divider text-green-400 font-mono text-[10px] px-2 py-0.5 rounded-md pointer-events-none select-none font-bold shadow-md animate-in fade-in duration-200"
           />
         )}
 
