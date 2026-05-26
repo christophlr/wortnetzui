@@ -76,8 +76,10 @@ interface SidebarProps {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    backgroundColor?: string;
   };
   onVisualSettingsChange?: (vs: any) => void;
+  isDark?: boolean;
 }
 
 export function Sidebar({
@@ -99,9 +101,11 @@ export function Sidebar({
     glitchBrushRadius: 100,
     glitchFeather: 0.5,
     pathSmoothness: 0.5,
-    pathCameraFollow: true
+    pathCameraFollow: true,
+    backgroundColor: ''
   },
-  onVisualSettingsChange
+  onVisualSettingsChange,
+  isDark = true
 }: SidebarProps) {
   const { t } = useT();
   const [localText, setLocalText] = useState(inputText);
@@ -213,6 +217,7 @@ export function Sidebar({
                 trackMeta={trackMeta}
                 onSetTrackModulator={onSetTrackModulator}
                 onSetTrackGlide={onSetTrackGlide}
+                isDark={isDark}
               />
             )}
 

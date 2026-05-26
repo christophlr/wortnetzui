@@ -95,6 +95,18 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
 
+  // Paint brush states
+  const [brushRadius, setBrushRadius] = useState(50);
+  const [paintColor, setPaintColor] = useState('#ef4444');
+  const [paintScale, setPaintScale] = useState(1.5);
+  const [paintOpacity, setPaintOpacity] = useState(1.0);
+  const [paintMode, setPaintMode] = useState<'color' | 'scale' | 'opacity' | 'erase'>('color');
+  const [paintedOverrides, setPaintedOverrides] = useState<Record<string, { color?: string; scale?: number; opacity?: number }>>({});
+
+  const clearPaintedOverrides = useCallback(() => {
+    setPaintedOverrides({});
+  }, []);
+
   const physicsKeyframesRef = useRef(physicsKeyframes);
   useEffect(() => { physicsKeyframesRef.current = physicsKeyframes; }, [physicsKeyframes]);
 
@@ -156,60 +168,65 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const previewIsDark = themeMode === 'dark';
 
   const { handleSave: ioSave, handleLoad: ioLoad } = useWorkspaceIO(
-    useCallback(() => ({
-      inputText, parseMode, styleSettings, physicsParams,
-      viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers,
-      trackMeta, visualSettings, pathNodes,
-    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers, trackMeta, visualSettings, pathNodes]),
-    useCallback((s) => {
-      if (s.inputText) setInputText(s.inputText);
-      if (s.parseMode) setParseMode(s.parseMode);
-      if (s.styleSettings) setStyleSettings(s.styleSettings);
-      if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0 }));
-      if (s.viewMode) setViewMode(s.viewMode);
-      if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
-      if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
-      if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
-      if (s.visualSettings) {
-        const baseVisual = {
-          nodesVisible: true, edgesVisible: true,
-          radialBiasScale: 0, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
-          glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
-          pathSmoothness: 0.5, pathCameraFollow: true,
-          bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
-          effectsList: [] as ('bloom' | 'glitch')[],
-          bloomPreset: 'custom' as const,
-          backgroundColor: ''
-        };
-        const loadedVisual = s.visualSettings;
-        const autoList: ('bloom' | 'glitch')[] = [...(loadedVisual.effectsList ?? [])];
-        if (!loadedVisual.effectsList) {
-          if (loadedVisual.bloomEnabled) autoList.push('bloom');
-          if (loadedVisual.glitchActive) autoList.push('glitch');
+      useCallback(() => ({
+        inputText, parseMode, styleSettings, physicsParams,
+        viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers,
+        trackMeta, visualSettings, pathNodes, paintedOverrides,
+      }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers, trackMeta, visualSettings, pathNodes, paintedOverrides]),
+      useCallback((s) => {
+        if (s.inputText) setInputText(s.inputText);
+        if (s.parseMode) setParseMode(s.parseMode);
+        if (s.styleSettings) setStyleSettings(s.styleSettings);
+        if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0 }));
+        if (s.viewMode) setViewMode(s.viewMode);
+        if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
+        if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
+        if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+        if (s.visualSettings) {
+          const baseVisual = {
+            nodesVisible: true, edgesVisible: true,
+            radialBiasScale: 0, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
+            glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
+            pathSmoothness: 0.5, pathCameraFollow: true,
+            bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
+            effectsList: [] as ('bloom' | 'glitch')[],
+            bloomPreset: 'custom' as const,
+            backgroundColor: ''
+          };
+          const loadedVisual = s.visualSettings;
+          const autoList: ('bloom' | 'glitch')[] = [...(loadedVisual.effectsList ?? [])];
+          if (!loadedVisual.effectsList) {
+            if (loadedVisual.bloomEnabled) autoList.push('bloom');
+            if (loadedVisual.glitchActive) autoList.push('glitch');
+          }
+          setVisualSettings({
+            ...baseVisual,
+            ...loadedVisual,
+            effectsList: autoList
+          });
         }
-        setVisualSettings({
-          ...baseVisual,
-          ...loadedVisual,
-          effectsList: autoList
-        });
-      }
-      if (s.pathNodes) {
-        setPathNodes(s.pathNodes);
-      } else {
-        setPathNodes([]);
-      }
-      // v0 files (no version, no trackMeta) load with all-default trackMeta.
-      // v1 files restore only the non-default entries that were persisted;
-      // unmentioned tracks fall back to glide=0, no modulator.
-      const baseMeta = { ...DEFAULT_TRACK_META };
-      if (s.trackMeta) {
-        for (const [trackId, m] of Object.entries(s.trackMeta)) {
-          baseMeta[trackId] = { glide: m.glide ?? 0, modulator: m.modulator };
+        if (s.pathNodes) {
+          setPathNodes(s.pathNodes);
+        } else {
+          setPathNodes([]);
         }
-      }
-      setTrackMeta(baseMeta);
-    }, [])
-  );
+        if (s.paintedOverrides) {
+          setPaintedOverrides(s.paintedOverrides);
+        } else {
+          setPaintedOverrides({});
+        }
+        // v0 files (no version, no trackMeta) load with all-default trackMeta.
+        // v1 files restore only the non-default entries that were persisted;
+        // unmentioned tracks fall back to glide=0, no modulator.
+        const baseMeta = { ...DEFAULT_TRACK_META };
+        if (s.trackMeta) {
+          for (const [trackId, m] of Object.entries(s.trackMeta)) {
+            baseMeta[trackId] = { glide: m.glide ?? 0, modulator: m.modulator };
+          }
+        }
+        setTrackMeta(baseMeta);
+      }, [])
+    );
 
   const handleSave = useCallback(() => ioSave(), [ioSave]);
   const handleLoad = useCallback(() => ioLoad(), [ioLoad]);
@@ -316,7 +333,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       setSceneMarkers(nextMarkers);
     }
     setSelectedKeyframes([]);
-    pushHistory({ cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
+    pushHistory({ ...prev, cameraKeyframes: nextCkfs, physicsKeyframes: nextPhysKfs, sceneMarkers: nextMarkers });
   }, [viewMode, pushHistory, getTimelineState, physicsParams]);
 
   const handleCreateKeyframesAtMarker = useCallback((time: number) => {
@@ -984,6 +1001,13 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       cameraKeyframes, setCameraKeyframes, physicsKeyframes, setPhysicsKeyframes, sceneMarkers, setSceneMarkers,
       selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode: handleNodeSelect,
       pathNodes, setPathNodes, isPathPlaying, setIsPathPlaying, reorderPathNodes, removePathNode, clearPath,
+      brushRadius, setBrushRadius,
+      paintColor, setPaintColor,
+      paintScale, setPaintScale,
+      paintOpacity, setPaintOpacity,
+      paintMode, setPaintMode,
+      paintedOverrides, setPaintedOverrides,
+      clearPaintedOverrides,
       trackMeta, setTrackMeta, handleSetTrackGlide, handleSetTrackModulator,
       armedTracks, handleToggleTrackArm, handleCommitRecording,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,

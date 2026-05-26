@@ -198,6 +198,7 @@ export function VisualTab({
   trackMeta,
   onSetTrackModulator,
   onSetTrackGlide,
+  isDark = true,
 }: {
   styleSettings: any;
   visualSettings: any;
@@ -209,6 +210,7 @@ export function VisualTab({
   trackMeta?: Record<string, TrackMeta>;
   onSetTrackModulator?: (trackId: string, modulator: Modulator | null) => void;
   onSetTrackGlide?: (trackId: string, seconds: number) => void;
+  isDark?: boolean;
 }) {
   const { t } = useT();
 
@@ -320,6 +322,26 @@ export function VisualTab({
           description={t('sidebar.tab.visual.description.radialBias')}
           {...trackProps}
         />
+
+        <SidebarGroup
+          title={t('sidebar.tab.visual.group.canvasBackground')}
+          stack="snug"
+          actions={
+            visualSettings.backgroundColor ? (
+              <SidebarSectionActionButton
+                icon={Trash2}
+                title={t('sidebar.tab.visual.action.resetBackground')}
+                onClick={() => setVisual({ backgroundColor: '' })}
+              />
+            ) : null
+          }
+        >
+          <SidebarColorRow
+            label={t('sidebar.tab.visual.color.background')}
+            value={visualSettings.backgroundColor || (isDark ? '#09090b' : '#f8fafc')}
+            onChange={(value) => setVisual({ backgroundColor: value })}
+          />
+        </SidebarGroup>
       </SidebarSection>
 
       <SidebarSection

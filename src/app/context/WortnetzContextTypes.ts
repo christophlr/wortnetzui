@@ -222,6 +222,21 @@ export interface WortnetzContextType {
   removePathNode: (index: number) => void;
   clearPath: () => void;
 
+  // Paint brush
+  brushRadius: number;
+  setBrushRadius: (r: number) => void;
+  paintColor: string;
+  setPaintColor: (c: string) => void;
+  paintScale: number;
+  setPaintScale: (s: number) => void;
+  paintOpacity: number;
+  setPaintOpacity: (o: number) => void;
+  paintMode: 'color' | 'scale' | 'opacity' | 'erase';
+  setPaintMode: (m: 'color' | 'scale' | 'opacity' | 'erase') => void;
+  paintedOverrides: Record<string, { color?: string; scale?: number; opacity?: number }>;
+  setPaintedOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; scale?: number; opacity?: number }>>>;
+  clearPaintedOverrides: () => void;
+
   // Derived
   effectivePhysicsParams: any;
   previewIsDark: boolean;

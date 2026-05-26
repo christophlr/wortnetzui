@@ -119,6 +119,7 @@ export default function App() {
                 onRotateView={(dt, dp) => wn.network3DRef.current?.rotateView(dt, dp)} onSetRotation={(t, p) => wn.network3DRef.current?.setRotation(t, p)}
                 onResetView={() => wn.network3DRef.current?.resetView()} onZoomChange={(val) => { wn.setZoomValue(val); wn.network3DRef.current?.setZoom(val); }} zoomValue={wn.zoomValue}
                 visualSettings={wn.visualSettings} onVisualSettingsChange={wn.setVisualSettings} selectedNode={wn.selectedNode}
+                isDark={wn.previewIsDark}
               />
             </AppSidebar>
           </ResizablePanel>

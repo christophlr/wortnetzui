@@ -75,7 +75,8 @@
         },
         "group": {
           "shape":            "Form",
-          "atmosphereGradient": "Gradient"
+          "atmosphereGradient": "Gradient",
+          "canvasBackground":   "Leinwand-Hintergrund"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -104,7 +105,8 @@
         },
         "color": {
           "origin":    "Origin",
-          "periphery": "Periphery"
+          "periphery": "Periphery",
+          "background": "Farbe"
         },
         "fx": {
           "title":          "Fx",
@@ -122,7 +124,8 @@
           "glowModeIndex":        "Index"
         },
         "action": {
-          "randomizeGradient": "Gradient zufällig generieren"
+          "randomizeGradient": "Gradient zufällig generieren",
+          "resetBackground":    "Zurücksetzen"
         },
         "pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",

@@ -20,6 +20,9 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Canvas Background Customization**:
+  - Added a dedicated "Canvas Background" configuration group under the "Nodes" section in the Visuals tab.
+  - Implemented color picker with automatic theme default fallbacks (dark: `#09090b`, light: `#f8fafc`) and a quick-reset trash button to clear custom backgrounds.
 - **Bloom Parameter Normalization & Fine-Tuning**:
   - Normalized selective bloom boosting by computing node color relative luminance (Rec. 709), scaling the boost factor dynamically so all hues glow with uniform intensity.
   - Lowered default `bloomIntensity` (from 0.4 to 0.15) and `bloomRadius` (from 0.85 to 0.4) to eliminate blinding whiteout.

@@ -18,6 +18,8 @@ export type WorkspaceState = {
   // Phase 4.3 additions
   visualSettings?: any;
   pathNodes?: { id: string; label: string }[];
+  // Phase 5 additions
+  paintedOverrides?: Record<string, { color?: string; scale?: number; opacity?: number }>;
 };
 
 export function serializeTrackMeta(meta: Record<string, { glide: number; modulator?: Modulator }> | undefined) {

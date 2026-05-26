@@ -75,7 +75,8 @@
         },
         "group": {
           "shape":              "Shape",
-          "atmosphereGradient": "Gradient"
+          "atmosphereGradient": "Gradient",
+          "canvasBackground":   "Canvas Background"
         },
         "shape": {
           "rectangle":         "Rect",
@@ -104,7 +105,8 @@
         },
         "color": {
           "origin":    "Origin",
-          "periphery": "Periphery"
+          "periphery": "Periphery",
+          "background": "Color"
         },
         "fx": {
           "title":          "Fx",
@@ -122,7 +124,8 @@
           "glowModeIndex":        "Index"
         },
         "action": {
-          "randomizeGradient": "Randomize gradient"
+          "randomizeGradient": "Randomize gradient",
+          "resetBackground":    "Reset to default"
         },
         "pathAnimator": {
           "emptyHint":         "Click nodes in the preview to build a path.",
