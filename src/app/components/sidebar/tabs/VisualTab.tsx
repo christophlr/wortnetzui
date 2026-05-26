@@ -423,20 +423,22 @@ export function VisualTab({
           <SidebarSectionActionButton
             icon={Plus}
             title={t('sidebar.tab.visual.fx.add')}
-            disabled={(visualSettings.effectsList ?? []).includes('bloom') && (visualSettings.effectsList ?? []).includes('glitch')}
-            className={(visualSettings.effectsList ?? []).includes('bloom') && (visualSettings.effectsList ?? []).includes('glitch') ? 'opacity-30 pointer-events-none' : ''}
+            disabled={(visualSettings.effectsList ?? []).length >= 6}
+            className={(visualSettings.effectsList ?? []).length >= 6 ? 'opacity-30 pointer-events-none' : ''}
             onClick={() => {
               const currentList = visualSettings.effectsList ?? [];
-              if (!currentList.includes('bloom')) {
-                setVisual({
-                  effectsList: [...currentList, 'bloom'],
-                  bloomEnabled: true
-                });
-              } else if (!currentList.includes('glitch')) {
-                setVisual({
-                  effectsList: [...currentList, 'glitch'],
-                  glitchActive: true
-                });
+              const nextEffect = (['bloom', 'glitch', 'vignette', 'chromatic-aberration', 'film-grain', 'pixelate'] as const).find(fx => !currentList.includes(fx));
+              if (nextEffect) {
+                const patch: Record<string, any> = {
+                  effectsList: [...currentList, nextEffect]
+                };
+                if (nextEffect === 'bloom') patch.bloomEnabled = true;
+                else if (nextEffect === 'glitch') patch.glitchActive = true;
+                else if (nextEffect === 'vignette') patch.vignetteEnabled = true;
+                else if (nextEffect === 'chromatic-aberration') patch.chromaEnabled = true;
+                else if (nextEffect === 'film-grain') patch.grainEnabled = true;
+                else if (nextEffect === 'pixelate') patch.pixelateEnabled = true;
+                setVisual(patch);
               }
             }}
           />
@@ -448,37 +450,64 @@ export function VisualTab({
           </div>
         ) : (
           <div className="space-y-2">
-            {(visualSettings.effectsList ?? []).map((effectType: 'bloom' | 'glitch', index: number) => {
+            {(visualSettings.effectsList ?? []).map((effectType: 'bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate', index: number) => {
               const isBloom = effectType === 'bloom';
-              const isVisible = isBloom ? (visualSettings.bloomEnabled ?? false) : (visualSettings.glitchActive ?? false);
+              const isGlitch = effectType === 'glitch';
+              const isVignette = effectType === 'vignette';
+              const isChroma = effectType === 'chromatic-aberration';
+              const isGrain = effectType === 'film-grain';
+              const isPixelate = effectType === 'pixelate';
+
+              const isVisible = 
+                isBloom ? (visualSettings.bloomEnabled ?? false) :
+                isGlitch ? (visualSettings.glitchActive ?? false) :
+                isVignette ? (visualSettings.vignetteEnabled ?? false) :
+                isChroma ? (visualSettings.chromaEnabled ?? false) :
+                isGrain ? (visualSettings.grainEnabled ?? false) :
+                (visualSettings.pixelateEnabled ?? false);
               
               const toggleVisibility = () => {
-                if (isBloom) {
-                  setVisual({ bloomEnabled: !visualSettings.bloomEnabled });
-                } else {
-                  setVisual({ glitchActive: !visualSettings.glitchActive });
-                }
+                if (isBloom) setVisual({ bloomEnabled: !visualSettings.bloomEnabled });
+                else if (isGlitch) setVisual({ glitchActive: !visualSettings.glitchActive });
+                else if (isVignette) setVisual({ vignetteEnabled: !visualSettings.vignetteEnabled });
+                else if (isChroma) setVisual({ chromaEnabled: !visualSettings.chromaEnabled });
+                else if (isGrain) setVisual({ grainEnabled: !visualSettings.grainEnabled });
+                else if (isPixelate) setVisual({ pixelateEnabled: !visualSettings.pixelateEnabled });
               };
 
               const removeEffect = () => {
                 const nextList = (visualSettings.effectsList ?? []).filter((_: any, i: number) => i !== index);
                 const patch: Record<string, any> = { effectsList: nextList };
                 if (isBloom) patch.bloomEnabled = false;
-                else patch.glitchActive = false;
+                else if (isGlitch) patch.glitchActive = false;
+                else if (isVignette) patch.vignetteEnabled = false;
+                else if (isChroma) patch.chromaEnabled = false;
+                else if (isGrain) patch.grainEnabled = false;
+                else if (isPixelate) patch.pixelateEnabled = false;
                 setVisual(patch);
               };
 
-              const handleTypeChange = (newType: 'bloom' | 'glitch') => {
+              const handleTypeChange = (newType: 'bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate') => {
                 const nextList = [...(visualSettings.effectsList ?? [])];
                 nextList[index] = newType;
                 const patch: Record<string, any> = { effectsList: nextList };
-                if (isBloom) {
-                  patch.bloomEnabled = false;
-                  patch.glitchActive = true;
-                } else {
-                  patch.glitchActive = false;
-                  patch.bloomEnabled = true;
-                }
+                
+                // Disable old type
+                if (isBloom) patch.bloomEnabled = false;
+                else if (isGlitch) patch.glitchActive = false;
+                else if (isVignette) patch.vignetteEnabled = false;
+                else if (isChroma) patch.chromaEnabled = false;
+                else if (isGrain) patch.grainEnabled = false;
+                else if (isPixelate) patch.pixelateEnabled = false;
+
+                // Enable new type
+                if (newType === 'bloom') patch.bloomEnabled = true;
+                else if (newType === 'glitch') patch.glitchActive = true;
+                else if (newType === 'vignette') patch.vignetteEnabled = true;
+                else if (newType === 'chromatic-aberration') patch.chromaEnabled = true;
+                else if (newType === 'film-grain') patch.grainEnabled = true;
+                else if (newType === 'pixelate') patch.pixelateEnabled = true;
+
                 setVisual(patch);
               };
 
@@ -489,7 +518,7 @@ export function VisualTab({
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          title={isBloom ? t('sidebar.tab.visual.fx.bloomSettings') : t('sidebar.tab.visual.fx.glitchSettings')}
+                          title={t(`sidebar.tab.visual.fx.${effectType}Settings`)}
                           className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-hover transition-colors shrink-0"
                         >
                           <SlidersHorizontal size={13} />
@@ -497,17 +526,16 @@ export function VisualTab({
                       </PopoverTrigger>
 
                       <div className="flex-1 min-w-0">
-                        <Select value={effectType} onValueChange={(v) => handleTypeChange(v as 'bloom' | 'glitch')}>
+                        <Select value={effectType} onValueChange={(v) => handleTypeChange(v as any)}>
                           <SelectTrigger size="sm" className="h-6 w-full text-[11px] py-0 px-2 border-wn-divider bg-transparent text-foreground hover:bg-wn-control-hover">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border border-wn-divider z-50">
-                            <SelectItem value="bloom" disabled={(visualSettings.effectsList ?? []).includes('bloom') && effectType !== 'bloom'}>
-                              {t('sidebar.tab.visual.fx.bloom')}
-                            </SelectItem>
-                            <SelectItem value="glitch" disabled={(visualSettings.effectsList ?? []).includes('glitch') && effectType !== 'glitch'}>
-                              {t('sidebar.tab.visual.fx.glitch')}
-                            </SelectItem>
+                            {(['bloom', 'glitch', 'vignette', 'chromatic-aberration', 'film-grain', 'pixelate'] as const).map(fx => (
+                              <SelectItem key={fx} value={fx} disabled={(visualSettings.effectsList ?? []).includes(fx) && effectType !== fx}>
+                                {t(`sidebar.tab.visual.fx.${fx}`)}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -537,10 +565,10 @@ export function VisualTab({
                     className="bg-popover/95 backdrop-blur-sm p-3 w-64 space-y-3 z-50"
                   >
                     <div className="text-[11px] font-semibold text-foreground border-b border-wn-divider pb-1 mb-2">
-                      {isBloom ? t('sidebar.tab.visual.fx.bloom') : t('sidebar.tab.visual.fx.glitch')}
+                      {t(`sidebar.tab.visual.fx.${effectType}`)}
                     </div>
                     
-                    {isBloom ? (
+                    {isBloom && (
                       <div className="space-y-4">
                         {/* Bloom Intensity */}
                         <TrackScrubber
@@ -640,7 +668,9 @@ export function VisualTab({
                           )}
                         </div>
                       </div>
-                    ) : (
+                    )}
+
+                    {isGlitch && (
                       <div className="space-y-4">
                         <TrackScrubber
                           label={t('sidebar.tab.visual.slider.brushRadius')}
@@ -661,6 +691,115 @@ export function VisualTab({
                           min={0} max={1} step={0.01}
                           onChange={(val) => setVisual({ glitchFeather: val })}
                           onCommit={(val) => setVisual({ glitchFeather: val })}
+                          {...trackProps}
+                        />
+                      </div>
+                    )}
+
+                    {isVignette && (
+                      <div className="space-y-4">
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.vignetteDarkness')}
+                          trackId="fx-vig-drk"
+                          paramKey="vignetteDarkness"
+                          value={visualSettings.vignetteDarkness ?? 0.0}
+                          min={0} max={2} step={0.01}
+                          format={(v) => v.toFixed(2)}
+                          onChange={(val) => setVisual({ vignetteDarkness: val })}
+                          onCommit={(val) => setVisual({ vignetteDarkness: val })}
+                          {...trackProps}
+                        />
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.vignetteOffset')}
+                          trackId=""
+                          paramKey="vignetteOffset"
+                          value={visualSettings.vignetteOffset ?? 1.0}
+                          min={0} max={2} step={0.01}
+                          format={(v) => v.toFixed(2)}
+                          onChange={(val) => setVisual({ vignetteOffset: val })}
+                          onCommit={(val) => setVisual({ vignetteOffset: val })}
+                          {...trackProps}
+                        />
+                      </div>
+                    )}
+
+                    {isChroma && (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <div className="text-[10px] text-muted-foreground">{t('sidebar.tab.visual.fx.chromaMode')}</div>
+                          <Select
+                            value={visualSettings.chromaMode ?? 'radial'}
+                            onValueChange={(v) => setVisual({ chromaMode: v as any })}
+                          >
+                            <SelectTrigger size="sm" className="h-6 w-full text-[11px] py-0 px-2 border-wn-divider bg-wn-control-bg text-foreground">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border border-wn-divider z-50">
+                              <SelectItem value="radial">{t('sidebar.tab.visual.fx.chromaModeRadial')}</SelectItem>
+                              <SelectItem value="horizontal">{t('sidebar.tab.visual.fx.chromaModeHorizontal')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.chromaOffset')}
+                          trackId="fx-chr-off"
+                          paramKey="chromaOffset"
+                          value={visualSettings.chromaOffset ?? 0.0}
+                          min={0} max={0.05} step={0.001}
+                          format={(v) => v.toFixed(3)}
+                          onChange={(val) => setVisual({ chromaOffset: val })}
+                          onCommit={(val) => setVisual({ chromaOffset: val })}
+                          {...trackProps}
+                        />
+                      </div>
+                    )}
+
+                    {isGrain && (
+                      <div className="space-y-4">
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.grainIntensity')}
+                          trackId="fx-grn-int"
+                          paramKey="grainIntensity"
+                          value={visualSettings.grainIntensity ?? 0.0}
+                          min={0} max={1} step={0.01}
+                          format={(v) => v.toFixed(2)}
+                          onChange={(val) => setVisual({ grainIntensity: val })}
+                          onCommit={(val) => setVisual({ grainIntensity: val })}
+                          {...trackProps}
+                        />
+
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.grainSpeed')}
+                          trackId=""
+                          paramKey="grainSpeed"
+                          value={visualSettings.grainSpeed ?? 1.0}
+                          min={0} max={10} step={0.1}
+                          format={(v) => v.toFixed(1)}
+                          onChange={(val) => setVisual({ grainSpeed: val })}
+                          onCommit={(val) => setVisual({ grainSpeed: val })}
+                          {...trackProps}
+                        />
+
+                        <SidebarToggleRow
+                          label={t('sidebar.tab.visual.toggle.grainColored')}
+                          checked={visualSettings.grainColored ?? false}
+                          onCheckedChange={(checked) => setVisual({ grainColored: checked })}
+                        />
+                      </div>
+                    )}
+
+                    {isPixelate && (
+                      <div className="space-y-4">
+                        <TrackScrubber
+                          label={t('sidebar.tab.visual.slider.pixelSize')}
+                          trackId="fx-pxl-sz"
+                          paramKey="pixelSize"
+                          value={visualSettings.pixelSize ?? 1}
+                          min={1} max={64} step={1}
+                          format={(v) => `${Math.round(v)}px`}
+                          onChange={(val) => setVisual({ pixelSize: Math.round(val) })}
+                          onCommit={(val) => setVisual({ pixelSize: Math.round(val) })}
                           {...trackProps}
                         />
                       </div>

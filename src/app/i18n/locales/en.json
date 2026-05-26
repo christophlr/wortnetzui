@@ -129,14 +129,21 @@
           "bloomThreshold": "Bloom threshold",
           "selectiveRatio": "Selective ratio",
           "flickerSpeed": "Flicker speed",
-          "hueShift": "Hue shift"
+          "hueShift": "Hue shift",
+          "vignetteDarkness": "Vignette Darkness",
+          "vignetteOffset": "Vignette Offset",
+          "chromaOffset": "Aberration Offset",
+          "grainIntensity": "Grain Intensity",
+          "grainSpeed": "Grain Speed",
+          "pixelSize": "Pixel Size"
         },
         "toggle": {
           "glitchPaint": "Glitch paint",
           "cameraFollow": "Camera follow",
           "pathLoop": "Loop sequence",
           "bloom": "Bloom",
-          "selectiveBloom": "Selective bloom"
+          "selectiveBloom": "Selective bloom",
+          "grainColored": "Colored grain"
         },
         "color": {
           "origin": "Origin",
@@ -156,7 +163,18 @@
           "glowMode": "Glow mode",
           "glowModeDeterministic": "Deterministic",
           "glowModeFlicker": "Flicker",
-          "glowModeIndex": "Index"
+          "glowModeIndex": "Index",
+          "vignette": "Vignette",
+          "chromatic-aberration": "Chromatic Aberration",
+          "film-grain": "Film Grain",
+          "pixelate": "Pixelate",
+          "vignetteSettings": "Vignette Settings",
+          "chromatic-aberrationSettings": "Aberration Settings",
+          "film-grainSettings": "Grain Settings",
+          "pixelateSettings": "Pixelate Settings",
+          "chromaMode": "Aberration Mode",
+          "chromaModeRadial": "Radial",
+          "chromaModeHorizontal": "Horizontal"
         },
         "action": {
           "randomizeGradient": "Randomize gradient",

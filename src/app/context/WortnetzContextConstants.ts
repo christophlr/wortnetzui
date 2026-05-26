@@ -22,6 +22,10 @@ export const EMPTY_PHYSICS_KFS = {
   'fx-glc-fth': [] as PhysicsKeyframe[],
   'fx-pth-sm': [] as PhysicsKeyframe[],
   'fx-hue-shift': [] as PhysicsKeyframe[],
+  'fx-vig-drk': [] as PhysicsKeyframe[],
+  'fx-chr-off': [] as PhysicsKeyframe[],
+  'fx-grn-int': [] as PhysicsKeyframe[],
+  'fx-pxl-sz': [] as PhysicsKeyframe[],
 };
 
 export const PHYS_TRACK_PARAM: Record<string, keyof PhysicsParams> = {
@@ -48,6 +52,10 @@ export const VISUAL_TRACK_IDS = [
   'fx-glc-fth',
   'fx-pth-sm',
   'fx-hue-shift',
+  'fx-vig-drk',
+  'fx-chr-off',
+  'fx-grn-int',
+  'fx-pxl-sz',
 ] as const;
 
 /** Mapping from visual track ID → the corresponding visualSettings / styleSettings key. */
@@ -64,4 +72,8 @@ export const VISUAL_TRACK_PARAM: Record<string, string> = {
   'fx-glc-fth':     'glitchFeather',
   'fx-pth-sm':      'pathSmoothness',
   'fx-hue-shift':   'gradientHueShift',
+  'fx-vig-drk':     'vignetteDarkness',
+  'fx-chr-off':     'chromaOffset',
+  'fx-grn-int':     'grainIntensity',
+  'fx-pxl-sz':      'pixelSize',
 };

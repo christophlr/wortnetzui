@@ -213,6 +213,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const fpsDomRef = useRef<HTMLDivElement>(null);
   const showFpsRef = useRef(showFps);
   useEffect(() => { showFpsRef.current = showFps; }, [showFps]);
+  const lastEffectsKeyRef = useRef<string>('');
 
   const paintedOverridesRef = useRef(paintedOverrides);
   useEffect(() => {
@@ -1263,22 +1264,65 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         paintedOverrides: paintedOverridesRef.current,
       });
 
-      // Configure bloom pass from animated values
-      const bloomIntensity = (vsOverride.bloomIntensity ?? 0.15) as number;
-      const bloomEnabled = vsBase.bloomEnabled;
+      // Configure post-processing passes from animated values
       const effectsPipeline = effectsPipelineRef.current;
-
       if (effectsPipeline) {
-        effectsPipeline.bloomPass.enabled = bloomEnabled;
-        effectsPipeline.bloomPass.strength = bloomIntensity;
-        effectsPipeline.bloomPass.radius = (vsOverride.bloomRadius ?? 0.4) as number;
+        const effectsList = vsBase.effectsList ?? [];
+        const bloomEnabled = vsBase.bloomEnabled ?? false;
+        const vignetteEnabled = vsBase.vignetteEnabled ?? false;
+        const chromaEnabled = vsBase.chromaEnabled ?? false;
+        const grainEnabled = vsBase.grainEnabled ?? false;
+        const pixelateEnabled = vsBase.pixelateEnabled ?? false;
 
-        // When selective bloom is active, force threshold high so only HDR-boosted nodes glow
-        const baseThreshold = (vsOverride.bloomThreshold ?? 0.85) as number;
-        effectsPipeline.bloomPass.threshold = vsBase.bloomSelective ? 0.95 : baseThreshold;
+        const effectsKey = `${effectsList.join(',')}|b:${bloomEnabled}|v:${vignetteEnabled}|c:${chromaEnabled}|g:${grainEnabled}|p:${pixelateEnabled}`;
+        if (effectsKey !== lastEffectsKeyRef.current) {
+          effectsPipeline.updatePasses(effectsList, {
+            bloom: bloomEnabled,
+            vignette: vignetteEnabled,
+            chroma: chromaEnabled,
+            grain: grainEnabled,
+            pixelate: pixelateEnabled,
+          });
+          lastEffectsKeyRef.current = effectsKey;
+        }
+
+        // 1. Bloom Pass
+        if (bloomEnabled) {
+          effectsPipeline.bloomPass.strength = (vsOverride.bloomIntensity ?? 0.15) as number;
+          effectsPipeline.bloomPass.radius = (vsOverride.bloomRadius ?? 0.4) as number;
+          const baseThreshold = (vsOverride.bloomThreshold ?? 0.85) as number;
+          effectsPipeline.bloomPass.threshold = vsBase.bloomSelective ? 0.95 : baseThreshold;
+        }
+
+        // 2. Vignette Pass
+        if (vignetteEnabled) {
+          effectsPipeline.vignettePass.uniforms.darkness.value = (vsOverride.vignetteDarkness ?? 0.0) as number;
+          effectsPipeline.vignettePass.uniforms.offset.value = (vsBase.vignetteOffset ?? 1.0) as number;
+        }
+
+        // 3. Chromatic Aberration Pass
+        if (chromaEnabled) {
+          effectsPipeline.chromaPass.uniforms.offset.value = (vsOverride.chromaOffset ?? 0.0) as number;
+          effectsPipeline.chromaPass.uniforms.mode.value = vsBase.chromaMode === 'horizontal' ? 1 : 0;
+        }
+
+        // 4. Film Grain Pass
+        if (grainEnabled) {
+          effectsPipeline.grainPass.uniforms.intensity.value = (vsOverride.grainIntensity ?? 0.0) as number;
+          effectsPipeline.grainPass.uniforms.speed.value = (vsBase.grainSpeed ?? 1.0) as number;
+          effectsPipeline.grainPass.uniforms.colored.value = vsBase.grainColored ?? false;
+          effectsPipeline.grainPass.uniforms.time.value = nowSec;
+        }
+
+        // 5. Pixelate Pass
+        if (pixelateEnabled) {
+          effectsPipeline.pixelatePass.uniforms.pixelSize.value = (vsOverride.pixelSize ?? 1.0) as number;
+        }
       }
 
-      if (effectsPipeline && bloomEnabled) {
+      const hasActivePostPasses = effectsPipeline && effectsPipeline.composer.passes.length > 2;
+
+      if (hasActivePostPasses) {
         effectsPipeline.composer.render();
       } else {
         renderer.render(scene, camera);

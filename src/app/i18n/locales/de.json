@@ -109,14 +109,21 @@
           "bloomThreshold": "Bloom-Schwellenwert",
           "selectiveRatio": "Selektives Verhältnis",
           "flickerSpeed":   "Flimmergeschwindigkeit",
-          "hueShift":       "Farbtonverschiebung"
+          "hueShift":       "Farbtonverschiebung",
+          "vignetteDarkness": "Vignetten-Stärke",
+          "vignetteOffset": "Vignetten-Bereich",
+          "chromaOffset": "Aberrations-Stärke",
+          "grainIntensity": "Körnungs-Stärke",
+          "grainSpeed": "Körnungs-Geschwindigkeit",
+          "pixelSize": "Pixel-Größe"
         },
         "toggle": {
           "glitchPaint":     "Glitch-Pinsel",
           "cameraFollow":    "Kamera folgen",
           "pathLoop":        "Schleife / Looping",
           "bloom":           "Bloom",
-          "selectiveBloom":  "Selektiver Bloom"
+          "selectiveBloom":  "Selektiver Bloom",
+          "grainColored":    "Farbige Körnung"
         },
         "color": {
           "origin":    "Origin",
@@ -136,7 +143,18 @@
           "glowMode":       "Glow-Modus",
           "glowModeDeterministic": "Deterministisch",
           "glowModeFlicker":      "Flimmern",
-          "glowModeIndex":        "Index"
+          "glowModeIndex":        "Index",
+          "vignette": "Vignette",
+          "chromatic-aberration": "Farbsaum (Aberration)",
+          "film-grain": "Filmkörnung",
+          "pixelate": "Pixelieren",
+          "vignetteSettings": "Vignetten-Einstellungen",
+          "chromatic-aberrationSettings": "Aberrations-Einstellungen",
+          "film-grainSettings": "Körnungs-Einstellungen",
+          "pixelateSettings": "Pixel-Einstellungen",
+          "chromaMode": "Aberrationsmodus",
+          "chromaModeRadial": "Radial",
+          "chromaModeHorizontal": "Horizontal"
         },
         "action": {
           "randomizeGradient": "Gradient zufällig generieren",

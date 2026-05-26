@@ -86,10 +86,22 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     bloomGlowMode: 'deterministic' as const,
     bloomFlickerSpeed: 1.0,
     gradientHueShift: 0.0,
-    effectsList: [] as ('bloom' | 'glitch')[],
+    effectsList: [] as ('bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate')[],
     bloomPreset: 'custom' as const,
     backgroundColor: '',
     showPaintedOverrides: true,
+    vignetteEnabled: false,
+    vignetteDarkness: 0.0,
+    vignetteOffset: 1.0,
+    chromaEnabled: false,
+    chromaOffset: 0.0,
+    chromaMode: 'radial' as const,
+    grainEnabled: false,
+    grainIntensity: 0.0,
+    grainSpeed: 1.0,
+    grainColored: false,
+    pixelateEnabled: false,
+    pixelSize: 1,
   });
   const [pathNodes, setPathNodes] = useState<{ id: string; label: string }[]>([]);
   const [isPathPlaying, setIsPathPlaying] = useState(false);
@@ -223,16 +235,36 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
             glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
             pathSmoothness: 0.5, pathCameraFollow: true, pathLoop: false,
             bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
-            effectsList: [] as ('bloom' | 'glitch')[],
+            bloomSelective: false, bloomSelectiveRatio: 0.5,
+            bloomGlowMode: 'deterministic' as const,
+            bloomFlickerSpeed: 1.0,
+            gradientHueShift: 0.0,
+            effectsList: [] as ('bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate')[],
             bloomPreset: 'custom' as const,
             backgroundColor: '',
             showPaintedOverrides: true,
+            vignetteEnabled: false,
+            vignetteDarkness: 0.0,
+            vignetteOffset: 1.0,
+            chromaEnabled: false,
+            chromaOffset: 0.0,
+            chromaMode: 'radial' as const,
+            grainEnabled: false,
+            grainIntensity: 0.0,
+            grainSpeed: 1.0,
+            grainColored: false,
+            pixelateEnabled: false,
+            pixelSize: 1,
           };
           const loadedVisual = s.visualSettings;
-          const autoList: ('bloom' | 'glitch')[] = [...(loadedVisual.effectsList ?? [])];
+          const autoList: ('bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate')[] = [...(loadedVisual.effectsList ?? [])];
           if (!loadedVisual.effectsList) {
             if (loadedVisual.bloomEnabled) autoList.push('bloom');
             if (loadedVisual.glitchActive) autoList.push('glitch');
+            if (loadedVisual.vignetteEnabled) autoList.push('vignette');
+            if (loadedVisual.chromaEnabled) autoList.push('chromatic-aberration');
+            if (loadedVisual.grainEnabled) autoList.push('film-grain');
+            if (loadedVisual.pixelateEnabled) autoList.push('pixelate');
           }
           setVisualSettings({
             ...baseVisual,
