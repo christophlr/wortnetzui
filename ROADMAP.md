@@ -31,7 +31,10 @@ This document outlines the current status of features, planned work, and known t
   - B2: Removed dead `undefined` writes in paint hot-path.
   - B3: Moved `[`/`]` brush hotkeys into `useShortcuts.ts`.
   - C1–C3: Shortcut ToolId typing, `readOverride()` helper, path-tool toggle alignment.
-  - D: Extracted 5 new `ToolbarAtoms`; replaced inline `VisualTab` brush card with `SidebarToggleRow`.
+  - D: Extracted 5 new `ToolbarAtoms`; replaced inline `VisualTab` brush card with `SidebarToggleRow` (then refactored).
+  - Waypoint Loop & Reorder: Implemented HTML5 drag reordering and loop options for the path animator.
+  - Save/Load Overrides: Renamed saved files prefix to `wortnetze` and forced immediate override sync upon load.
+  - Brush Edits UI: Rebuilt Brush Edits component with paintbrush icon matching the effects section card style.
 - **Animation Phase 5: Toolbar functionality**:
   - Wired `activeTool` to canvas event handlers via the new `useToolHandlers` hook in `Network3D.tsx`.
   - Implemented 6 interactive canvas tools: `pointer` (clicking selects nodes, double-clicking flies camera), `pan` (left-mouse camera panning), `zoom` (vertical drag dolly), `paint` (paint brush overrides for node color, scale, opacity, and eraser), `glitch` (radial shockwave impulse applied directly to physical node velocities), and `path` (click to select nodes for the path animator).
