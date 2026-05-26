@@ -666,9 +666,23 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     };
 
     const BATCH_SIZE = 32;
+    const MIN_SYNC_BATCH = 96;
+    const MAX_SYNC_MS = 10;
     const scheduleNext = typeof requestIdleCallback !== 'undefined'
       ? (cb: () => void) => requestIdleCallback(() => cb())
       : (cb: () => void) => setTimeout(cb, 0);
+
+    const finalize = () => {
+      rebuildCancelRef.current = null;
+      // Dispose entries for any labels that are no longer in the new cache
+      oldCache.forEach((entry, key) => {
+        if (!newCache.has(key)) {
+          entry.normal.dispose();
+          entry.highlighted?.dispose();
+          entry.selected?.dispose();
+        }
+      });
+    };
 
     const processBatch = (startIdx: number) => {
       if (token.cancelled) return;
@@ -677,19 +691,25 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       if (end < nodes.length) {
         scheduleNext(() => processBatch(end));
       } else {
-        rebuildCancelRef.current = null;
-        // Dispose entries for any labels that are no longer in the new cache
-        oldCache.forEach((entry, key) => {
-          if (!newCache.has(key)) {
-            entry.normal.dispose();
-            entry.highlighted?.dispose();
-            entry.selected?.dispose();
-          }
-        });
+        finalize();
       }
     };
 
-    processBatch(0); // first batch runs synchronously for immediate visual feedback
+    const startTime = performance.now();
+    const minCount = Math.min(nodes.length, MIN_SYNC_BATCH);
+    let nextIndex = 0;
+    while (nextIndex < nodes.length) {
+      if (token.cancelled) return;
+      processNode(nodes[nextIndex]);
+      nextIndex += 1;
+      if (nextIndex >= minCount && performance.now() - startTime >= MAX_SYNC_MS) break;
+    }
+
+    if (nextIndex < nodes.length) {
+      scheduleNext(() => processBatch(nextIndex));
+    } else {
+      finalize();
+    }
   };
 
   const sync = (

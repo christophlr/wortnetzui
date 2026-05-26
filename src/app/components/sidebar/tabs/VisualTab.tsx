@@ -385,12 +385,15 @@ export function VisualTab({
         })()}
 
         <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
-          <SidebarCenteredPicker<NodeShapeKind>
-            value={shapeKind}
-            options={shapeOptions}
-            onChange={setShapeKind}
-            ariaLabel={t('sidebar.tab.visual.group.shape')}
-          />
+          <div className="p-1 bg-wn-control-bg border border-wn-divider rounded-md w-full">
+            <SidebarCenteredPicker<NodeShapeKind>
+              value={shapeKind}
+              options={shapeOptions}
+              onChange={setShapeKind}
+              ariaLabel={t('sidebar.tab.visual.group.shape')}
+              variant="ghost"
+            />
+          </div>
           {shapeKind === 'star' && (
             <div className="space-y-2 pt-2">
               <SidebarScrubberRow
@@ -620,6 +623,7 @@ export function VisualTab({
                           options={effectOptions}
                           onChange={handleTypeChange}
                           ariaLabel={t('sidebar.tab.visual.fx.title')}
+                          variant="ghost"
                         />
                       </div>
 

@@ -401,6 +401,7 @@ export function SidebarCenteredPicker<T extends string>({
   options,
   onChange,
   renderOption,
+  variant = 'default',
   className,
   ariaLabel,
 }: {
@@ -408,10 +409,12 @@ export function SidebarCenteredPicker<T extends string>({
   options: SidebarCenteredPickerOption<T>[];
   onChange: (next: T) => void;
   renderOption?: (option: SidebarCenteredPickerOption<T>, active: boolean) => React.ReactNode;
+  variant?: 'default' | 'ghost';
   className?: string;
   ariaLabel?: string;
 }) {
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const suppressSelectRef = React.useRef(false);
   const [triggerSize, setTriggerSize] = React.useState({ width: 0, height: 24 });
   const activeIndex = Math.max(0, options.findIndex((opt) => opt.id === value));
   const activeOption = options[activeIndex] ?? options[0];
@@ -440,14 +443,21 @@ export function SidebarCenteredPicker<T extends string>({
   };
 
   return (
-    <DropdownMenu onOpenChange={(open) => { if (open) updateTriggerSize(); }}>
+    <DropdownMenu onOpenChange={(open) => {
+      if (open) updateTriggerSize();
+      if (!open) suppressSelectRef.current = false;
+    }}>
       <DropdownMenuTrigger asChild>
         <button
           ref={triggerRef}
           type="button"
           aria-label={ariaLabel}
+          onPointerDown={() => { suppressSelectRef.current = true; }}
           className={cn(
-            'flex h-6 w-full items-center justify-between gap-2 rounded-md border border-wn-divider bg-wn-control-bg px-2 text-[11px] text-foreground transition-colors hover:bg-wn-control-hover',
+            'flex h-6 w-full items-center justify-between gap-2 px-2 text-[11px] text-foreground transition-colors',
+            variant === 'ghost'
+              ? 'rounded-sm border border-transparent bg-transparent hover:bg-wn-control-hover'
+              : 'rounded-md border border-wn-divider bg-wn-control-bg hover:bg-wn-control-hover',
             className,
           )}
         >
@@ -465,7 +475,7 @@ export function SidebarCenteredPicker<T extends string>({
         sideOffset={sideOffset}
         avoidCollisions={false}
         style={triggerSize.width ? { minWidth: triggerSize.width } : undefined}
-        className="bg-popover/95 backdrop-blur-sm border border-wn-divider rounded-md p-1 shadow-md"
+        className="bg-popover/95 backdrop-blur-sm border border-wn-divider rounded-md p-1 shadow-md data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-0 data-[state=closed]:zoom-out-0"
       >
         {options.map((option) => {
           const isActive = option.id === value;
@@ -474,8 +484,17 @@ export function SidebarCenteredPicker<T extends string>({
               key={option.id}
               disabled={option.disabled}
               onSelect={(event) => {
-                event.preventDefault();
-                if (!option.disabled) onChange(option.id);
+                if (option.disabled) {
+                  event.preventDefault();
+                  return;
+                }
+                if (suppressSelectRef.current && option.id === value) {
+                  event.preventDefault();
+                  suppressSelectRef.current = false;
+                  return;
+                }
+                suppressSelectRef.current = false;
+                onChange(option.id);
               }}
               className={cn(
                 'h-7 text-[11px] rounded-sm cursor-pointer px-2 py-0',
