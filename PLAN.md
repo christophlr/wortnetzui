@@ -1,7 +1,7 @@
 # Plan: Phase 5 Audit, Fix-ups, and Phase 6 Sequencing
 
 > **Status: ACTIVE — approved 2026-05-26**
-> Next step: Phase 6.1 — Additional shader effects (Vignette, Chromatic Aberration, Film Grain).
+> Next step: Phase 6.2 — BPM / musical time.
 
 ## Context
 
