@@ -4,17 +4,15 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 5.5 — Pre-Phase 6 audits** (parallel):
-  - Audit α: FPS counter + performance baseline doc.
-  - Audit β: Atomic extraction pass.
+- **Phase 6.1 — Additional shader effects**:
+  - Vignette, Chromatic Aberration, and Film Grain passes.
 
 ## Planned
 
 - **Node-Based Modulation (Patchbay) System (Future)**:
   - Transition from static modulators to a visual patching system. Detailed design proposal: [NODE_MODULATION.md](file:///Users/christoph/Documents/Code/wortnetzui/NODE_MODULATION.md).
   - Highlights: custom glassmorphic node UI, bidirectional sidebar inspector tabs, topological compiler, and 60Hz worker execution.
-- **Phase 6** (order: shaders → BPM → MIDI):
-  - 6.1: Additional shader effects (Vignette, Chromatic Aberration, Film Grain — `EffectComposer` pattern already established).
+- **Phase 6** (order: BPM → MIDI):
   - 6.2: BPM / musical time (`Modulator.bpm` scaffold exists; needs beat-ruler UI + global BPM context).
   - 6.3: MIDI mapping (no groundwork — Web MIDI API, learn mode, serialization).
 
@@ -24,6 +22,9 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Phase 5.5 — Pre-Phase 6 Audits**:
+  - Audit α: Implemented a lightweight, direct-DOM FPS counter toggle under `View → Debug → Show FPS` and recorded baseline benchmarks in `docs/phase-6-perf-baseline.md`.
+  - Audit β: Modularized the Toolbar and VisualTab card UI (shipped as part of 5.1).
 - **Phase 5.1 — Defect fixes & Toolbar Atomization**:
   - A1/A2: Extended `TimelineState` with `paintedOverrides` + `pathNodes`; push undo history at stroke-end / path-mutation.
   - A3: Extracted shared `PaintedOverride` type; sync `colorBlend` into `WorkspaceState`.

@@ -1,7 +1,7 @@
 # Plan: Phase 5 Audit, Fix-ups, and Phase 6 Sequencing
 
 > **Status: ACTIVE — approved 2026-05-26**
-> Next step: Phase 5.5 — Pre-Phase 6 audits (FPS counter & performance baseline, atomic audit verification).
+> Next step: Phase 6.1 — Additional shader effects (Vignette, Chromatic Aberration, Film Grain).
 
 ## Context
 
