@@ -9,6 +9,8 @@
 import * as React from 'react';
 import { cn } from '../ui/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import { Route, Trash2, GripVertical } from 'lucide-react';
+import { Button } from '../ui/button';
 
 export function ToolbarShell({
   className,
@@ -71,5 +73,148 @@ export function ToolButton<TId extends string>({
         {label}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+export function ToolbarSegmentedPicker<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label?: string;
+  options: readonly { id: T; label: string }[];
+  value: T;
+  onChange: (val: T) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {label && (
+        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          {label}
+        </h4>
+      )}
+      <div className="grid grid-cols-4 gap-1 bg-wn-control-bg p-0.5 rounded-lg border border-wn-divider">
+        {options.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onChange(m.id)}
+            className={cn(
+              "text-[10px] font-medium py-1 px-1.5 rounded-md transition-colors cursor-pointer",
+              value === m.id
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-wn-control-bg/60"
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ToolbarPopoverRow({
+  label,
+  children,
+}: {
+  label?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {label && (
+        <div className="flex justify-between items-center">
+          <span className="text-[11px] font-medium text-foreground">
+            {label}
+          </span>
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+export function ToolbarPopoverHeader({
+  title,
+  icon: Icon,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="p-3 border-b border-wn-divider bg-wn-control-bg/30 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        {Icon && <Icon size={14} className="text-wn-accent" />}
+        <h3 className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+          {title}
+        </h3>
+      </div>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="text-[9px] font-semibold text-destructive hover:underline cursor-pointer"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ToolbarPathItem({
+  index,
+  label,
+  onRemove,
+}: {
+  index: number;
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="group flex items-center gap-2 p-1.5 bg-wn-control-bg border border-wn-divider rounded-lg hover:border-wn-accent/50 transition-all shadow-sm">
+      <div className="text-muted-foreground/40">
+        <GripVertical size={11} />
+      </div>
+      <div className="size-4 rounded-full bg-wn-accent/10 border border-wn-accent/20 flex items-center justify-center text-[8px] font-bold text-wn-accent shrink-0">
+        {index + 1}
+      </div>
+      <span className="flex-1 text-[10px] font-medium text-foreground truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+      >
+        <Trash2 size={11} />
+      </button>
+    </div>
+  );
+}
+
+export function ToolbarActionButton({
+  onClick,
+  label,
+  className,
+}: {
+  onClick: () => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("pt-2 border-t border-wn-divider", className)}>
+      <Button
+        variant="outline"
+        onClick={onClick}
+        className="w-full h-7 text-[10px] bg-card border-border hover:bg-wn-control-hover hover:text-foreground font-medium"
+      >
+        {label}
+      </Button>
+    </div>
   );
 }

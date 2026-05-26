@@ -1,5 +1,14 @@
-import { MousePointer2, Hand, Paintbrush, View, Wand2, Route, Play, Square, Trash2, GripVertical } from 'lucide-react';
-import { ToolButton, ToolbarDivider, ToolbarShell } from './toolbar/ToolbarAtoms';
+import { MousePointer2, Hand, Paintbrush, View, Wand2, Route, Play, Square } from 'lucide-react';
+import {
+  ToolButton,
+  ToolbarDivider,
+  ToolbarShell,
+  ToolbarSegmentedPicker,
+  ToolbarPopoverRow,
+  ToolbarPopoverHeader,
+  ToolbarPathItem,
+  ToolbarActionButton
+} from './toolbar/ToolbarAtoms';
 import { useT } from '../i18n/useT';
 import { useWortnetz } from '../context/WortnetzContext';
 import { Popover, PopoverContent, PopoverAnchor } from './ui/popover';
@@ -85,37 +94,17 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
             sideOffset={12}
             className="bg-popover/95 backdrop-blur-sm p-4 w-72 space-y-4 z-50 shadow-xl border border-wn-divider rounded-xl select-none pointer-events-auto"
           >
-            <div className="space-y-1.5">
-              <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                {t('toolbar.brush.mode')}
-              </h4>
-              <div className="grid grid-cols-4 gap-1 bg-wn-control-bg p-0.5 rounded-lg border border-wn-divider">
-                {modes.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setPaintMode(m.id)}
-                    className={`text-[10px] font-medium py-1 px-1.5 rounded-md transition-colors cursor-pointer ${
-                      paintMode === m.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-wn-control-bg/60'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ToolbarSegmentedPicker
+              label={t('toolbar.brush.mode')}
+              options={modes}
+              value={paintMode}
+              onChange={setPaintMode}
+            />
 
             {/* Dynamic Value Row based on Paint Mode */}
             {paintMode === 'color' && (
               <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-medium text-foreground">
-                      {t('toolbar.brush.color')}
-                    </span>
-                  </div>
+                <ToolbarPopoverRow label={t('toolbar.brush.color')}>
                   <ColorPicker value={paintColor} onValueChange={setPaintColor}>
                     <ColorPickerTrigger asChild>
                       <button className="flex items-center gap-2 p-1.5 rounded-md border border-wn-divider hover:bg-wn-control-hover w-full bg-wn-control-bg cursor-pointer text-left h-7">
@@ -129,7 +118,7 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
                       <ColorPickerPresets />
                     </ColorPickerContent>
                   </ColorPicker>
-                </div>
+                </ToolbarPopoverRow>
 
                 <Scrubber
                   label={t('toolbar.brush.blend')}
@@ -186,16 +175,11 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
               onCommit={setBrushRadius}
             />
 
-            {/* Clear paint actions */}
-            <div className="pt-2 border-t border-wn-divider">
-              <Button
-                variant="outline"
-                onClick={clearPaintedOverrides}
-                className="w-full h-7 text-[10px] bg-card border-border hover:bg-wn-control-hover hover:text-foreground font-medium"
-              >
-                {t('toolbar.brush.clearAll')}
-              </Button>
-            </div>
+            {/* Clear paint action button */}
+            <ToolbarActionButton
+              onClick={clearPaintedOverrides}
+              label={t('toolbar.brush.clearAll')}
+            />
           </PopoverContent>
         </Popover>
       );
@@ -216,23 +200,12 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
             className="bg-popover/95 backdrop-blur-sm p-0 w-64 z-50 shadow-xl border border-wn-divider rounded-xl select-none pointer-events-auto overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="p-3 border-b border-wn-divider bg-wn-control-bg/30 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Route size={14} className="text-wn-accent" />
-                <h3 className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                  {t('sidebar.tab.visual.section.pathAnimator')}
-                </h3>
-              </div>
-              {pathNodes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearPath}
-                  className="text-[9px] font-semibold text-destructive hover:underline cursor-pointer"
-                >
-                  {t('toolbar.brush.clearAll')}
-                </button>
-              )}
-            </div>
+            <ToolbarPopoverHeader
+              title={t('sidebar.tab.visual.section.pathAnimator')}
+              icon={Route}
+              actionLabel={pathNodes.length > 0 ? t('toolbar.brush.clearAll') : undefined}
+              onAction={clearPath}
+            />
 
             {/* Waypoints List */}
             <div className="p-2 max-h-[220px] overflow-y-auto space-y-1 bg-wn-canvas-dot-grid/10">
@@ -244,25 +217,12 @@ export function Toolbar({ activeTool, onToolChange, className }: ToolbarProps) {
                 </div>
               ) : (
                 pathNodes.map((node, index) => (
-                  <div
+                  <ToolbarPathItem
                     key={`${node.id}-${index}`}
-                    className="group flex items-center gap-2 p-1.5 bg-wn-control-bg border border-wn-divider rounded-lg hover:border-wn-accent/50 transition-all shadow-sm"
-                  >
-                    <div className="text-muted-foreground/40">
-                      <GripVertical size={11} />
-                    </div>
-                    <div className="size-4 rounded-full bg-wn-accent/10 border border-wn-accent/20 flex items-center justify-center text-[8px] font-bold text-wn-accent shrink-0">
-                      {index + 1}
-                    </div>
-                    <span className="flex-1 text-[10px] font-medium text-foreground truncate">{node.label}</span>
-                    <button
-                      type="button"
-                      onClick={() => removePathNode(index)}
-                      className="p-0.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
+                    index={index}
+                    label={node.label}
+                    onRemove={() => removePathNode(index)}
+                  />
                 ))
               )}
             </div>
