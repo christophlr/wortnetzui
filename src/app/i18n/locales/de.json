@@ -95,7 +95,13 @@
         "shape": {
           "rectangle":         "Rect",
           "rounded-rectangle": "Rounded",
-          "ellipse":           "Ellipse"
+          "ellipse":           "Ellipse",
+          "triangle":          "Dreieck",
+          "hexagon":           "Hexagon",
+          "octagon":           "Oktagon",
+          "star":              "Stern",
+          "arms":              "Arme",
+          "innerRatio":        "Innenverhältnis"
         },
         "slider": {
           "baseScale":     "Skalierung",

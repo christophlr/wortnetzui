@@ -7,7 +7,49 @@ export type NetworkLabelStyle = {
   backgroundHex: string;
 };
 
-export type NodeShape = 'rectangle' | 'rounded-rectangle' | 'ellipse';
+export type NodeShapeKind =
+  | 'rectangle'
+  | 'rounded-rectangle'
+  | 'ellipse'
+  | 'triangle'
+  | 'hexagon'
+  | 'octagon'
+  | 'star';
+
+export type NodeShape =
+  | { kind: 'rectangle' }
+  | { kind: 'rounded-rectangle' }
+  | { kind: 'ellipse' }
+  | { kind: 'triangle' }
+  | { kind: 'hexagon' }
+  | { kind: 'octagon' }
+  | { kind: 'star'; arms: number; innerRatio: number };
+
+export const DEFAULT_STAR_SHAPE: NodeShape = { kind: 'star', arms: 5, innerRatio: 0.4 };
+export const DEFAULT_NODE_SHAPE: NodeShape = { kind: 'rectangle' };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clampInt = (value: number, min: number, max: number) => Math.round(clamp(value, min, max));
+
+export function normalizeNodeShape(shape?: NodeShape | NodeShapeKind | null): NodeShape {
+  if (!shape) return DEFAULT_NODE_SHAPE;
+  if (typeof shape === 'string') {
+    if (shape === 'star') return { ...DEFAULT_STAR_SHAPE };
+    return { kind: shape };
+  }
+  if (shape.kind === 'star') {
+    return {
+      kind: 'star',
+      arms: clampInt(shape.arms ?? DEFAULT_STAR_SHAPE.arms, 3, 12),
+      innerRatio: clamp(shape.innerRatio ?? DEFAULT_STAR_SHAPE.innerRatio, 0.2, 0.8),
+    };
+  }
+  return { kind: shape.kind };
+}
+
+export function serializeNodeShape(shape: NodeShape): string {
+  return JSON.stringify(normalizeNodeShape(shape));
+}
 
 export type EdgeAppearanceSettings = {
   color: 'auto' | string;

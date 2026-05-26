@@ -28,7 +28,7 @@
  */
 
 import * as React from 'react';
-import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform, GripVertical } from 'lucide-react';
+import { Diamond, Eye, EyeOff, Minus, Plus, AudioWaveform, GripVertical, ChevronDown } from 'lucide-react';
 import { Slider } from '../ui/slider';
 import { Scrubber, type ScrubberProps } from '../ui/scrubber';
 import { Switch } from '../ui/switch';
@@ -37,6 +37,12 @@ import { RadioGroupItem } from '../ui/radio-group';
 import { cn } from '../ui/utils';
 import { pad } from '../../theme/tokens';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import {
   ColorPicker,
   ColorPickerContent,
@@ -380,6 +386,110 @@ export function SidebarSegmentedPicker<T extends string | number>({
         return <React.Fragment key={String(item.value)}>{button}</React.Fragment>;
       })}
     </div>
+  );
+}
+
+type SidebarCenteredPickerOption<T extends string> = {
+  id: T;
+  label: string;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  disabled?: boolean;
+};
+
+export function SidebarCenteredPicker<T extends string>({
+  value,
+  options,
+  onChange,
+  renderOption,
+  className,
+  ariaLabel,
+}: {
+  value: T;
+  options: SidebarCenteredPickerOption<T>[];
+  onChange: (next: T) => void;
+  renderOption?: (option: SidebarCenteredPickerOption<T>, active: boolean) => React.ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [triggerSize, setTriggerSize] = React.useState({ width: 0, height: 24 });
+  const activeIndex = Math.max(0, options.findIndex((opt) => opt.id === value));
+  const activeOption = options[activeIndex] ?? options[0];
+  const itemHeight = 28;
+  const menuPadding = 4;
+  const sideOffset = Math.round(
+    -(triggerSize.height / 2 + menuPadding + itemHeight * (activeIndex + 0.5)),
+  );
+
+  const updateTriggerSize = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setTriggerSize({ width: rect.width, height: rect.height || 24 });
+  };
+
+  const renderDefaultOption = (option: SidebarCenteredPickerOption<T>, active: boolean) => {
+    const Icon = option.icon;
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        {Icon ? (
+          <Icon size={12} className={cn('shrink-0', active ? 'text-foreground' : 'text-muted-foreground')} />
+        ) : null}
+        <span className="truncate">{option.label}</span>
+      </div>
+    );
+  };
+
+  return (
+    <DropdownMenu onOpenChange={(open) => { if (open) updateTriggerSize(); }}>
+      <DropdownMenuTrigger asChild>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={ariaLabel}
+          className={cn(
+            'flex h-6 w-full items-center justify-between gap-2 rounded-md border border-wn-divider bg-wn-control-bg px-2 text-[11px] text-foreground transition-colors hover:bg-wn-control-hover',
+            className,
+          )}
+        >
+          <span className="flex-1 min-w-0">
+            {activeOption
+              ? (renderOption ?? renderDefaultOption)(activeOption, true)
+              : null}
+          </span>
+          <ChevronDown size={12} className="text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="bottom"
+        align="start"
+        sideOffset={sideOffset}
+        avoidCollisions={false}
+        style={triggerSize.width ? { minWidth: triggerSize.width } : undefined}
+        className="bg-popover/95 backdrop-blur-sm border border-wn-divider rounded-md p-1 shadow-md"
+      >
+        {options.map((option) => {
+          const isActive = option.id === value;
+          return (
+            <DropdownMenuItem
+              key={option.id}
+              disabled={option.disabled}
+              onSelect={(event) => {
+                event.preventDefault();
+                if (!option.disabled) onChange(option.id);
+              }}
+              className={cn(
+                'h-7 text-[11px] rounded-sm cursor-pointer px-2 py-0',
+                isActive
+                  ? 'bg-wn-accent text-white'
+                  : 'text-foreground hover:bg-wn-control-hover focus:bg-wn-control-hover',
+              )}
+            >
+              {(renderOption ?? renderDefaultOption)(option, isActive)}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

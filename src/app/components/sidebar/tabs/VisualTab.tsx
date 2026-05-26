@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { Circle, Dices, RectangleHorizontal, Square, Plus, Minus, Eye, EyeOff, Settings2, SlidersHorizontal, Trash2, Paintbrush } from 'lucide-react';
+import { Circle, Dices, RectangleHorizontal, Square, Plus, Minus, Eye, EyeOff, SlidersHorizontal, Paintbrush, Triangle, Hexagon, Octagon, Star } from 'lucide-react';
 import { useWortnetz } from '../../../context/WortnetzContext';
-import type { NodeShape } from '../../../networkTheme';
+import { DEFAULT_STAR_SHAPE, normalizeNodeShape, type NodeShape, type NodeShapeKind } from '../../../networkTheme';
 import {
-  SidebarButtonGroupRow,
+  SidebarCenteredPicker,
   SidebarColorRow,
   SidebarGroup,
   SidebarSection,
@@ -41,11 +41,18 @@ function hslToHex(h: number, s: number, l: number) {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-const SHAPE_IDS: NodeShape[] = ['rectangle', 'rounded-rectangle', 'ellipse'];
-const SHAPE_ICONS: Record<NodeShape, React.ComponentType<{ size?: number; className?: string }>> = {
+type EffectType = 'bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate';
+
+const EFFECT_TYPES: EffectType[] = ['bloom', 'glitch', 'vignette', 'chromatic-aberration', 'film-grain', 'pixelate'];
+const SHAPE_KINDS: NodeShapeKind[] = ['rectangle', 'rounded-rectangle', 'ellipse', 'triangle', 'hexagon', 'octagon', 'star'];
+const SHAPE_ICONS: Record<NodeShapeKind, React.ComponentType<{ size?: number; className?: string }>> = {
   rectangle: Square,
   'rounded-rectangle': RectangleHorizontal,
   ellipse: Circle,
+  triangle: Triangle,
+  hexagon: Hexagon,
+  octagon: Octagon,
+  star: Star,
 };
 
 /* ── Reusable slider with optional keyframe diamond + modulator popover ── */
@@ -248,11 +255,45 @@ export function VisualTab({
     t,
   };
 
-  const shapeOptions = SHAPE_IDS.map((id) => ({
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  const clampInt = (value: number, min: number, max: number) => Math.round(clamp(value, min, max));
+  const currentShape = React.useMemo(
+    () => normalizeNodeShape(styleSettings.nodeShape),
+    [styleSettings.nodeShape],
+  );
+  const shapeKind = currentShape.kind;
+  const lastStarRef = React.useRef<NodeShape>(DEFAULT_STAR_SHAPE);
+
+  React.useEffect(() => {
+    if (currentShape.kind === 'star') {
+      lastStarRef.current = currentShape;
+    }
+  }, [currentShape]);
+
+  const setShapeKind = (kind: NodeShapeKind) => {
+    if (kind === 'star') {
+      onStyleChange({ nodeShape: { ...lastStarRef.current, kind: 'star' } });
+      return;
+    }
+    onStyleChange({ nodeShape: { kind } });
+  };
+
+  const updateStarShape = (patch: Partial<Pick<Extract<NodeShape, { kind: 'star' }>, 'arms' | 'innerRatio'>>) => {
+    const base = currentShape.kind === 'star' ? currentShape : lastStarRef.current;
+    const next = {
+      kind: 'star' as const,
+      arms: clampInt(patch.arms ?? base.arms, 3, 12),
+      innerRatio: clamp(patch.innerRatio ?? base.innerRatio, 0.2, 0.8),
+    };
+    onStyleChange({ nodeShape: next });
+  };
+
+  const shapeOptions = SHAPE_KINDS.map((id) => ({
     id,
     icon: SHAPE_ICONS[id],
     label: t(`sidebar.tab.visual.shape.${id}`),
   }));
+  const starShape = currentShape.kind === 'star' ? currentShape : lastStarRef.current;
 
   const randomizeGradient = () => {
     const hue = Math.random() * 360;
@@ -344,11 +385,36 @@ export function VisualTab({
         })()}
 
         <SidebarGroup title={t('sidebar.tab.visual.group.shape')} stack="snug">
-          <SidebarButtonGroupRow<NodeShape>
-            value={styleSettings.nodeShape}
-            onChange={(id) => onStyleChange({ nodeShape: id })}
+          <SidebarCenteredPicker<NodeShapeKind>
+            value={shapeKind}
             options={shapeOptions}
+            onChange={setShapeKind}
+            ariaLabel={t('sidebar.tab.visual.group.shape')}
           />
+          {shapeKind === 'star' && (
+            <div className="space-y-2 pt-2">
+              <SidebarScrubberRow
+                label={t('sidebar.tab.visual.shape.arms')}
+                value={starShape.arms}
+                min={3}
+                max={12}
+                step={1}
+                format={(v) => `${Math.round(v)}`}
+                onValueChange={(val) => updateStarShape({ arms: Math.round(val) })}
+                onCommit={(val) => updateStarShape({ arms: val })}
+              />
+              <SidebarScrubberRow
+                label={t('sidebar.tab.visual.shape.innerRatio')}
+                value={starShape.innerRatio}
+                min={0.2}
+                max={0.8}
+                step={0.01}
+                format={(v) => v.toFixed(2)}
+                onValueChange={(val) => updateStarShape({ innerRatio: val })}
+                onCommit={(val) => updateStarShape({ innerRatio: val })}
+              />
+            </div>
+          )}
         </SidebarGroup>
 
         <TrackScrubber
@@ -428,7 +494,7 @@ export function VisualTab({
             className={(visualSettings.effectsList ?? []).length >= 6 ? 'opacity-30 pointer-events-none' : ''}
             onClick={() => {
               const currentList = visualSettings.effectsList ?? [];
-              const nextEffect = (['bloom', 'glitch', 'vignette', 'chromatic-aberration', 'film-grain', 'pixelate'] as const).find(fx => !currentList.includes(fx));
+              const nextEffect = EFFECT_TYPES.find((fx) => !currentList.includes(fx));
               if (nextEffect) {
                 const patch: Record<string, any> = {
                   effectsList: [...currentList, nextEffect]
@@ -451,7 +517,7 @@ export function VisualTab({
           </div>
         ) : (
           <div className="space-y-2">
-            {(visualSettings.effectsList ?? []).map((effectType: 'bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate', index: number) => {
+            {(visualSettings.effectsList ?? []).map((effectType: EffectType, index: number) => {
               const isBloom = effectType === 'bloom';
               const isGlitch = effectType === 'glitch';
               const isVignette = effectType === 'vignette';
@@ -488,7 +554,7 @@ export function VisualTab({
                 setVisual(patch);
               };
 
-              const handleTypeChange = (newType: 'bloom' | 'glitch' | 'vignette' | 'chromatic-aberration' | 'film-grain' | 'pixelate') => {
+              const handleTypeChange = (newType: EffectType) => {
                 const nextList = [...(visualSettings.effectsList ?? [])];
                 nextList[index] = newType;
                 const patch: Record<string, any> = { effectsList: nextList };
@@ -511,6 +577,13 @@ export function VisualTab({
 
                 setVisual(patch);
               };
+
+              const usedEffects = visualSettings.effectsList ?? [];
+              const effectOptions = EFFECT_TYPES.map((fx) => ({
+                id: fx,
+                label: t(`sidebar.tab.visual.fx.${fx}`),
+                disabled: usedEffects.includes(fx) && fx !== effectType,
+              }));
 
               const reorderEffect = (fromIndex: number, toIndex: number) => {
                 const list = [...(visualSettings.effectsList ?? [])];
@@ -542,18 +615,12 @@ export function VisualTab({
                       </PopoverTrigger>
 
                       <div className="flex-1 min-w-0">
-                        <Select value={effectType} onValueChange={(v) => handleTypeChange(v as any)}>
-                          <SelectTrigger size="sm" className="h-6 w-full text-[11px] py-0 px-2 border-wn-divider bg-transparent text-foreground hover:bg-wn-control-hover">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover border border-wn-divider z-50">
-                            {(['bloom', 'glitch', 'vignette', 'chromatic-aberration', 'film-grain', 'pixelate'] as const).map(fx => (
-                              <SelectItem key={fx} value={fx} disabled={(visualSettings.effectsList ?? []).includes(fx) && effectType !== fx}>
-                                {t(`sidebar.tab.visual.fx.${fx}`)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SidebarCenteredPicker<EffectType>
+                          value={effectType}
+                          options={effectOptions}
+                          onChange={handleTypeChange}
+                          ariaLabel={t('sidebar.tab.visual.fx.title')}
+                        />
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">

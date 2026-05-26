@@ -115,7 +115,13 @@
         "shape": {
           "rectangle": "Rect",
           "rounded-rectangle": "Rounded",
-          "ellipse": "Ellipse"
+          "ellipse": "Ellipse",
+          "triangle": "Triangle",
+          "hexagon": "Hexagon",
+          "octagon": "Octagon",
+          "star": "Star",
+          "arms": "Arms",
+          "innerRatio": "Inner ratio"
         },
         "slider": {
           "baseScale": "Scale",

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback, ReactNode, useMemo, useEffect } from 'react';
-import { defaultEdgeAppearance, type NodeShape, type EdgeAppearanceSettings } from '../networkTheme';
+import { defaultEdgeAppearance, DEFAULT_NODE_SHAPE, normalizeNodeShape, type NodeShape, type EdgeAppearanceSettings } from '../networkTheme';
 import { ToolId } from '../components/Toolbar';
 import { TIMELINE_DURATION, DEFAULT_TEXT } from '../constants';
 import type { Network3DHandle } from '../components/Network3D';
@@ -58,7 +58,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
   const [parseMode, setParseMode] = useState<'sentence' | 'word' | 'both'>('word');
   const [styleSettings, setStyleSettings] = useState({
     edgeOpacity: 0.35, edgeWidth: 2, nodeScale: 1,
-    nodeShape: 'rectangle' as NodeShape,
+    nodeShape: DEFAULT_NODE_SHAPE,
     nodeBorderWidth: 2,
     depthSizeEnabled: false,
     depthSizeStrength: 50,
@@ -225,7 +225,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       useCallback((s) => {
         if (s.inputText) setInputText(s.inputText);
         if (s.parseMode) setParseMode(s.parseMode);
-        if (s.styleSettings) setStyleSettings(s.styleSettings);
+        if (s.styleSettings) {
+          const normalizedShape = normalizeNodeShape((s.styleSettings as any).nodeShape);
+          setStyleSettings(prev => ({ ...prev, ...s.styleSettings, nodeShape: normalizedShape }));
+        }
         if (s.physicsParams) setPhysicsParams(prev => ({ ...prev, ...s.physicsParams, verticalOrder: s.physicsParams.verticalOrder ?? 0 }));
         if (s.viewMode) setViewMode(s.viewMode);
         if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);

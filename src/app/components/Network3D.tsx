@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { applyEasing } from '../easing';
 import { evaluateKeyframeSegment } from '../animation/segmentEvaluate';
-import { getNetworkThemeBackground, type NodeShape } from '../networkTheme';
+import { DEFAULT_NODE_SHAPE, getNetworkThemeBackground, normalizeNodeShape, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
 import { PHYS_TRACK_PARAM, VISUAL_TRACK_IDS, VISUAL_TRACK_PARAM } from '../context/WortnetzContextConstants';
@@ -23,6 +23,8 @@ import {
   buildTextureCache,
   disposeTextureCache,
   swapSpriteTexture as swapSpriteTextureImpl,
+  getTextureCacheKey,
+  getTextureCacheLabel,
   getDepthFactor,
 } from '../network3d/textureCache';
 import { syncGraphVisuals } from '../network3d/syncVisuals';
@@ -133,7 +135,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     physicsParams = DEFAULT_PHYSICS,
     physicsKeyframes,
     trackMeta,
-    styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: 'rectangle' as NodeShape, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
+    styleSettings = { edgeOpacity: 0.85, edgeWidth: 2, nodeScale: 1, nodeShape: DEFAULT_NODE_SHAPE, nodeBorderWidth: 2, depthSizeEnabled: false, depthSizeStrength: 50 },
     cameraKeyframes = [],
     onCameraChange,
     isDark,
@@ -276,6 +278,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const setCameraLockedRef = useRef(setCameraLocked);
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rebuildCancelRef = useRef<{ cancelled: boolean } | null>(null);
+  const prevShapeRef = useRef<NodeShape>(DEFAULT_NODE_SHAPE);
   const styleSettingsRef = useRef(styleSettings);
   const isDarkRef = useRef(true);
   const onReadyRef = useRef(onReady);
@@ -588,7 +591,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   // Component-scoped helpers — defined here so the hooks below can capture them.
   const getTextureOpts = (): TextureBuildOptions => ({
     dark: !!isDarkRef.current,
-    nodeShape: styleSettingsRef.current.nodeShape ?? 'rectangle',
+    nodeShape: normalizeNodeShape(styleSettingsRef.current.nodeShape ?? DEFAULT_NODE_SHAPE),
     nodeBorderWidth: styleSettingsRef.current.nodeBorderWidth ?? 2,
   });
 
@@ -605,12 +608,19 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     const oldCache = textureCacheRef.current;
     const newCache: TextureCache = new Map();
     textureCacheRef.current = newCache;
+    const layoutByLabel = new Map<string, { logicalWidth: number; logicalHeight: number; words: string[] }>();
+    oldCache.forEach((entry, key) => {
+      const label = getTextureCacheLabel(key);
+      if (!layoutByLabel.has(label)) layoutByLabel.set(label, entry.layout);
+    });
 
     const hoveredLabel = hoveredNodeRef.current?.label ?? null;
     const selectedLabel = selectedNodeRef.current?.label ?? null;
 
     const processNode = (node: typeof nodes[0]) => {
-      const oldEntry = oldCache.get(node.label);
+      const cacheKey = getTextureCacheKey(node.label, opts.nodeShape);
+      const oldEntry = oldCache.get(cacheKey);
+      const fallbackLayout = layoutByLabel.get(node.label);
       // P2: reuse cached layout metrics to skip measureText on shape/border/theme rebuilds
       let texture: THREE.Texture;
       let baseScale: number;
@@ -620,13 +630,17 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         const r = createCanvasTextureFromLayout(oldEntry.layout, false, false, opts);
         texture = r.texture; baseScale = r.baseScale; aspectRatio = r.aspectRatio;
         layout = oldEntry.layout;
+      } else if (fallbackLayout) {
+        const r = createCanvasTextureFromLayout(fallbackLayout, false, false, opts);
+        texture = r.texture; baseScale = r.baseScale; aspectRatio = r.aspectRatio;
+        layout = fallbackLayout;
       } else {
         const r = createCanvasTexture(node.label, false, false, opts);
         texture = r.texture; baseScale = r.baseScale; aspectRatio = r.aspectRatio;
         layout = r.layout;
       }
       const entry: TextureCacheEntry = { normal: texture, baseScale, aspectRatio, layout };
-      newCache.set(node.label, entry);
+      newCache.set(cacheKey, entry);
 
       if (oldEntry) {
         oldEntry.normal.dispose();
@@ -665,8 +679,8 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       } else {
         rebuildCancelRef.current = null;
         // Dispose entries for any labels that are no longer in the new cache
-        oldCache.forEach((entry, label) => {
-          if (!newCache.has(label)) {
+        oldCache.forEach((entry, key) => {
+          if (!newCache.has(key)) {
             entry.normal.dispose();
             entry.highlighted?.dispose();
             entry.selected?.dispose();
@@ -1088,7 +1102,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     // Create nodes with billboarded text from cached normal textures
     let nodeIdx = 0;
     nodes.forEach(node => {
-      const cached = textureCacheRef.current.get(node.label)!;
+      const cached = textureCacheRef.current.get(
+        getTextureCacheKey(node.label, getTextureOpts().nodeShape),
+      )!;
       const sprite = createSpriteFromTexture(
         cached.normal, node.label, cached.baseScale, cached.aspectRatio, styleSettings.nodeScale
       );
@@ -1483,14 +1499,33 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     });
   }, [styleSettings.nodeScale, styleSettings.depthSizeEnabled, styleSettings.depthSizeStrength]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rebuild textures immediately when node shape changes (discrete button event — no debounce)
+  // Rebuild textures immediately when shape kind changes; debounce star params.
   useEffect(() => {
     if (!sceneRef.current || graphNodesRef.current.size === 0) return;
+    const nextShape = normalizeNodeShape(styleSettings.nodeShape ?? DEFAULT_NODE_SHAPE);
+    const prevShape = prevShapeRef.current;
+    prevShapeRef.current = nextShape;
+
+    const kindChanged = prevShape.kind !== nextShape.kind;
+    const isParametricStar = nextShape.kind === 'star' && prevShape.kind === 'star';
+
     if (textureRebuildTimerRef.current) {
       clearTimeout(textureRebuildTimerRef.current);
       textureRebuildTimerRef.current = null;
     }
-    rebuildAndRefreshTextures();
+
+    if (kindChanged) {
+      rebuildAndRefreshTextures();
+      return;
+    }
+
+    if (isParametricStar) {
+      textureRebuildTimerRef.current = setTimeout(() => {
+        if (!sceneRef.current) return;
+        rebuildAndRefreshTextures();
+        textureRebuildTimerRef.current = null;
+      }, 80);
+    }
   }, [styleSettings.nodeShape]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild textures debounced when border width changes (potentially slider-driven)

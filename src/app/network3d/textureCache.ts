@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getNetworkLabelStyle, type NodeShape, SCENE_COLORS } from '../networkTheme';
+import { getNetworkLabelStyle, normalizeNodeShape, serializeNodeShape, type NodeShape, SCENE_COLORS } from '../networkTheme';
 import type { GraphNode } from '../graph';
 
 export interface LayoutMetrics {
@@ -38,6 +38,108 @@ const EDIT_NODE_COLOR = SCENE_COLORS.editNodeColor;
 const OUTLINE_STROKE = 3;
 const OUTLINE_GAP = 2;
 const OUTLINE_MARGIN = OUTLINE_STROKE + OUTLINE_GAP;
+const SHAPE_KEY_SEPARATOR = '::';
+
+const SHAPE_AREA_SCALE: Record<NodeShape['kind'], number> = {
+  rectangle: 1,
+  'rounded-rectangle': 1,
+  ellipse: 1,
+  triangle: 1.05,
+  hexagon: 1.03,
+  octagon: 1.03,
+  star: 1.15,
+};
+
+export function getTextureCacheKey(label: string, shape: NodeShape): string {
+  return `${label}${SHAPE_KEY_SEPARATOR}${serializeNodeShape(shape)}`;
+}
+
+export function getTextureCacheLabel(key: string): string {
+  const splitIndex = key.indexOf(SHAPE_KEY_SEPARATOR);
+  return splitIndex === -1 ? key : key.slice(0, splitIndex);
+}
+
+function drawPolygonPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  sides: number,
+  rotation = -Math.PI / 2,
+) {
+  const step = (Math.PI * 2) / sides;
+  ctx.moveTo(cx + Math.cos(rotation) * rx, cy + Math.sin(rotation) * ry);
+  for (let i = 1; i < sides; i++) {
+    const angle = rotation + step * i;
+    ctx.lineTo(cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry);
+  }
+  ctx.closePath();
+}
+
+function drawStarPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  arms: number,
+  innerRatio: number,
+  rotation = -Math.PI / 2,
+) {
+  const totalPoints = arms * 2;
+  const step = Math.PI / arms;
+  for (let i = 0; i < totalPoints; i++) {
+    const isOuter = i % 2 === 0;
+    const scale = isOuter ? 1 : innerRatio;
+    const angle = rotation + i * step;
+    const x = cx + Math.cos(angle) * rx * scale;
+    const y = cy + Math.sin(angle) * ry * scale;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawShapePath(
+  ctx: CanvasRenderingContext2D,
+  shape: NodeShape,
+  cx: number,
+  cy: number,
+  width: number,
+  height: number,
+  cornerRadius = 0,
+) {
+  if (shape.kind === 'ellipse') {
+    ctx.ellipse(cx, cy, width / 2, height / 2, 0, 0, Math.PI * 2);
+    return;
+  }
+  if (shape.kind === 'rounded-rectangle') {
+    ctx.roundRect(cx - width / 2, cy - height / 2, width, height, cornerRadius);
+    return;
+  }
+  if (shape.kind === 'rectangle') {
+    if (cornerRadius > 0) {
+      ctx.roundRect(cx - width / 2, cy - height / 2, width, height, cornerRadius);
+      return;
+    }
+    ctx.rect(cx - width / 2, cy - height / 2, width, height);
+    return;
+  }
+  if (shape.kind === 'triangle') {
+    drawPolygonPath(ctx, cx, cy, width / 2, height / 2, 3);
+    return;
+  }
+  if (shape.kind === 'hexagon') {
+    drawPolygonPath(ctx, cx, cy, width / 2, height / 2, 6);
+    return;
+  }
+  if (shape.kind === 'octagon') {
+    drawPolygonPath(ctx, cx, cy, width / 2, height / 2, 8);
+    return;
+  }
+  drawStarPath(ctx, cx, cy, width / 2, height / 2, shape.arms, shape.innerRatio);
+}
 
 function computeLayout(text: string): LayoutMetrics {
   const words = text.split(' ');
@@ -62,6 +164,7 @@ export function createCanvasTextureFromLayout(
   opts: TextureBuildOptions,
 ): { texture: THREE.Texture; baseScale: number; aspectRatio: number } {
   const { dark, nodeShape, nodeBorderWidth } = opts;
+  const shape = normalizeNodeShape(nodeShape);
   const effectiveBorderColor = EDIT_NODE_COLOR;
   const effectiveTextColor = EDIT_NODE_COLOR;
 
@@ -70,9 +173,12 @@ export function createCanvasTextureFromLayout(
   const lineHeight = fontSize * 1.2;
   const padding = 14;
   const pixelRatio = 3;
+  const shapeScale = SHAPE_AREA_SCALE[shape.kind] ?? 1;
+  const shapeWidth = logicalWidth * shapeScale;
+  const shapeHeight = logicalHeight * shapeScale;
 
-  const canvasLogicalWidth = logicalWidth + OUTLINE_MARGIN * 2;
-  const canvasLogicalHeight = logicalHeight + OUTLINE_MARGIN * 2;
+  const canvasLogicalWidth = shapeWidth + OUTLINE_MARGIN * 2;
+  const canvasLogicalHeight = shapeHeight + OUTLINE_MARGIN * 2;
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasLogicalWidth * pixelRatio;
@@ -82,32 +188,20 @@ export function createCanvasTextureFromLayout(
 
   const bw = nodeBorderWidth;
   const fillColor = getNetworkLabelStyle(dark).backgroundHex;
-  const cx = OUTLINE_MARGIN + logicalWidth / 2;
-  const cy = OUTLINE_MARGIN + logicalHeight / 2;
+  const cx = OUTLINE_MARGIN + shapeWidth / 2;
+  const cy = OUTLINE_MARGIN + shapeHeight / 2;
+  const textOffsetY = OUTLINE_MARGIN + (shapeHeight - logicalHeight) / 2;
+  const fillRadius = shape.kind === 'rounded-rectangle' ? 6 : 0;
 
   context.save();
   context.beginPath();
-  if (nodeShape === 'ellipse') {
-    context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
-  } else if (nodeShape === 'rounded-rectangle') {
-    context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
-  } else {
-    context.rect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
-  }
+  drawShapePath(context, shape, cx, cy, shapeWidth, shapeHeight, fillRadius);
   context.clip();
 
   context.fillStyle = fillColor;
-  if (nodeShape === 'ellipse') {
-    context.beginPath();
-    context.ellipse(cx, cy, logicalWidth / 2, logicalHeight / 2, 0, 0, Math.PI * 2);
-    context.fill();
-  } else if (nodeShape === 'rounded-rectangle') {
-    context.beginPath();
-    context.roundRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight, 6);
-    context.fill();
-  } else {
-    context.fillRect(OUTLINE_MARGIN, OUTLINE_MARGIN, logicalWidth, logicalHeight);
-  }
+  context.beginPath();
+  drawShapePath(context, shape, cx, cy, shapeWidth, shapeHeight, fillRadius);
+  context.fill();
   context.restore();
 
   if (!highlighted && !selected) {
@@ -115,29 +209,18 @@ export function createCanvasTextureFromLayout(
       context.strokeStyle = effectiveBorderColor;
       context.lineWidth = bw;
       context.beginPath();
-      if (nodeShape === 'ellipse') {
-        context.ellipse(cx, cy, logicalWidth / 2 + bw / 2, logicalHeight / 2 + bw / 2, 0, 0, Math.PI * 2);
-      } else if (nodeShape === 'rounded-rectangle') {
-        context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 6);
-      } else {
-        context.roundRect(OUTLINE_MARGIN - bw / 2, OUTLINE_MARGIN - bw / 2, logicalWidth + bw, logicalHeight + bw, 3 + bw / 2);
-      }
+      const borderRadius = shape.kind === 'rectangle' ? 3 + bw / 2 : 6;
+      drawShapePath(context, shape, cx, cy, shapeWidth + bw, shapeHeight + bw, borderRadius);
       context.stroke();
     }
   } else {
-    const pathOff = OUTLINE_MARGIN - OUTLINE_GAP - OUTLINE_STROKE / 2;
-    const pathW = logicalWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
-    const pathH = logicalHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
+    const pathW = shapeWidth + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
+    const pathH = shapeHeight + 2 * (OUTLINE_GAP + OUTLINE_STROKE / 2);
     context.strokeStyle = SCENE_COLORS.selectionOutline;
     context.lineWidth = OUTLINE_STROKE;
     context.beginPath();
-    if (nodeShape === 'ellipse') {
-      context.ellipse(cx, cy, pathW / 2, pathH / 2, 0, 0, Math.PI * 2);
-    } else if (nodeShape === 'rounded-rectangle') {
-      context.roundRect(pathOff, pathOff, pathW, pathH, 8);
-    } else {
-      context.roundRect(pathOff, pathOff, pathW, pathH, 5);
-    }
+    const outlineRadius = shape.kind === 'rectangle' ? 5 : 8;
+    drawShapePath(context, shape, cx, cy, pathW, pathH, outlineRadius);
     context.stroke();
   }
 
@@ -146,8 +229,8 @@ export function createCanvasTextureFromLayout(
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   words.forEach((word, i) => {
-    const y = OUTLINE_MARGIN + padding + lineHeight / 2 + i * lineHeight;
-    context.fillText(word, OUTLINE_MARGIN + logicalWidth / 2, y);
+    const y = textOffsetY + padding + lineHeight / 2 + i * lineHeight;
+    context.fillText(word, cx, y);
   });
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -205,7 +288,7 @@ export function buildTextureCache(
   const cache: TextureCache = new Map();
   nodes.forEach(node => {
     const n = createCanvasTexture(node.label, false, false, opts);
-    cache.set(node.label, {
+    cache.set(getTextureCacheKey(node.label, opts.nodeShape), {
       normal: n.texture,
       baseScale: n.baseScale,
       aspectRatio: n.aspectRatio,
@@ -231,7 +314,7 @@ export function swapSpriteTexture(
   opts: TextureBuildOptions,
 ): void {
   if (!node.textSprite) return;
-  const cached = cache.get(node.label);
+  const cached = cache.get(getTextureCacheKey(node.label, opts.nodeShape));
   if (!cached) return;
 
   let tex = cached.normal;

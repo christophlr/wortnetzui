@@ -4,13 +4,6 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Phase 6.3 — Node shapes & centered picker**:
-  - Widen `NodeShape` from string union to discriminated object; add triangle, hexagon, octagon, and parametric star (arms 3-12, inner ratio 0.2-0.8).
-  - Per-shape area compensation so inscribed shapes match rectangle visual size.
-  - New `SidebarCenteredPicker` atom modeled on Figma's Effects dropdown — the active option is vertically centered on the trigger when opened, giving a cycling feel.
-  - Migrate Shape control and post-FX kind selectors in `VisualTab.tsx` to the new atom; reveal arms/innerRatio sliders only when `kind === 'star'`.
-  - Workspace migration for legacy string-shape values.
-
 ## Planned
 
 - **Phase 6.4 — MIDI mapping**:
@@ -26,6 +19,12 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Phase 6.3 — Node shapes & centered picker**:
+  - Widen `NodeShape` from string union to discriminated object; add triangle, hexagon, octagon, and parametric star (arms 3-12, inner ratio 0.2-0.8).
+  - Per-shape area compensation so inscribed shapes match rectangle visual size.
+  - New `SidebarCenteredPicker` atom modeled on Figma's Effects dropdown — the active option is vertically centered on the trigger when opened, giving a cycling feel.
+  - Migrate Shape control and post-FX kind selectors in `VisualTab.tsx` to the new atom; reveal arms/innerRatio sliders only when `kind === 'star'`.
+  - Workspace migration for legacy string-shape values.
 - **Phase 6.3b — Hover-reveal reorder handle**:
   - New `SidebarReorderRow` atom in `SidebarAtoms.tsx`: grip indicator (`GripVertical`) appears on the left edge of sidebar list rows on hover (modeled on Figma's Fill panel) with a reserved 12px gutter so layout doesn't shift.
   - Drag handle is the grip only (`onMouseDown` arms drag); whole row is the drop target. HTML5 drag-and-drop, no new dependency.

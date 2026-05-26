@@ -70,6 +70,9 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - Required hierarchy is: `Sidebar` -> `Tab` -> `SidebarGroup` -> `Control row`.
 - **Note:** Detailed rhythm and typography rules for these atoms are documented in the JSDoc header of `SidebarAtoms.tsx`.
 
+### Sidebar Centered Picker
+- Use `SidebarCenteredPicker` for Visual-tab type selectors (shape, effects). The active option should open vertically centered on the trigger to create the cycling feel.
+
 ### Sidebar Activity Tabs
 - In the Sidebar's left activity bar, inactive tab buttons use the same subtle rounded hover rectangle as the toolbar buttons.
 - The active tab indicator and selection styling stay unchanged; only the hover affordance is shared.
