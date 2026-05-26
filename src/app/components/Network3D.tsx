@@ -193,6 +193,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const {
     activeTool,
     brushRadius,
+    setBrushRadius,
     paintColor,
     paintScale,
     paintOpacity,
@@ -201,10 +202,56 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     setPaintedOverrides
   } = useWortnetz();
 
+  const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
+
   const paintedOverridesRef = useRef(paintedOverrides);
   useEffect(() => {
     paintedOverridesRef.current = paintedOverrides;
   }, [paintedOverrides]);
+
+  // Adjust brush radius using global hotkeys when not focused on an input/editable element
+  useEffect(() => {
+    if (activeTool !== 'paint') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      )) {
+        return;
+      }
+
+      if (e.key === '[') {
+        setBrushRadius(Math.max(10, brushRadius - 5));
+      } else if (e.key === ']') {
+        setBrushRadius(Math.min(300, brushRadius + 5));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTool, brushRadius, setBrushRadius]);
+
+  // Sync initial canvas style cursor immediately when the active tool changes
+  useEffect(() => {
+    const el = rendererRef.current?.domElement;
+    if (!el) return;
+    if (activeTool === 'paint') {
+      el.style.cursor = 'none';
+    } else if (activeTool === 'pan') {
+      el.style.cursor = 'grab';
+    } else if (activeTool === 'zoom') {
+      el.style.cursor = 'zoom-in';
+    } else if (activeTool === 'glitch') {
+      el.style.cursor = 'crosshair';
+    } else if (activeTool === 'path') {
+      el.style.cursor = 'cell';
+    } else {
+      el.style.cursor = 'default';
+    }
+  }, [activeTool]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -601,6 +648,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     camera: cameraRef.current,
     mousePos: mousePosRef.current,
     edgeLines: edgeLinesRef.current,
+    paintedOverrides: paintedOverridesRef.current,
   });
 
   const physicsSync = usePhysicsWorkerSync({
@@ -646,18 +694,33 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   }, [viewMode]);
   useResizeObserver(containerRef, handleResize);
 
-  const attachRaycastHover = useRaycastHover({
+  const attachToolHandlers = useToolHandlers({
+    activeTool,
     cameraRef,
     spritesArrayRef,
     graphNodesRef,
+    graphNodeArrayRef,
     hoveredNodeRef,
     selectedNodeRef,
+    controlsRef,
     cameraFlyRef,
     flyToTargetRef,
-    controlsRef,
-    swap,
     onNodeSelectRef,
     viewMode,
+    swap,
+    sync,
+    brushRadius,
+    paintColor,
+    paintScale,
+    paintOpacity,
+    paintMode,
+    setPaintedOverrides,
+    physicsVelocityRef,
+    stillFramesRef,
+    physicsEnabledRef,
+    workerPosVelRef,
+    is2D: viewMode === '2D',
+    setMouseCoords,
   });
 
   /* ── INITIAL LAYOUT (ORGANIC SPHERE) ── */
@@ -991,12 +1054,11 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       node.nodeIndex = nodeIdx++;
     });
 
-    // Cache sprite list for raycasting — only rebuilt here and on structural changes (text change)
     spritesArrayRef.current = graphNodeArrayRef.current
       .map(n => n.textSprite)
       .filter(Boolean) as THREE.Object3D[];
 
-    const detachRaycastHover = attachRaycastHover(renderer.domElement);
+    const detachToolHandlers = attachToolHandlers(renderer.domElement);
 
     // Animation loop
     let lastTime = performance.now();
@@ -1189,6 +1251,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         mousePos: mousePosRef.current,
         edgeLines: edgeLinesRef.current,
         time: nowSec,
+        paintedOverrides: paintedOverridesRef.current,
       });
 
       // Configure bloom pass from animated values
@@ -1230,7 +1293,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         animationFrameRef.current = null;
       }
       
-      detachRaycastHover();
+      detachToolHandlers();
       
       if (renderer.domElement.parentNode === containerRef.current) {
         containerRef.current?.removeChild(renderer.domElement);
@@ -1389,6 +1452,22 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         >
           {/* Three.js Canvas will be here */}
         </ContextMenuTrigger>
+
+        {/* SVG Paintbrush overlay circle */}
+        {activeTool === 'paint' && mouseCoords && (
+          <svg className="pointer-events-none absolute inset-0 w-full h-full z-30">
+            <circle
+              cx={mouseCoords.x}
+              cy={mouseCoords.y}
+              r={brushRadius}
+              fill={paintMode === 'erase' ? 'rgba(225, 29, 72, 0.05)' : `${paintColor}0f`}
+              stroke={paintMode === 'erase' ? '#e11d48' : paintColor}
+              strokeWidth={1.5}
+              strokeDasharray={paintMode === 'erase' ? '3,3' : undefined}
+              className="opacity-80 transition-[r] duration-75 ease-out"
+            />
+          </svg>
+        )}
 
         {/* Camera Locked Indicator */}
         {cameraLocked && (

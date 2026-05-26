@@ -170,7 +170,7 @@ export const Preview = forwardRef<Network3DHandle, PreviewProps>(function Previe
   return (
     <div 
       ref={previewRef} 
-      className="w-full h-full relative overflow-hidden transition-colors duration-500"
+      className="w-full h-full relative overflow-hidden"
       style={{
         backgroundColor: visualSettings?.backgroundColor || 'var(--preview-background)'
       }}

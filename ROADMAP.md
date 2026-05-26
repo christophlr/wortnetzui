@@ -4,9 +4,7 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Animation Phase 5: Toolbar functionality**
-  - Wire `activeTool` to canvas event handlers (currently dead UI).
-  - Paint brush, navigation tools, glitch tool.
+*(No active tasks — currently planning Phase 6)*
 
 ## Planned
 
@@ -20,6 +18,12 @@ This document outlines the current status of features, planned work, and known t
 
 ## Completed
 
+- **Animation Phase 5: Toolbar functionality**:
+  - Wired `activeTool` to canvas event handlers via the new `useToolHandlers` hook in `Network3D.tsx`.
+  - Implemented 6 interactive canvas tools: `pointer` (clicking selects nodes, double-clicking flies camera), `pan` (left-mouse camera panning), `zoom` (vertical drag dolly), `paint` (paint brush overrides for node color, scale, opacity, and eraser), `glitch` (radial shockwave impulse applied directly to physical node velocities), and `path` (click to select nodes for the path animator).
+  - Integrated a premium SVG paintbrush cursor overlay displaying the brush size and color/eraser modes with smooth size transitions.
+  - Added support for global hotkeys (`[` and `]`) to dynamically resize the paintbrush when not typing.
+  - Integrated `paintedOverrides` serialization and deserialization across workspace save and load routines.
 - **Modulator Waveforms & UI Icons Upgrade**:
   - Implemented four new modulator waveforms (Sawtooth Up `sawtooth`, Sawtooth Down `sawtoothDown`, Step Random `random`, and Smooth Random `noise`).
   - Added a deterministic pseudo-random `hash` generator to ensure Step Random and Smooth Random animations are scrubbable and repeatable.
