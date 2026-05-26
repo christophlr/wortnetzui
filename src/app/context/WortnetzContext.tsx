@@ -14,14 +14,18 @@ import {
   Modulator,
 } from './WortnetzContextTypes';
 
-import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM } from './WortnetzContextConstants';
+import { EMPTY_PHYSICS_KFS, PHYS_TRACK_PARAM, VISUAL_TRACK_IDS, VISUAL_TRACK_PARAM } from './WortnetzContextConstants';
 
-// Default trackMeta map seeded for all 8 physics tracks (glide=0, no modulator).
+/** Check if a track ID belongs to the visual/effects track group. */
+const isVisualTrack = (trackId: string): boolean =>
+  (VISUAL_TRACK_IDS as readonly string[]).includes(trackId);
+
+// Default trackMeta map seeded for all physics tracks and all visual/effects tracks (glide=0, no modulator).
 const DEFAULT_TRACK_META: Record<string, TrackMeta> = Object.freeze(
-  Object.fromEntries(Object.keys(PHYS_TRACK_PARAM).map(id => [id, { glide: 0 }]))
+  Object.fromEntries([...Object.keys(PHYS_TRACK_PARAM), ...VISUAL_TRACK_IDS].map(id => [id, { glide: 0 }]))
 );
 const DEFAULT_ARMED_TRACKS: ReadonlySet<string> = Object.freeze(
-  new Set(Object.keys(PHYS_TRACK_PARAM))
+  new Set([...Object.keys(PHYS_TRACK_PARAM), ...VISUAL_TRACK_IDS])
 ) as ReadonlySet<string>;
 import useWorkspaceIO from '../hooks/useWorkspaceIO';
 import { useUndoStack } from '../hooks/useUndoStack';
@@ -75,8 +79,18 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     nodesVisible: true, edgesVisible: true,
     radialBiasScale: 0, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
     glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
-    pathSmoothness: 0.5, pathCameraFollow: true
+    pathSmoothness: 0.5, pathCameraFollow: true,
+    bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
+    bloomSelective: false, bloomSelectiveRatio: 0.5,
+    bloomGlowMode: 'deterministic' as const,
+    bloomFlickerSpeed: 1.0,
+    gradientHueShift: 0.0,
+    effectsList: [] as ('bloom' | 'glitch')[],
+    bloomPreset: 'custom' as const,
+    backgroundColor: ''
   });
+  const [pathNodes, setPathNodes] = useState<{ id: string; label: string }[]>([]);
+  const [isPathPlaying, setIsPathPlaying] = useState(false);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [edgeAppearance, setEdgeAppearance] = useState<EdgeAppearanceSettings>(defaultEdgeAppearance);
@@ -101,6 +115,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   const armedTracksRef = useRef<ReadonlySet<string>>(armedTracks);
   useEffect(() => { armedTracksRef.current = armedTracks; }, [armedTracks]);
+
+  const visualSettingsRef = useRef(visualSettings);
+  useEffect(() => { visualSettingsRef.current = visualSettings; }, [visualSettings]);
+
+  const styleSettingsRef = useRef(styleSettings);
+  useEffect(() => { styleSettingsRef.current = styleSettings; }, [styleSettings]);
 
   const getTimelineState = useCallback((): TimelineState => ({
     cameraKeyframes: cameraKeyframesRef.current,
@@ -139,8 +159,8 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     useCallback(() => ({
       inputText, parseMode, styleSettings, physicsParams,
       viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers,
-      trackMeta,
-    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers, trackMeta]),
+      trackMeta, visualSettings, pathNodes,
+    }), [inputText, parseMode, styleSettings, physicsParams, viewMode, cameraKeyframes, physicsKeyframes, sceneMarkers, trackMeta, visualSettings, pathNodes]),
     useCallback((s) => {
       if (s.inputText) setInputText(s.inputText);
       if (s.parseMode) setParseMode(s.parseMode);
@@ -150,6 +170,34 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       if (s.cameraKeyframes) setCameraKeyframes(s.cameraKeyframes);
       if (s.physicsKeyframes) setPhysicsKeyframes(s.physicsKeyframes);
       if (s.sceneMarkers) setSceneMarkers(s.sceneMarkers);
+      if (s.visualSettings) {
+        const baseVisual = {
+          nodesVisible: true, edgesVisible: true,
+          radialBiasScale: 0, radialBiasOpacity: 0.5, gradientOrigin: '#4f46e5', gradientPeriphery: '#10b981',
+          glitchActive: false, glitchBrushRadius: 100, glitchFeather: 0.5,
+          pathSmoothness: 0.5, pathCameraFollow: true,
+          bloomEnabled: false, bloomIntensity: 0.15, bloomRadius: 0.4, bloomThreshold: 0.85,
+          effectsList: [] as ('bloom' | 'glitch')[],
+          bloomPreset: 'custom' as const,
+          backgroundColor: ''
+        };
+        const loadedVisual = s.visualSettings;
+        const autoList: ('bloom' | 'glitch')[] = [...(loadedVisual.effectsList ?? [])];
+        if (!loadedVisual.effectsList) {
+          if (loadedVisual.bloomEnabled) autoList.push('bloom');
+          if (loadedVisual.glitchActive) autoList.push('glitch');
+        }
+        setVisualSettings({
+          ...baseVisual,
+          ...loadedVisual,
+          effectsList: autoList
+        });
+      }
+      if (s.pathNodes) {
+        setPathNodes(s.pathNodes);
+      } else {
+        setPathNodes([]);
+      }
       // v0 files (no version, no trackMeta) load with all-default trackMeta.
       // v1 files restore only the non-default entries that were persisted;
       // unmentioned tracks fall back to glide=0, no modulator.
@@ -192,6 +240,29 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       nextPhysKfs[trackId] = [...filtered, { time: currentTime, value: effectivePhysics[param], ...easingProps }]
         .sort((a, b) => a.time - b.time);
     }
+
+    // Capture all visual/effects tracks
+    const vs = visualSettingsRef.current as Record<string, unknown>;
+    const ss = styleSettingsRef.current as Record<string, unknown>;
+    for (const trackId of VISUAL_TRACK_IDS) {
+      const paramKey = VISUAL_TRACK_PARAM[trackId];
+      const value = (vs[paramKey] ?? ss[paramKey] ?? 0) as number;
+      const existingK = (nextPhysKfs[trackId] ?? []).find(k => sameTime(k.time, currentTime));
+      const filtered = (nextPhysKfs[trackId] ?? []).filter(k => differentTime(k.time, currentTime));
+      const easingProps = existingK
+        ? {
+            handleOut: existingK.handleOut,
+            handleIn: existingK.handleIn,
+            handleOutTime: existingK.handleOutTime,
+            handleInTime: existingK.handleInTime,
+            mode: existingK.mode,
+            interpolation: existingK.interpolation,
+          }
+        : { mode: 'aligned' as const };
+      nextPhysKfs[trackId] = [...filtered, { time: currentTime, value, ...easingProps }]
+        .sort((a, b) => a.time - b.time);
+    }
+
     physicsKeyframesRef.current = nextPhysKfs;
     setPhysicsKeyframes(nextPhysKfs);
 
@@ -293,7 +364,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       });
       setPhysicsKeyframes(prev => {
         const nextKfs: Record<string, PhysicsKeyframe[]> = { ...prev };
-        for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
+        for (const tid of [...Object.keys(PHYS_TRACK_PARAM), ...VISUAL_TRACK_IDS]) {
           const selectedTimes = new Set(sel.filter(s => s.track === tid).map(s => s.time));
           const moved = (prev[tid] ?? []).map(k => selectedTimes.has(k.time)
             ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) }
@@ -329,7 +400,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
           cameraKeyframesRef.current = next;
           return next;
         });
-      } else if (trackId in PHYS_TRACK_PARAM) {
+      } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
         setPhysicsKeyframes(prev => {
           // Move, then dedup: remove any OTHER keyframe within TIME_EPSILON of newTime.
           const track = prev[trackId] ?? [];
@@ -353,7 +424,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       });
       setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).filter(k => differentTime(k.time, time));
         const next = { ...prevPkfs, [trackId]: kfs };
@@ -387,7 +458,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       });
       setSelectedKeyframes(sel => sel.filter(s => !(s.track === trackId && sameTime(s.time, time))));
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const arr = [...(prevPkfs[trackId] ?? [])].sort((a, b) => a.time - b.time);
         const idx = arr.findIndex(k => sameTime(k.time, time));
@@ -414,7 +485,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       setCameraKeyframes([]);
       setSelectedKeyframes(sel => sel.filter(s => s.track !== trackId));
       pushHistory({ ...prev, cameraKeyframes: [] });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       const next = { ...physicsKeyframesRef.current, [trackId]: [] };
       physicsKeyframesRef.current = next;
       setPhysicsKeyframes(next);
@@ -443,7 +514,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         cameraKeyframesRef.current = next;
         return next;
       });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prev => {
         const kfs = (prev[trackId] ?? []).map(k => {
           if (differentTime(k.time, time)) return k;
@@ -480,7 +551,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         return next;
       });
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
           if (differentTime(k.time, time)) return k;
@@ -513,7 +584,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         return next;
       });
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
           if (differentTime(k.time, time)) return k;
@@ -547,7 +618,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         return next;
       });
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const kfs = (prevPkfs[trackId] ?? []).map(k => {
           if (differentTime(k.time, time)) return k;
@@ -574,7 +645,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         return next;
       });
       pushHistory({ ...prev, cameraKeyframes: cameraKeyframesRef.current });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevPkfs => {
         const src = (prevPkfs[trackId] ?? []).find(k => sameTime(k.time, srcTime));
         if (!src) return prevPkfs;
@@ -621,7 +692,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     });
     setPhysicsKeyframes(prev => {
       const nextKfs: Record<string, PhysicsKeyframe[]> = {};
-      for (const tid of Object.keys(PHYS_TRACK_PARAM)) {
+      for (const tid of [...Object.keys(PHYS_TRACK_PARAM), ...VISUAL_TRACK_IDS]) {
         nextKfs[tid] = (prev[tid] ?? [])
           .map(k => sameTime(k.time, oldTime) ? { ...k, time: Math.max(0, Math.min(TIMELINE_DURATION, k.time + delta)) } : k)
           .sort((a, b) => a.time - b.time);
@@ -651,7 +722,7 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
         cameraKeyframesRef.current = next;
         return next;
       });
-    } else if (trackId in PHYS_TRACK_PARAM) {
+    } else if (trackId in PHYS_TRACK_PARAM || isVisualTrack(trackId)) {
       setPhysicsKeyframes(prevKfs => {
         const track = prevKfs[trackId] ?? [];
         const next = {
@@ -738,6 +809,45 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     pushHistoryDebounced(500);
   }, [pushHistoryDebounced]);
 
+  const handleVisualSettingsChange = useCallback((settings: any) => {
+    setVisualSettings(prev => {
+      const next = typeof settings === 'function' ? settings(prev) : settings;
+      // Auto-update keyframes for any visual track whose parameter value changed
+      const currentTime = playheadRef.current;
+      const isRecordingLocal = isRecordingRef.current;
+      const prevR = prev as Record<string, unknown>;
+      const nextR = next as Record<string, unknown>;
+      for (const trackId of VISUAL_TRACK_IDS) {
+        const paramKey = VISUAL_TRACK_PARAM[trackId];
+        if (paramKey in nextR && nextR[paramKey] !== prevR[paramKey] && nextR[paramKey] !== undefined) {
+          const newValue = nextR[paramKey] as number;
+          setPhysicsKeyframes(prevKfs => {
+            const track = prevKfs[trackId] ?? [];
+            if (track.length > 0 || isRecordingLocal) {
+              const nextKfs = { ...prevKfs };
+              const kfIdx = track.findIndex(k => sameTime(k.time, currentTime));
+              if (kfIdx >= 0) {
+                if (newValue !== track[kfIdx].value) {
+                  nextKfs[trackId] = track.map((k, i) => i === kfIdx ? { ...k, value: newValue } : k);
+                  physicsKeyframesRef.current = nextKfs;
+                  return nextKfs;
+                }
+              } else {
+                const nextTrack = [...track, { time: currentTime, value: newValue, mode: 'aligned' as const }].sort((a, b) => a.time - b.time);
+                nextKfs[trackId] = nextTrack;
+                physicsKeyframesRef.current = nextKfs;
+                return nextKfs;
+              }
+            }
+            return prevKfs;
+          });
+          pushHistoryDebounced(500);
+        }
+      }
+      return next;
+    });
+  }, [pushHistoryDebounced]);
+
   const preDragStateRef = useRef<TimelineState | null>(null);
 
   const handleDragStart = useCallback(() => {
@@ -796,7 +906,10 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
 
   // Build paramKey → trackId reverse map once. Used by handleCommitRecording.
   const PARAM_TO_TRACK_ID = useRef<Record<string, string>>(
-    Object.fromEntries(Object.entries(PHYS_TRACK_PARAM).map(([trackId, paramKey]) => [paramKey, trackId]))
+    Object.fromEntries([
+      ...Object.entries(PHYS_TRACK_PARAM),
+      ...Object.entries(VISUAL_TRACK_PARAM),
+    ].map(([trackId, paramKey]) => [paramKey, trackId]))
   ).current;
 
   const handleCommitRecording = useCallback((result: RecorderResult) => {
@@ -833,6 +946,31 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
     // Arm/disarm is a session-level toggle, not undoable per plan.
   }, []);
 
+  const handleNodeSelect = useCallback((node: any) => {
+    if (activeTool === 'path') {
+      if (node) {
+        setPathNodes(prev => {
+          if (prev.length > 0 && prev[prev.length - 1].id === node.label) return prev;
+          return [...prev, { id: node.label, label: node.label }];
+        });
+      }
+    } else {
+      setSelectedNode(node);
+    }
+  }, [activeTool]);
+
+  const reorderPathNodes = useCallback((newNodes: { id: string; label: string }[]) => {
+    setPathNodes(newNodes);
+  }, []);
+
+  const removePathNode = useCallback((index: number) => {
+    setPathNodes(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const clearPath = useCallback(() => {
+    setPathNodes([]);
+  }, []);
+
   return (
     <WortnetzContext.Provider value={{
       viewMode, setViewMode, themeMode, setThemeMode, themeAuto, setThemeAuto,
@@ -840,11 +978,12 @@ export function WortnetzProvider({ children }: { children: ReactNode }) {
       isSidebarOpen, setIsSidebarOpen, sidebarWidth, setSidebarWidth, timelineHeight, setTimelineHeight,
       isNetworkReady, setIsNetworkReady, initProgress, setInitProgress,
       inputText, setInputText, parseMode, setParseMode,
-      styleSettings, setStyleSettings, physicsParams, setPhysicsParams, visualSettings, setVisualSettings,
+      styleSettings, setStyleSettings, physicsParams, setPhysicsParams, visualSettings, setVisualSettings: handleVisualSettingsChange,
       edgeAppearance, setEdgeAppearance,
       isPlaying, setIsPlaying, isRecording, setIsRecording, playheadPosition, setPlayheadPosition, timecode, setTimecode,
       cameraKeyframes, setCameraKeyframes, physicsKeyframes, setPhysicsKeyframes, sceneMarkers, setSceneMarkers,
-      selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode,
+      selectedKeyframes, setSelectedKeyframes, selectedNode, setSelectedNode: handleNodeSelect,
+      pathNodes, setPathNodes, isPathPlaying, setIsPathPlaying, reorderPathNodes, removePathNode, clearPath,
       trackMeta, setTrackMeta, handleSetTrackGlide, handleSetTrackModulator,
       armedTracks, handleToggleTrackArm, handleCommitRecording,
       network3DRef, cameraKeyframesRef, physicsKeyframesRef, sceneMarkersRef, selectedKeyframesRef, playheadRef, isRecordingRef,

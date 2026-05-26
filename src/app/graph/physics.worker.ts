@@ -74,6 +74,26 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
   const { repulsion, springK, damping, minSpeed, linkDistance, gravity, turbulence, verticalOrder } = params;
   const n = nodeCount;
 
+  // Self-healing validation loop: Detect and recover from NaN or non-finite coordinate values
+  for (let i = 0; i < n; i++) {
+    const b = i * 6;
+    if (
+      Number.isNaN(posVel[b])     || !Number.isFinite(posVel[b])     ||
+      Number.isNaN(posVel[b + 1]) || !Number.isFinite(posVel[b + 1]) ||
+      Number.isNaN(posVel[b + 2]) || !Number.isFinite(posVel[b + 2]) ||
+      Number.isNaN(posVel[b + 3]) || !Number.isFinite(posVel[b + 3]) ||
+      Number.isNaN(posVel[b + 4]) || !Number.isFinite(posVel[b + 4]) ||
+      Number.isNaN(posVel[b + 5]) || !Number.isFinite(posVel[b + 5])
+    ) {
+      posVel[b]     = (Math.random() - 0.5) * 50;
+      posVel[b + 1] = (Math.random() - 0.5) * 50;
+      posVel[b + 2] = is2D ? 0 : (Math.random() - 0.5) * 50;
+      posVel[b + 3] = 0;
+      posVel[b + 4] = 0;
+      posVel[b + 5] = 0;
+    }
+  }
+
   // Damping, gravity, turbulence
   for (let i = 0; i < n; i++) {
     const b = i * 6;
@@ -282,6 +302,36 @@ function runStep(posVel: Float64Array, params: PhysicsParams, is2D: boolean): nu
     }
   }
 
+  // Center of mass correction to prevent system drift
+  if (n > 0) {
+    let sx = 0, sy = 0, sz = 0;
+    let svx = 0, svy = 0, svz = 0;
+    for (let i = 0; i < n; i++) {
+      const b = i * 6;
+      sx += posVel[b];
+      sy += posVel[b + 1];
+      sz += posVel[b + 2];
+      svx += posVel[b + 3];
+      svy += posVel[b + 4];
+      svz += posVel[b + 5];
+    }
+    const cx = sx / n;
+    const cy = sy / n;
+    const cz = sz / n;
+    const cvx = svx / n;
+    const cvy = svy / n;
+    const cvz = svz / n;
+    for (let i = 0; i < n; i++) {
+      const b = i * 6;
+      posVel[b] -= cx;
+      posVel[b + 1] -= cy;
+      posVel[b + 2] -= cz;
+      posVel[b + 3] -= cvx;
+      posVel[b + 4] -= cvy;
+      posVel[b + 5] -= cvz;
+    }
+  }
+
   return totalMovement / Math.max(n, 1);
 }
 
@@ -352,10 +402,28 @@ self.onmessage = (e: MessageEvent<InitMessage | StepMessage | SettleMessage | Up
   const wallTime = performance.now() / 1000;
   evaluateTracks(tracks, sliderParams as unknown as Record<string, number>, time, dt, applied as unknown as Record<string, number>, wallTime);
 
+  // Parameter sanitization: ensure evaluated track params contain no NaN or infinite values
+  for (const key of Object.keys(applied) as Array<keyof PhysicsParams>) {
+    const val = applied[key];
+    if (typeof val !== 'number' || Number.isNaN(val) || !Number.isFinite(val)) {
+      applied[key] = (sliderParams && typeof sliderParams[key] === 'number' && !Number.isNaN(sliderParams[key]))
+        ? sliderParams[key]
+        : DEFAULT_PHYSICS[key];
+    }
+  }
+
   // Layer main-thread overrides (jolt damping floor) on top of `applied`.
   const final: PhysicsParams = paramOverrides
     ? { ...applied, ...paramOverrides }
     : applied;
+
+  // Double-check sanitization on final parameters passed to the solver
+  for (const key of Object.keys(final) as Array<keyof PhysicsParams>) {
+    const val = final[key];
+    if (typeof val !== 'number' || Number.isNaN(val) || !Number.isFinite(val)) {
+      final[key] = DEFAULT_PHYSICS[key];
+    }
+  }
 
   const avgMovement = runStep(posVel, final, is2D);
 

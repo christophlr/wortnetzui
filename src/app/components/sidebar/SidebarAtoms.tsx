@@ -792,26 +792,25 @@ export function SidebarVisibilityToggle({
   );
 }
 
-export function SidebarSectionActionButton({
-  icon: Icon,
-  title,
-  onClick,
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  title?: string;
-  onClick: () => void;
-}) {
+export const SidebarSectionActionButton = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<'button'> & {
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+  }
+>(function SidebarSectionActionButton({ icon: Icon, title, onClick, className, ...props }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       title={title}
-      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-bg transition-all"
+      className={cn("p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-wn-control-bg transition-all", className)}
+      {...props}
     >
       <Icon size={13} />
     </button>
   );
-}
+});
 
 // ──────────────────────────────────────────────────────────────────────────
 // Chrome atoms — info box, collapsible panel

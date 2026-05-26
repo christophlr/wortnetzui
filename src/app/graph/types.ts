@@ -20,6 +20,10 @@ export interface GraphNode {
   scaleOverride?: number;
   unlinkedOpacity?: boolean;
   opacityOverride?: number;
+  /** Stable random seed [0,1) for selective bloom (deterministic + flicker modes). */
+  glowSeed?: number;
+  /** Integer index in the node array for index-based selective bloom. */
+  nodeIndex?: number;
 }
 
 export interface GraphEdge {

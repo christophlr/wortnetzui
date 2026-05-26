@@ -1,4 +1,4 @@
-import { GripVertical, X, Play, Route, Trash2 } from 'lucide-react';
+import { GripVertical, X, Play, Square, Route, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useT } from '../i18n/useT';
 
@@ -10,11 +10,13 @@ interface PathNode {
 interface PathAnimatorUIProps {
   nodes: PathNode[];
   onReorder: (newNodes: PathNode[]) => void;
-  onRemove: (id: string) => void;
+  onRemove: (index: number) => void;
   onClose: () => void;
+  onPlay: () => void;
+  isPlaying: boolean;
 }
 
-export function PathAnimatorUI({ nodes, onReorder: _onReorder, onRemove, onClose }: PathAnimatorUIProps) {
+export function PathAnimatorUI({ nodes, onReorder: _onReorder, onRemove, onClose, onPlay, isPlaying }: PathAnimatorUIProps) {
   const { t } = useT();
   return (
     <div className="absolute left-20 top-24 w-64 bg-zinc-50/95 backdrop-blur-xl border border-zinc-200 shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-300 pointer-events-auto">
@@ -51,7 +53,7 @@ export function PathAnimatorUI({ nodes, onReorder: _onReorder, onRemove, onClose
               </div>
               <span className="flex-1 text-[11px] font-medium text-zinc-600 truncate">{node.label}</span>
               <button
-                onClick={() => onRemove(node.id)}
+                onClick={() => onRemove(index)}
                 className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition-all"
               >
                 <Trash2 size={12} />
@@ -62,9 +64,23 @@ export function PathAnimatorUI({ nodes, onReorder: _onReorder, onRemove, onClose
       </div>
 
       <div className="p-3 bg-zinc-100/30 border-t border-zinc-200 space-y-2">
-        <Button size="sm" className="w-full h-8 text-[11px] gap-2 bg-wn-accent hover:bg-wn-accent/90 text-white shadow-sm">
-          <Play size={12} fill="currentColor" />
-          {t('sidebar.tab.visual.pathAnimator.playSequence')}
+        <Button 
+          size="sm" 
+          onClick={onPlay}
+          disabled={nodes.length < 2}
+          className="w-full h-8 text-[11px] gap-2 bg-wn-accent hover:bg-wn-accent/90 text-white shadow-sm"
+        >
+          {isPlaying ? (
+            <>
+              <Square size={12} fill="currentColor" />
+              {t('sidebar.tab.visual.pathAnimator.stopSequence')}
+            </>
+          ) : (
+            <>
+              <Play size={12} fill="currentColor" />
+              {t('sidebar.tab.visual.pathAnimator.playSequence')}
+            </>
+          )}
         </Button>
         <p className="text-[9px] text-zinc-400 text-center italic">
           {t('sidebar.tab.visual.pathAnimator.interpolationNote')}

@@ -371,7 +371,7 @@ export function Timeline(props: TimelineProps) {
   }, [cameraKeyframes, physicsKeyframes, sceneMarkers, playheadPosition]);
 
   return (
-    <div className="flex flex-col bg-background border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto" style={{ height }}>
+    <div className="flex flex-col bg-background border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pointer-events-auto w-full h-full">
       <ContextMenu onOpenChange={(open) => { if (!open) setContextMenuTarget(null); }}>
         <ContextMenuTrigger asChild>
           <div className="flex-1 flex flex-col min-h-0 relative">
@@ -443,7 +443,7 @@ export function Timeline(props: TimelineProps) {
               onContextMenu={handleBackgroundContextMenu}
             >
               {/* Ruler */}
-              <div className="flex border-b border-border shrink-0 cursor-pointer sticky top-0 z-60 bg-background" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
+              <div className="flex border-b border-border shrink-0 cursor-pointer sticky top-0 z-40 bg-background" style={{ height: 24 }} onMouseDown={handleRulerMouseDown}>
                 <TrackLabel />
                 <div className="flex-1 relative">
                   {/* Pass absolute zoom (zoom * 12) to ruler for tick density */}
@@ -610,10 +610,71 @@ export function Timeline(props: TimelineProps) {
               })}
             </TrackGroup>
 
+            {/* Effects track group */}
+            <TrackGroup
+              id="effects" name={t('timeline.track.effects')} color="purple"
+            >
+              {TRACK_GROUPS[2].tracks.map(track => {
+                const kfArr = physicsKeyframes[track.id] ?? [];
+                const trackName = 'paramKey' in track && track.paramKey
+                  ? (track.id.startsWith('fx-') ? t(`timeline.track.${track.paramKey}`) : t(`sidebar.tab.physics.param.${track.paramKey}.name`))
+                  : track.id;
+                return (
+                  <div key={track.id}>
+                    <TrackRow
+                      trackId={track.id}
+                      name={trackName}
+                      color="purple"
+                      keyframeData={kfArr}
+                      viewWindow={viewWindow}
+                      selectedKeyframes={selectedKeyframes}
+                      isGraphEditorVisible={expandedGraphTracks.has(track.id)}
+                      onToggleGraphEditor={() => setExpandedGraphTracks(prev => { const n = new Set(prev); if (n.has(track.id)) n.delete(track.id); else n.add(track.id); return n; })}
+                      onSelect={onKeyframeSelect}
+                      onMoveKeyframe={onMoveKeyframe}
+                      onDuplicateKeyframe={onDuplicateKeyframe}
+                      onContextMenu={handleKeyframeContextMenu}
+                      onDragStart={onDragStart}
+                      onDragEnd={onDragEnd}
+                      timeFromClientX={timeFromClientX}
+                      contentRef={contentRef}
+                      sceneMarkers={sceneMarkers}
+                      playheadTime={playheadPosition}
+                      modulatorWaveform={trackMeta?.[track.id]?.modulator?.waveform ?? null}
+                      isArmed={armedTracks?.has(track.id)}
+                      onToggleArm={onToggleTrackArm ? () => onToggleTrackArm(track.id) : undefined}
+                      showValueAtPlayhead
+                      onToggleKeyframeAtPlayhead={handleToggleKeyframeAtPlayhead}
+                    />
+                    {/* Per-track graph editor */}
+                    {expandedGraphTracks.has(track.id) && (
+                      <>
+                        <GraphEditor
+                          trackId={track.id}
+                          color="purple"
+                          keyframeData={kfArr}
+                          viewWindow={viewWindow}
+                          onSetHandle={onSetHandle}
+                          onSetHandle2D={onSetHandle2D}
+                          onSetValue={onSetValue}
+                          onClearHandle={onClearHandle}
+                          onSetInterpolation={onSetInterpolation}
+                          onDragStart={onDragStart}
+                          onDragEnd={onDragEnd}
+                          onContextMenu={handleKeyframeContextMenu}
+                          selectedKeyframes={selectedKeyframes}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </TrackGroup>
+
             {/* Playhead Line */}
             {playheadVisible && (
               <div 
-                className="absolute top-[24px] bottom-0 right-0 pointer-events-none z-50 overflow-hidden"
+                className="absolute top-[24px] bottom-0 right-0 pointer-events-none z-40 overflow-hidden"
                 style={{ left: LABEL_W }}
               >
                 <PlayheadLine ratio={playheadRatio} />

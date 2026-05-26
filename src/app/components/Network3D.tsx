@@ -3,12 +3,14 @@ import { Crosshair, Lock } from 'lucide-react';
 import * as THREE from 'three';
 import { createPortal } from 'react-dom';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { evaluateHermite, computeCatmullRomTangent, applyEasing } from '../easing';
+import { applyEasing } from '../easing';
+import { evaluateKeyframeSegment } from '../animation/segmentEvaluate';
 import { getNetworkThemeBackground, type NodeShape } from '../networkTheme';
 import { type GraphNode, type GraphEdge, type PhysicsParams, DEFAULT_PHYSICS, buildNetworkFromText } from '../graph';
 import { rebuildPhysicsCache } from '../graph';
-import { PHYS_TRACK_PARAM } from '../context/WortnetzContextConstants';
+import { PHYS_TRACK_PARAM, VISUAL_TRACK_IDS, VISUAL_TRACK_PARAM } from '../context/WortnetzContextConstants';
 import type { TrackMeta } from '../animation/Track';
+import { evalLfo } from '../animation/Modulator';
 import type { WorkerTrack } from '../animation/evaluateTracks';
 import {
   type TextureCache,
@@ -29,6 +31,7 @@ import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useRaycastHover } from '../hooks/useRaycastHover';
 import { useCameraFlyTo } from '../hooks/useCameraFlyTo';
 import { usePhysicsWorkerSync } from '../hooks/usePhysicsWorkerSync';
+import { setupEffectsPipeline } from '../network3d/effectsPipeline';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -79,8 +82,18 @@ interface Network3DProps {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    bloomEnabled: boolean;
+    bloomIntensity: number;
+    bloomSelective?: boolean;
+    bloomSelectiveRatio?: number;
+    bloomGlowMode?: 'deterministic' | 'flicker' | 'index';
+    bloomFlickerSpeed?: number;
+    gradientHueShift?: number;
   };
   onNodeSelect?: (node: any) => void;
+  pathNodes?: { id: string; label: string }[];
+  isPathPlaying?: boolean;
+  onPathPlaybackFinished?: () => void;
 }
 
 
@@ -154,14 +167,28 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       glitchBrushRadius: 100,
       glitchFeather: 0.5,
       pathSmoothness: 0.5,
-      pathCameraFollow: true
+      pathCameraFollow: true,
+      bloomEnabled: false,
+      bloomIntensity: 0.15,
+      bloomRadius: 0.4,
+      bloomThreshold: 0.85,
+      bloomSelective: false,
+      bloomSelectiveRatio: 0.5,
+      bloomGlowMode: 'deterministic' as const,
+      bloomFlickerSpeed: 1.0,
+      gradientHueShift: 0.0,
+      effectsList: []
     },
-    onNodeSelect
+    onNodeSelect,
+    pathNodes = [],
+    isPathPlaying = false,
+    onPathPlaybackFinished,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const effectsPipelineRef = useRef<import('../network3d/effectsPipeline').EffectsPipeline | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const graphNodesRef = useRef<Map<string, GraphNode>>(new Map());
   const graphEdgesRef = useRef<GraphEdge[]>([]);
@@ -195,6 +222,15 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const selectedNodeRef = useRef<GraphNode | null>(null);
   const lockedNodeRef = useRef<GraphNode | null>(null);
   const zoomAnimRef = useRef<{ from: number; to: number; startTime: number; duration: number } | null>(null);
+  const pathLineRef = useRef<THREE.Line | null>(null);
+  const activeTrailLineRef = useRef<THREE.Line | null>(null);
+  const orbMeshRef = useRef<THREE.Mesh | null>(null);
+  const pointLightRef = useRef<THREE.PointLight | null>(null);
+  const pathPlaybackProgressRef = useRef<number>(0);
+  const pathPlayingRef = useRef<boolean>(isPathPlaying);
+  const pathNodesRef = useRef<any[]>(pathNodes);
+  const onPathPlaybackFinishedRef = useRef(onPathPlaybackFinished);
+
   const { cameraFlyRef, flyToTargetRef, tick: tickCameraFly } = useCameraFlyTo({ cameraRef, controlsRef });
   const [panX, setPanX] = useState(0);
   const lastPanXRef = useRef(0);
@@ -204,7 +240,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   const setCameraLockedRef = useRef(setCameraLocked);
   const textureRebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const styleSettingsRef = useRef(styleSettings);
-  const isDarkRef = useRef(isDark);
+  const isDarkRef = useRef(true);
   const onReadyRef = useRef(onReady);
   const onProgressRef = useRef(onProgress);
   const onNodeSelectRef = useRef(onNodeSelect);
@@ -225,7 +261,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
   useEffect(() => { onCameraChangeRef.current = onCameraChange; }, [onCameraChange]);
   useEffect(() => { onReadyRef.current = onReady; }, [onReady]);
   useEffect(() => { onProgressRef.current = onProgress; }, [onProgress]);
-  useEffect(() => { isDarkRef.current = isDark; }, [isDark]);
+  useEffect(() => { isDarkRef.current = true; }, [isDark]);
   useEffect(() => { edgeAppearanceRef.current = edgeAppearance; }, [edgeAppearance]);
   useEffect(() => {
     playheadRef.current = playheadPosition;
@@ -434,6 +470,21 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     lastAppliedTimeRef.current = null;
   }, [cameraKeyframes]);
 
+  useEffect(() => {
+    if (isPathPlaying && !pathPlayingRef.current) {
+      pathPlaybackProgressRef.current = 0;
+    }
+    pathPlayingRef.current = isPathPlaying;
+  }, [isPathPlaying]);
+
+  useEffect(() => {
+    pathNodesRef.current = pathNodes;
+  }, [pathNodes]);
+
+  useEffect(() => {
+    onPathPlaybackFinishedRef.current = onPathPlaybackFinished;
+  }, [onPathPlaybackFinished]);
+
   const panView = useCallback((deltaX: number, deltaY: number) => {
     if (!controlsRef.current || !cameraRef.current) return;
     const cam = cameraRef.current;
@@ -569,6 +620,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     }
     camera.updateProjectionMatrix();
     renderer.setSize(nw, nh);
+    effectsPipelineRef.current?.resize(nw, nh);
   }, [viewMode]);
   useResizeObserver(containerRef, handleResize);
 
@@ -659,80 +711,44 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
 
     const sorted = [...keyframes].sort((a, b) => a.time - b.time);
 
-    if (sorted.length === 1 || time <= sorted[0].time) {
-      cameraRef.current.position.set(sorted[0].position.x, sorted[0].position.y, sorted[0].position.z);
-      controlsRef.current.target.set(sorted[0].target.x, sorted[0].target.y, sorted[0].target.z);
-      cameraRef.current.lookAt(controlsRef.current.target);
-      return;
-    }
-    if (time >= sorted[sorted.length - 1].time) {
-      const last = sorted[sorted.length - 1];
-      cameraRef.current.position.set(last.position.x, last.position.y, last.position.z);
-      controlsRef.current.target.set(last.target.x, last.target.y, last.target.z);
-      cameraRef.current.lookAt(controlsRef.current.target);
-      return;
-    }
-
+    // Find active segment's tRaw for distance scaling
     let prevIdx = 0;
-    for (let i = 0; i < sorted.length - 1; i++) {
-      if (time >= sorted[i].time && time <= sorted[i + 1].time) { prevIdx = i; break; }
+    if (time > sorted[0].time && time < sorted[sorted.length - 1].time) {
+      for (let i = 0; i < sorted.length - 1; i++) {
+        if (time >= sorted[i].time && time <= sorted[i + 1].time) {
+          prevIdx = i;
+          break;
+        }
+      }
     }
     const prev = sorted[prevIdx];
-    const next = sorted[prevIdx + 1];
-    const pp = prevIdx > 0 ? sorted[prevIdx - 1] : null;
-    const nn = prevIdx + 2 < sorted.length ? sorted[prevIdx + 2] : null;
-
+    const next = sorted[prevIdx + 1] ?? prev;
     const segDur = next.time - prev.time;
-    if (segDur === 0) {
-      cameraRef.current.position.set(prev.position.x, prev.position.y, prev.position.z);
-      controlsRef.current.target.set(prev.target.x, prev.target.y, prev.target.z);
-      cameraRef.current.lookAt(controlsRef.current.target);
-      return;
-    }
-    const tRaw = Math.max(0, Math.min(1, (time - prev.time) / segDur));
+    const tRaw = segDur === 0 ? 0 : Math.max(0, Math.min(1, (time - prev.time) / segDur));
 
-    if (prev.interpolation === 'hold') {
-      cameraRef.current.position.set(prev.position.x, prev.position.y, prev.position.z);
-      controlsRef.current.target.set(prev.target.x, prev.target.y, prev.target.z);
-      cameraRef.current.lookAt(controlsRef.current.target);
-      return;
-    }
-
-    if (prev.interpolation === 'linear') {
-      const lerp = (a: number, b: number) => a + (b - a) * tRaw;
-      cameraRef.current.position.set(
-        lerp(prev.position.x, next.position.x),
-        lerp(prev.position.y, next.position.y),
-        lerp(prev.position.z, next.position.z),
-      );
-      controlsRef.current.target.set(
-        lerp(prev.target.x, next.target.x),
-        lerp(prev.target.y, next.target.y),
-        lerp(prev.target.z, next.target.z),
-      );
-      cameraRef.current.lookAt(controlsRef.current.target);
-      return;
-    }
-
-    const t0 = prev.tension ?? 1;
-    const t1 = next.tension ?? 1;
-    const hermite = (pPrev: number | null, tPrev: number | null, p0: number, p1: number, pNext: number | null, tNext: number | null, mOut: number | undefined, mIn: number | undefined): number => {
-      // Boundary fix: clamp to 0 at first/last keyframe to prevent overshoot
-      const m0 = (mOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, pPrev, prev.time, p0, next.time, p1))) * t0;
-      const m1 = (mIn  ?? (tNext === null ? 0 : computeCatmullRomTangent(prev.time, p0, next.time, p1, tNext, pNext))) * t1;
-      return evaluateHermite(tRaw, p0, m0, p1, m1, segDur);
+    const evalChannel = (
+      valSelector: (kf: any) => number,
+      inSelector: (kf: any) => number | undefined,
+      outSelector: (kf: any) => number | undefined
+    ) => {
+      return evaluateKeyframeSegment(sorted, time, {
+        val: valSelector,
+        handleIn: inSelector,
+        handleOut: outSelector,
+        tension: kf => kf.tension ?? 1,
+        interpolation: kf => kf.interpolation,
+        clampNonNegative: false,
+      }) ?? valSelector(prev);
     };
 
-    const camX = hermite(pp?.position.x ?? null, pp?.time ?? null, prev.position.x, next.position.x, nn?.position.x ?? null, nn?.time ?? null, prev.handleOutPos?.x, next.handleInPos?.x);
-    const camY = hermite(pp?.position.y ?? null, pp?.time ?? null, prev.position.y, next.position.y, nn?.position.y ?? null, nn?.time ?? null, prev.handleOutPos?.y, next.handleInPos?.y);
-    const camZ = hermite(pp?.position.z ?? null, pp?.time ?? null, prev.position.z, next.position.z, nn?.position.z ?? null, nn?.time ?? null, prev.handleOutPos?.z, next.handleInPos?.z);
-    const tgtX = hermite(pp?.target.x ?? null, pp?.time ?? null, prev.target.x, next.target.x, nn?.target.x ?? null, nn?.time ?? null, prev.handleOutTgt?.x, next.handleInTgt?.x);
-    const tgtY = hermite(pp?.target.y ?? null, pp?.time ?? null, prev.target.y, next.target.y, nn?.target.y ?? null, nn?.time ?? null, prev.handleOutTgt?.y, next.handleInTgt?.y);
-    const tgtZ = hermite(pp?.target.z ?? null, pp?.time ?? null, prev.target.z, next.target.z, nn?.target.z ?? null, nn?.time ?? null, prev.handleOutTgt?.z, next.handleInTgt?.z);
+    const camX = evalChannel(kf => kf.position.x, kf => kf.handleInPos?.x, kf => kf.handleOutPos?.x);
+    const camY = evalChannel(kf => kf.position.y, kf => kf.handleInPos?.y, kf => kf.handleOutPos?.y);
+    const camZ = evalChannel(kf => kf.position.z, kf => kf.handleInPos?.z, kf => kf.handleOutPos?.z);
 
-    // Cartesian Hermite traces a chord rather than an arc, causing the camera to drift
-    // closer to the target mid-segment. Rescale the offset to the linearly interpolated
-    // distance so rotation moves stay at constant distance and dolly moves still work.
+    const tgtX = evalChannel(kf => kf.target.x, kf => kf.handleInTgt?.x, kf => kf.handleOutTgt?.x);
+    const tgtY = evalChannel(kf => kf.target.y, kf => kf.handleInTgt?.y, kf => kf.handleOutTgt?.y);
+    const tgtZ = evalChannel(kf => kf.target.z, kf => kf.handleInTgt?.z, kf => kf.handleOutTgt?.z);
+
     const d0 = Math.sqrt((prev.position.x - prev.target.x) ** 2 + (prev.position.y - prev.target.y) ** 2 + (prev.position.z - prev.target.z) ** 2);
     const d1 = Math.sqrt((next.position.x - next.target.x) ** 2 + (next.position.y - next.target.y) ** 2 + (next.position.z - next.target.z) ** 2);
     const interpDist = d0 + (d1 - d0) * tRaw;
@@ -785,6 +801,50 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     renderer.domElement.style.opacity = '0'; // Prevent Safari WebGL compositing flash before CSS mask
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // Configure Tonemapping to prevent color-clipping and support soft bloom edges
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+
+    const effectsPipeline = setupEffectsPipeline(renderer, scene, camera, cw || 1000, ch || 800);
+    effectsPipelineRef.current = effectsPipeline;
+
+    // Instantiate Path Animator visual assets
+    const pathMat = new THREE.LineBasicMaterial({
+      color: 0x4f46e5,
+      transparent: true,
+      opacity: 0.35,
+    });
+    const pathGeom = new THREE.BufferGeometry();
+    const pathLine = new THREE.Line(pathGeom, pathMat);
+    pathLine.visible = false;
+    scene.add(pathLine);
+    pathLineRef.current = pathLine;
+
+    const trailMat = new THREE.LineBasicMaterial({
+      color: 0x818cf8,
+      transparent: true,
+      opacity: 1.0,
+    });
+    const trailGeom = new THREE.BufferGeometry();
+    const trailLine = new THREE.Line(trailGeom, trailMat);
+    trailLine.visible = false;
+    scene.add(trailLine);
+    activeTrailLineRef.current = trailLine;
+
+    const orbGeom = new THREE.SphereGeometry(15, 16, 16);
+    const orbMat = new THREE.MeshBasicMaterial({
+      color: 0x818cf8,
+    });
+    const orbMesh = new THREE.Mesh(orbGeom, orbMat);
+    orbMesh.visible = false;
+    scene.add(orbMesh);
+    orbMeshRef.current = orbMesh;
+
+    const pointLight = new THREE.PointLight(0x818cf8, 3.0, 300);
+    pointLight.visible = false;
+    scene.add(pointLight);
+    pointLightRef.current = pointLight;
 
 
     // OrbitControls — pan+zoom only in 2D, full orbit in 3D
@@ -866,7 +926,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     // Create edges — single merged LineSegments (1 draw call for all edges)
     const edgeColor = edgeAppearance.color !== 'auto' 
       ? new THREE.Color(edgeAppearance.color) 
-      : new THREE.Color(isDark ? 0xe4e4e7 : 0x94a3b8); // Zinc-200 on dark, Zinc-400 on light
+      : new THREE.Color(0xe4e4e7); // Always use dark-themed default (Zinc-200)
     const edgeMaterial = new THREE.LineBasicMaterial({
       color: edgeColor,
       opacity: styleSettings.edgeOpacity,
@@ -895,6 +955,7 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
     textureCacheRef.current = buildTextureCache(nodes, getTextureOpts());
 
     // Create nodes with billboarded text from cached normal textures
+    let nodeIdx = 0;
     nodes.forEach(node => {
       const cached = textureCacheRef.current.get(node.label)!;
       const sprite = createSpriteFromTexture(
@@ -903,6 +964,9 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       sprite.position.set(node.x, node.y, node.z);
       scene.add(sprite);
       node.textSprite = sprite;
+      // Assign stable glow seed and index for selective bloom
+      node.glowSeed = Math.random();
+      node.nodeIndex = nodeIdx++;
     });
 
     // Cache sprite list for raycasting — only rebuilt here and on structural changes (text change)
@@ -971,13 +1035,160 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
         controlsRef.current.target.copy(newTarget);
       }
 
+      // ──────────────────────────────────────────────────────────────────────
+      // Path Animator Sequence Rendering & Animation
+      // ──────────────────────────────────────────────────────────────────────
+      const pNodes = pathNodesRef.current;
+      const isPathPlayingActive = pathPlayingRef.current;
+      
+      let curve: THREE.CatmullRomCurve3 | null = null;
+      
+      if (pNodes.length >= 2) {
+        const points: THREE.Vector3[] = [];
+        pNodes.forEach(nodeItem => {
+          const gn = graphNodesRef.current.get(nodeItem.id);
+          if (gn) {
+            points.push(new THREE.Vector3(gn.x, gn.y, gn.z));
+          }
+        });
+        
+        if (points.length >= 2) {
+          curve = new THREE.CatmullRomCurve3(points);
+          if (pathLineRef.current) {
+            const curvePoints = curve.getPoints(100);
+            pathLineRef.current.geometry.setFromPoints(curvePoints);
+            pathLineRef.current.visible = true;
+          }
+        } else {
+          if (pathLineRef.current) pathLineRef.current.visible = false;
+        }
+      } else {
+        if (pathLineRef.current) pathLineRef.current.visible = false;
+      }
+      
+      if (isPathPlayingActive && curve) {
+        const currentNow = performance.now();
+        const lastStep = lastStepNowRef.current;
+        const dtSeconds = Math.min((currentNow - lastStep) / 1000, 0.1);
+        
+        const totalDuration = (pNodes.length - 1) * 1.5; // 1.5 seconds per segment
+        pathPlaybackProgressRef.current += dtSeconds / totalDuration;
+        
+        if (pathPlaybackProgressRef.current >= 1.0) {
+          pathPlaybackProgressRef.current = 1.0;
+          pathPlayingRef.current = false;
+          if (onPathPlaybackFinishedRef.current) {
+            requestAnimationFrame(() => onPathPlaybackFinishedRef.current?.());
+          }
+        }
+        
+        const progress = pathPlaybackProgressRef.current;
+        const currentPos = curve.getPointAt(progress);
+        
+        if (orbMeshRef.current) {
+          orbMeshRef.current.position.copy(currentPos);
+          orbMeshRef.current.visible = true;
+        }
+        
+        if (pointLightRef.current) {
+          pointLightRef.current.position.copy(currentPos);
+          pointLightRef.current.visible = true;
+        }
+        
+        if (activeTrailLineRef.current) {
+          const trailPoints: THREE.Vector3[] = [];
+          const numSamples = Math.max(2, Math.round(progress * 100));
+          for (let i = 0; i <= numSamples; i++) {
+            const tVal = (i / numSamples) * progress;
+            trailPoints.push(curve.getPointAt(tVal));
+          }
+          activeTrailLineRef.current.geometry.setFromPoints(trailPoints);
+          activeTrailLineRef.current.visible = true;
+        }
+        
+        if (visualSettingsRef.current.pathCameraFollow && controlsRef.current) {
+          controlsRef.current.target.lerp(currentPos, 0.05);
+          if (viewMode !== '2D') {
+            const targetCamPos = currentPos.clone().add(new THREE.Vector3(0, 300, 800));
+            camera.position.lerp(targetCamPos, 0.03);
+          }
+        }
+      } else {
+        if (orbMeshRef.current) orbMeshRef.current.visible = false;
+        if (pointLightRef.current) pointLightRef.current.visible = false;
+        if (activeTrailLineRef.current) activeTrailLineRef.current.visible = false;
+      }
+
       // Update controls (for damping) — fires 'change' synchronously if camera moved
       if (controlsRef.current) {
         controlsRef.current.update();
       }
       applyingKeyframe = false;
 
-      renderer.render(scene, camera);
+      // ── Evaluate all visual/effects tracks ──
+      const nowSec = performance.now() / 1000;
+      const vsBase = visualSettingsRef.current;
+      const ssBase = styleSettingsRef.current;
+      const vsOverride: Record<string, unknown> = { ...vsBase };
+      const ssOverride: Record<string, unknown> = { ...ssBase };
+
+      for (const trackId of VISUAL_TRACK_IDS) {
+        const paramKey = VISUAL_TRACK_PARAM[trackId];
+        const defaultVal = ((vsBase as Record<string, unknown>)[paramKey] ?? (ssBase as Record<string, unknown>)[paramKey] ?? 0) as number;
+        const kfs = physicsKeyframesRef.current[trackId] ?? [];
+        const baseVal = evaluateKeyframeSegment(kfs, playheadRef.current, {
+          val: kf => kf.value,
+          handleIn: kf => kf.handleIn,
+          handleOut: kf => kf.handleOut,
+          interpolation: kf => kf.interpolation,
+          clampNonNegative: true,
+        }) ?? defaultVal;
+        // Layer on LFO modulator if active
+        const meta = trackMetaRef.current?.[trackId];
+        const finalVal = meta?.modulator
+          ? Math.max(0, baseVal + evalLfo(meta.modulator, nowSec))
+          : baseVal;
+        // Write to the appropriate override object
+        if (paramKey in vsBase) {
+          vsOverride[paramKey] = finalVal;
+        } else {
+          ssOverride[paramKey] = finalVal;
+        }
+      }
+
+      // Sync visuals with animated overrides
+      syncGraphVisuals({
+        nodes: graphNodesRef.current,
+        edges: graphEdgesRef.current,
+        nodeArr: graphNodeArrayRef.current,
+        visualSettings: vsOverride as any,
+        styleSettings: ssOverride as any,
+        camera,
+        mousePos: mousePosRef.current,
+        edgeLines: edgeLinesRef.current,
+        time: nowSec,
+      });
+
+      // Configure bloom pass from animated values
+      const bloomIntensity = (vsOverride.bloomIntensity ?? 0.15) as number;
+      const bloomEnabled = vsBase.bloomEnabled;
+      const effectsPipeline = effectsPipelineRef.current;
+
+      if (effectsPipeline) {
+        effectsPipeline.bloomPass.enabled = bloomEnabled;
+        effectsPipeline.bloomPass.strength = bloomIntensity;
+        effectsPipeline.bloomPass.radius = (vsOverride.bloomRadius ?? 0.4) as number;
+
+        // When selective bloom is active, force threshold high so only HDR-boosted nodes glow
+        const baseThreshold = (vsOverride.bloomThreshold ?? 0.85) as number;
+        effectsPipeline.bloomPass.threshold = vsBase.bloomSelective ? 0.95 : baseThreshold;
+      }
+
+      if (effectsPipeline && bloomEnabled) {
+        effectsPipeline.composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
     };
     animate();
     // 2D: reveal immediately after the first frame.
@@ -1005,6 +1216,32 @@ export const Network3D = forwardRef<Network3DHandle, Network3DProps>((props, ref
       
       controls.dispose();
       renderer.dispose();
+      effectsPipeline.dispose();
+      effectsPipelineRef.current = null;
+      
+      if (pathLineRef.current) {
+        scene.remove(pathLineRef.current);
+        pathLineRef.current.geometry.dispose();
+        (pathLineRef.current.material as THREE.Material).dispose();
+        pathLineRef.current = null;
+      }
+      if (activeTrailLineRef.current) {
+        scene.remove(activeTrailLineRef.current);
+        activeTrailLineRef.current.geometry.dispose();
+        (activeTrailLineRef.current.material as THREE.Material).dispose();
+        activeTrailLineRef.current = null;
+      }
+      if (orbMeshRef.current) {
+        scene.remove(orbMeshRef.current);
+        orbMeshRef.current.geometry.dispose();
+        (orbMeshRef.current.material as THREE.Material).dispose();
+        orbMeshRef.current = null;
+      }
+      if (pointLightRef.current) {
+        scene.remove(pointLightRef.current);
+        pointLightRef.current.dispose();
+        pointLightRef.current = null;
+      }
       
       worker.terminate();
       workerBusyRef.current = false;

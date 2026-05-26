@@ -34,8 +34,10 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
 - If displayed value ≠ raw value (e.g. ×10 scale), pass `parseInput` to invert.
 - **Never** render a `<span>` for a numeric slider value.
 
-### Physics Modulator Popover
-- Physics tab sliders expose a **Modulator** popover button between the numeric value and the keyframe toggle; the popover hosts the modulator controls.
+### Modulator & Glide Popover Pattern
+- Sliders supporting modulation (Physics parameters and Bloom Intensity) expose a **Modulator** (wave) button between the value input and keyframe toggle.
+- Clicking the Modulator button auto-enables a default modulator (if none was active) and opens a Popover containing the Glide and LFO controls.
+- Inside the popover, an "Enable modulator" toggle switch lets the user disable/enable the modulator. This design keeps the sidebar and visual settings clean and avoids layout clipping.
 
 ### Colour Rule
 - **UI**: `hsl(var(--...))` CSS variables. Never hardcode hex in React components.
@@ -44,15 +46,16 @@ Every numeric slider value **must** be a `<button>` that opens an inline `<input
   behaviour in one mode, check that the intent carries to the other.
 
 ### Layout Rule
+- **Resizable Panel Architecture**: The layout uses `<ResizablePanelGroup>` blocks. 
+  - Main workspace splits vertically between the viewport (Canvas) and Timeline.
+  - The right sidebar is a horizontal split with the workspace. When collapsed, it locks to `48px` width (activity bar only).
 - Sidebar = docked right sidebar. Never floating.
-- Toolbar = floating left, inside artboard, not fixed to browser window.
+- Toolbar = floating left, inside Canvas panel, not fixed to browser window.
 - Overlay elements (loading, dialogs) = positioned relative to Preview viewport, not window.
-- TopBar = absolute top-0 inside main viewport div, `pointer-events-none` shell with
+- TopBar = absolute top-0 inside main viewport Canvas panel, `pointer-events-none` shell with
   `pointer-events-auto` on the pills.
-- Timeline = absolute bottom-0 inside main viewport div.
-- **Dynamic Offsets**: The `Preview` area is constrained by `top` and `bottom` offsets 
-  calculated from the absolute UI bands. This prevents overlap while respecting the 
-  absolute positioning requirement.
+- Timeline = docked inside its own vertical `ResizablePanel` below the Canvas panel.
+- **Auto-sizing**: Resizing the panels automatically updates container sizes; legacy dynamic offset calculations are completely removed.
 
 ### Property Stack UI Pattern (Sidebar)
 - **Hierarchy Spacing**: In the Visual tab's full-width property stack, each section uses wider vertical rhythm and deeper indented control rows (`pl-5`) so headers, groups, and control values read as a clear parent-child hierarchy.
@@ -102,11 +105,10 @@ restore them before submitting.
 | **Edge opacity** | `0.35` | - |
 | **Edge width** | `2px` | - |
 | **Edge render order** | Always behind nodes | - |
-| **3D background — dark** | `#09090b` (zinc-950) | - |
-| **3D background — light** | `#f8fafc` (slate-50) | - |
-| **Pasteboard grid** | 40px cells · dark `rgba(255,255,255,0.08)` / light `rgba(0,0,0,0.06)` | - |
-| **Artboard border** | `border-zinc-300` light / `border-white/10` dark · `rounded-[2px]` | - |
-| **Artboard shadow** | `shadow-[0_30px_90px_rgba(0,0,0,0.4)]` | - |
+| **3D background — dark** | `oklch(0.16 0 0)` (refined dark charcoal) | - |
+| **3D background — light** | `#ffffff` | - |
+| **Dot grid** | 24px cells · radial-gradient · dark `rgba(255,255,255,0.08)` / light `rgba(0,0,0,0.05)` | - |
+| **Crop Guide Overlay** | Dashed border · semi-transparent `rgba(9,9,11,0.6)` letterbox mask | - |
 | **Gizmo axis colours** | X `#ef4444` · Y `#22c55e` · Z `#60a5fa` | - |
 | **Gizmo negative axes** | Same hue at 38% opacity | - |
 | **Gradient presets** | Indigo→Violet · Cyan→Green · Purple→Pink · Orange→Red | - |
@@ -119,7 +121,7 @@ restore them before submitting.
 | **Toolbar style** | `bg-zinc-50/90 · backdrop-blur-md · rounded-2xl` | - |
 | **Active tool button** | `bg-zinc-900 · text-white · rounded-lg` | `--wn-accent` |
 | **Inactive tool button** | `text-zinc-500 · hover:bg-zinc-200/50` | - |
-| **Version badge** | Bottom-left of artboard | - |
+| **Version badge** | Bottom-left of Canvas viewport panel | - |
 | **Keyframe Icons** | Semantic SVG shapes · 10px size | `--wn-timeline-keyframe-fill` |
 | **Context Menu Style** | `bg-popover/95` · `backdrop-blur-sm` · `border-border` | - |
 

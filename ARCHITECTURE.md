@@ -35,6 +35,7 @@ Each node label has 3 cached `THREE.CanvasTexture` entries: `normal`, `highlight
 Runs every frame off the main thread via `physics.worker.ts`. Uses transferable `Float64Array(nodeCount × 6)`.
 **Physics "Jolt" Effect**: High parameter change velocity decreases friction temporarily for snappiness.
 **Glitch Paint**: Smoothstep reveal based on `uMousePos`.
+**Self-Healing & Parameter Sanitization**: Node positions and velocities are scanned in the worker per step; any detected `NaN` or non-finite coordinate values are immediately self-healed by resetting them to a small random center offset with zero velocity. Evaluated parameter values from the animation tracks are sanitized back to user-adjusted sliders or defaults to block mathematical pollution.
 
 ### 1.6 Camera System
 - 3D: `PerspectiveCamera` with OrbitControls.
@@ -65,6 +66,7 @@ The global state is divided into logical slices inside the context provider.
 ### 2.4 Keyframe interpolation (Hermite splines)
 - **Why Hermite?**: We use cubic Hermite splines (via `easing.ts`) instead of simple linear interpolation or basic bezier curves because Hermite splines provide continuous velocity (C1 continuity) across multiple keyframes. This prevents jarring, abrupt changes in camera motion or physics parameters when passing through an intermediate keyframe.
 - **How it works**: It uses the surrounding keyframes to calculate entry and exit tangents, resulting in a smooth, continuous curve.
+- **NaN Guarding**: Tangent calculations use loose checks (`== null` and `!= null`) to ensure that `undefined` or `null` keyframe handle boundaries never trigger `NaN` mathematical results.
 
 ### 2.5 Camera system internal state
 - The camera's active position, target, and rotation are owned by `Network3D` imperatively for performance, but **keyframes are owned by the context**.
@@ -75,10 +77,20 @@ The global state is divided into logical slices inside the context provider.
 The user interface is built following a strict atomic hierarchy, ensuring consistency and reusability across the application. Visual constraints and rules for this cascade are detailed in [STYLE_GUIDE.md](./STYLE_GUIDE.md).
 
 `AppShell`
-  ↳ `AppCanvas` (3D Viewport) / `AppSidebar` (Right Docked Panel)
-      ↳ `Sidebar` (Component)
-          ↳ `SidebarTabHeader` (h1 - uppercase tab title)
-          ↳ `SidebarSection` (h2 - major functional area)
-              ↳ `SidebarGroup` (h3 - used ONLY for a true subgroup of 2+ related controls)
-                  ↳ `SidebarRow` (e.g. `SidebarSliderRow`, `SidebarToggleRow`)
-                      ↳ **Atomic control** (`SidebarEditableNumber`, `SidebarSliderTrack`, `Switch`)
+  ↳ `ResizablePanelGroup` (Horizontal)
+      ↳ `ResizablePanel` (Workspace)
+          ↳ `ResizablePanelGroup` (Vertical)
+              ↳ `ResizablePanel` (Canvas Viewport)
+                  ↳ `AppCanvas`
+                      ↳ `Preview` (3D scene + dot grid background + AspectRatioGuide overlay)
+                      ↳ `Toolbar` & `TopBar` (floating UI overlays)
+              ↳ `ResizablePanel` (Timeline)
+                  ↳ `Timeline` (Dopesheet & Graph Editor)
+      ↳ `ResizablePanel` (Sidebar)
+          ↳ `AppSidebar`
+              ↳ `Sidebar` (Component)
+                  ↳ `SidebarTabHeader` (h1 - uppercase tab title)
+                  ↳ `SidebarSection` (h2 - major functional area)
+                      ↳ `SidebarGroup` (h3 - used ONLY for a true subgroup of 2+ related controls)
+                          ↳ `SidebarRow` (e.g. `SidebarSliderRow`, `SidebarToggleRow`)
+                              ↳ **Atomic control** (`SidebarEditableNumber`, `SidebarSliderTrack`, `Switch`)

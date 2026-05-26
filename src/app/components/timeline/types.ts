@@ -117,6 +117,23 @@ export const TRACK_GROUPS = [
       { id: 'phys-vto', paramKey: 'verticalOrder',kfs: [] as number[], graph: false },
     ],
   },
+  {
+    id: 'effects', groupKey: 'effects', color: 'purple' as const,
+    tracks: [
+      { id: 'fx-blm',         paramKey: 'bloomIntensity',    kfs: [] as number[], graph: false },
+      { id: 'fx-blm-rad',     paramKey: 'bloomRadius',       kfs: [] as number[], graph: false },
+      { id: 'fx-blm-thr',     paramKey: 'bloomThreshold',    kfs: [] as number[], graph: false },
+      { id: 'fx-blm-sel',     paramKey: 'selectiveRatio',    kfs: [] as number[], graph: false },
+      { id: 'fx-blm-flk-spd', paramKey: 'flickerSpeed',      kfs: [] as number[], graph: false },
+      { id: 'fx-node-scale',  paramKey: 'nodeScale',         kfs: [] as number[], graph: false },
+      { id: 'fx-edge-opacity',paramKey: 'edgeOpacity',       kfs: [] as number[], graph: false },
+      { id: 'fx-rad-bias',    paramKey: 'radialBias',        kfs: [] as number[], graph: false },
+      { id: 'fx-glc-rad',     paramKey: 'glitchBrushRadius', kfs: [] as number[], graph: false },
+      { id: 'fx-glc-fth',     paramKey: 'glitchFeather',     kfs: [] as number[], graph: false },
+      { id: 'fx-pth-sm',      paramKey: 'pathSmoothness',    kfs: [] as number[], graph: false },
+      { id: 'fx-hue-shift',   paramKey: 'hueShift',          kfs: [] as number[], graph: false },
+    ],
+  },
 ];
 
 /* ── Color maps ── */
@@ -124,6 +141,7 @@ export const TRACK_GROUPS = [
 export const COLOR = {
   cyan:   { dot: 'bg-wn-timeline-cyan-dot',   border: 'border-l-wn-timeline-cyan-border',   kfFill: 'var(--wn-timeline-cyan-kf-fill)',   trackBg: 'bg-wn-timeline-cyan-track-bg',   graphStroke: 'var(--wn-timeline-cyan-graph-stroke)',   miniCurve: 'rgba(59, 130, 246, 0.25)' },
   orange: { dot: 'bg-wn-timeline-orange-dot', border: 'border-l-wn-timeline-orange-border', kfFill: 'var(--wn-timeline-orange-kf-fill)', trackBg: 'bg-wn-timeline-orange-track-bg', graphStroke: 'var(--wn-timeline-orange-graph-stroke)', miniCurve: 'rgba(249, 115, 22, 0.25)' },
+  purple: { dot: 'bg-wn-timeline-purple-dot', border: 'border-l-wn-timeline-purple-border', kfFill: 'var(--wn-timeline-purple-kf-fill)', trackBg: 'bg-wn-timeline-purple-track-bg', graphStroke: 'var(--wn-timeline-purple-graph-stroke)', miniCurve: 'rgba(168, 85, 247, 0.25)' },
 };
 
 /* ── Timeline props ── */

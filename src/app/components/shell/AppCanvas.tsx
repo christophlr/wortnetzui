@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 
 export function AppCanvas({ children }: { children: ReactNode }) {
   return (
-    <div className="flex-1 relative overflow-hidden h-full">
+    <div className="w-full h-full relative overflow-hidden">
       {children}
     </div>
   );

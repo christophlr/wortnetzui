@@ -8,7 +8,7 @@ import {
   type ViewWindow, type SceneMarker, type KeyframeInterpolation,
 } from './types';
 import { TrackLabel, SceneMarkerHandle, LfoBadge, TrackArmToggle, TrackValueChip, TrackKeyframeToggle } from './TimelineAtoms';
-import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+import { evaluateKeyframeSegment } from '../../animation/segmentEvaluate';
 import { useT } from '../../i18n/useT';
 import { sameTime, withinSelection, withinSnap } from './timeUtils';
 
@@ -131,7 +131,7 @@ export function TrackRow({
 }: {
   trackId: string;
   name: string;
-  color: 'cyan' | 'orange';
+  color: 'cyan' | 'orange' | 'purple';
   keyframeData: Array<{ time: number; value?: number; handleIn?: number; handleOut?: number; handleInTime?: number; handleOutTime?: number; mode?: 'aligned' | 'broken'; interpolation?: KeyframeInterpolation }>;
   viewWindow: ViewWindow;
   selectedKeyframes?: { track: string; time: number }[];
@@ -177,25 +177,19 @@ export function TrackRow({
       if (rightPct <= 0 || leftPct >= 100) continue;
 
       const segDur = b.time - a.time;
-      const tPrev = i > 0 ? keyframes[i - 1].time : null;
-      const vPrev = i > 0 ? keyframes[i - 1].value! : null;
-      const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
-      const vNext = i + 2 < keyframes.length ? keyframes[i + 2].value! : null;
-
-      const interpolation = a.interpolation;
-      const m0 = a.handleOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, a.value!, b.time, b.value!));
-      const m1 = b.handleIn ?? (tNext === null ? 0 : computeCatmullRomTangent(a.time, a.value!, b.time, b.value!, tNext, vNext));
-
       const pts: string[] = [];
       const steps = 20;
       for (let j = 0; j <= steps; j++) {
         const tRaw = j / steps;
-        const val = interpolation === 'hold'
-          ? a.value!
-          : interpolation === 'linear'
-            ? a.value! + (b.value! - a.value!) * tRaw
-            : evaluateHermite(tRaw, a.value!, m0, b.value!, m1, segDur);
         const tWorld = a.time + tRaw * segDur;
+        const val = evaluateKeyframeSegment(keyframes, tWorld, {
+          val: kf => kf.value!,
+          handleIn: kf => kf.handleIn,
+          handleOut: kf => kf.handleOut,
+          tension: () => 1,
+          interpolation: kf => kf.interpolation,
+          clampNonNegative: trackId !== 'phys-grv',
+        }) ?? a.value!;
         const xPct = ((tWorld - viewWindow.start) / visibleDuration) * 100;
         pts.push(`${xPct},${getNormY(val)}`);
       }
@@ -203,37 +197,22 @@ export function TrackRow({
       for (let j = 1; j < pts.length; j++) d += `L ${pts[j]} `;
     }
     return d;
-  }, [keyframes, viewWindow, visibleDuration, showMiniCurve]);
+  }, [keyframes, viewWindow, visibleDuration, showMiniCurve, trackId]);
 
   // Interpolated value at the current playhead — used by TrackValueChip + the
   // keyframe-toggle's "capture current value" path. Only meaningful for physics
   // tracks (keyframes carry numeric `value`). Returns null when undefined.
-  const valueAtPlayhead = useMemo<number | null>(() => {
+  const valueAtPlayhead = useMemo(() => {
     if (!showValueAtPlayhead || playheadTime === undefined || keyframes.length === 0) return null;
-    if (keyframes[0].value === undefined) return null;
-    const t = playheadTime;
-    if (t <= keyframes[0].time) return keyframes[0].value ?? null;
-    if (t >= keyframes[keyframes.length - 1].time) return keyframes[keyframes.length - 1].value ?? null;
-    for (let i = 0; i < keyframes.length - 1; i++) {
-      const a = keyframes[i];
-      const b = keyframes[i + 1];
-      if (t < a.time || t > b.time) continue;
-      if (a.value === undefined || b.value === undefined) return null;
-      const segDur = b.time - a.time;
-      if (segDur <= 0) return a.value;
-      const tRaw = (t - a.time) / segDur;
-      if (a.interpolation === 'hold') return a.value;
-      if (a.interpolation === 'linear') return a.value + (b.value - a.value) * tRaw;
-      const tPrev = i > 0 ? keyframes[i - 1].time : null;
-      const vPrev = i > 0 ? (keyframes[i - 1].value ?? null) : null;
-      const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
-      const vNext = i + 2 < keyframes.length ? (keyframes[i + 2].value ?? null) : null;
-      const m0 = a.handleOut ?? (tPrev === null || vPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, a.value, b.time, b.value));
-      const m1 = b.handleIn ?? (tNext === null || vNext === null ? 0 : computeCatmullRomTangent(a.time, a.value, b.time, b.value, tNext, vNext));
-      return evaluateHermite(tRaw, a.value, m0, b.value, m1, segDur);
-    }
-    return null;
-  }, [keyframes, playheadTime, showValueAtPlayhead]);
+    return evaluateKeyframeSegment(keyframes, playheadTime, {
+      val: kf => kf.value!,
+      handleIn: kf => kf.handleIn,
+      handleOut: kf => kf.handleOut,
+      tension: () => 1,
+      interpolation: kf => kf.interpolation,
+      clampNonNegative: trackId !== 'phys-grv',
+    });
+  }, [keyframes, playheadTime, showValueAtPlayhead, trackId]);
 
   const hasKeyframeAtPlayhead = useMemo(() => {
     if (playheadTime === undefined) return false;

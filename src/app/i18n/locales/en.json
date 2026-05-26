@@ -70,7 +70,8 @@
         "section": {
           "nodes":        "Nodes",
           "edges":        "Edges",
-          "pathAnimator": "Path animator"
+          "pathAnimator": "Path animator",
+          "effects":      "Effects"
         },
         "group": {
           "shape":              "Shape",
@@ -87,27 +88,46 @@
           "globalOpacity": "Global opacity",
           "brushRadius":   "Brush radius",
           "feather":       "Feather",
-          "smoothness":    "Smoothness"
+          "smoothness":    "Smoothness",
+          "bloomIntensity": "Bloom intensity",
+          "bloomRadius": "Bloom radius",
+          "bloomThreshold": "Bloom threshold",
+          "selectiveRatio": "Selective ratio",
+          "flickerSpeed":   "Flicker speed",
+          "hueShift":       "Hue shift"
         },
         "toggle": {
-          "glitchPaint":   "Glitch paint",
-          "cameraFollow":  "Camera follow"
+          "glitchPaint":     "Glitch paint",
+          "cameraFollow":    "Camera follow",
+          "bloom":           "Bloom",
+          "selectiveBloom":  "Selective bloom"
         },
         "color": {
           "origin":    "Origin",
           "periphery": "Periphery"
         },
         "fx": {
-          "title":      "Fx",
-          "active":     "Active",
-          "inactive":   "No effects"
+          "title":          "Fx",
+          "active":         "Active",
+          "inactive":       "No effects",
+          "add":            "Add Effect",
+          "noEffects":      "No active effects",
+          "bloom":          "Bloom",
+          "glitch":         "Glitch Paint",
+          "bloomSettings":  "Bloom Settings",
+          "glitchSettings": "Glitch Settings",
+          "glowMode":       "Glow mode",
+          "glowModeDeterministic": "Deterministic",
+          "glowModeFlicker":      "Flicker",
+          "glowModeIndex":        "Index"
         },
         "action": {
           "randomizeGradient": "Randomize gradient"
         },
-"pathAnimator": {
+        "pathAnimator": {
           "emptyHint":         "Click nodes in the preview to build a path.",
           "playSequence":      "Play sequence",
+          "stopSequence":      "Stop sequence",
           "interpolationNote": "Nodes are interpolated using Catmull-Rom."
         },
         "description": {
@@ -203,6 +223,19 @@
       "camera":       "Camera",
       "keyframes":    "Keyframes",
       "physics":      "Physics",
+      "effects":      "Effects",
+      "bloomIntensity":    "Bloom Intensity",
+      "bloomRadius":       "Bloom Radius",
+      "bloomThreshold":    "Bloom Threshold",
+      "selectiveRatio":    "Selective Ratio",
+      "flickerSpeed":      "Flicker Speed",
+      "nodeScale":         "Node Scale",
+      "edgeOpacity":       "Edge Opacity",
+      "radialBias":        "Radial Bias",
+      "glitchBrushRadius": "Glitch Radius",
+      "glitchFeather":     "Glitch Feather",
+      "pathSmoothness":    "Path Smoothness",
+      "hueShift":          "Hue Shift",
       "arm":          "Arm track",
       "armed":        "Armed — will be recorded",
       "tuning":       "Track tuning"

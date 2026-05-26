@@ -1,15 +1,19 @@
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import {
   SidebarKeyframeToggle,
   SidebarModulatorButton,
   SidebarScrubberRow,
   SidebarSection,
   SidebarTabContent,
+  SidebarToggleRow,
 } from '../SidebarAtoms';
-import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
-import { LfoControlsBody } from '../../timeline/LfoControls';
+import { LfoControlsBody, depthMaxFor } from '../../timeline/LfoControls';
 import { useT } from '../../../i18n/useT';
 import type { TrackMeta } from '../../../animation/Track';
 import type { Modulator } from '../../../animation/Modulator';
+import { DEFAULT_MODULATOR } from '../../../animation/Modulator';
+import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '../../ui/popover';
 
 const GLIDE_MAX_S = 5;
 const GLIDE_STEP_S = 0.05;
@@ -51,6 +55,7 @@ export function PhysicsTab({
 }) {
   const { t } = useT();
 
+
   const groups: PhysicsGroup[] = [
     {
       sectionKey: 'forces',
@@ -88,70 +93,103 @@ export function PhysicsTab({
             const active = physKfActive[p.id] ?? false;
             const min = p.min ?? 0;
             const modulator = trackMeta?.[p.id]?.modulator ?? null;
+            const glide = trackMeta?.[p.id]?.glide ?? 0;
+            const isModulatorActive = modulator !== null || glide > 0;
+ 
+            const handleModulatorClick = () => {
+              if (!isModulatorActive) {
+                const maxD = depthMaxFor(p.paramKey);
+                onSetTrackModulator?.(p.id, { ...DEFAULT_MODULATOR, depth: maxD * 0.2 });
+                onSetTrackGlide?.(p.id, 0);
+              }
+            };
+ 
             return (
-              <SidebarScrubberRow
-                key={p.id}
-                label={t(`sidebar.tab.physics.param.${p.paramKey}.name`)}
-                value={p.value}
-                min={min}
-                max={p.max}
-                step={p.step}
-                onValueChange={(val) => onPhysicsChange({ [p.key]: val })}
-                onCommit={(val) => onPhysicsChange({ [p.key]: val })}
-                description={t(`sidebar.tab.physics.param.${p.paramKey}.desc`)}
-                accessory={
-                  <>
-                    {trackMeta && onSetTrackModulator ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <SidebarModulatorButton
-                            active={modulator !== null || (trackMeta?.[p.id]?.glide ?? 0) > 0}
-                            title={t('timeline.track.tuning')}
-                            aria-label={t('timeline.track.tuning')}
-                          />
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="left"
-                          align="end"
-                          className="bg-popover/95 backdrop-blur-sm p-3"
-                        >
-                          <div className="space-y-3">
-                            <div className="text-[11px] font-semibold text-foreground">
-                              {t('timeline.track.tuning')}
-                            </div>
-                            <div className="space-y-4">
-                              {onSetTrackGlide ? (
-                                <SidebarScrubberRow
-                                  label={t('timeline.glide.label')}
-                                  value={trackMeta?.[p.id]?.glide ?? 0}
-                                  min={0}
-                                  max={GLIDE_MAX_S}
-                                  step={GLIDE_STEP_S}
-                                  format={(v) => `${v.toFixed(2)} ${t('timeline.glide.unit')}`}
-                                  onValueChange={(v) => onSetTrackGlide(p.id, v)}
-                                  onCommit={(v) => onSetTrackGlide(p.id, Math.max(0, v))}
-                                  description={t('timeline.glide.description')}
-                                />
-                              ) : null}
-                              <LfoControlsBody
-                                paramKey={p.paramKey}
-                                trackId={p.id}
-                                value={modulator}
-                                onChange={(m) => onSetTrackModulator(p.id, m)}
+              <Popover key={p.id}>
+                <PopoverAnchor asChild>
+                  <div className="relative w-full">
+                    <SidebarScrubberRow
+                      label={t(`sidebar.tab.physics.param.${p.paramKey}.name`)}
+                      value={p.value}
+                      min={min}
+                      max={p.max}
+                      step={p.step}
+                      onValueChange={(val) => onPhysicsChange({ [p.key]: val })}
+                      onCommit={(val) => onPhysicsChange({ [p.key]: val })}
+                      description={t(`sidebar.tab.physics.param.${p.paramKey}.desc`)}
+                      accessory={
+                        <>
+                          {trackMeta && onSetTrackModulator && onSetTrackGlide ? (
+                            <PopoverTrigger asChild>
+                              <SidebarModulatorButton
+                                active={isModulatorActive}
+                                title={t('timeline.track.tuning')}
+                                aria-label={t('timeline.track.tuning')}
+                                onClick={handleModulatorClick}
                               />
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    ) : null}
-                    <SidebarKeyframeToggle
-                      active={active}
-                      onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
-                      title={active ? t('sidebar.tab.physics.keyframe.remove') : t('sidebar.tab.physics.keyframe.set')}
+                            </PopoverTrigger>
+                          ) : null}
+                          <SidebarKeyframeToggle
+                            active={active}
+                            onClick={() => onTogglePhysicsKeyframe(p.id, p.value)}
+                            title={active ? t('sidebar.tab.physics.keyframe.remove') : t('sidebar.tab.physics.keyframe.set')}
+                          />
+                        </>
+                      }
                     />
-                  </>
-                }
-              />
+                  </div>
+                </PopoverAnchor>
+                {trackMeta && onSetTrackModulator && onSetTrackGlide && (
+                  <PopoverContent
+                    side="left"
+                    align="start"
+                    sideOffset={0}
+                    className="bg-popover/95 backdrop-blur-sm p-3 w-64 space-y-3 z-50"
+                  >
+                    <div className="space-y-3">
+                      <div className="text-[11px] font-semibold text-foreground border-b border-wn-divider pb-1">
+                        {t('timeline.track.tuning')}
+                      </div>
+                      <div className="space-y-4">
+                        <SidebarToggleRow
+                          label={t('timeline.lfo.enable')}
+                          checked={isModulatorActive}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const maxD = depthMaxFor(p.paramKey);
+                              onSetTrackModulator(p.id, { ...DEFAULT_MODULATOR, depth: maxD * 0.2 });
+                            } else {
+                              onSetTrackModulator(p.id, null);
+                              onSetTrackGlide(p.id, 0);
+                            }
+                          }}
+                        />
+                        {isModulatorActive && (
+                          <>
+                            <SidebarScrubberRow
+                              label={t('timeline.glide.label')}
+                              value={glide}
+                              min={0}
+                              max={GLIDE_MAX_S}
+                              step={GLIDE_STEP_S}
+                              format={(v) => `${v.toFixed(2)} ${t('timeline.glide.unit')}`}
+                              onValueChange={(v) => onSetTrackGlide(p.id, v)}
+                              onCommit={(v) => onSetTrackGlide(p.id, Math.max(0, v))}
+                              description={t('timeline.glide.description')}
+                            />
+                            <LfoControlsBody
+                              paramKey={p.paramKey}
+                              trackId={p.id}
+                              value={modulator}
+                              onChange={(m) => onSetTrackModulator(p.id, m)}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverContent>
+                )}
+              </Popover>
             );
           })}
         </SidebarSection>

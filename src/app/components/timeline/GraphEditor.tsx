@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { LABEL_W, GRAPH_H, COLOR, type ViewWindow, type KeyframeInterpolation } from './types';
 import { TrackLabel } from './TimelineAtoms';
-import { evaluateHermite, computeCatmullRomTangent } from '../../easing';
+import { evaluateKeyframeSegment } from '../../animation/segmentEvaluate';
 import { withinSelection } from './timeUtils';
 
 /**
@@ -19,7 +19,7 @@ export function GraphEditor({
   onContextMenu,
 }: {
   trackId: string;
-  color: 'cyan' | 'orange';
+  color: 'cyan' | 'orange' | 'purple';
   keyframeData: Array<{
     time: number;
     value?: number;
@@ -74,28 +74,21 @@ export function GraphEditor({
       if (rightPct <= 0 || leftPct >= 100) continue;
 
       const aVal = isTension ? (a.tension ?? 1) : a.value!;
-      const bVal = isTension ? (b.tension ?? 1) : b.value!;
-
       const segDur = b.time - a.time;
-      const tPrev = i > 0 ? keyframes[i - 1].time : null;
-      const vPrev = i > 0 ? (isTension ? (keyframes[i - 1].tension ?? 1) : keyframes[i - 1].value!) : null;
-      const tNext = i + 2 < keyframes.length ? keyframes[i + 2].time : null;
-      const vNext = i + 2 < keyframes.length ? (isTension ? (keyframes[i + 2].tension ?? 1) : keyframes[i + 2].value!) : null;
-
-      const interpolation = a.interpolation;
-      const m0 = a.handleOut ?? (tPrev === null ? 0 : computeCatmullRomTangent(tPrev, vPrev, a.time, aVal, b.time, bVal));
-      const m1 = b.handleIn ?? (tNext === null ? 0 : computeCatmullRomTangent(a.time, aVal, b.time, bVal, tNext, vNext));
 
       const pts: string[] = [];
       const steps = 30;
       for (let j = 0; j <= steps; j++) {
         const tRaw = j / steps;
-        const val = interpolation === 'hold'
-          ? aVal
-          : interpolation === 'linear'
-            ? aVal + (bVal - aVal) * tRaw
-            : evaluateHermite(tRaw, aVal, m0, bVal, m1, segDur);
         const tWorld = a.time + tRaw * segDur;
+        const val = evaluateKeyframeSegment(keyframes, tWorld, {
+          val: kf => isTension ? (kf.tension ?? 1) : kf.value!,
+          handleIn: kf => kf.handleIn,
+          handleOut: kf => kf.handleOut,
+          tension: () => 1,
+          interpolation: kf => kf.interpolation,
+          clampNonNegative: !isTension && trackId !== 'phys-grv',
+        }) ?? aVal;
         const xPct = ((tWorld - viewWindow.start) / visibleDuration) * 100;
         pts.push(`${xPct},${getNormY(val)}`);
       }
@@ -103,7 +96,7 @@ export function GraphEditor({
       for (let j = 1; j < pts.length; j++) d += `L ${pts[j]} `;
     }
     return d;
-  }, [keyframes, viewWindow, visibleDuration, isTension, minVal, valRange]);
+  }, [keyframes, viewWindow, visibleDuration, isTension, minVal, valRange, trackId]);
 
   // Grid lines
   const gridLines = useMemo(() => {

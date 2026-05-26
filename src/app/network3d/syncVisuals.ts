@@ -11,10 +11,17 @@ export interface SyncVisualSettings {
   glitchActive: boolean;
   glitchBrushRadius: number;
   glitchFeather: number;
+  bloomSelective: boolean;
+  bloomSelectiveRatio: number;
+  bloomGlowMode: 'deterministic' | 'flicker' | 'index';
+  bloomFlickerSpeed: number;
+  bloomIntensity: number;
+  gradientHueShift: number;
 }
 
 export interface SyncStyleSettings {
   nodeScale: number;
+  edgeOpacity: number;
 }
 
 export interface SyncVisualsArgs {
@@ -26,6 +33,8 @@ export interface SyncVisualsArgs {
   camera: THREE.Camera | null;
   mousePos: THREE.Vector2;
   edgeLines: THREE.LineSegments | null;
+  /** Current time in seconds (performance.now() / 1000). Used for flicker mode. */
+  time?: number;
 }
 
 const _colorA = new THREE.Color();
@@ -33,13 +42,23 @@ const _colorB = new THREE.Color();
 const _scratchColor = new THREE.Color();
 const _scratchVec1 = new THREE.Vector3();
 const _scratchVec2 = new THREE.Vector3();
+const _hslA = { h: 0, s: 0, l: 0 };
+const _hslB = { h: 0, s: 0, l: 0 };
 
 export function syncGraphVisuals(args: SyncVisualsArgs): void {
-  const { nodes, edges, nodeArr, visualSettings: vs, styleSettings: ss, camera, mousePos, edgeLines } = args;
+  const { nodes, edges, nodeArr, visualSettings: vs, styleSettings: ss, camera, mousePos, edgeLines, time = 0 } = args;
   const arr = nodeArr ?? Array.from(nodes.values());
 
+  // Apply hue shift to gradient colors
   _colorA.set(vs.gradientOrigin);
   _colorB.set(vs.gradientPeriphery);
+  if (vs.gradientHueShift !== 0) {
+    const shift = vs.gradientHueShift / 360;
+    _colorA.getHSL(_hslA);
+    _colorA.setHSL((_hslA.h + shift) % 1, _hslA.s, _hslA.l);
+    _colorB.getHSL(_hslB);
+    _colorB.setHSL((_hslB.h + shift) % 1, _hslB.s, _hslB.l);
+  }
 
   let maxDistSq = 0;
   for (let i = 0; i < arr.length; i++) {
@@ -50,6 +69,7 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
   const invMaxDistSq = 1 / (maxDistSq || 1);
 
   const falloffMagnitude = vs.radialBiasScale * vs.radialBiasScale * 8;
+  const totalNodes = arr.length || 1;
 
   for (let i = 0; i < arr.length; i++) {
     const node = arr[i];
@@ -81,6 +101,42 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
       node.textSprite.material.opacity = finalOpacity;
 
       const nodeColor = _scratchColor.lerpColors(_colorA, _colorB, normDistSq);
+
+      // Selective bloom: boost selected nodes' colors above 1.0 so they exceed the bloom threshold
+      if (vs.bloomSelective) {
+        let isGlowing = false;
+        const ratio = vs.bloomSelectiveRatio;
+        switch (vs.bloomGlowMode) {
+          case 'deterministic': {
+            const seed = node.glowSeed ?? 0;
+            isGlowing = seed <= ratio;
+            break;
+          }
+          case 'flicker': {
+            const seed = node.glowSeed ?? 0;
+            const phase = seed * 100 + time * vs.bloomFlickerSpeed * Math.PI * 2;
+            const wave = (Math.sin(phase) + 1) / 2; // 0..1
+            isGlowing = wave <= ratio;
+            break;
+          }
+          case 'index': {
+            const idx = node.nodeIndex ?? i;
+            isGlowing = (idx / totalNodes) <= ratio;
+            break;
+          }
+        }
+        if (isGlowing) {
+          // Calculate relative luminance of the base node color (Rec. 709)
+          const L_base = 0.2126 * nodeColor.r + 0.7152 * nodeColor.g + 0.0722 * nodeColor.b;
+          // Target luminance scaled relative to selective threshold (0.95) based on bloomIntensity
+          const targetLuminance = 0.95 + Math.max(0.07, vs.bloomIntensity * 1.5);
+          // Scale base color by the ratio of target relative luminance to current relative luminance
+          const boost = targetLuminance / Math.max(0.01, L_base);
+          const safeBoost = Math.min(12.0, boost);
+          nodeColor.multiplyScalar(safeBoost);
+        }
+      }
+
       node.textSprite.material.color.copy(nodeColor);
 
       if (vs.glitchActive && camera) {
@@ -99,6 +155,9 @@ export function syncGraphVisuals(args: SyncVisualsArgs): void {
 
   if (edgeLines) {
     edgeLines.visible = vs.edgesVisible;
+    // Dynamic edge opacity
+    const mat = edgeLines.material as THREE.LineBasicMaterial;
+    mat.opacity = ss.edgeOpacity;
     const pos = edgeLines.geometry.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < edges.length; i++) {
       const edge = edges[i];

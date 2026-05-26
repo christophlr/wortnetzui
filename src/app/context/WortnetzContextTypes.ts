@@ -127,6 +127,18 @@ export interface WortnetzContextType {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    bloomEnabled: boolean;
+    bloomIntensity: number;
+    bloomRadius: number;
+    bloomThreshold: number;
+    bloomSelective: boolean;
+    bloomSelectiveRatio: number;
+    bloomGlowMode: 'deterministic' | 'flicker' | 'index';
+    bloomFlickerSpeed: number;
+    gradientHueShift: number;
+    effectsList: ('bloom' | 'glitch')[];
+    bloomPreset: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
+    backgroundColor: string;
   };
   setVisualSettings: React.Dispatch<React.SetStateAction<{
     nodesVisible: boolean;
@@ -140,6 +152,18 @@ export interface WortnetzContextType {
     glitchFeather: number;
     pathSmoothness: number;
     pathCameraFollow: boolean;
+    bloomEnabled: boolean;
+    bloomIntensity: number;
+    bloomRadius: number;
+    bloomThreshold: number;
+    bloomSelective: boolean;
+    bloomSelectiveRatio: number;
+    bloomGlowMode: 'deterministic' | 'flicker' | 'index';
+    bloomFlickerSpeed: number;
+    gradientHueShift: number;
+    effectsList: ('bloom' | 'glitch')[];
+    bloomPreset: 'sharp-neon' | 'soft-dreamy' | 'subtle-glint' | 'custom';
+    backgroundColor: string;
   }>>;
   edgeAppearance: EdgeAppearanceSettings;
   setEdgeAppearance: (app: EdgeAppearanceSettings) => void;
@@ -189,6 +213,15 @@ export interface WortnetzContextType {
   selectedNode: any;
   setSelectedNode: (node: any) => void;
   
+  // Path Animator
+  pathNodes: { id: string; label: string }[];
+  setPathNodes: React.Dispatch<React.SetStateAction<{ id: string; label: string }[]>>;
+  isPathPlaying: boolean;
+  setIsPathPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+  reorderPathNodes: (nodes: { id: string; label: string }[]) => void;
+  removePathNode: (index: number) => void;
+  clearPath: () => void;
+
   // Derived
   effectivePhysicsParams: any;
   previewIsDark: boolean;

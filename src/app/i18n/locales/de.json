@@ -70,7 +70,8 @@
         "section": {
           "nodes":        "Knoten",
           "edges":        "Verbindungen",
-          "pathAnimator": "Path Animator"
+          "pathAnimator": "Path Animator",
+          "effects":      "Effekte"
         },
         "group": {
           "shape":            "Form",
@@ -87,27 +88,46 @@
           "globalOpacity": "Globale Deckkraft",
           "brushRadius":   "Pinselradius",
           "feather":       "Weiche Kante",
-          "smoothness":    "Glättung"
+          "smoothness":    "Glättung",
+          "bloomIntensity": "Bloom-Intensität",
+          "bloomRadius": "Bloom-Radius",
+          "bloomThreshold": "Bloom-Schwellenwert",
+          "selectiveRatio": "Selektives Verhältnis",
+          "flickerSpeed":   "Flimmergeschwindigkeit",
+          "hueShift":       "Farbtonverschiebung"
         },
         "toggle": {
-          "glitchPaint":   "Glitch-Pinsel",
-          "cameraFollow":  "Kamera folgen"
+          "glitchPaint":     "Glitch-Pinsel",
+          "cameraFollow":    "Kamera folgen",
+          "bloom":           "Bloom",
+          "selectiveBloom":  "Selektiver Bloom"
         },
         "color": {
           "origin":    "Origin",
           "periphery": "Periphery"
         },
         "fx": {
-          "title":      "Fx",
-          "active":     "Aktiv",
-          "inactive":   "Keine Effekte"
+          "title":          "Fx",
+          "active":         "Aktiv",
+          "inactive":       "Keine Effekte",
+          "add":            "Effekt hinzufügen",
+          "noEffects":      "Keine Effekte aktiv",
+          "bloom":          "Bloom",
+          "glitch":         "Glitch-Paint",
+          "bloomSettings":  "Bloom-Einstellungen",
+          "glitchSettings": "Glitch-Einstellungen",
+          "glowMode":       "Glow-Modus",
+          "glowModeDeterministic": "Deterministisch",
+          "glowModeFlicker":      "Flimmern",
+          "glowModeIndex":        "Index"
         },
         "action": {
           "randomizeGradient": "Gradient zufällig generieren"
         },
-"pathAnimator": {
+        "pathAnimator": {
           "emptyHint":         "Klicke Knoten in der Vorschau an, um einen Pfad zu erstellen.",
           "playSequence":      "Sequenz abspielen",
+          "stopSequence":      "Sequenz stoppen",
           "interpolationNote": "Knoten werden mittels Catmull-Rom interpoliert."
         },
         "description": {
@@ -203,6 +223,19 @@
       "camera":       "Kamera",
       "keyframes":    "Keyframes",
       "physics":      "Physik",
+      "effects":      "Effekte",
+      "bloomIntensity":    "Bloom-Intensität",
+      "bloomRadius":       "Bloom-Radius",
+      "bloomThreshold":    "Bloom-Schwellenwert",
+      "selectiveRatio":    "Selektives Verhältnis",
+      "flickerSpeed":      "Flimmergeschwindigkeit",
+      "nodeScale":         "Knotenskalierung",
+      "edgeOpacity":       "Kantendeckkraft",
+      "radialBias":        "Radialer Falloff",
+      "glitchBrushRadius": "Glitch-Radius",
+      "glitchFeather":     "Glitch-Weichzeichner",
+      "pathSmoothness":    "Pfadglättung",
+      "hueShift":          "Farbtonverschiebung",
       "arm":          "Spur scharfschalten",
       "armed":        "Scharfgeschaltet — wird bei Aufnahme aufgezeichnet",
       "tuning":       "Spureinstellungen"

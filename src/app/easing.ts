@@ -11,23 +11,23 @@ export function evaluateHermite(t: number, p0: number, m0: number, p1: number, m
 }
 
 export function computeCatmullRomTangent(
-  prevTime: number | null, prevVal: number | null,
+  prevTime: number | null | undefined, prevVal: number | null | undefined,
   currTime: number, currVal: number,
-  nextTime: number | null, nextVal: number | null
+  nextTime: number | null | undefined, nextVal: number | null | undefined
 ): number {
-  if (prevTime === null && nextTime === null) return 0;
+  if (prevTime == null && nextTime == null) return 0;
   
-  if (prevTime === null && nextTime !== null && nextVal !== null) {
+  if (prevTime == null && nextTime != null && nextVal != null) {
     if (nextTime === currTime) return 0;
     return (nextVal - currVal) / (nextTime - currTime);
   }
   
-  if (nextTime === null && prevTime !== null && prevVal !== null) {
+  if (nextTime == null && prevTime != null && prevVal != null) {
     if (currTime === prevTime) return 0;
     return (currVal - prevVal) / (currTime - prevTime);
   }
   
-  if (prevTime !== null && prevVal !== null && nextTime !== null && nextVal !== null) {
+  if (prevTime != null && prevVal != null && nextTime != null && nextVal != null) {
     if (nextTime === prevTime) return 0;
     return (nextVal - prevVal) / (nextTime - prevTime);
   }

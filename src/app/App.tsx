@@ -8,32 +8,24 @@ import { AppSidebar } from './components/shell/AppSidebar';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { Toolbar } from './components/Toolbar';
 import { PathAnimatorUI } from './components/PathAnimatorUI';
-import { DEFAULT_TIMELINE_HEIGHT } from './constants';
 import { useShortcuts } from './hooks/useShortcuts';
 import { useWortnetz } from './context/WortnetzContext';
 import {
-  useOverlayBandOffsets, useThemeClass, useSystemThemeSync, useInitProgressTick,
-  usePlayAnimation, useTimecode, useTimelineResize, useRecorder,
+  useThemeClass, useSystemThemeSync, useInitProgressTick,
+  usePlayAnimation, useTimecode, useRecorder,
 } from './hooks/useAppEffects';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './components/ui/resizable';
+import { cn } from './components/ui/utils';
 
 export default function App() {
   const wn = useWortnetz();
 
-  const { offsets, topBarRef, timelineRef } = useOverlayBandOffsets();
   useThemeClass(wn.themeMode);
   useSystemThemeSync(wn.themeAuto, wn.setThemeMode);
   useInitProgressTick(wn.isNetworkReady, wn.setInitProgress);
-
   usePlayAnimation(wn.isPlaying, wn.setIsPlaying, wn.setPlayheadPosition, wn.playheadRef);
   useTimecode(wn.playheadPosition, wn.setTimecode);
-  const startTimelineResize = useTimelineResize(wn.timelineHeight, wn.setTimelineHeight);
-  useRecorder({
-    isRecording: wn.isRecording,
-    isPlaying: wn.isPlaying,
-    playheadRef: wn.playheadRef,
-    network3DRef: wn.network3DRef,
-    onCommit: wn.handleCommitRecording,
-  });
+  useRecorder({ isRecording: wn.isRecording, isPlaying: wn.isPlaying, playheadRef: wn.playheadRef, network3DRef: wn.network3DRef, onCommit: wn.handleCommitRecording });
 
   const { isShortcutsOpen, setIsShortcutsOpen, shortcuts, addShortcut, removeShortcut } = useShortcuts(useMemo(() => ({
     onSave: wn.handleSave, onLoad: wn.handleLoad, onUndo: wn.undo, onRedo: wn.redo,
@@ -45,117 +37,95 @@ export default function App() {
   return (
     <>
       <div className="flex-1 flex flex-row overflow-hidden min-h-0 relative">
-        <AppCanvas>
-          <div className="absolute left-0 right-0 z-0" style={{ top: offsets.top, bottom: offsets.bottom }}>
-            <Preview
-              ref={wn.network3DRef} viewMode={wn.viewMode} physicsEnabled={true}
-              isPlaying={wn.isPlaying} playheadPosition={wn.playheadPosition}
-              physicsParams={wn.physicsParams} inputText={wn.inputText} parseMode={wn.parseMode}
-              styleSettings={wn.styleSettings}
-              cameraKeyframes={wn.cameraKeyframes} onCameraChange={wn.handleCameraChange}
-              physicsKeyframes={wn.physicsKeyframes} trackMeta={wn.trackMeta} isDark={wn.previewIsDark}
-              isNetworkReady={wn.isNetworkReady} onNetworkReady={() => wn.setIsNetworkReady(true)}
-              edgeAppearance={wn.edgeAppearance}
-              canvasAspectRatio={wn.canvasAspectRatio} initProgress={wn.initProgress}
-              visualSettings={wn.visualSettings} onNodeSelect={wn.setSelectedNode}
-            />
-          </div>
+        <ResizablePanelGroup autoSaveId="wortnetz-main-layout" direction="horizontal" className="h-full w-full">
+          <ResizablePanel id="workspace-panel" defaultSize={75} minSize={50}>
+            <ResizablePanelGroup autoSaveId="wortnetz-workspace-layout" direction="vertical" className="h-full w-full">
+              <ResizablePanel id="canvas-panel" defaultSize={70} minSize={30}>
+                <AppCanvas>
+                  <div className="w-full h-full relative z-0">
+                    <Preview
+                      ref={wn.network3DRef} viewMode={wn.viewMode} physicsEnabled={true}
+                      isPlaying={wn.isPlaying} playheadPosition={wn.playheadPosition}
+                      physicsParams={wn.physicsParams} inputText={wn.inputText} parseMode={wn.parseMode}
+                      styleSettings={wn.styleSettings} cameraKeyframes={wn.cameraKeyframes} onCameraChange={wn.handleCameraChange}
+                      physicsKeyframes={wn.physicsKeyframes} trackMeta={wn.trackMeta} isDark={wn.previewIsDark}
+                      isNetworkReady={wn.isNetworkReady} onNetworkReady={() => wn.setIsNetworkReady(true)}
+                      edgeAppearance={wn.edgeAppearance} canvasAspectRatio={wn.canvasAspectRatio} initProgress={wn.initProgress}
+                      visualSettings={wn.visualSettings} onNodeSelect={wn.setSelectedNode}
+                      pathNodes={wn.pathNodes} isPathPlaying={wn.isPathPlaying} onPathPlaybackFinished={() => wn.setIsPathPlaying(false)}
+                    />
+                  </div>
 
-          <div className="absolute left-6 z-50 flex items-center pointer-events-none"
-               style={{ top: offsets.top + 12, bottom: offsets.bottom + 12 }}>
-            <div className="pointer-events-auto">
-              <Toolbar activeTool={wn.activeTool} onToolChange={wn.setActiveTool} />
-            </div>
-          </div>
+                  <div className="absolute left-6 top-16 bottom-4 z-40 flex items-center pointer-events-none">
+                    <div className="pointer-events-auto">
+                      <Toolbar activeTool={wn.activeTool} onToolChange={wn.setActiveTool} />
+                    </div>
+                  </div>
 
-          {wn.activeTool === 'path' && (
-            <div className="absolute left-20 z-[60] pointer-events-none" style={{ top: offsets.top + 96 }}>
-              <div className="pointer-events-auto">
-                <PathAnimatorUI nodes={[]} onReorder={() => {}} onRemove={() => {}} onClose={() => wn.setActiveTool('pointer')} />
-              </div>
-            </div>
+                  {wn.activeTool === 'path' && (
+                    <div className="absolute left-20 top-24 z-50 pointer-events-none">
+                      <div className="pointer-events-auto">
+                        <PathAnimatorUI nodes={wn.pathNodes} onReorder={wn.reorderPathNodes} onRemove={wn.removePathNode} onClose={() => wn.setActiveTool('pointer')} onPlay={() => wn.setIsPathPlaying(p => !p)} isPlaying={wn.isPathPlaying} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none p-2 flex justify-center">
+                    <div className="pointer-events-auto w-full">
+                      <TopBar onOpenShortcuts={() => setIsShortcutsOpen(true)} />
+                    </div>
+                  </div>
+                </AppCanvas>
+              </ResizablePanel>
+
+              <ResizableHandle className="h-1 bg-white/10 hover:bg-white/30 transition-colors cursor-row-resize z-50" />
+
+              <ResizablePanel id="timeline-panel" defaultSize={30} minSize={15}>
+                <Timeline
+                  isPlaying={wn.isPlaying} onPlayPause={() => wn.setIsPlaying(p => !p)} onStop={() => { wn.setIsPlaying(false); wn.setPlayheadPosition(0); }}
+                  playheadPosition={wn.playheadPosition} onPlayheadChange={pos => { wn.setPlayheadPosition(pos); if (wn.isPlaying) wn.setIsPlaying(false); }}
+                  selectedKeyframes={wn.selectedKeyframes} onKeyframeSelect={wn.handleKeyframeSelect} onSelectKeyframes={wn.handleSelectKeyframes}
+                  cameraKeyframes={wn.cameraKeyframes} onCaptureKeyframe={wn.handleCaptureKeyframe} physicsKeyframes={wn.physicsKeyframes} onMoveKeyframe={wn.handleMoveKeyframe}
+                  onSetHandle={wn.handleSetHandle} onSetHandle2D={wn.handleSetHandle2D} onSetValue={wn.handleSetValue} onClearHandle={wn.handleClearHandle} onSetInterpolation={wn.handleSetInterpolation}
+                  onSetKeyframeEasing={wn.handleSetKeyframeEasing} onDeleteKeyframe={wn.handleDeleteKeyframe} onDuplicateKeyframe={wn.handleDuplicateKeyframe} onRippleDeleteKeyframe={wn.handleRippleDeleteKeyframe}
+                  onResetTrack={wn.handleResetTrack} onDragStart={wn.handleDragStart} onDragEnd={wn.handleDragEnd} onCancelDrag={wn.handleCancelDrag}
+                  timecode={wn.timecode} onUndo={wn.undo} onRedo={wn.redo} canUndo={wn.canUndo} canRedo={wn.canRedo} height={wn.timelineHeight}
+                  sceneMarkers={wn.sceneMarkers} onAddSceneMarker={wn.handleAddSceneMarker} onCreateKeyframesAtMarker={wn.handleCreateKeyframesAtMarker}
+                  onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker} onDropSceneMarker={wn.handleDropSceneMarker} onDeleteSceneMarker={wn.handleDeleteSceneMarker}
+                  isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)} trackMeta={wn.trackMeta}
+                  onSetTrackModulator={wn.handleSetTrackModulator} armedTracks={wn.armedTracks} onToggleTrackArm={wn.handleToggleTrackArm}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          {wn.isSidebarOpen && (
+            <ResizableHandle className="w-px bg-white/10 hover:bg-white/30 transition-colors cursor-col-resize z-50" />
           )}
 
-          <div ref={topBarRef} className="absolute top-0 left-0 right-0 z-50 pointer-events-none p-2">
-            <TopBar
-              onOpenShortcuts={() => setIsShortcutsOpen(true)}
-            />
-          </div>
-
-          <div ref={timelineRef} className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col">
-            <div className="h-1 shrink-0 cursor-row-resize bg-white/10 hover:bg-white/30 transition-colors pointer-events-auto"
-                 onMouseDown={startTimelineResize}
-                 onDoubleClick={() => wn.setTimelineHeight(DEFAULT_TIMELINE_HEIGHT)} />
-            <div className="pointer-events-auto">
-              <Timeline
-                isPlaying={wn.isPlaying} onPlayPause={() => wn.setIsPlaying(p => !p)}
-                onStop={() => { wn.setIsPlaying(false); wn.setPlayheadPosition(0); }}
-                playheadPosition={wn.playheadPosition}
-                onPlayheadChange={pos => { wn.setPlayheadPosition(pos); if (wn.isPlaying) wn.setIsPlaying(false); }}
-                selectedKeyframes={wn.selectedKeyframes}
-                onKeyframeSelect={wn.handleKeyframeSelect} onSelectKeyframes={wn.handleSelectKeyframes}
-                cameraKeyframes={wn.cameraKeyframes} onCaptureKeyframe={wn.handleCaptureKeyframe}
-                physicsKeyframes={wn.physicsKeyframes} onMoveKeyframe={wn.handleMoveKeyframe}
-                onSetHandle={wn.handleSetHandle} onSetHandle2D={wn.handleSetHandle2D}
-                onSetValue={wn.handleSetValue} onClearHandle={wn.handleClearHandle} onSetInterpolation={wn.handleSetInterpolation}
-                onSetKeyframeEasing={wn.handleSetKeyframeEasing}
-                onDeleteKeyframe={wn.handleDeleteKeyframe} onDuplicateKeyframe={wn.handleDuplicateKeyframe}
-                onRippleDeleteKeyframe={wn.handleRippleDeleteKeyframe}
-                onResetTrack={wn.handleResetTrack}
-                onDragStart={wn.handleDragStart} onDragEnd={wn.handleDragEnd} onCancelDrag={wn.handleCancelDrag}
-                timecode={wn.timecode} onUndo={wn.undo} onRedo={wn.redo}
-                canUndo={wn.canUndo} canRedo={wn.canRedo} height={wn.timelineHeight}
-                sceneMarkers={wn.sceneMarkers} onAddSceneMarker={wn.handleAddSceneMarker}
-                onCreateKeyframesAtMarker={wn.handleCreateKeyframesAtMarker}
-                onRenameSceneMarker={wn.handleRenameSceneMarker} onMoveSceneMarker={wn.handleMoveSceneMarker}
-                onDropSceneMarker={wn.handleDropSceneMarker} onDeleteSceneMarker={wn.handleDeleteSceneMarker}
-                isRecording={wn.isRecording} onToggleRecording={() => wn.setIsRecording(!wn.isRecording)}
-                trackMeta={wn.trackMeta}
-                onSetTrackModulator={wn.handleSetTrackModulator}
-                armedTracks={wn.armedTracks}
-                onToggleTrackArm={wn.handleToggleTrackArm}
+          <ResizablePanel
+            id="sidebar-panel" defaultSize={25} minSize={15} maxSize={45}
+            className={cn("transition-all duration-300", !wn.isSidebarOpen && "w-12! min-w-12! max-w-12! flex-none!")}
+          >
+            <AppSidebar>
+              <Sidebar
+                onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText} inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
+                onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))} styleSettings={wn.styleSettings} onEdgeAppearanceChange={wn.setEdgeAppearance}
+                effectivePhysicsParams={wn.physicsParams} trackMeta={wn.trackMeta} onSetTrackModulator={wn.handleSetTrackModulator} onSetTrackGlide={wn.handleSetTrackGlide}
+                canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio} currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}
+                physicsKeyframes={wn.physicsKeyframes} onTogglePhysicsKeyframe={wn.handleTogglePhysicsKeyframe} viewMode={wn.viewMode}
+                onDeleteKeyframe={(time) => wn.handleDeleteKeyframe('camera-keyframes', time)} onCollapse={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)}
+                isSidebarOpen={wn.isSidebarOpen} onToggleSidebar={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)} onPanView={(dx, dy) => wn.network3DRef.current?.panView(dx, dy)}
+                onRotateView={(dt, dp) => wn.network3DRef.current?.rotateView(dt, dp)} onSetRotation={(t, p) => wn.network3DRef.current?.setRotation(t, p)}
+                onResetView={() => wn.network3DRef.current?.resetView()} onZoomChange={(val) => { wn.setZoomValue(val); wn.network3DRef.current?.setZoom(val); }} zoomValue={wn.zoomValue}
+                visualSettings={wn.visualSettings} onVisualSettingsChange={wn.setVisualSettings} selectedNode={wn.selectedNode}
               />
-            </div>
-          </div>
-        </AppCanvas>
-
-        <AppSidebar>
-            <Sidebar
-              onPhysicsChange={wn.handlePhysicsChange} onTextChange={wn.setInputText}
-              inputText={wn.inputText} parseMode={wn.parseMode} onParsingChange={wn.setParseMode}
-              onStyleChange={(patch) => wn.setStyleSettings(prev => ({ ...prev, ...patch }))}
-              styleSettings={wn.styleSettings}
-              onEdgeAppearanceChange={wn.setEdgeAppearance}
-              effectivePhysicsParams={wn.physicsParams}
-              trackMeta={wn.trackMeta}
-              onSetTrackModulator={wn.handleSetTrackModulator}
-              onSetTrackGlide={wn.handleSetTrackGlide}
-              canvasAspectRatio={wn.canvasAspectRatio} onCanvasAspectRatioChange={wn.setCanvasAspectRatio}
-            currentTime={wn.playheadPosition} cameraKeyframes={wn.cameraKeyframes}
-            physicsKeyframes={wn.physicsKeyframes} onTogglePhysicsKeyframe={wn.handleTogglePhysicsKeyframe}
-            viewMode={wn.viewMode}
-            onDeleteKeyframe={(time) => wn.handleDeleteKeyframe('camera-keyframes', time)}
-            onCollapse={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)}
-            isSidebarOpen={wn.isSidebarOpen} onToggleSidebar={() => wn.setIsSidebarOpen(!wn.isSidebarOpen)}
-            onPanView={(dx, dy) => wn.network3DRef.current?.panView(dx, dy)}
-            onRotateView={(dt, dp) => wn.network3DRef.current?.rotateView(dt, dp)}
-            onSetRotation={(t, p) => wn.network3DRef.current?.setRotation(t, p)}
-            onResetView={() => wn.network3DRef.current?.resetView()}
-            onZoomChange={(val) => { wn.setZoomValue(val); wn.network3DRef.current?.setZoom(val); }}
-            zoomValue={wn.zoomValue}
-            visualSettings={wn.visualSettings} onVisualSettingsChange={wn.setVisualSettings}
-            selectedNode={wn.selectedNode}
-          />
-        </AppSidebar>
+            </AppSidebar>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
-      <ShortcutsDialog
-        isOpen={isShortcutsOpen}
-        onOpenChange={setIsShortcutsOpen}
-        shortcuts={shortcuts}
-        onAddShortcut={addShortcut}
-        onRemoveShortcut={removeShortcut}
-      />
+      <ShortcutsDialog isOpen={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} shortcuts={shortcuts} onAddShortcut={addShortcut} onRemoveShortcut={removeShortcut} />
     </>
   );
 }

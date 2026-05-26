@@ -4,16 +4,12 @@ This document outlines the current status of features, planned work, and known t
 
 ## Active
 
-- **Animation Phase 4.1.5: Segment-evaluator unification (next)**
-  - Consolidate three Hermite call sites (`evaluateTracks` worker, camera keyframes, GraphEditor draw) onto a single `animation/segmentEvaluate.ts`.
-- **Animation Phase 4.2: Visual effects pipeline (spike-gated)**
-  - EffectComposer + UnrealBloomPass; add `Effekte` section to Visual tab; keyframeable bloom intensity.
-
-## Planned
-
 - **Animation Phase 5: Toolbar functionality**
   - Wire `activeTool` to canvas event handlers (currently dead UI).
   - Paint brush, navigation tools, glitch tool.
+
+## Planned
+
 - **Future / Phase 6**
   - BPM / musical time, MIDI mapping, additional shader effects.
   - Auto-detect language activation (browser language behind opt-in toggle).
@@ -21,11 +17,25 @@ This document outlines the current status of features, planned work, and known t
 ## Known Gaps
 
 - **Phase 2 frozen features**: Shift-drag axis lock, Alt+background pan, time-reverse selection, easing click-cycle.
-- **Glide UI**: Worker-side glide works but no timeline UI surfaces it (design pending per §3.6).
-- **PathAnimatorUI**: Relies on legacy structures, not yet on the atomic pattern.
 
 ## Completed
 
+- **Bloom Parameter Normalization & Fine-Tuning**:
+  - Normalized selective bloom boosting by computing node color relative luminance (Rec. 709), scaling the boost factor dynamically so all hues glow with uniform intensity.
+  - Lowered default `bloomIntensity` (from 0.4 to 0.15) and `bloomRadius` (from 0.85 to 0.4) to eliminate blinding whiteout.
+  - Refined slider ranges (max intensity 2.0, max radius 1.5) and smoothed step sizes (0.01) in the Visual tab and LFO depth settings for subtle, precise control.
+- **Popover-based Modulator & Glide Controls**:
+  - Unified the modulator UI under a single Popover pattern for both the Physics Tab and Visual Tab (Bloom settings).
+  - Clicking the wave button immediately enables a default modulator if inactive and opens the popover, avoiding double-clicking.
+  - Placed LFO controls and Glide parameter settings inside the popover to keep the settings lists clean and avoid vertical layout clipping.
+- **Animation Phase 4.3: Bloom Refinements, Unified Effects Panel & Path Animator System**
+  - Consolidated effects lists (`effectsList`) and path node serialization across saves and loads.
+  - Implemented Catmull-Rom path drawing, animated emissive orb, active trail line, and smooth camera tracking in `Network3D.tsx`.
+  - Created a unified Figma-style "Effects" section with settings Popovers, type-cycling Select triggers, visibility toggles, and deletion.
+- **Animation Phase 4.1.5: Segment-evaluator unification**
+  - Consolidated three Hermite call sites (`evaluateTracks` worker, camera keyframes, GraphEditor draw) onto a single `animation/segmentEvaluate.ts`.
+- **Animation Phase 4.2: Visual effects pipeline**
+  - EffectComposer + UnrealBloomPass; added `Effekte` section to Visual tab; keyframeable bloom intensity.
 - **Sidebar Refactor (Phases 1–4)**
   - Renamed Inspector → Sidebar, standardised cascade (`SidebarSection` → `SidebarGroup` → `SidebarRow`).
   - Atomic composition across all 5 tabs, semantic `--wn-*` CSS variables.
@@ -44,3 +54,8 @@ This document outlines the current status of features, planned work, and known t
   - RAF leak fix, GPU teardown, modulation-aware physics wake, allocation hygiene, spatial grid typed-array, 2D overlap gating.
 - **Animation Phase 4.1: Network3D slim-composer extraction**
   - `Network3D.tsx` 1760 → 1198 lines (−32%). Logic now lives in `network3d/` (`textureCache`, `syncVisuals`, `workerGlue`) and `hooks/` (`useResizeObserver`, `useRaycastHover`, `useCameraFlyTo`, `usePhysicsWorkerSync`).
+- **Layout Overhaul & Physics Centering (Pro App Style)**
+  - Transitioned the entire app layout to a nested `ResizablePanelGroup` with persistent component trees (no WebGL canvas resets when toggling the sidebar).
+  - Replaced legacy linear-grid margins and card framing with full-bleed rendering and a modern radial dot grid backdrop.
+  - Implemented crop guide letterbox/pillarbox safe-frame overlays for non-full aspect ratio selections.
+  - Added Center of Mass coordinate and velocity drift correction inside `physics.worker.ts` to prevent the network from drifting away and disappearing when friction (damping) is low.

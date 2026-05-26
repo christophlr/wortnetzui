@@ -15,6 +15,9 @@ export type WorkspaceState = {
   sceneMarkers: any[];
   // Phase 3: per-track Glide + Modulator. Only non-default entries are persisted.
   trackMeta?: Record<string, { glide?: number; modulator?: Modulator }>;
+  // Phase 4.3 additions
+  visualSettings?: any;
+  pathNodes?: { id: string; label: string }[];
 };
 
 export function serializeTrackMeta(meta: Record<string, { glide: number; modulator?: Modulator }> | undefined) {

@@ -207,6 +207,12 @@ export function Sidebar({
                 visualSettings={visualSettings}
                 onStyleChange={onStyleChange}
                 onVisualSettingsChange={onVisualSettingsChange}
+                currentTime={currentTime}
+                physicsKeyframes={physicsKeyframes}
+                onTogglePhysicsKeyframe={onTogglePhysicsKeyframe}
+                trackMeta={trackMeta}
+                onSetTrackModulator={onSetTrackModulator}
+                onSetTrackGlide={onSetTrackGlide}
               />
             )}
 

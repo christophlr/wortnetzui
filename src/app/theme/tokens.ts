@@ -45,6 +45,8 @@ export type CssVarName =
   | '--wn-timeline-cyan-dot' | '--wn-timeline-cyan-border' | '--wn-timeline-cyan-track-bg'
   | '--wn-timeline-orange-kf-fill' | '--wn-timeline-orange-graph-stroke'
   | '--wn-timeline-orange-dot' | '--wn-timeline-orange-border' | '--wn-timeline-orange-track-bg'
+  | '--wn-timeline-purple-kf-fill' | '--wn-timeline-purple-graph-stroke'
+  | '--wn-timeline-purple-dot' | '--wn-timeline-purple-border' | '--wn-timeline-purple-track-bg'
   // Chart palette (defined in .dark scope)
   | '--chart-1' | '--chart-2' | '--chart-3' | '--chart-4' | '--chart-5';
 

@@ -46,8 +46,7 @@ export function LfoControlsBody({
   onChange: (m: Modulator | null) => void;
 }) {
   const { t } = useT();
-  const enabled = value !== null;
-  const current: Modulator = value ?? DEFAULT_MODULATOR;
+  const current: Modulator = value ?? { ...DEFAULT_MODULATOR, depth: depthMaxFor(paramKey) * 0.1 };
   const bpmEnabled = current.bpm != null;
   const waveformItems = WAVEFORMS.map(w => ({
     label: WAVEFORM_LABELS[w],
@@ -57,89 +56,80 @@ export function LfoControlsBody({
 
   return (
     <>
-      <SidebarToggleRow
-        label={t('timeline.lfo.enable')}
-        checked={enabled}
-        onCheckedChange={(v) => onChange(v ? { ...DEFAULT_MODULATOR, depth: 1 } : null)}
+      <SidebarSliderRow
+        label={t('timeline.lfo.waveform')}
+        slider={
+          <SidebarSegmentedPicker
+            items={waveformItems}
+            value={current.waveform}
+            onChange={(w) => onChange({ ...current, waveform: w })}
+          />
+        }
       />
-      {enabled ? (
+      <SidebarToggleRow
+        label={t('timeline.lfo.bpmSync')}
+        checked={bpmEnabled}
+        onCheckedChange={(v) => onChange(
+          v
+            ? { ...current, bpm: DEFAULT_BPM, rate: DEFAULT_BPM_RATE }
+            : { ...current, bpm: undefined, rate: 1 },
+        )}
+      />
+      {bpmEnabled ? (
         <>
+          <SidebarScrubberRow
+            label={t('timeline.lfo.bpm')}
+            value={current.bpm!}
+            min={20}
+            max={300}
+            step={1}
+            decimals={0}
+            format={(v) => String(Math.round(v))}
+            onValueChange={(v) => onChange({ ...current, bpm: Math.round(v) })}
+            onCommit={(v) => onChange({ ...current, bpm: Math.round(Math.max(20, Math.min(300, v))) })}
+          />
           <SidebarSliderRow
-            label={t('timeline.lfo.waveform')}
+            label={t('timeline.lfo.subdivision')}
             slider={
               <SidebarSegmentedPicker
-                items={waveformItems}
-                value={current.waveform}
-                onChange={(w) => onChange({ ...current, waveform: w })}
+                items={BPM_SUB_ITEMS}
+                value={current.rate}
+                onChange={(r) => onChange({ ...current, rate: r })}
               />
             }
           />
-          <SidebarToggleRow
-            label={t('timeline.lfo.bpmSync')}
-            checked={bpmEnabled}
-            onCheckedChange={(v) => onChange(
-              v
-                ? { ...current, bpm: DEFAULT_BPM, rate: DEFAULT_BPM_RATE }
-                : { ...current, bpm: undefined, rate: 1 },
-            )}
-          />
-          {bpmEnabled ? (
-            <>
-              <SidebarScrubberRow
-                label={t('timeline.lfo.bpm')}
-                value={current.bpm!}
-                min={20}
-                max={300}
-                step={1}
-                decimals={0}
-                format={(v) => String(Math.round(v))}
-                onValueChange={(v) => onChange({ ...current, bpm: Math.round(v) })}
-                onCommit={(v) => onChange({ ...current, bpm: Math.round(Math.max(20, Math.min(300, v))) })}
-              />
-              <SidebarSliderRow
-                label={t('timeline.lfo.subdivision')}
-                slider={
-                  <SidebarSegmentedPicker
-                    items={BPM_SUB_ITEMS}
-                    value={current.rate}
-                    onChange={(r) => onChange({ ...current, rate: r })}
-                  />
-                }
-              />
-            </>
-          ) : (
-            <SidebarScrubberRow
-              label={t('timeline.lfo.rate')}
-              value={current.rate}
-              min={0.1}
-              max={10}
-              step={0.1}
-              onValueChange={(v) => onChange({ ...current, rate: v })}
-              onCommit={(v) => onChange({ ...current, rate: Math.max(0.1, Math.min(10, v)) })}
-            />
-          )}
-          <SidebarScrubberRow
-            label={t('timeline.lfo.depth')}
-            value={current.depth}
-            min={0}
-            max={depthMaxFor(paramKey)}
-            step={depthStepFor(paramKey)}
-            onValueChange={(v) => onChange({ ...current, depth: v })}
-            onCommit={(v) => onChange({ ...current, depth: Math.max(0, v) })}
-          />
-          <SidebarScrubberRow
-            label={t('timeline.lfo.phase')}
-            value={current.phase}
-            min={0}
-            max={TWO_PI}
-            step={TWO_PI / 32}
-            onValueChange={(v) => onChange({ ...current, phase: v })}
-            onCommit={(v) => onChange({ ...current, phase: ((v % TWO_PI) + TWO_PI) % TWO_PI })}
-          />
-          {trackId === 'phys-rep' ? (
-            <SidebarDescription>{t('timeline.lfo.hint')}</SidebarDescription>
-          ) : null}
         </>
+      ) : (
+        <SidebarScrubberRow
+          label={t('timeline.lfo.rate')}
+          value={current.rate}
+          min={0.1}
+          max={10}
+          step={0.1}
+          onValueChange={(v) => onChange({ ...current, rate: v })}
+          onCommit={(v) => onChange({ ...current, rate: Math.max(0.1, Math.min(10, v)) })}
+        />
+      )}
+      <SidebarScrubberRow
+        label={t('timeline.lfo.depth')}
+        value={current.depth}
+        min={0}
+        max={depthMaxFor(paramKey)}
+        step={depthStepFor(paramKey)}
+        onValueChange={(v) => onChange({ ...current, depth: v })}
+        onCommit={(v) => onChange({ ...current, depth: Math.max(0, v) })}
+      />
+      <SidebarScrubberRow
+        label={t('timeline.lfo.phase')}
+        value={current.phase}
+        min={0}
+        max={TWO_PI}
+        step={TWO_PI / 32}
+        onValueChange={(v) => onChange({ ...current, phase: v })}
+        onCommit={(v) => onChange({ ...current, phase: ((v % TWO_PI) + TWO_PI) % TWO_PI })}
+      />
+      {trackId === 'phys-rep' ? (
+        <SidebarDescription>{t('timeline.lfo.hint')}</SidebarDescription>
       ) : null}
     </>
   );
@@ -183,7 +173,7 @@ export function LfoControls({
 // Depth max scales to the param's native range so the slider feels useful.
 // Numbers chosen to roughly match the typical sidebar slider span — fine-tuned
 // later if specific tracks feel cramped.
-function depthMaxFor(paramKey: string): number {
+export function depthMaxFor(paramKey: string): number {
   switch (paramKey) {
     case 'repulsion':    return 1500;
     case 'springK':      return 0.5;
@@ -193,10 +183,26 @@ function depthMaxFor(paramKey: string): number {
     case 'gravity':      return 5;
     case 'turbulence':   return 5;
     case 'verticalOrder':return 5;
+    case 'bloomIntensity': return 2;
+    case 'bloomRadius':    return 1.5;
+    case 'bloomThreshold': return 1;
+    case 'bloomSelectiveRatio':
+    case 'selectiveRatio': return 1;
+    case 'bloomFlickerSpeed':
+    case 'flickerSpeed':   return 5;
+    case 'nodeScale':      return 2.5;
+    case 'edgeOpacity':    return 1;
+    case 'radialBiasScale':
+    case 'radialBias':     return 1;
+    case 'glitchBrushRadius': return 500;
+    case 'glitchFeather':  return 1;
+    case 'pathSmoothness': return 1;
+    case 'gradientHueShift':
+    case 'hueShift':       return 360;
     default:             return 1;
   }
 }
 
-function depthStepFor(paramKey: string): number {
+export function depthStepFor(paramKey: string): number {
   return depthMaxFor(paramKey) / 100;
 }

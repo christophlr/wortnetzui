@@ -40,10 +40,6 @@ export function getNetworkThemeBackground(isDark?: boolean): NetworkThemeBackgro
 }
 
 export function getNetworkLabelStyle(isDark?: boolean): NetworkLabelStyle {
-  const dark = isDark !== undefined ? isDark : document.documentElement.classList.contains('dark');
-  if (dark) {
-    return { backgroundHex: '#18181b' }; // Zinc-900 for labels
-  }
-
+  // Always return '#ffffff' to ensure node shapes are filled with the vibrant gradient color when tinted on the GPU
   return { backgroundHex: '#ffffff' };
 }
