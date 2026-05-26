@@ -236,13 +236,12 @@ export function Scrubber({
       >
         <motion.div
           animate={{
-            opacity: isActive ? 1.0 : 0.5,
-            scaleX: isActive ? 1 : 0.75,
-            scaleY: isActive ? 1 : 0.75,
+            opacity: isActive ? 1.0 : 0.6,
+            scaleY: isActive ? 1 : 0.82,
           }}
           transition={spring}
-          className="bg-wn-accent rounded-full"
-          style={{ width: 2, height: 18 }}
+          className="bg-wn-accent rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+          style={{ width: 5, height: 20 }}
         />
       </div>
 
